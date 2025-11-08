@@ -130,7 +130,7 @@
 ---
 
 ### 10. Network Engineer (Security-Focused)
-[![Role](https://skillicons.dev/icons?i=cloudfare)](https://skillicons.dev)
+[![Role](https://skillicons.dev/icons?i=cloudflare)](https://skillicons.dev)
 
 | Level | Certification | Organization | Link |
 |-------|--------------|--------------|------|
