@@ -1,6 +1,6 @@
 # Cybersecurity Projects & Learning Labs
-## 22 Project Ideas with instructions & 10 Certification Roadmaps by roles
-## 2 of these projects I've fully built for you, with full source code and documentation so you can clone, learn, and customize!
+### 22 Project Ideas with instructions & 10 Certification Roadmaps by roles
+### 2 of these projects I've fully built for you, with full source code and documentation so you can clone, learn, and customize!
 View implementations: [projects/](./projects/)
 #### As time goes on I will fully build each and everyone of these projects so all 22 are available with full source code and documentation.
 ---
