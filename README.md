@@ -2,7 +2,7 @@
 
 
 ---
-## 📋 Certification Roadmap by Role
+## (https://skillicons.dev/icons?i=linux)](https://skillicons.dev) Certification Roadmap by Role
 
 ### 1. SOC Analyst
 
