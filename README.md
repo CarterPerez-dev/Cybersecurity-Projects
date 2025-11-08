@@ -1,5 +1,4 @@
 # Cybersecurity Projects & Learning Labs
-# <img src="https://readme-typing-svg.herokuapp.com?font=Montserrat&weight=500&size=25&duration=3000&pause=200&color=b30000&width=435&lines=Cybersecurity Projects & Learning Lab" alt="Cybersecurity Projects & Learning Lab"/>
 ### 22 Project Ideas with instructions & 10 Certification Roadmaps by roles
 ### 2 of these projects I've fully built for you, with full source code and documentation so you can clone, learn, and customize!
 View implementations: [projects/](./projects/)
