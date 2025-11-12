@@ -9,13 +9,16 @@ repos:
         files: ^PROJECTS/api-security-scanner/backend/
         exclude: ^PROJECTS/api-security-scanner/backend/(\.venv|__pycache__|\.pytest_cache)/
 
-      - id: ruff-format
-        name: ruff format (backend)
-        files: ^PROJECTS/api-security-scanner/backend/
-        exclude: ^PROJECTS/api-security-scanner/backend/(\.venv|__pycache__|\.pytest_cache)/
-
   - repo: local
     hooks:
+      - id: yapf
+        name: yapf format (backend)
+        entry: bash -c 'cd PROJECTS/api-security-scanner/backend && yapf -i -r -vv models/ repositories/ schemas/ scanners/ core/ factory/'
+        language: system
+        types: [python]
+        files: ^PROJECTS/api-security-scanner/backend/
+        pass_filenames: false
+
       - id: mypy
         name: mypy type check (backend)
         entry: bash -c 'cd PROJECTS/api-security-scanner/backend && mypy .'

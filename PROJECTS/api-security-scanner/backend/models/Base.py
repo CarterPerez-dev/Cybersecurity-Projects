@@ -24,12 +24,20 @@ class BaseModel(Base):
 
     __abstract__ = True
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    id = Column(
+        Integer,
+        primary_key = True,
+        index = True,
+        autoincrement = True
+    )
+    created_at = Column(
+        DateTime(timezone = True),
+        default = lambda: datetime.now(UTC)
+    )
     updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        DateTime(timezone = True),
+        default = lambda: datetime.now(UTC),
+        onupdate = lambda: datetime.now(UTC),
     )
 
     @declared_attr
@@ -46,7 +54,11 @@ class BaseModel(Base):
         Returns:
             dict: Dictionary representation of the model
         """
-        return {column.name: getattr(self, column.name) for column in self.__table__.columns}
+        return {
+            column.name: getattr(self,
+                                 column.name)
+            for column in self.__table__.columns
+        }
 
     def update(self, **kwargs: Any) -> None:
         """

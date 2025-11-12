@@ -35,7 +35,6 @@ class AuthScanner(BaseScanner):
 
     Maps to OWASP API Security Top 10 2023: API2:2023
     """
-
     def scan(self) -> TestResultCreate:
         """
         Execute authentication tests
@@ -46,10 +45,10 @@ class AuthScanner(BaseScanner):
         missing_auth_test = self._test_missing_authentication()
         if missing_auth_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details="Endpoint accessible without authentication",
-                evidence=missing_auth_test,
-                severity=Severity.HIGH,
-                recommendations=[
+                details = "Endpoint accessible without authentication",
+                evidence = missing_auth_test,
+                severity = Severity.HIGH,
+                recommendations = [
                     "Require authentication for all sensitive endpoints",
                     "Implement proper authentication middleware",
                     "Return 401 Unauthorized for missing/invalid credentials",
@@ -60,10 +59,11 @@ class AuthScanner(BaseScanner):
             jwt_test = self._test_jwt_vulnerabilities()
             if jwt_test["vulnerable"]:
                 return self._create_vulnerable_result(
-                    details=f"JWT vulnerability: {jwt_test['vulnerability_type']}",
-                    evidence=jwt_test,
-                    severity=Severity.CRITICAL,
-                    recommendations=jwt_test.get(
+                    details =
+                    f"JWT vulnerability: {jwt_test['vulnerability_type']}",
+                    evidence = jwt_test,
+                    severity = Severity.CRITICAL,
+                    recommendations = jwt_test.get(
                         "recommendations",
                         [
                             "Properly validate JWT signatures",
@@ -77,10 +77,10 @@ class AuthScanner(BaseScanner):
         invalid_token_test = self._test_invalid_token_handling()
         if invalid_token_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details="Invalid tokens accepted by endpoint",
-                evidence=invalid_token_test,
-                severity=Severity.HIGH,
-                recommendations=[
+                details = "Invalid tokens accepted by endpoint",
+                evidence = invalid_token_test,
+                severity = Severity.HIGH,
+                recommendations = [
                     "Reject invalid/malformed tokens with 401 status",
                     "Validate token format, signature, and expiration",
                     "Log authentication failures for monitoring",
@@ -88,15 +88,15 @@ class AuthScanner(BaseScanner):
             )
 
         return TestResultCreate(
-            test_name=TestType.AUTH,
-            status=ScanStatus.SAFE,
-            severity=Severity.INFO,
-            details="Authentication properly implemented",
-            evidence_json={
+            test_name = TestType.AUTH,
+            status = ScanStatus.SAFE,
+            severity = Severity.INFO,
+            details = "Authentication properly implemented",
+            evidence_json = {
                 "missing_auth_test": missing_auth_test,
                 "invalid_token_test": invalid_token_test,
             },
-            recommendations_json=[
+            recommendations_json = [
                 "Authentication is properly configured",
                 "Consider implementing additional security measures (2FA, refresh tokens)",
             ],
@@ -114,7 +114,8 @@ class AuthScanner(BaseScanner):
         session_without_auth = self.session.__class__()
         session_without_auth.headers.update(
             {
-                "User-Agent": f"{settings.APP_NAME}/{settings.VERSION}",
+                "User-Agent":
+                f"{settings.APP_NAME}/{settings.VERSION}",
                 "Accept": "application/json",
             }
         )
@@ -122,22 +123,29 @@ class AuthScanner(BaseScanner):
         try:
             response = session_without_auth.get(
                 self.target_url,
-                timeout=settings.SCANNER_CONNECTION_TIMEOUT,
+                timeout = settings.SCANNER_CONNECTION_TIMEOUT,
             )
 
             if response.status_code == 200:
                 return {
-                    "vulnerable": True,
-                    "status_code": response.status_code,
-                    "response_length": len(response.text),
-                    "description": "Endpoint accessible without authentication",
+                    "vulnerable":
+                    True,
+                    "status_code":
+                    response.status_code,
+                    "response_length":
+                    len(response.text),
+                    "description":
+                    "Endpoint accessible without authentication",
                 }
 
             if response.status_code in (401, 403):
                 return {
-                    "vulnerable": False,
-                    "status_code": response.status_code,
-                    "description": "Endpoint properly requires authentication",
+                    "vulnerable":
+                    False,
+                    "status_code":
+                    response.status_code,
+                    "description":
+                    "Endpoint properly requires authentication",
                 }
 
             return {
@@ -150,7 +158,8 @@ class AuthScanner(BaseScanner):
             return {
                 "vulnerable": False,
                 "error": str(e),
-                "description": "Error testing authentication requirement",
+                "description":
+                "Error testing authentication requirement",
             }
 
     def _test_jwt_vulnerabilities(self) -> dict[str, Any]:
@@ -181,7 +190,9 @@ class AuthScanner(BaseScanner):
 
         return {
             "vulnerable": False,
-            "tests_performed": ["none_algorithm", "signature_removal"],
+            "tests_performed":
+            ["none_algorithm",
+             "signature_removal"],
             "description": "No JWT vulnerabilities detected",
         }
 
@@ -201,7 +212,10 @@ class AuthScanner(BaseScanner):
 
             for variant in none_variants:
                 malicious_header = self._base64url_encode(
-                    json.dumps({"alg": variant, "typ": "JWT"})
+                    json.dumps({
+                        "alg": variant,
+                        "typ": "JWT"
+                    })
                 )
 
                 malicious_token = f"{malicious_header}.{payload}."
@@ -209,15 +223,21 @@ class AuthScanner(BaseScanner):
                 response = self.make_request(
                     "GET",
                     "/",
-                    headers={"Authorization": f"Bearer {malicious_token}"},
+                    headers = {
+                        "Authorization": f"Bearer {malicious_token}"
+                    },
                 )
 
                 if response.status_code == 200:
                     return {
-                        "vulnerable": True,
-                        "vulnerability_type": "JWT None Algorithm",
-                        "algorithm_variant": variant,
-                        "status_code": response.status_code,
+                        "vulnerable":
+                        True,
+                        "vulnerability_type":
+                        "JWT None Algorithm",
+                        "algorithm_variant":
+                        variant,
+                        "status_code":
+                        response.status_code,
                         "recommendations": [
                             "Reject tokens with 'none' algorithm (all case variations)",
                             "Explicitly verify signature before accepting tokens",
@@ -252,14 +272,19 @@ class AuthScanner(BaseScanner):
             response = self.make_request(
                 "GET",
                 "/",
-                headers={"Authorization": f"Bearer {malicious_token}"},
+                headers = {
+                    "Authorization": f"Bearer {malicious_token}"
+                },
             )
 
             if response.status_code == 200:
                 return {
-                    "vulnerable": True,
-                    "vulnerability_type": "JWT Signature Not Verified",
-                    "status_code": response.status_code,
+                    "vulnerable":
+                    True,
+                    "vulnerability_type":
+                    "JWT Signature Not Verified",
+                    "status_code":
+                    response.status_code,
                     "recommendations": [
                         "Require valid signature on all JWT tokens",
                         "Reject tokens with missing or invalid signatures",
@@ -295,13 +320,15 @@ class AuthScanner(BaseScanner):
                 response = self.make_request(
                     "GET",
                     "/",
-                    headers={"Authorization": f"Bearer {invalid_token}"},
+                    headers = {
+                        "Authorization": f"Bearer {invalid_token}"
+                    },
                 )
 
                 if response.status_code == 200:
                     accepted_invalid.append(
                         {
-                            "token": invalid_token[:50],
+                            "token": invalid_token[: 50],
                             "status_code": response.status_code,
                         }
                     )
@@ -355,7 +382,8 @@ class AuthScanner(BaseScanner):
     def _create_vulnerable_result(
         self,
         details: str,
-        evidence: dict[str, Any],
+        evidence: dict[str,
+                       Any],
         severity: Severity = Severity.HIGH,
         recommendations: list[str] | None = None,
     ) -> TestResultCreate:
@@ -372,10 +400,10 @@ class AuthScanner(BaseScanner):
             TestResultCreate: Vulnerable result
         """
         return TestResultCreate(
-            test_name=TestType.AUTH,
-            status=ScanStatus.VULNERABLE,
-            severity=severity,
-            details=details,
-            evidence_json=evidence,
-            recommendations_json=recommendations or [],
+            test_name = TestType.AUTH,
+            status = ScanStatus.VULNERABLE,
+            severity = severity,
+            details = details,
+            evidence_json = evidence,
+            recommendations_json = recommendations or [],
         )

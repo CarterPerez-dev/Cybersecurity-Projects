@@ -19,8 +19,8 @@ class UserCreate(BaseModel):
 
     email: EmailStr
     password: str = Field(
-        min_length=settings.PASSWORD_MIN_LENGTH,
-        max_length=settings.PASSWORD_MAX_LENGTH,
+        min_length = settings.PASSWORD_MIN_LENGTH,
+        max_length = settings.PASSWORD_MAX_LENGTH,
     )
 
     @field_validator("password")
@@ -30,11 +30,17 @@ class UserCreate(BaseModel):
         Validate password meets security requirements
         """
         if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
+            raise ValueError(
+                "Password must contain at least one uppercase letter"
+            )
         if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
+            raise ValueError(
+                "Password must contain at least one lowercase letter"
+            )
         if not re.search(r"[0-9]", v):
-            raise ValueError("Password must contain at least one number")
+            raise ValueError(
+                "Password must contain at least one number"
+            )
         return v
 
 
@@ -53,7 +59,7 @@ class UserResponse(BaseModel):
     Excludes sensitive fields like hashed_password.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes = True)
 
     id: int
     email: str

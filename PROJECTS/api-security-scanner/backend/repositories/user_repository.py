@@ -15,7 +15,6 @@ class UserRepository:
     """
     Repository for User database operations
     """
-
     @staticmethod
     def get_by_id(db: Session, user_id: int) -> User | None:
         """
@@ -46,7 +45,10 @@ class UserRepository:
 
     @staticmethod
     def create_user(
-        db: Session, email: str, hashed_password: str, commit: bool = True
+        db: Session,
+        email: str,
+        hashed_password: str,
+        commit: bool = True
     ) -> User:
         """
         Create a new user
@@ -60,7 +62,7 @@ class UserRepository:
         Returns:
             User: Created user instance
         """
-        user = User(email=email, hashed_password=hashed_password)
+        user = User(email = email, hashed_password = hashed_password)
         db.add(user)
         if commit:
             db.commit()
@@ -68,7 +70,11 @@ class UserRepository:
         return user
 
     @staticmethod
-    def get_all_active(db: Session, skip: int = 0, limit: int | None = None) -> list[User]:
+    def get_all_active(
+        db: Session,
+        skip: int = 0,
+        limit: int | None = None
+    ) -> list[User]:
         """
         Get all active users with pagination
 
@@ -83,11 +89,15 @@ class UserRepository:
         if limit is None:
             limit = settings.DEFAULT_PAGINATION_LIMIT
 
-        return db.query(User).filter(User.is_active).offset(skip).limit(limit).all()
+        return db.query(User).filter(User.is_active
+                                     ).offset(skip).limit(limit).all()
 
     @staticmethod
     def update_active_status(
-        db: Session, user_id: int, is_active: bool, commit: bool = True
+        db: Session,
+        user_id: int,
+        is_active: bool,
+        commit: bool = True
     ) -> User | None:
         """
         Update user active status
@@ -110,7 +120,11 @@ class UserRepository:
         return user
 
     @staticmethod
-    def delete(db: Session, user_id: int, commit: bool = True) -> bool:
+    def delete(
+        db: Session,
+        user_id: int,
+        commit: bool = True
+    ) -> bool:
         """
         Delete a user
 

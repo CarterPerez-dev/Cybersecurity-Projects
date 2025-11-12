@@ -26,7 +26,6 @@ class RateLimitScanner(BaseScanner):
     """
     Rate limiting and bypass vulnerabilities tests
     """
-
     def scan(self) -> TestResultCreate:
         """
         Execute rate limiting tests
@@ -38,9 +37,10 @@ class RateLimitScanner(BaseScanner):
 
         if not rate_limit_info["rate_limit_detected"]:
             return self._create_vulnerable_result(
-                details="No rate limiting detected on target endpoint",
-                evidence=rate_limit_info,
-                recommendations=[
+                details =
+                "No rate limiting detected on target endpoint",
+                evidence = rate_limit_info,
+                recommendations = [
                     "Implement rate limiting to prevent abuse and DoS attacks",
                     "Use standard rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining)",
                     "Return 429 Too Many Requests when limits are exceeded",
@@ -50,10 +50,11 @@ class RateLimitScanner(BaseScanner):
 
         if rate_limit_info["enforcement_status"] == "HEADERS_ONLY":
             return self._create_vulnerable_result(
-                details="Rate limit headers present but not enforced",
-                evidence=rate_limit_info,
-                severity=Severity.MEDIUM,
-                recommendations=[
+                details =
+                "Rate limit headers present but not enforced",
+                evidence = rate_limit_info,
+                severity = Severity.MEDIUM,
+                recommendations = [
                     "Enforce rate limits with 429 responses when thresholds are exceeded",
                     "Rate limit headers without enforcement provide false security",
                 ],
@@ -63,13 +64,14 @@ class RateLimitScanner(BaseScanner):
 
         if bypass_results["bypass_successful"]:
             return self._create_vulnerable_result(
-                details=f"Rate limiting bypassed using: {bypass_results['bypass_method']}",
-                evidence={
+                details =
+                f"Rate limiting bypassed using: {bypass_results['bypass_method']}",
+                evidence = {
                     "rate_limit_info": rate_limit_info,
                     "bypass_details": bypass_results,
                 },
-                severity=Severity.HIGH,
-                recommendations=[
+                severity = Severity.HIGH,
+                recommendations = [
                     f"Fix bypass vulnerability: {bypass_results['bypass_method']}",
                     "Do not trust client-provided IP headers (X-Forwarded-For, X-Real-IP)",
                     "Implement rate limiting at multiple layers (IP, user, API key)",
@@ -78,21 +80,25 @@ class RateLimitScanner(BaseScanner):
             )
 
         return TestResultCreate(
-            test_name=TestType.RATE_LIMIT,
-            status=ScanStatus.SAFE,
-            severity=Severity.INFO,
-            details="Rate limiting properly implemented and enforced",
-            evidence_json={
+            test_name = TestType.RATE_LIMIT,
+            status = ScanStatus.SAFE,
+            severity = Severity.INFO,
+            details =
+            "Rate limiting properly implemented and enforced",
+            evidence_json = {
                 "rate_limit_info": rate_limit_info,
                 "bypass_attempts": bypass_results,
             },
-            recommendations_json=[
+            recommendations_json = [
                 "Rate limiting is properly configured",
                 "Continue monitoring for new bypass techniques",
             ],
         )
 
-    def _detect_rate_limiting(self, test_request_count: int = 20) -> dict[str, Any]:
+    def _detect_rate_limiting(self,
+                              test_request_count: int = 20
+                              ) -> dict[str,
+                                        Any]:
         """
         Detect rate limiting by analyzing headers and response patterns
 
@@ -104,7 +110,8 @@ class RateLimitScanner(BaseScanner):
         Returns:
             dict[str, Any]: Rate limiting detection results
         """
-        rate_limit_patterns = RateLimitBypassPayloads.get_header_patterns()
+        rate_limit_patterns = RateLimitBypassPayloads.get_header_patterns(
+        )
 
         results = {
             "rate_limit_detected": False,
@@ -120,23 +127,35 @@ class RateLimitScanner(BaseScanner):
             try:
                 response = self.make_request("GET", "/")
 
-                headers_lower = {k.lower(): v for k, v in response.headers.items()}
+                headers_lower = {
+                    k.lower(): v
+                    for k, v in response.headers.items()
+                }
 
                 for header_type, pattern in rate_limit_patterns.items():
                     for header_name, header_value in headers_lower.items():
-                        if re.search(pattern, header_name, re.IGNORECASE):
-                            results["rate_limit_headers"][header_type] = {
-                                "header_name": header_name,
-                                "value": header_value,
-                            }
+                        if re.search(pattern,
+                                     header_name,
+                                     re.IGNORECASE):
+                            results["rate_limit_headers"][
+                                header_type] = {
+                                    "header_name": header_name,
+                                    "value": header_value,
+                                }
                             results["rate_limit_detected"] = True
 
                 results["request_results"].append(
                     {
-                        "attempt": attempt,
-                        "status_code": response.status_code,
-                        "response_time_ms": round(
-                            getattr(response, "request_time", 0.0) * 1000, 2
+                        "attempt":
+                        attempt,
+                        "status_code":
+                        response.status_code,
+                        "response_time_ms":
+                        round(
+                            getattr(response,
+                                    "request_time",
+                                    0.0) * 1000,
+                            2
                         ),
                     }
                 )
@@ -154,15 +173,22 @@ class RateLimitScanner(BaseScanner):
                 time.sleep(0.1)
 
             except Exception as e:
-                results["request_results"].append({"attempt": attempt, "error": str(e)})
+                results["request_results"].append(
+                    {
+                        "attempt": attempt,
+                        "error": str(e)
+                    }
+                )
                 break
 
         if results["rate_limit_detected"]:
             if "limit" in results["rate_limit_headers"]:
-                results["limit_threshold"] = results["rate_limit_headers"]["limit"]["value"]
+                results["limit_threshold"] = results[
+                    "rate_limit_headers"]["limit"]["value"]
 
             if "reset" in results["rate_limit_headers"]:
-                results["reset_window"] = results["rate_limit_headers"]["reset"]["value"]
+                results["reset_window"] = results["rate_limit_headers"
+                                                  ]["reset"]["value"]
 
             if not results["enforcement_status"]:
                 results["enforcement_status"] = "HEADERS_ONLY"
@@ -209,7 +235,9 @@ class RateLimitScanner(BaseScanner):
 
         return results
 
-    def _test_ip_header_bypass(self, test_count: int = 15) -> dict[str, Any]:
+    def _test_ip_header_bypass(self,
+                               test_count: int = 15) -> dict[str,
+                                                             Any]:
         """
         Test if rate limiting can be bypassed with IP spoofing headers
 
@@ -233,7 +261,11 @@ class RateLimitScanner(BaseScanner):
                 test_headers = {header_name: fake_ip}
 
                 try:
-                    response = self.make_request("GET", "/", headers=test_headers)
+                    response = self.make_request(
+                        "GET",
+                        "/",
+                        headers = test_headers
+                    )
 
                     if response.status_code != 429:
                         success_count += 1
@@ -253,7 +285,8 @@ class RateLimitScanner(BaseScanner):
 
         return {
             "bypass_successful": False,
-            "headers_tested": [list(h.keys())[0] for h in bypass_headers],
+            "headers_tested":
+            [list(h.keys())[0] for h in bypass_headers],
         }
 
     def _test_endpoint_variation_bypass(self) -> dict[str, Any]:
@@ -295,7 +328,8 @@ class RateLimitScanner(BaseScanner):
     def _create_vulnerable_result(
         self,
         details: str,
-        evidence: dict[str, Any],
+        evidence: dict[str,
+                       Any],
         severity: Severity = Severity.HIGH,
         recommendations: list[str] | None = None,
     ) -> TestResultCreate:
@@ -312,10 +346,10 @@ class RateLimitScanner(BaseScanner):
             TestResultCreate: Vulnerable result
         """
         return TestResultCreate(
-            test_name=TestType.RATE_LIMIT,
-            status=ScanStatus.VULNERABLE,
-            severity=severity,
-            details=details,
-            evidence_json=evidence,
-            recommendations_json=recommendations or [],
+            test_name = TestType.RATE_LIMIT,
+            status = ScanStatus.VULNERABLE,
+            severity = severity,
+            details = details,
+            evidence_json = evidence,
+            recommendations_json = recommendations or [],
         )

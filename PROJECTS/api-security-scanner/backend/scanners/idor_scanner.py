@@ -30,7 +30,6 @@ class IDORScanner(BaseScanner):
 
     Maps to OWASP API Security Top 10 2023: API1:2023
     """
-
     def scan(self) -> TestResultCreate:
         """
         Execute IDOR/BOLA tests
@@ -42,10 +41,11 @@ class IDORScanner(BaseScanner):
 
         if id_enumeration_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details=f"IDOR vulnerability detected: {id_enumeration_test['vulnerability_type']}",
-                evidence=id_enumeration_test,
-                severity=Severity.HIGH,
-                recommendations=[
+                details =
+                f"IDOR vulnerability detected: {id_enumeration_test['vulnerability_type']}",
+                evidence = id_enumeration_test,
+                severity = Severity.HIGH,
+                recommendations = [
                     "Implement proper authorization checks for all object access",
                     "Verify user owns/has permission to access requested resource",
                     "Use UUIDs instead of sequential IDs (but still check authorization)",
@@ -58,10 +58,11 @@ class IDORScanner(BaseScanner):
 
         if predictable_id_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details="Predictable ID patterns detected enabling enumeration",
-                evidence=predictable_id_test,
-                severity=Severity.MEDIUM,
-                recommendations=[
+                details =
+                "Predictable ID patterns detected enabling enumeration",
+                evidence = predictable_id_test,
+                severity = Severity.MEDIUM,
+                recommendations = [
                     "Use non-sequential, non-predictable identifiers (UUIDs)",
                     "Implement rate limiting on ID-based endpoints",
                     "Add authorization checks regardless of ID format",
@@ -69,15 +70,15 @@ class IDORScanner(BaseScanner):
             )
 
         return TestResultCreate(
-            test_name=TestType.IDOR,
-            status=ScanStatus.SAFE,
-            severity=Severity.INFO,
-            details="No IDOR/BOLA vulnerabilities detected",
-            evidence_json={
+            test_name = TestType.IDOR,
+            status = ScanStatus.SAFE,
+            severity = Severity.INFO,
+            details = "No IDOR/BOLA vulnerabilities detected",
+            evidence_json = {
                 "id_enumeration_test": id_enumeration_test,
                 "predictable_id_test": predictable_id_test,
             },
-            recommendations_json=[
+            recommendations_json = [
                 "Authorization checks appear to be in place",
                 "Continue monitoring for authorization bypasses",
             ],
@@ -101,7 +102,9 @@ class IDORScanner(BaseScanner):
                 "description": "No IDs found in endpoint responses",
             }
 
-        numeric_test = self._test_numeric_id_manipulation(extracted_ids)
+        numeric_test = self._test_numeric_id_manipulation(
+            extracted_ids
+        )
         if numeric_test["vulnerable"]:
             return numeric_test
 
@@ -133,21 +136,31 @@ class IDORScanner(BaseScanner):
             response_text = response.text
 
             uuid_pattern = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-            uuids = re.findall(uuid_pattern, response_text, re.IGNORECASE)
+            uuids = re.findall(
+                uuid_pattern,
+                response_text,
+                re.IGNORECASE
+            )
 
             numeric_id_pattern = r'"id"\s*:\s*(\d+)'
-            numeric_ids = re.findall(numeric_id_pattern, response_text)
+            numeric_ids = re.findall(
+                numeric_id_pattern,
+                response_text
+            )
 
             ids = []
-            ids.extend(uuids[:3])
-            ids.extend([int(nid) for nid in numeric_ids[:3]])
+            ids.extend(uuids[: 3])
+            ids.extend([int(nid) for nid in numeric_ids[: 3]])
 
             return ids
 
         except Exception:
             return []
 
-    def _test_numeric_id_manipulation(self, extracted_ids: list[Any]) -> dict[str, Any]:
+    def _test_numeric_id_manipulation(self,
+                                      extracted_ids: list[Any]
+                                      ) -> dict[str,
+                                                Any]:
         """
         Test numeric ID manipulation for IDOR
 
@@ -157,7 +170,10 @@ class IDORScanner(BaseScanner):
         Returns:
             dict[str, Any]: Numeric ID manipulation test results
         """
-        numeric_ids = [id_val for id_val in extracted_ids if isinstance(id_val, int)]
+        numeric_ids = [
+            id_val for id_val in extracted_ids
+            if isinstance(id_val, int)
+        ]
 
         if not numeric_ids:
             return {
@@ -204,7 +220,10 @@ class IDORScanner(BaseScanner):
             "numeric_ids_tested": len(test_ids),
         }
 
-    def _test_string_id_manipulation(self, extracted_ids: list[Any]) -> dict[str, Any]:
+    def _test_string_id_manipulation(self,
+                                     extracted_ids: list[Any]
+                                     ) -> dict[str,
+                                               Any]:
         """
         Test string/UUID ID manipulation for IDOR
 
@@ -214,7 +233,10 @@ class IDORScanner(BaseScanner):
         Returns:
             dict[str, Any]: String ID manipulation test results
         """
-        string_ids = [id_val for id_val in extracted_ids if isinstance(id_val, str)]
+        string_ids = [
+            id_val for id_val in extracted_ids
+            if isinstance(id_val, str)
+        ]
 
         if not string_ids:
             return {
@@ -283,7 +305,7 @@ class IDORScanner(BaseScanner):
                             "vulnerable": True,
                             "pattern_type": "Sequential IDs",
                             "id_difference": diff1,
-                            "example_ids": numeric_ids1[:3],
+                            "example_ids": numeric_ids1[: 3],
                         }
 
             return {
@@ -301,7 +323,8 @@ class IDORScanner(BaseScanner):
     def _create_vulnerable_result(
         self,
         details: str,
-        evidence: dict[str, Any],
+        evidence: dict[str,
+                       Any],
         severity: Severity = Severity.HIGH,
         recommendations: list[str] | None = None,
     ) -> TestResultCreate:
@@ -318,10 +341,10 @@ class IDORScanner(BaseScanner):
             TestResultCreate: Vulnerable result
         """
         return TestResultCreate(
-            test_name=TestType.IDOR,
-            status=ScanStatus.VULNERABLE,
-            severity=severity,
-            details=details,
-            evidence_json=evidence,
-            recommendations_json=recommendations or [],
+            test_name = TestType.IDOR,
+            status = ScanStatus.VULNERABLE,
+            severity = severity,
+            details = details,
+            evidence_json = evidence,
+            recommendations_json = recommendations or [],
         )

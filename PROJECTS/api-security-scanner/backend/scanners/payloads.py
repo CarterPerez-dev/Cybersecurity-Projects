@@ -131,13 +131,10 @@ class SQLiPayloads:
             list[str]: All SQLi test payloads
         """
         return (
-            cls.BASIC_AUTHENTICATION_BYPASS
-            + cls.UNION_BASED
-            + cls.TIME_BASED_BLIND
-            + cls.BOOLEAN_BASED_BLIND
-            + cls.ERROR_BASED
-            + cls.STACKED_QUERIES
-            + cls.COMMENT_VARIATIONS
+            cls.BASIC_AUTHENTICATION_BYPASS + cls.UNION_BASED +
+            cls.TIME_BASED_BLIND + cls.BOOLEAN_BASED_BLIND +
+            cls.ERROR_BASED + cls.STACKED_QUERIES +
+            cls.COMMENT_VARIATIONS
         )
 
     @classmethod
@@ -280,9 +277,12 @@ class RateLimitBypassPayloads:
     """
 
     HEADER_PATTERNS = {
-        "limit": r"x-ratelimit-limit|x-rate-limit-limit|ratelimit-limit",
-        "remaining": r"x-ratelimit-remaining|x-rate-limit-remaining|ratelimit-remaining",
-        "reset": r"x-ratelimit-reset|x-rate-limit-reset|ratelimit-reset",
+        "limit":
+        r"x-ratelimit-limit|x-rate-limit-limit|ratelimit-limit",
+        "remaining":
+        r"x-ratelimit-remaining|x-rate-limit-remaining|ratelimit-remaining",
+        "reset":
+        r"x-ratelimit-reset|x-rate-limit-reset|ratelimit-reset",
         "retry_after": r"retry-after",
     }
 
@@ -300,14 +300,30 @@ class RateLimitBypassPayloads:
     ]
 
     HEADER_SPOOFING = [
-        {"X-Forwarded-For": "127.0.0.1"},
-        {"X-Forwarded-For": "8.8.8.8"},
-        {"X-Real-IP": "127.0.0.1"},
-        {"X-Originating-IP": "127.0.0.1"},
-        {"X-Remote-IP": "127.0.0.1"},
-        {"X-Client-IP": "127.0.0.1"},
-        {"CF-Connecting-IP": "127.0.0.1"},
-        {"True-Client-IP": "127.0.0.1"},
+        {
+            "X-Forwarded-For": "127.0.0.1"
+        },
+        {
+            "X-Forwarded-For": "8.8.8.8"
+        },
+        {
+            "X-Real-IP": "127.0.0.1"
+        },
+        {
+            "X-Originating-IP": "127.0.0.1"
+        },
+        {
+            "X-Remote-IP": "127.0.0.1"
+        },
+        {
+            "X-Client-IP": "127.0.0.1"
+        },
+        {
+            "CF-Connecting-IP": "127.0.0.1"
+        },
+        {
+            "True-Client-IP": "127.0.0.1"
+        },
     ]
 
     USER_AGENT_ROTATION = [
@@ -433,14 +449,10 @@ class XSSPayloads:
             list[str]: All XSS test payloads
         """
         return (
-            cls.BASIC_XSS
-            + cls.EVENT_HANDLER_XSS
-            + cls.SVG_XSS
-            + cls.IFRAME_XSS
-            + cls.ENCODED_XSS
-            + cls.ATTRIBUTE_BREAKING
-            + cls.FILTER_BYPASS
-            + cls.POLYGLOT_XSS
+            cls.BASIC_XSS + cls.EVENT_HANDLER_XSS + cls.SVG_XSS +
+            cls.IFRAME_XSS + cls.ENCODED_XSS +
+            cls.ATTRIBUTE_BREAKING + cls.FILTER_BYPASS +
+            cls.POLYGLOT_XSS
         )
 
     @classmethod

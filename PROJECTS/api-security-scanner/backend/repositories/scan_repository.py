@@ -19,9 +19,13 @@ class ScanRepository:
     """
     Repository for Scan database operations
     """
-
     @staticmethod
-    def create_scan(db: Session, user_id: int, target_url: str, commit: bool = True) -> Scan:
+    def create_scan(
+        db: Session,
+        user_id: int,
+        target_url: str,
+        commit: bool = True
+    ) -> Scan:
         """
         Create a new scan
 
@@ -35,9 +39,9 @@ class ScanRepository:
             Scan: Created scan instance
         """
         scan = Scan(
-            user_id=user_id,
-            target_url=target_url,
-            scan_date=datetime.now(UTC),
+            user_id = user_id,
+            target_url = target_url,
+            scan_date = datetime.now(UTC),
         )
         db.add(scan)
         if commit:
@@ -58,15 +62,17 @@ class ScanRepository:
             Scan | None: Scan instance or None if not found
         """
         return (
-            db.query(Scan)
-            .options(joinedload(Scan.test_results))
-            .filter(Scan.id == scan_id)
-            .first()
+            db.query(Scan).options(
+                joinedload(Scan.test_results)
+            ).filter(Scan.id == scan_id).first()
         )
 
     @staticmethod
     def get_by_user(
-        db: Session, user_id: int, skip: int = 0, limit: int | None = None
+        db: Session,
+        user_id: int,
+        skip: int = 0,
+        limit: int | None = None
     ) -> list[Scan]:
         """
         Get all scans for a user with pagination.
@@ -84,17 +90,16 @@ class ScanRepository:
             limit = settings.DEFAULT_PAGINATION_LIMIT
 
         return (
-            db.query(Scan)
-            .options(joinedload(Scan.test_results))
-            .filter(Scan.user_id == user_id)
-            .order_by(Scan.scan_date.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
+            db.query(Scan).options(
+                joinedload(Scan.test_results)
+            ).filter(Scan.user_id == user_id).order_by(
+                Scan.scan_date.desc()
+            ).offset(skip).limit(limit).all()
         )
 
     @staticmethod
-    def get_recent(db: Session, limit: int | None = None) -> list[Scan]:
+    def get_recent(db: Session,
+                   limit: int | None = None) -> list[Scan]:
         """
         Get most recent scans across all users.
 
@@ -109,15 +114,17 @@ class ScanRepository:
             limit = settings.DEFAULT_PAGINATION_LIMIT
 
         return (
-            db.query(Scan)
-            .options(joinedload(Scan.test_results))
-            .order_by(Scan.scan_date.desc())
-            .limit(limit)
-            .all()
+            db.query(Scan).options(
+                joinedload(Scan.test_results)
+            ).order_by(Scan.scan_date.desc()).limit(limit).all()
         )
 
     @staticmethod
-    def delete(db: Session, scan_id: int, commit: bool = True) -> bool:
+    def delete(
+        db: Session,
+        scan_id: int,
+        commit: bool = True
+    ) -> bool:
         """
         Delete a scan (cascades to test results).
 

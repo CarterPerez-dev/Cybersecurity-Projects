@@ -13,12 +13,16 @@ from config import settings
 # Database engine
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    echo=settings.DEBUG,
+    pool_pre_ping = True,
+    echo = settings.DEBUG,
 )
 
 # Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit = False,
+    autoflush = False,
+    bind = engine
+)
 
 # Base class
 Base = declarative_base()

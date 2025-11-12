@@ -31,7 +31,6 @@ class SQLiScanner(BaseScanner):
 
     Uses payloads covering MySQL, PostgreSQL, MSSQL, Oracle
     """
-
     def scan(self) -> TestResultCreate:
         """
         Execute SQL injection tests
@@ -42,10 +41,11 @@ class SQLiScanner(BaseScanner):
         error_based_test = self._test_error_based_sqli()
         if error_based_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details=f"Error-based SQL injection detected: {error_based_test['database_type']}",
-                evidence=error_based_test,
-                severity=Severity.CRITICAL,
-                recommendations=[
+                details =
+                f"Error-based SQL injection detected: {error_based_test['database_type']}",
+                evidence = error_based_test,
+                severity = Severity.CRITICAL,
+                recommendations = [
                     "Use parameterized queries (prepared statements)",
                     "Never concatenate user input into SQL queries",
                     "Implement input validation and sanitization",
@@ -57,10 +57,10 @@ class SQLiScanner(BaseScanner):
         boolean_based_test = self._test_boolean_based_sqli()
         if boolean_based_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details="Boolean-based blind SQL injection detected",
-                evidence=boolean_based_test,
-                severity=Severity.CRITICAL,
-                recommendations=[
+                details = "Boolean-based blind SQL injection detected",
+                evidence = boolean_based_test,
+                severity = Severity.CRITICAL,
+                recommendations = [
                     "Use parameterized queries for all database operations",
                     "Implement proper input validation",
                     "Avoid exposing different responses for true/false conditions",
@@ -70,10 +70,11 @@ class SQLiScanner(BaseScanner):
         time_based_test = self._test_time_based_sqli()
         if time_based_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details=f"Time-based blind SQL injection detected: {time_based_test['database_type']}",
-                evidence=time_based_test,
-                severity=Severity.CRITICAL,
-                recommendations=[
+                details =
+                f"Time-based blind SQL injection detected: {time_based_test['database_type']}",
+                evidence = time_based_test,
+                severity = Severity.CRITICAL,
+                recommendations = [
                     "Use parameterized queries exclusively",
                     "Implement strict input validation",
                     "Monitor for unusual response time patterns",
@@ -81,16 +82,16 @@ class SQLiScanner(BaseScanner):
             )
 
         return TestResultCreate(
-            test_name=TestType.SQLI,
-            status=ScanStatus.SAFE,
-            severity=Severity.INFO,
-            details="No SQL injection vulnerabilities detected",
-            evidence_json={
+            test_name = TestType.SQLI,
+            status = ScanStatus.SAFE,
+            severity = Severity.INFO,
+            details = "No SQL injection vulnerabilities detected",
+            evidence_json = {
                 "error_based_test": error_based_test,
                 "boolean_based_test": boolean_based_test,
                 "time_based_test": time_based_test,
             },
-            recommendations_json=[
+            recommendations_json = [
                 "Continue using parameterized queries",
                 "Regularly update security testing",
             ],
@@ -124,7 +125,8 @@ class SQLiScanner(BaseScanner):
                                 "payload": payload,
                                 "status_code": response.status_code,
                                 "error_signature": signature,
-                                "response_excerpt": response.text[:500],
+                                "response_excerpt":
+                                response.text[: 500],
                             }
 
             except Exception:
@@ -159,12 +161,12 @@ class SQLiScanner(BaseScanner):
 
             boolean_payloads = SQLiPayloads.BOOLEAN_BASED_BLIND
             true_payloads = [
-                p for p in boolean_payloads if "AND '1'='1" in p or "AND 1=1" in p
+                p for p in boolean_payloads
+                if "AND '1'='1" in p or "AND 1=1" in p
             ]
             false_payloads = [
-                p
-                for p in boolean_payloads
-                if "AND '1'='2" in p or "AND 1=2" in p or "AND 1=0" in p
+                p for p in boolean_payloads if "AND '1'='2" in p
+                or "AND 1=2" in p or "AND 1=0" in p
             ]
 
             true_lengths = []
@@ -184,12 +186,18 @@ class SQLiScanner(BaseScanner):
 
             if length_diff > 100 and avg_true != avg_false:
                 return {
-                    "vulnerable": True,
-                    "baseline_length": baseline_length,
-                    "true_condition_avg_length": avg_true,
-                    "false_condition_avg_length": avg_false,
-                    "length_difference": length_diff,
-                    "confidence": "HIGH" if length_diff > 500 else "MEDIUM",
+                    "vulnerable":
+                    True,
+                    "baseline_length":
+                    baseline_length,
+                    "true_condition_avg_length":
+                    avg_true,
+                    "false_condition_avg_length":
+                    avg_false,
+                    "length_difference":
+                    length_diff,
+                    "confidence":
+                    "HIGH" if length_diff > 500 else "MEDIUM",
                 }
 
             return {
@@ -205,7 +213,9 @@ class SQLiScanner(BaseScanner):
                 "description": "Error testing boolean-based SQLi",
             }
 
-    def _test_time_based_sqli(self, delay_seconds: int = 5) -> dict[str, Any]:
+    def _test_time_based_sqli(self,
+                              delay_seconds: int = 5) -> dict[str,
+                                                              Any]:
         """
         Test for time based blind SQL injection
 
@@ -227,9 +237,14 @@ class SQLiScanner(BaseScanner):
             all_time_payloads = SQLiPayloads.TIME_BASED_BLIND
 
             delay_payloads = {
-                "mysql": [p for p in all_time_payloads if "SLEEP" in p],
-                "postgres": [p for p in all_time_payloads if "pg_sleep" in p],
-                "mssql": [p for p in all_time_payloads if "WAITFOR" in p],
+                "mysql":
+                [p for p in all_time_payloads if "SLEEP" in p],
+                "postgres": [
+                    p for p in all_time_payloads if "pg_sleep" in p
+                ],
+                "mssql": [
+                    p for p in all_time_payloads if "WAITFOR" in p
+                ],
             }
 
             for db_type, payloads in delay_payloads.items():
@@ -241,9 +256,13 @@ class SQLiScanner(BaseScanner):
                             response = self.make_request(
                                 "GET",
                                 f"/?id={payload}",
-                                timeout=delay_seconds + 10,
+                                timeout = delay_seconds + 10,
                             )
-                            elapsed = getattr(response, "request_time", 0.0)
+                            elapsed = getattr(
+                                response,
+                                "request_time",
+                                0.0
+                            )
                             delay_times.append(elapsed)
 
                         except Exception:
@@ -257,14 +276,22 @@ class SQLiScanner(BaseScanner):
                         confidence = "HIGH" if avg_delay >= expected_delay_time else "MEDIUM"
 
                         return {
-                            "vulnerable": True,
-                            "database_type": db_type,
-                            "payload": payload,
-                            "baseline_time": f"{baseline_mean:.3f}s",
-                            "response_time": f"{avg_delay:.3f}s",
-                            "expected_delay": f"{expected_delay_time:.3f}s",
-                            "confidence": confidence,
-                            "individual_times": [f"{t:.3f}s" for t in delay_times],
+                            "vulnerable":
+                            True,
+                            "database_type":
+                            db_type,
+                            "payload":
+                            payload,
+                            "baseline_time":
+                            f"{baseline_mean:.3f}s",
+                            "response_time":
+                            f"{avg_delay:.3f}s",
+                            "expected_delay":
+                            f"{expected_delay_time:.3f}s",
+                            "confidence":
+                            confidence,
+                            "individual_times":
+                            [f"{t:.3f}s" for t in delay_times],
                         }
 
             return {
@@ -284,7 +311,8 @@ class SQLiScanner(BaseScanner):
     def _create_vulnerable_result(
         self,
         details: str,
-        evidence: dict[str, Any],
+        evidence: dict[str,
+                       Any],
         severity: Severity = Severity.CRITICAL,
         recommendations: list[str] | None = None,
     ) -> TestResultCreate:
@@ -301,10 +329,10 @@ class SQLiScanner(BaseScanner):
             TestResultCreate: Vulnerable result
         """
         return TestResultCreate(
-            test_name=TestType.SQLI,
-            status=ScanStatus.VULNERABLE,
-            severity=severity,
-            details=details,
-            evidence_json=evidence,
-            recommendations_json=recommendations or [],
+            test_name = TestType.SQLI,
+            status = ScanStatus.VULNERABLE,
+            severity = severity,
+            details = details,
+            evidence_json = evidence,
+            recommendations_json = recommendations or [],
         )

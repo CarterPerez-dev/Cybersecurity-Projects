@@ -34,25 +34,25 @@ async def get_current_user(
 
         if email is None:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
+                status_code = status.HTTP_401_UNAUTHORIZED,
+                detail = "Invalid authentication credentials",
+                headers = {"WWW-Authenticate": "Bearer"},
             )
 
         user = UserRepository.get_by_email(db, email)
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
+                status_code = status.HTTP_401_UNAUTHORIZED,
+                detail = "User not found",
+                headers = {"WWW-Authenticate": "Bearer"},
             )
 
         return UserResponse.model_validate(user)
 
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            detail = "Invalid authentication credentials",
+            headers = {"WWW-Authenticate": "Bearer"},
         ) from None

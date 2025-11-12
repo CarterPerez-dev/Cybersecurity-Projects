@@ -29,25 +29,26 @@ class Scan(BaseModel):
 
     user_id = Column(
         Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+        ForeignKey("users.id",
+                   ondelete = "CASCADE"),
+        nullable = False,
+        index = True,
     )
     target_url = Column(
         String(settings.URL_MAX_LENGTH),
-        nullable=False,
+        nullable = False,
     )
     scan_date = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
+        DateTime(timezone = True),
+        default = lambda: datetime.now(UTC),
+        nullable = False,
     )
 
-    user = relationship("User", backref="scans")
+    user = relationship("User", backref = "scans")
     test_results = relationship(
         "TestResult",
-        back_populates="scan",
-        cascade="all, delete-orphan",
+        back_populates = "scan",
+        cascade = "all, delete-orphan",
     )
 
     def __repr__(self) -> str:
@@ -64,7 +65,10 @@ class Scan(BaseModel):
         Returns:
             bool: True if any test result is vulnerable
         """
-        return any(result.status == "vulnerable" for result in self.test_results)
+        return any(
+            result.status == "vulnerable"
+            for result in self.test_results
+        )
 
     @property
     def vulnerability_count(self) -> int:
@@ -74,4 +78,7 @@ class Scan(BaseModel):
         Returns:
             int: Number of vulnerable test results
         """
-        return sum(1 for result in self.test_results if result.status == "vulnerable")
+        return sum(
+            1 for result in self.test_results
+            if result.status == "vulnerable"
+        )

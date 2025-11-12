@@ -23,13 +23,13 @@ class ScanRequest(BaseModel):
     Schema for creating a new security scan
     """
 
-    target_url: HttpUrl = Field(max_length=settings.URL_MAX_LENGTH)
+    target_url: HttpUrl = Field(max_length = settings.URL_MAX_LENGTH)
     auth_token: str | None = None
-    tests_to_run: list[TestType] = Field(min_length=1)
+    tests_to_run: list[TestType] = Field(min_length = 1)
     max_requests: int = Field(
-        default=settings.DEFAULT_MAX_REQUESTS,
-        ge=1,
-        le=settings.SCANNER_MAX_CONCURRENT_REQUESTS,
+        default = settings.DEFAULT_MAX_REQUESTS,
+        ge = 1,
+        le = settings.SCANNER_MAX_CONCURRENT_REQUESTS,
     )
 
 
@@ -38,7 +38,7 @@ class ScanResponse(BaseModel):
     Schema for scan data in API responses
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes = True)
 
     id: int
     user_id: int
@@ -59,4 +59,6 @@ class ScanResponse(BaseModel):
         """
         Number of vulnerabilities found
         """
-        return sum(1 for r in self.test_results if r.status == "vulnerable")
+        return sum(
+            1 for r in self.test_results if r.status == "vulnerable"
+        )
