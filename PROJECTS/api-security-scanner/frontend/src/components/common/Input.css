@@ -1,0 +1,67 @@
+/**
+ * ©AngelaMos | 2025
+ * Input component styles
+ */
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.input-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #fff;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.input::placeholder {
+  color: rgb(255 255 255 / 50%);
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: rgb(255 255 255 / 10%);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 10%);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input:hover:not(:disabled) {
+  border-color: rgb(255 255 255 / 30%);
+  background: rgb(255 255 255 / 8%);
+}
+
+.input--error {
+  border-color: #ef4444;
+}
+
+.input--error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgb(239 68 68 / 10%);
+}
+
+.input-error {
+  font-size: 14px;
+  color: #ef4444;
+  margin: 0;
+}

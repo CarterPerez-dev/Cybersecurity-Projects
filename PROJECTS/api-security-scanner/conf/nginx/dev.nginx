@@ -1,0 +1,60 @@
+# ⒸAngelaMos | 2025
+# Development Nginx Configuration
+# Features:
+# - Proxies to Vite dev server (with HMR/WebSocket support)
+# - Proxies /api to FastAPI backend
+# - No caching, no SSL
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # Include shared config and MIME types
+    include /etc/nginx/http.conf;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # Disable access logs in dev (less noise)
+    access_log off;
+    error_log /var/log/nginx/error.log warn;
+
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name localhost;
+
+        # Client upload limits
+        client_max_body_size 10M;
+        client_body_buffer_size 128k;
+
+        # Backend API
+        location /api/ {
+            proxy_pass http://backend/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        # Frontend
+        location / {
+            proxy_pass http://frontend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}

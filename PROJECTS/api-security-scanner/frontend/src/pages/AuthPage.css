@@ -1,0 +1,20 @@
+/**
+ * ©AngelaMos | 2025
+ * Auth page styles
+ */
+
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 20px;
+}
+
+.auth-page__container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}

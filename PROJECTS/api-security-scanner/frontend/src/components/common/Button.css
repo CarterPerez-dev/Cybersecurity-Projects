@@ -1,0 +1,91 @@
+/**
+ * ©AngelaMos | 2025
+ * Button component styles
+ */
+
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.button:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.button--sm {
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.button--md {
+  padding: 12px 24px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.button--lg {
+  padding: 16px 32px;
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.button--primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  border-color: rgb(255 255 255 / 20%);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 30%),
+    0 2px 4px -1px rgb(0 0 0 / 20%);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 30%),
+    0 4px 6px -2px rgb(0 0 0 / 20%);
+}
+
+.button--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px -1px rgb(0 0 0 / 20%);
+}
+
+.button--secondary {
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  border-color: rgb(255 255 255 / 20%);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 20%);
+}
+
+.button--secondary:hover:not(:disabled) {
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 30%);
+  transform: translateY(-1px);
+}
+
+.button--ghost {
+  background: transparent;
+  color: #fff;
+  border-color: transparent;
+}
+
+.button--ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 10%);
+}

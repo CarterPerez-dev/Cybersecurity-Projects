@@ -1,0 +1,88 @@
+# ⒸAngelaMos | 2025
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: apisec_db_dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-apiuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apipass}
+      POSTGRES_DB: ${POSTGRES_DB:-apisecurity}
+    ports:
+      - "${HOST_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-apiuser} -d ${POSTGRES_DB:-apisecurity}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - apisec_network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: conf/docker/dev/fastapi.docker
+    container_name: apisec_backend_dev
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-apiuser}:${POSTGRES_PASSWORD:-apipass}@db:5432/${POSTGRES_DB:-apisecurity}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-this}
+      DEBUG: "true"
+      BACKEND_HOST: ${BACKEND_HOST:-0.0.0.0}
+      BACKEND_PORT: ${BACKEND_PORT:-8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+    ports:
+      - "${HOST_BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - apisec_network
+    restart: unless-stopped
+
+  # React Frontend - Vite HMR
+  frontend:
+    build:
+      context: .
+      dockerfile: conf/docker/dev/vite.docker
+    container_name: apisec_frontend_dev
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "${HOST_FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - apisec_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: apisec_nginx_dev
+    ports:
+      - "${HOST_NGINX_PORT:-80}:80"
+    volumes:
+      - ./conf/nginx/dev.nginx:/etc/nginx/nginx.conf:ro
+      - ./conf/nginx/http.conf:/etc/nginx/http.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - apisec_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_dev:
+    name: apisec_postgres_data_dev
+
+networks:
+  apisec_network:
+    name: apisec_network_dev
+    driver: bridge

@@ -1,0 +1,81 @@
+/**
+ * ©AngelaMos | 2025
+ * Auth form styles
+ */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px 0 rgb(0 0 0 / 37%);
+}
+
+.auth-form__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+
+.auth-form__title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.auth-form__subtitle {
+  font-size: 14px;
+  color: rgb(255 255 255 / 60%);
+  margin: 0;
+}
+
+.auth-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form__link {
+  text-align: center;
+  font-size: 14px;
+  color: rgb(255 255 255 / 60%);
+  margin: 0;
+}
+
+.auth-form__link-text {
+  color: #3b82f6;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.auth-form__link-text:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.auth-form__link-text:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.auth-form__error-message {
+  padding: 12px 16px;
+  background: rgb(220 38 38 / 10%);
+  border: 1px solid rgb(220 38 38 / 30%);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
