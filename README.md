@@ -1,6 +1,6 @@
 # 60 Cybersecurity Projects & 10 Certification Roadmaps by Role 🧙‍♂️
 ## 2 of these projects I've fully built for you, with full source code and documentation so you can clone, learn, and customize!
-#### View complete projects: [projects/](./projects/)
+#### View complete projects: [Projects/](./PROJECTS/)
 
 #### As time goes on I will fully build each and every one of these projects so all 60 are available with full source code and documentation.
 ---
@@ -92,7 +92,7 @@ Educational tool that demonstrates file encryption without actual harm. Encrypt 
 
 ---
 
-## 🔶 Intermediate Projects
+## Intermediate Projects
 
 ### [Reverse Shell Handler](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Reverse.Shell.Handler.md)
 Create a server that listens for incoming reverse shell connections using Python sockets. Implement command execution, file upload/download, and session management for multiple clients. Use `cmd2` or similar library for a clean CLI interface.
@@ -165,7 +165,7 @@ Scan Docker environments for security issues (privileged containers, exposed por
 
 ---
 
-## 🔴 Advanced Projects
+## Advanced Projects
 
 ### [Exploit Development Framework](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Exploit.Development.Framework.md)
 Build a modular framework in Python where exploits are plugins (one file per vulnerability). Include payload generators, shellcode encoders, and target validation. Implement a Metasploit-like interface with search, configure, and execute commands.
