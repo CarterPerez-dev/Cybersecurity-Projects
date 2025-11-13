@@ -1,0 +1,66 @@
+# Ᾰenebris Advanced Configuration Example
+# This demonstrates multiple upstreams, load balancing, and routing
+
+version: 1
+
+# Multiple listen ports with TLS
+listen:
+  - port: 80
+  - port: 443
+    tls:
+      cert: /etc/aenebris/tls/cert.pem
+      key: /etc/aenebris/tls/key.pem
+
+# Multiple backend upstreams
+upstreams:
+  # API backend with load balancing
+  - name: api-backend
+    servers:
+      - host: "10.0.1.10:8000"
+        weight: 2  # Higher weight = more traffic
+      - host: "10.0.1.11:8000"
+        weight: 1
+    health_check:
+      path: /health
+      interval: 10s
+
+  # Web frontend backend
+  - name: web-backend
+    servers:
+      - host: "10.0.2.10:3000"
+        weight: 1
+    health_check:
+      path: /
+      interval: 30s
+
+  # Honeypot for suspicious traffic (future feature)
+  - name: honeypot
+    servers:
+      - host: "127.0.0.1:9999"
+        weight: 1
+
+# Virtual host routing
+routes:
+  # API subdomain
+  - host: "api.example.com"
+    paths:
+      - path: /v1
+        upstream: api-backend
+        rate_limit: 100/minute
+      - path: /health
+        upstream: api-backend
+
+  # Main website
+  - host: "www.example.com"
+    paths:
+      - path: /
+        upstream: web-backend
+      - path: /api
+        upstream: api-backend
+        rate_limit: 50/minute
+
+  # Catch-all for example.com
+  - host: "example.com"
+    paths:
+      - path: /
+        upstream: web-backend

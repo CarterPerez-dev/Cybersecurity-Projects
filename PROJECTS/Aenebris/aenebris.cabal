@@ -1,0 +1,70 @@
+cabal-version:       2.2
+
+name:                aenebris
+version:             0.1.0.0
+synopsis:            Next Gen Intelligent Reverse Proxy
+description:         Ᾰenebris - Security first reverse proxy with ML based threat detection
+homepage:            https://github.com/CarterPerez-dev/Cybersecurity-Projects/PROJECTS/Aenebris#readme
+license:             MIT
+license-file:        LICENSE
+author:              Carter Perez
+maintainer:          support@certgames.com
+copyright:           2025 Carter Perez
+category:            Network, Security, Web
+build-type:          Simple
+extra-source-files:  README.md
+                     CHANGELOG.md
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Aenebris.Proxy
+                     , Aenebris.Config
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , warp >= 3.3
+                     , wai >= 3.2
+                     , http-types >= 0.12
+                     , http-conduit >= 2.3
+                     , http-client >= 0.7
+                     , bytestring >= 0.11
+                     , text >= 2.0
+                     , yaml >= 0.11
+                     , aeson >= 2.0
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wpartial-fields
+                       -Wredundant-constraints
+
+executable aenebris
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , aenebris
+                     , http-client >= 0.7
+  ghc-options:         -Wall
+                       -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
+
+test-suite aenebris-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , aenebris
+                     , hspec >= 2.0
+                     , wai-extra >= 3.0
+                     , http-types >= 0.12
+  ghc-options:         -Wall
+                       -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
+
+source-repository head
+  type:     git
+  location: https://github.com/CarterPerez-dev/Cybersecurity-Projects/PROJECTS/Aenebris

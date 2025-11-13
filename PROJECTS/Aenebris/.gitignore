@@ -1,0 +1,10 @@
+.stack-work
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Private progress tracking
+PROGRESS.md
+decisions.md
+notes.md

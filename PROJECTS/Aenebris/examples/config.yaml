@@ -1,0 +1,32 @@
+# Ᾰenebris Configuration Example
+# This is a minimal working configuration for testing
+
+version: 1
+
+# Listen ports
+listen:
+  - port: 8080
+    # TLS configuration (optional)
+    # tls:
+    #   cert: /path/to/cert.pem
+    #   key: /path/to/key.pem
+
+# Backend servers (upstreams)
+upstreams:
+  - name: test-backend
+    servers:
+      - host: "127.0.0.1:8000"
+        weight: 1
+    # Health check configuration (optional)
+    # health_check:
+    #   path: /health
+    #   interval: 10s
+
+# Routing rules
+routes:
+  - host: "localhost"
+    paths:
+      - path: /
+        upstream: test-backend
+        # Rate limiting (optional)
+        # rate_limit: 100/minute

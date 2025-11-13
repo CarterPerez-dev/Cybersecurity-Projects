@@ -1,0 +1,183 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Aenebris.Config
+  ( Config(..)
+  , ListenConfig(..)
+  , TLSConfig(..)
+  , Upstream(..)
+  , Server(..)
+  , HealthCheck(..)
+  , Route(..)
+  , PathRoute(..)
+  , loadConfig
+  , validateConfig
+  ) where
+
+import Control.Monad (when, forM_)
+import Data.Aeson
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Yaml (decodeFileEither)
+import GHC.Generics
+
+-- | Main configuration structure
+data Config = Config
+  { configVersion :: Int
+  , configListen :: [ListenConfig]
+  , configUpstreams :: [Upstream]
+  , configRoutes :: [Route]
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Config where
+  parseJSON = withObject "Config" $ \v -> Config
+    <$> v .: "version"
+    <*> v .: "listen"
+    <*> v .: "upstreams"
+    <*> v .: "routes"
+
+-- | Listen port configuration
+data ListenConfig = ListenConfig
+  { listenPort :: Int
+  , listenTLS :: Maybe TLSConfig
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON ListenConfig where
+  parseJSON = withObject "ListenConfig" $ \v -> ListenConfig
+    <$> v .: "port"
+    <*> v .:? "tls"
+
+-- | TLS/SSL configuration
+data TLSConfig = TLSConfig
+  { tlsCert :: FilePath
+  , tlsKey :: FilePath
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON TLSConfig where
+  parseJSON = withObject "TLSConfig" $ \v -> TLSConfig
+    <$> v .: "cert"
+    <*> v .: "key"
+
+-- | Upstream backend definition
+data Upstream = Upstream
+  { upstreamName :: Text
+  , upstreamServers :: [Server]
+  , upstreamHealthCheck :: Maybe HealthCheck
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Upstream where
+  parseJSON = withObject "Upstream" $ \v -> Upstream
+    <$> v .: "name"
+    <*> v .: "servers"
+    <*> v .:? "health_check"
+
+-- | Backend server with weight for load balancing
+data Server = Server
+  { serverHost :: Text
+  , serverWeight :: Int
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Server where
+  parseJSON = withObject "Server" $ \v -> Server
+    <$> v .: "host"
+    <*> v .: "weight"
+
+-- | Health check configuration
+data HealthCheck = HealthCheck
+  { healthCheckPath :: Text
+  , healthCheckInterval :: Text  -- e.g., "10s"
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON HealthCheck where
+  parseJSON = withObject "HealthCheck" $ \v -> HealthCheck
+    <$> v .: "path"
+    <*> v .: "interval"
+
+-- | Route definition (virtual host + paths)
+data Route = Route
+  { routeHost :: Text
+  , routePaths :: [PathRoute]
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Route where
+  parseJSON = withObject "Route" $ \v -> Route
+    <$> v .: "host"
+    <*> v .: "paths"
+
+-- | Path-based routing rule
+data PathRoute = PathRoute
+  { pathRoutePath :: Text
+  , pathRouteUpstream :: Text
+  , pathRouteRateLimit :: Maybe Text  -- e.g., "100/minute"
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON PathRoute where
+  parseJSON = withObject "PathRoute" $ \v -> PathRoute
+    <$> v .: "path"
+    <*> v .: "upstream"
+    <*> v .:? "rate_limit"
+
+-- | Load configuration from YAML file
+loadConfig :: FilePath -> IO (Either String Config)
+loadConfig path = do
+  result <- decodeFileEither path
+  return $ case result of
+    Left err -> Left (show err)
+    Right config -> Right config
+
+-- | Validate configuration for correctness
+validateConfig :: Config -> Either String ()
+validateConfig config = do
+  -- Check version
+  when (configVersion config /= 1) $
+    Left "Unsupported config version (expected: 1)"
+
+  -- Check at least one listen port
+  when (null $ configListen config) $
+    Left "At least one listen port must be specified"
+
+  -- Check port numbers are valid
+  forM_ (configListen config) $ \listen -> do
+    let port = listenPort listen
+    when (port < 1 || port > 65535) $
+      Left $ "Invalid port number: " ++ show port
+
+  -- Check at least one upstream
+  when (null $ configUpstreams config) $
+    Left "At least one upstream must be specified"
+
+  -- Check upstream names are unique
+  let upstreamNames = map upstreamName (configUpstreams config)
+  when (length upstreamNames /= length (nubText upstreamNames)) $
+    Left "Upstream names must be unique"
+
+  -- Check each upstream has at least one server
+  forM_ (configUpstreams config) $ \upstream -> do
+    when (null $ upstreamServers upstream) $
+      Left $ "Upstream '" ++ T.unpack (upstreamName upstream) ++ "' has no servers"
+
+    -- Check server weights are positive
+    forM_ (upstreamServers upstream) $ \server -> do
+      when (serverWeight server < 1) $
+        Left $ "Server weight must be positive: " ++ T.unpack (serverHost server)
+
+  -- Check at least one route
+  when (null $ configRoutes config) $
+    Left "At least one route must be specified"
+
+  -- Validate upstream references in routes
+  forM_ (configRoutes config) $ \route -> do
+    when (null $ routePaths route) $
+      Left $ "Route for host '" ++ T.unpack (routeHost route) ++ "' has no paths"
+
+    forM_ (routePaths route) $ \pathRoute -> do
+      let upstreamRef = pathRouteUpstream pathRoute
+      when (upstreamRef `notElem` upstreamNames) $
+        Left $ "Unknown upstream referenced: '" ++ T.unpack upstreamRef ++ "'"
+
+  return ()
+  where
+    -- Helper to remove duplicates from Text list
+    nubText :: [Text] -> [Text]
+    nubText [] = []
+    nubText (x:xs) = x : nubText (filter (/= x) xs)
