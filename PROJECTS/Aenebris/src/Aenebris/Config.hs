@@ -5,6 +5,7 @@ module Aenebris.Config
   ( Config(..)
   , ListenConfig(..)
   , TLSConfig(..)
+  , SNIDomain(..)
   , Upstream(..)
   , Server(..)
   , HealthCheck(..)
@@ -21,7 +22,7 @@ import qualified Data.Text as T
 import Data.Yaml (decodeFileEither)
 import GHC.Generics
 
--- | Main configuration structure
+-- | Main config structure
 data Config = Config
   { configVersion :: Int
   , configListen :: [ListenConfig]
@@ -40,22 +41,43 @@ instance FromJSON Config where
 data ListenConfig = ListenConfig
   { listenPort :: Int
   , listenTLS :: Maybe TLSConfig
+  , listenRedirectHTTPS :: Maybe Bool  -- Redirect HTTP to HTTPS?
   } deriving (Show, Eq, Generic)
 
 instance FromJSON ListenConfig where
   parseJSON = withObject "ListenConfig" $ \v -> ListenConfig
     <$> v .: "port"
     <*> v .:? "tls"
+    <*> v .:? "redirect_https"
 
--- | TLS/SSL configuration
+-- | TLS/SSL configuration (supports both single cert and SNI)
 data TLSConfig = TLSConfig
-  { tlsCert :: FilePath
-  , tlsKey :: FilePath
+  { tlsCert :: Maybe FilePath           -- Single cert (if not using SNI)
+  , tlsKey :: Maybe FilePath            -- Single key (if not using SNI)
+  , tlsSNI :: Maybe [SNIDomain]         -- SNI domains (multiple certs)
+  , tlsDefaultCert :: Maybe FilePath    -- Default cert for SNI
+  , tlsDefaultKey :: Maybe FilePath     -- Default key for SNI
   } deriving (Show, Eq, Generic)
 
 instance FromJSON TLSConfig where
   parseJSON = withObject "TLSConfig" $ \v -> TLSConfig
-    <$> v .: "cert"
+    <$> v .:? "cert"
+    <*> v .:? "key"
+    <*> v .:? "sni"
+    <*> v .:? "default_cert"
+    <*> v .:? "default_key"
+
+-- | SNI domain configuration
+data SNIDomain = SNIDomain
+  { sniDomain :: Text
+  , sniCert :: FilePath
+  , sniKey :: FilePath
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON SNIDomain where
+  parseJSON = withObject "SNIDomain" $ \v -> SNIDomain
+    <$> v .: "domain"
+    <*> v .: "cert"
     <*> v .: "key"
 
 -- | Upstream backend definition
@@ -142,6 +164,11 @@ validateConfig config = do
     when (port < 1 || port > 65535) $
       Left $ "Invalid port number: " ++ show port
 
+    -- Validate TLS configuration if present
+    case listenTLS listen of
+      Nothing -> return ()
+      Just tlsConf -> validateTLS tlsConf
+
   -- Check at least one upstream
   when (null $ configUpstreams config) $
     Left "At least one upstream must be specified"
@@ -181,3 +208,40 @@ validateConfig config = do
     nubText :: [Text] -> [Text]
     nubText [] = []
     nubText (x:xs) = x : nubText (filter (/= x) xs)
+
+    -- Validate TLS configuration
+    validateTLS :: TLSConfig -> Either String ()
+    validateTLS tlsConf = do
+      let hasSingleCert = case (tlsCert tlsConf, tlsKey tlsConf) of
+            (Just _, Just _) -> True
+            (Nothing, Nothing) -> False
+            _ -> False  -- One is set but not the other
+
+          hasSNI = case (tlsSNI tlsConf, tlsDefaultCert tlsConf, tlsDefaultKey tlsConf) of
+            (Just sniDomains, Just _, Just _) -> not (null sniDomains)
+            _ -> False
+
+      -- Must have either single cert or SNI configuration
+      when (not hasSingleCert && not hasSNI) $
+        Left "TLS configuration must specify either (cert + key) or (sni + default_cert + default_key)"
+
+      -- Can't have both single cert and SNI
+      when (hasSingleCert && hasSNI) $
+        Left "TLS configuration cannot have both single cert and SNI configuration"
+
+      -- If single cert, ensure both cert and key are present
+      when (hasSingleCert) $ do
+        case (tlsCert tlsConf, tlsKey tlsConf) of
+          (Just _, Nothing) -> Left "TLS cert specified but key missing"
+          (Nothing, Just _) -> Left "TLS key specified but cert missing"
+          _ -> return ()
+
+      -- If SNI, ensure default cert/key are present
+      when (hasSNI) $ do
+        case (tlsDefaultCert tlsConf, tlsDefaultKey tlsConf) of
+          (Just _, Nothing) -> Left "SNI default_cert specified but default_key missing"
+          (Nothing, Just _) -> Left "SNI default_key specified but default_cert missing"
+          (Nothing, Nothing) -> Left "SNI configuration requires default_cert and default_key"
+          _ -> return ()
+
+      return ()

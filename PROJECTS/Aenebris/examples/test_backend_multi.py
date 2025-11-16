@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Simple test backend for Aenebris proxy
+Multi-instance test backend for Aenebris proxy load balancing
+Accepts port number as command-line argument
 """
 
 import json
+import sys
 from http.server import (
     HTTPServer,
     BaseHTTPRequestHandler,
@@ -12,22 +14,25 @@ from http.server import (
 
 class TestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Health check endpoint
         if self.path == '/health':
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            response = {'status': 'healthy'}
+            response = {
+                'status': 'healthy',
+                'port': self.server.server_port
+            }
             self.wfile.write(json.dumps(response).encode())
             return
 
-        # Normal request
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
         response = {
-            'message': 'Hello from test backend!',
+            'message':
+            f'Hello from backend on port {self.server.server_port}!',
+            'port': self.server.server_port,
             'path': self.path,
             'method': 'GET'
         }
@@ -43,6 +48,7 @@ class TestHandler(BaseHTTPRequestHandler):
 
         response = {
             'message': 'Received POST',
+            'port': self.server.server_port,
             'path': self.path,
             'method': 'POST',
             'body_length': content_length
@@ -50,10 +56,15 @@ class TestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(response, indent = 2).encode())
 
     def log_message(self, format, *args):
-        print(f"[BACKEND] {format % args}")
+        print(f"[BACKEND:{self.server.server_port}] {format % args}")
 
 
 if __name__ == '__main__':
-    server = HTTPServer(('localhost', 8000), TestHandler)
-    print('Test backend running on http://localhost:8000')
+    if len(sys.argv) < 2:
+        print("Usage: test_backend_multi.py <port>")
+        sys.exit(1)
+
+    port = int(sys.argv[1])
+    server = HTTPServer(('localhost', port), TestHandler)
+    print(f'Test backend running on http://localhost:{port}')
     server.serve_forever()

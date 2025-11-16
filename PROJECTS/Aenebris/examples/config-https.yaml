@@ -1,0 +1,26 @@
+version: 1
+
+# HTTPS with single certificate + HTTP redirect
+listen:
+  - port: 8080  # HTTP with redirect
+    redirect_https: true
+
+  - port: 8443  # HTTPS
+    tls:
+      cert: examples/certs/localhost.crt
+      key: examples/certs/localhost.key
+
+upstreams:
+  - name: test-backend
+    servers:
+      - host: "127.0.0.1:8000"
+        weight: 1
+    health_check:
+      path: /health
+      interval: 10s
+
+routes:
+  - host: "localhost"
+    paths:
+      - path: /
+        upstream: test-backend

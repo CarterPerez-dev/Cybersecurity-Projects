@@ -1,0 +1,44 @@
+# Ᾰenebris Load Balancing Test Configuration
+# This config tests all 3 load balancing algorithms
+
+version: 1
+
+# Listen on port 8081
+listen:
+  - port: 8081
+
+# Multiple backends for testing load balancing
+upstreams:
+  - name: round-robin-backend
+    servers:
+      - host: "127.0.0.1:8000"
+        weight: 1
+      - host: "127.0.0.1:8001"
+        weight: 1
+      - host: "127.0.0.1:8002"
+        weight: 1
+    health_check:
+      path: /health
+      interval: 10s
+
+  - name: weighted-backend
+    servers:
+      - host: "127.0.0.1:8000"
+        weight: 5  # 5x more traffic
+      - host: "127.0.0.1:8001"
+        weight: 1
+      - host: "127.0.0.1:8002"
+        weight: 1
+    health_check:
+      path: /health
+      interval: 10s
+
+# Routes
+routes:
+  - host: "localhost"
+    paths:
+      - path: /
+        upstream: round-robin-backend
+
+      - path: /weighted
+        upstream: weighted-backend

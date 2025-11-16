@@ -5,7 +5,7 @@ version: 1
 
 # Listen ports
 listen:
-  - port: 8080
+  - port: 8081
     # TLS configuration (optional)
     # tls:
     #   cert: /path/to/cert.pem

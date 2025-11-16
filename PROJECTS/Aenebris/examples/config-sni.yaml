@@ -1,0 +1,40 @@
+version: 1
+
+# HTTPS with SNI (multiple certificates for different domains)
+listen:
+  - port: 8080  # HTTP with redirect
+    redirect_https: true
+
+  - port: 8443  # HTTPS with SNI
+    tls:
+      sni:
+        - domain: "api.localhost"
+          cert: examples/certs/api.localhost.crt
+          key: examples/certs/api.localhost.key
+        - domain: "web.localhost"
+          cert: examples/certs/web.localhost.crt
+          key: examples/certs/web.localhost.key
+      default_cert: examples/certs/default.crt
+      default_key: examples/certs/default.key
+
+upstreams:
+  - name: api-backend
+    servers:
+      - host: "127.0.0.1:8001"
+        weight: 1
+
+  - name: web-backend
+    servers:
+      - host: "127.0.0.1:8002"
+        weight: 1
+
+routes:
+  - host: "api.localhost"
+    paths:
+      - path: /
+        upstream: api-backend
+
+  - host: "web.localhost"
+    paths:
+      - path: /
+        upstream: web-backend

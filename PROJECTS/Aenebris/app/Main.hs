@@ -20,7 +20,6 @@ main = do
 
   putStrLn $ "Loading configuration from: " ++ configPath
 
-  -- Load configuration
   result <- loadConfig configPath
   case result of
     Left err -> do
@@ -29,7 +28,6 @@ main = do
       exitFailure
 
     Right config -> do
-      -- Validate configuration
       case validateConfig config of
         Left err -> do
           hPutStrLn stderr $ "ERROR: Invalid configuration"
@@ -37,10 +35,13 @@ main = do
           exitFailure
 
         Right () -> do
-          putStrLn "✓ Configuration loaded and validated successfully"
+          putStrLn "Configuration loaded and validated successfully"
 
-          -- Create HTTP client manager
+          -- Create HTTP client manager with connection pooling
           manager <- newManager defaultManagerSettings
 
+          -- Initialize proxy state (load balancers + health checkers)
+          proxyState <- initProxyState config manager
+
           -- Start the proxy
-          startProxy config manager
+          startProxy proxyState
