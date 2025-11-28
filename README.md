@@ -34,7 +34,7 @@
 ### [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Port.Scanner.md)
 Build a Python script using the `socket` library to test common ports (22, 80, 443, 3306, etc.) on a target IP. Implement threading or asyncio to scan multiple ports concurrently for speed. Add service detection by analyzing banner responses from open ports.
 
-### *SOURCE CODE:* [/Keylogger](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/keylogger)
+### *SOURCE CODE:* *[Keylogger](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/keylogger)*
 Use Python's `pynput` library to capture keyboard events and log them to a local file with timestamps. Include a toggle key (like F12) to start/stop logging. **Important**: Add clear disclaimers and only test on systems you own.
 
 ### [Caesar Cipher](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Caesar.Cipher.md)
