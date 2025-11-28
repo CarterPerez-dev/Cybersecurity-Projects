@@ -110,9 +110,6 @@ Build a tool that decodes JWT tokens, validates signatures, and checks for commo
 ### [Web Vulnerability Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Web.Vulnerability.Scanner.md)
 Create an async Python scanner using `httpx` that crawls a target website and tests for XSS (reflected/stored), SQLi (error-based), and CSRF (missing tokens). Implement a plugin architecture so tests are modular and easy to add. Generate HTML reports with vulnerability details and remediation advice.
 
-### [Encrypted Chat Application](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Encrypted.Chat.Application.md)
-Build a peer-to-peer chat using WebSockets with end-to-end encryption via the `cryptography` library (Fernet or RSA+AES). Implement key exchange using Diffie-Hellman. Add a simple React frontend with message history and user authentication.
-
 ### [DDoS Mitigation Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/DDoS.Mitigation.Tool.md)
 Create a network monitor that detects traffic spikes using packet sniffing (Scapy) and implements rate limiting with iptables or similar. Add anomaly detection by establishing baseline traffic patterns. Include alerts via email/webhook when attacks detected.
 
@@ -168,8 +165,11 @@ Scan Docker environments for security issues (privileged containers, exposed por
 
 ## Advanced Projects
 
-### *SOURCE CODE:* [Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-security-scanner)
+### *SOURCE CODE:* *[Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-security-scanner)*
 Build an enterprise-grade automated API security scanner that performs deep vulnerability assessment across REST, GraphQL, and SOAP endpoints, detecting OWASP API Top 10 flaws through intelligent fuzzing, authentication bypass testing, broken object level authorization, mass assignment exploitation, and rate limiting analysis with ML-enhanced payload generation and comprehensive reporting dashboards. (FastAPI - React-Typescript - Vite - Nginx - Docker - CSS)
+
+### *SOURCE CODE:* *[Encrypted Chat Application](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/encrypted-p2p-chat)*
+Build a real time encrypted chat using WebSockets with Signal Protocol encryption (X3DH key exchange + Double Ratchet) for forward secrecy and break-in recovery. Implement passwordless authentication via WebAuthn/Passkeys. Backend uses FastAPI with PostgreSQL, SurrealDB live queries, and Redis. SolidJS TypeScript frontend with nanostores and 8-bit retro design using TailwindCSS.
 
 ### [Exploit Development Framework](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Exploit.Development.Framework.md)
 Build a modular framework in Python where exploits are plugins (one file per vulnerability). Include payload generators, shellcode encoders, and target validation. Implement a Metasploit-like interface with search, configure, and execute commands.
