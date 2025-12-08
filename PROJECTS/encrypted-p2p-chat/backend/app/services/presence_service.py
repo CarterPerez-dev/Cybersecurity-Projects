@@ -71,7 +71,7 @@ class PresenceService:
         try:
             last_seen = datetime.now(UTC).isoformat()
             await surreal_db.db.merge(
-                f"presence:{user_id}",
+                f"presence:`{user_id}`",
                 {
                     "last_seen": last_seen,
                     "updated_at": "time::now()"
@@ -87,7 +87,7 @@ class PresenceService:
         """
         try:
             await surreal_db.ensure_connected()
-            result = await surreal_db.db.select(f"presence:{user_id}")
+            result = await surreal_db.db.select(f"presence:`{user_id}`")
 
             if not result:
                 return {

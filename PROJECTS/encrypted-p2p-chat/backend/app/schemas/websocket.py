@@ -31,6 +31,8 @@ class EncryptedMessageWS(BaseWSMessage):
     message_id: str = Field(max_length = MESSAGE_ID_MAX_LENGTH)
     sender_id: str
     recipient_id: str
+    room_id: str
+    content: str = ""
     ciphertext: str = Field(max_length = ENCRYPTED_CONTENT_MAX_LENGTH)
     nonce: str
     header: str
@@ -91,3 +93,29 @@ class WSHeartbeat(BaseModel):
     """
     type: str = "heartbeat"
     timestamp: datetime
+
+
+class RoomCreatedWS(BaseModel):
+    """
+    Room created notification sent over WebSocket
+    """
+    type: str = "room_created"
+    room_id: str
+    room_type: str
+    name: str | None
+    participants: list[dict[str, Any]]
+    is_encrypted: bool
+    created_at: str
+    updated_at: str
+
+
+class MessageSentWS(BaseWSMessage):
+    """
+    Confirmation sent back to sender after message is stored
+    """
+    type: str = "message_sent"
+    temp_id: str
+    message_id: str
+    room_id: str
+    status: str = "sent"
+    created_at: datetime

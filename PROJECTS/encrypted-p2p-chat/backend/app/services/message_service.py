@@ -271,7 +271,8 @@ class MessageService:
         session: AsyncSession,
         sender_id: UUID,
         recipient_id: UUID,
-        plaintext: str
+        plaintext: str,
+        room_id: str | None = None,
     ) -> Any:
         """
         Encrypts message with Double Ratchet and stores in SurrealDB
@@ -324,13 +325,19 @@ class MessageService:
             "previous_chain_length": encrypted_msg.previous_chain_length
         }
 
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
         surreal_message = {
             "sender_id": str(sender_id),
             "recipient_id": str(recipient_id),
+            "room_id": room_id,
             "ciphertext": bytes_to_base64url(encrypted_msg.ciphertext),
             "nonce": bytes_to_base64url(encrypted_msg.nonce),
             "header": json.dumps(message_header),
-            "sender_username": sender_user.username
+            "sender_username": sender_user.username,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
         }
 
         try:

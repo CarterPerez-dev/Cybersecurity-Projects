@@ -12,6 +12,7 @@ class CreateRoomRequest(BaseModel):
     """
     Request to create a new room
     """
+    creator_id: str
     participant_id: str
     room_type: RoomType = RoomType.DIRECT
 

@@ -2,7 +2,7 @@
 // © AngelaMos | 2025
 // Chat.tsx
 // ===================
-import { createSignal, Show, onMount, onCleanup } from "solid-js"
+import { Show, onMount, onCleanup, createEffect } from "solid-js"
 import type { JSX } from "solid-js"
 import type { Participant } from "../types"
 import { useStore } from "@nanostores/solid"
@@ -16,27 +16,45 @@ import {
 import {
   $activeRoom,
   $activeRoomId,
+  $activeModal,
   $userId,
+  $currentUser,
   showToast,
-  addRoom,
   setActiveRoom,
+  openModal,
+  closeModal,
+  addMessage,
 } from "../stores"
-import { api } from "../lib/api-client"
 import {
   connectWebSocket,
   disconnectWebSocket,
   wsManager,
 } from "../websocket"
+import { roomService } from "../services"
 
 export default function Chat(): JSX.Element {
   const activeRoom = useStore($activeRoom)
   const activeRoomId = useStore($activeRoomId)
   const userId = useStore($userId)
-  const [showNewChat, setShowNewChat] = createSignal(false)
+  const activeModal = useStore($activeModal)
 
-  onMount(() => {
-    if (userId()) {
+  createEffect(() => {
+    const roomId = activeRoomId()
+    if (roomId) {
+      roomService.loadMessages(roomId)
+    }
+  })
+
+  onMount(async () => {
+    const currentUserId = userId()
+    console.log("[Chat] onMount - userId:", currentUserId)
+    if (currentUserId) {
+      console.log("[Chat] Connecting WebSocket and loading rooms...")
       connectWebSocket()
+      await roomService.loadRooms(currentUserId)
+      console.log("[Chat] Rooms loaded")
+    } else {
+      console.log("[Chat] No userId, skipping room load")
     }
   })
 
@@ -47,40 +65,73 @@ export default function Chat(): JSX.Element {
   const handleSendMessage = (content: string): void => {
     const roomId = activeRoomId()
     const room = activeRoom()
+    const currentUserId = userId()
+    const user = $currentUser.get()
 
-    if (roomId === null || room === null) return
+    if (roomId === null || room === null) {
+      showToast("error", "SEND FAILED", "NO ACTIVE ROOM")
+      return
+    }
 
-    const recipientId = room.participants.find((p: Participant) => p.user_id !== userId())?.user_id
+    if (currentUserId === null) {
+      showToast("error", "SEND FAILED", "NOT AUTHENTICATED")
+      return
+    }
+
+    const recipientId = room.participants.find((p: Participant) => p.user_id !== currentUserId)?.user_id
 
     if (recipientId === undefined) {
       showToast("error", "SEND FAILED", "NO RECIPIENT FOUND")
       return
     }
 
-    wsManager.sendEncryptedMessage(
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const now = new Date().toISOString()
+
+    addMessage(roomId, {
+      id: tempId,
+      room_id: roomId,
+      sender_id: currentUserId,
+      sender_username: user?.username ?? "me",
+      content,
+      status: "sending",
+      is_encrypted: false,
+      created_at: now,
+      updated_at: now,
+    })
+
+    const sent = wsManager.sendEncryptedMessage(
       recipientId,
       roomId,
-      content
+      content,
+      tempId
     )
+
+    if (!sent) {
+      showToast("error", "SEND FAILED", "NOT CONNECTED")
+    }
   }
 
   const handleCreateRoom = async (targetUserId: string): Promise<void> => {
-    try {
-      const room = await api.rooms.create({
-        participant_id: targetUserId,
-        room_type: "direct",
-      })
+    const currentUserId = userId()
 
-      addRoom(room)
+    if (currentUserId === null) {
+      showToast("error", "FAILED", "NOT AUTHENTICATED")
+      return
+    }
+
+    const room = await roomService.createRoom(currentUserId, targetUserId)
+
+    if (room) {
       setActiveRoom(room.id)
-      setShowNewChat(false)
-    } catch {
+      closeModal()
+    } else {
       showToast("error", "FAILED", "COULD NOT CREATE CONVERSATION")
     }
   }
 
   const handleNewChat = (): void => {
-    setShowNewChat(true)
+    openModal("new-conversation")
   }
 
   return (
@@ -111,8 +162,8 @@ export default function Chat(): JSX.Element {
         </div>
 
         <NewConversation
-          isOpen={showNewChat()}
-          onClose={() => setShowNewChat(false)}
+          isOpen={activeModal() === "new-conversation"}
+          onClose={closeModal}
           onCreateRoom={handleCreateRoom}
         />
       </AppShell>

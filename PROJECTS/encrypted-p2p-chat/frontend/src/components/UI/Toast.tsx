@@ -18,11 +18,11 @@ const VARIANT_CLASSES: Record<ToastVariant, string> = {
   error: "border-error text-error",
 }
 
-const VARIANT_ICONS: Record<ToastVariant, JSX.Element> = {
-  info: <InfoIcon />,
-  success: <CheckIcon />,
-  warning: <WarningIcon />,
-  error: <ErrorIcon />,
+const VARIANT_ICONS: Record<ToastVariant, () => JSX.Element> = {
+  info: InfoIcon,
+  success: CheckIcon,
+  warning: WarningIcon,
+  error: ErrorIcon,
 }
 
 export function Toast(props: ToastProps): JSX.Element {
@@ -42,7 +42,7 @@ export function Toast(props: ToastProps): JSX.Element {
       role="alert"
     >
       <span class="flex-shrink-0 mt-0.5">
-        {VARIANT_ICONS[props.variant]}
+        {VARIANT_ICONS[props.variant]()}
       </span>
 
       <div class="flex-1 min-w-0">

@@ -16,7 +16,7 @@ const $userIdRaw = persistentAtom<string>("chat:user_id", "", {
 
 export const $userId = computed($userIdRaw, (id) => id !== "" ? id : null)
 
-export const $isAuthenticated = computed($currentUser, (user) => user !== null)
+export const $isAuthenticated = computed($userId, (id) => id !== null)
 
 export const $session = atom<Session | null>(null)
 

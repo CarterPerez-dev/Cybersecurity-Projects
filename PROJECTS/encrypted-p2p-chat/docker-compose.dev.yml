@@ -75,7 +75,10 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY required}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chat_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-chat_auth}
       SURREAL_URL: ${SURREAL_URL:-ws://surrealdb:8000}
+      SURREAL_USER: ${SURREAL_USER:-root}
       SURREAL_PASSWORD: ${SURREAL_PASSWORD}
+      SURREAL_NAMESPACE: ${SURREAL_NAMESPACE:-chat}
+      SURREAL_DATABASE: ${SURREAL_DATABASE:-production}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       RP_ID: ${RP_ID:-localhost}
       RP_NAME: ${RP_NAME:-Encrypted P2P Chat}

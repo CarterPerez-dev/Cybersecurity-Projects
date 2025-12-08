@@ -13,6 +13,7 @@ import {
   $activeRoomId,
   $totalUnreadCount,
   setActiveRoom,
+  openModal,
 } from "../../stores"
 import { Avatar } from "../UI/Avatar"
 import { Badge } from "../UI/Badge"
@@ -27,7 +28,9 @@ export function Sidebar(): JSX.Element {
 
   const roomList = (): Room[] => {
     const roomsObj = rooms()
+    console.log("[Sidebar] rooms store:", roomsObj)
     const roomArray: Room[] = Object.values(roomsObj)
+    console.log("[Sidebar] roomArray length:", roomArray.length)
     return roomArray.sort((a, b) => {
       const aTime = a.last_message?.created_at ?? a.updated_at
       const bTime = b.last_message?.created_at ?? b.updated_at
@@ -59,6 +62,7 @@ export function Sidebar(): JSX.Element {
           variant="subtle"
           size="sm"
           class="w-full justify-start gap-2 px-3"
+          onClick={() => openModal("new-conversation")}
         />
       </div>
 

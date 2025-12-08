@@ -19,6 +19,8 @@ import type {
   ReadReceiptWS,
   HeartbeatWS,
   ErrorMessageWS,
+  RoomCreatedWS,
+  MessageSentWS,
 } from "./index"
 
 export function isString(value: unknown): value is string {
@@ -141,9 +143,10 @@ export function isEncryptedMessageWS(value: unknown): value is EncryptedMessageW
     isNonEmptyString(value.sender_id) &&
     isNonEmptyString(value.recipient_id) &&
     isNonEmptyString(value.room_id) &&
-    isNonEmptyString(value.ciphertext) &&
-    isNonEmptyString(value.nonce) &&
-    isNonEmptyString(value.header) &&
+    isString(value.content) &&
+    isString(value.ciphertext) &&
+    isString(value.nonce) &&
+    isString(value.header) &&
     isNonEmptyString(value.sender_username)
   )
 }
@@ -199,6 +202,33 @@ export function isErrorMessageWS(value: unknown): value is ErrorMessageWS {
   )
 }
 
+export function isRoomCreatedWS(value: unknown): value is RoomCreatedWS {
+  if (!isObject(value)) return false
+
+  return (
+    value.type === "room_created" &&
+    isNonEmptyString(value.room_id) &&
+    isNonEmptyString(value.room_type) &&
+    isArray(value.participants) &&
+    isBoolean(value.is_encrypted) &&
+    isNonEmptyString(value.created_at) &&
+    isNonEmptyString(value.updated_at)
+  )
+}
+
+export function isMessageSentWS(value: unknown): value is MessageSentWS {
+  if (!isObject(value)) return false
+
+  return (
+    value.type === "message_sent" &&
+    isNonEmptyString(value.temp_id) &&
+    isNonEmptyString(value.message_id) &&
+    isNonEmptyString(value.room_id) &&
+    isNonEmptyString(value.status) &&
+    isNonEmptyString(value.created_at)
+  )
+}
+
 export function isWSMessage(value: unknown): value is WSMessage {
   return (
     isEncryptedMessageWS(value) ||
@@ -206,7 +236,9 @@ export function isWSMessage(value: unknown): value is WSMessage {
     isPresenceUpdateWS(value) ||
     isReadReceiptWS(value) ||
     isHeartbeatWS(value) ||
-    isErrorMessageWS(value)
+    isErrorMessageWS(value) ||
+    isRoomCreatedWS(value) ||
+    isMessageSentWS(value)
   )
 }
 

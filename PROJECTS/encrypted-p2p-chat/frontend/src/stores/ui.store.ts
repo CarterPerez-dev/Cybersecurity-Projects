@@ -79,6 +79,15 @@ export function showToast(
   description?: string,
   duration?: number
 ): string {
+  const existingToasts = $toasts.get()
+  const duplicate = existingToasts.find(
+    (t) => t.title === title && t.description === description && t.variant === variant
+  )
+
+  if (duplicate !== undefined) {
+    return duplicate.id
+  }
+
   const id = `toast-${++toastIdCounter}`
   const toast: ToastNotification = {
     id,
@@ -88,7 +97,7 @@ export function showToast(
     duration: duration ?? 5000,
   }
 
-  $toasts.set([...$toasts.get(), toast])
+  $toasts.set([...existingToasts, toast])
 
   const toastDuration = toast.duration ?? 5000
   if (toastDuration > 0) {

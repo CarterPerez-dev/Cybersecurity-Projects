@@ -11,6 +11,8 @@ export type WSMessageType =
   | "receipt"
   | "heartbeat"
   | "error"
+  | "room_created"
+  | "message_sent"
 
 export interface BaseWSMessage {
   type: WSMessageType
@@ -23,6 +25,7 @@ export interface EncryptedMessageWS extends BaseWSMessage {
   sender_id: string
   recipient_id: string
   room_id: string
+  content: string
   ciphertext: string
   nonce: string
   header: string
@@ -63,6 +66,32 @@ export interface ErrorMessageWS extends BaseWSMessage {
   details?: Record<string, unknown>
 }
 
+export interface RoomCreatedWS extends BaseWSMessage {
+  type: "room_created"
+  room_id: string
+  room_type: string
+  name: string | null
+  participants: Array<{
+    user_id: string
+    username: string
+    display_name: string
+    role: string
+    joined_at: string
+  }>
+  is_encrypted: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface MessageSentWS extends BaseWSMessage {
+  type: "message_sent"
+  temp_id: string
+  message_id: string
+  room_id: string
+  status: string
+  created_at: string
+}
+
 export type WSMessage =
   | EncryptedMessageWS
   | TypingIndicatorWS
@@ -70,12 +99,15 @@ export type WSMessage =
   | ReadReceiptWS
   | HeartbeatWS
   | ErrorMessageWS
+  | RoomCreatedWS
+  | MessageSentWS
 
 export interface WSOutgoingEncryptedMessage {
   type: "encrypted_message"
   recipient_id: string
   room_id: string
   plaintext: string
+  temp_id: string
 }
 
 export interface WSOutgoingTyping {
