@@ -28,7 +28,9 @@ from app.core.exceptions import (
 from app.core.passkey.passkey_manager import passkey_manager
 from app.core.redis_manager import redis_manager
 from app.models.Credential import Credential
+from app.models.IdentityKey import IdentityKey
 from app.models.User import User
+from app.services.prekey_service import prekey_service
 from app.schemas.auth import (
     AuthenticationBeginRequest,
     AuthenticationCompleteRequest,
@@ -418,6 +420,11 @@ class AuthService:
             device_name = request.device_name,
         )
 
+        await prekey_service.initialize_user_keys(
+            session = session,
+            user_id = user.id,
+        )
+
         logger.info("Registration completed for user: %s", username)
 
         return UserResponse(
@@ -563,6 +570,20 @@ class AuthService:
                 credential_id = credential.credential_id,
                 backup_state = verified.backup_state,
                 backup_eligible = verified.backup_eligible,
+            )
+
+        ik_statement = select(IdentityKey).where(IdentityKey.user_id == user.id)
+        ik_result = await session.execute(ik_statement)
+        existing_ik = ik_result.scalar_one_or_none()
+
+        if not existing_ik:
+            logger.info(
+                "Initializing encryption keys for existing user: %s",
+                user.username
+            )
+            await prekey_service.initialize_user_keys(
+                session = session,
+                user_id = user.id,
             )
 
         logger.info("Authentication successful for user: %s", user.username)

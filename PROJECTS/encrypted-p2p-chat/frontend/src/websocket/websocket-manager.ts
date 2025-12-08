@@ -27,6 +27,8 @@ import {
   isReadReceiptWS,
   isHeartbeatWS,
   isErrorMessageWS,
+  isRoomCreatedWS,
+  isMessageSentWS,
 } from "../types/guards"
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting"
@@ -42,6 +44,7 @@ export const $isConnected = computed(
 
 const MAX_RECONNECT_ATTEMPTS = 10
 const MAX_RECONNECT_DELAY = 30000
+const FATAL_ERROR_CODES = ["max_connections", "unauthorized", "invalid_user", "database_error"]
 
 class WebSocketManager {
   private ws: WebSocket | null = null
@@ -49,6 +52,7 @@ class WebSocketManager {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
   private messageQueue: WSOutgoingMessage[] = []
   private intentionalClose = false
+  private fatalError = false
 
   connect(): void {
     const userId = $userId.get()
@@ -58,6 +62,10 @@ class WebSocketManager {
     }
 
     if (this.ws?.readyState === WebSocket.OPEN) {
+      return
+    }
+
+    if (this.fatalError) {
       return
     }
 
@@ -76,6 +84,7 @@ class WebSocketManager {
 
   disconnect(): void {
     this.intentionalClose = true
+    this.fatalError = false
     this.cleanup()
     $connectionStatus.set("disconnected")
     $reconnectAttempts.set(0)
@@ -99,13 +108,15 @@ class WebSocketManager {
   sendEncryptedMessage(
     recipientId: string,
     roomId: string,
-    plaintext: string
+    plaintext: string,
+    tempId: string
   ): boolean {
     const message: WSOutgoingEncryptedMessage = {
       type: "encrypted_message",
       recipient_id: recipientId,
       room_id: roomId,
       plaintext,
+      temp_id: tempId,
     }
     return this.send(message)
   }
@@ -176,6 +187,14 @@ class WebSocketManager {
     } else if (isHeartbeatWS(message)) {
       return
     } else if (isErrorMessageWS(message)) {
+      if (FATAL_ERROR_CODES.includes(message.error_code)) {
+        this.fatalError = true
+        $lastError.set(message.error_message)
+      }
+      handleWSMessage(message)
+    } else if (isRoomCreatedWS(message)) {
+      handleWSMessage(message)
+    } else if (isMessageSentWS(message)) {
       handleWSMessage(message)
     }
   }
@@ -184,6 +203,11 @@ class WebSocketManager {
     this.cleanup()
 
     if (this.intentionalClose) {
+      $connectionStatus.set("disconnected")
+      return
+    }
+
+    if (this.fatalError) {
       $connectionStatus.set("disconnected")
       return
     }

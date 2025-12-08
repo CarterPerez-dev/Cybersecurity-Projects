@@ -15,12 +15,15 @@ class MessageResponse(BaseModel):
     Message response from SurrealDB
     """
     id: str
-    room_id: str
+    room_id: str | None = None
     sender_id: str
-    encrypted_content: str
-    encrypted_header: str
-    created_at: datetime
-    updated_at: datetime
+    recipient_id: str
+    ciphertext: str
+    nonce: str
+    header: str
+    sender_username: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RoomResponse(BaseModel):
@@ -28,7 +31,7 @@ class RoomResponse(BaseModel):
     Room response from SurrealDB
     """
     id: str
-    name: str
+    name: str | None = None
     room_type: RoomType
     created_by: str
     created_at: datetime

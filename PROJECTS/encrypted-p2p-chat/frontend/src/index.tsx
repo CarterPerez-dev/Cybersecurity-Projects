@@ -2,6 +2,7 @@ import { render } from "solid-js/web";
 import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import App from "./App";
+import { ToastContainer } from "./components/UI/Toast";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -26,6 +27,7 @@ render(
       <Router>
         <App />
       </Router>
+      <ToastContainer />
     </QueryClientProvider>
   ),
   root

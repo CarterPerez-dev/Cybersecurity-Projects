@@ -70,7 +70,20 @@ class ConnectionManager:
             len(self.active_connections[user_id])
         )
 
-        await presence_service.set_user_online(user_id)
+        try:
+            await presence_service.set_user_online(user_id)
+        except Exception as e:
+            logger.error("Failed to set user %s online: %s", user_id, e)
+            await self._send_error(
+                websocket,
+                "database_error",
+                "Failed to initialize connection"
+            )
+            self.active_connections[user_id].remove(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+            await websocket.close()
+            return False
 
         self.heartbeat_tasks[user_id] = asyncio.create_task(
             self._heartbeat_loop(websocket,
@@ -199,8 +212,8 @@ class ConnectionManager:
                 """
                 asyncio.create_task(self._handle_live_message(user_id, update))
 
-            live_id = await surreal_db.live_messages(
-                room_id = str(user_id),
+            live_id = await surreal_db.live_messages_for_user(
+                user_id = str(user_id),
                 callback = message_callback
             )
 
@@ -226,10 +239,12 @@ class ConnectionManager:
             message_id = message_data.id,
             sender_id = message_data.sender_id,
             recipient_id = str(user_id),
-            ciphertext = message_data.encrypted_content,
-            nonce = "",
-            header = message_data.encrypted_header,
-            sender_username = "",
+            room_id = message_data.room_id or "",
+            content = "[Encrypted message - requires decryption]",
+            ciphertext = message_data.ciphertext,
+            nonce = message_data.nonce,
+            header = message_data.header,
+            sender_username = message_data.sender_username,
             timestamp = message_data.created_at
         )
 

@@ -10,6 +10,7 @@ import {
   $isAuthenticated,
   $sidebarOpen,
   toggleSidebar,
+  openModal,
 } from "../../stores"
 import { IconButton } from "../UI/IconButton"
 import { Badge } from "../UI/Badge"
@@ -70,6 +71,7 @@ export function Header(): JSX.Element {
               icon={<SearchIcon />}
               ariaLabel="Search"
               size="sm"
+              onClick={() => openModal("new-conversation")}
             />
           </Show>
         </nav>

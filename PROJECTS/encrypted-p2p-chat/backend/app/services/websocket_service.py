@@ -20,6 +20,7 @@ from app.core.enums import PresenceStatus
 from app.core.websocket_manager import connection_manager
 from app.schemas.websocket import (
     EncryptedMessageWS,
+    MessageSentWS,
     ReadReceiptWS,
     TypingIndicatorWS,
 )
@@ -94,10 +95,16 @@ class WebSocketService:
         """
         try:
             recipient_id = UUID(message.get("recipient_id"))
+            room_id = message.get("room_id")
             plaintext = message.get("plaintext")
+            temp_id = message.get("temp_id", "")
 
             if not plaintext:
                 logger.error("Missing plaintext in message from %s", user_id)
+                return
+
+            if not room_id:
+                logger.error("Missing room_id in message from %s", user_id)
                 return
 
             async with async_session_maker() as session:
@@ -105,33 +112,53 @@ class WebSocketService:
                     session,
                     user_id,
                     recipient_id,
-                    plaintext
+                    plaintext,
+                    room_id,
                 )
 
             ws_message = EncryptedMessageWS(
-                message_id = result.id if hasattr(result,
-                                                  'id') else "unknown",
+                message_id = result.id if hasattr(result, 'id') else "unknown",
                 sender_id = str(user_id),
                 recipient_id = str(recipient_id),
-                ciphertext = message.get("ciphertext",
-                                         ""),
-                nonce = message.get("nonce",
-                                    ""),
-                header = message.get("header",
-                                     ""),
-                sender_username = message.get("sender_username",
-                                              "")
+                room_id = room_id,
+                content = plaintext,
+                ciphertext = result.ciphertext if hasattr(result, 'ciphertext') else "",
+                nonce = result.nonce if hasattr(result, 'nonce') else "",
+                header = result.header if hasattr(result, 'header') else "",
+                sender_username = result.sender_username if hasattr(result, 'sender_username') else ""
+            )
+
+            is_recipient_connected = connection_manager.is_user_connected(recipient_id)
+            logger.warning(
+                "Sending to recipient %s - connected: %s",
+                recipient_id,
+                is_recipient_connected
             )
 
             await connection_manager.send_message(
                 recipient_id,
                 ws_message.model_dump(mode = "json")
             )
+            logger.warning("Message sent to recipient %s", recipient_id)
+
+            confirmation = MessageSentWS(
+                temp_id = temp_id,
+                message_id = result.id if hasattr(result, 'id') else "unknown",
+                room_id = room_id,
+                status = "sent",
+                created_at = result.created_at if hasattr(result, 'created_at') else datetime.now(UTC)
+            )
+
+            await connection_manager.send_message(
+                user_id,
+                confirmation.model_dump(mode = "json")
+            )
 
             logger.info(
-                "Encrypted message forwarded: %s -> %s",
+                "Encrypted message forwarded: %s -> %s in room %s",
                 user_id,
-                recipient_id
+                recipient_id,
+                room_id
             )
 
         except ValueError as e:
