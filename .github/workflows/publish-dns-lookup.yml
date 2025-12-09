@@ -11,6 +11,8 @@ on:
       - main
     paths:
       - 'PROJECTS/dns-lookup/**'
+      - '!PROJECTS/dns-lookup/README.md'
+      - '!PROJECTS/dns-lookup/justfile'
 
 permissions:
   contents: read

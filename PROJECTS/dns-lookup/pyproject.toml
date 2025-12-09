@@ -1,6 +1,6 @@
 [project]
 name = "dnslookup-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Professional DNS lookup CLI with beautiful Rich output"
 readme = "README.md"
 requires-python = ">=3.13"
