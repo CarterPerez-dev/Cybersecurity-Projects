@@ -9,7 +9,7 @@
 ![GitHub forks](https://img.shields.io/github/forks/CarterPerez-dev/Cybersecurity-Projects?)
 ![GitHub issues](https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects?)
 ![GitHub license](https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects?)
-![Cybersecurity](https://img.shields.io/badge/Cybersecurity-60_Projects-darkred?)
+![Cybersecurity](https://img.shields.io/badge/Cybersecurity-60_Projects-darkblue?)
 ![Security Focus](https://img.shields.io/badge/Security-Learning_Resources-darkred?)
 
 </div>
@@ -28,7 +28,7 @@
 </p>
 <div align="center">
   <a href="https://github.com/sponsors/CarterPerez-dev">
-    <img src="https://img.shields.io/static/v1?label=Contribute&message=%E2%9D%A4&logo=GitHub&color=#020a52" alt="contribute"/>
+    <img src="https://img.shields.io/static/v1?label=Contribute&message=%02%0a%52&logo=GitHub&color=#020a52" alt="contribute"/>
   </a>
 </div>
 
