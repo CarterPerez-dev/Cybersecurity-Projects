@@ -5,9 +5,9 @@
 </div>
 <div align="center">
 
-![GitHub stars](https://img.shields.io/github/stars/CarterPerez-dev/Cybersecurity-Projects?style=for-the-badge&color=yellow)
+![GitHub stars](https://img.shields.io/github/stars/CarterPerez-dev/Cybersecurity-Projects?)
 ![GitHub forks](https://img.shields.io/github/forks/CarterPerez-dev/Cybersecurity-Projects?)
-![GitHub issues](https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects?)
+![GitHub issues](https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects-blue?)
 ![GitHub license](https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects?)
 ![Cybersecurity](https://img.shields.io/badge/Cybersecurity-60_Projects-red?)
 ![Security Focus](https://img.shields.io/badge/Security-Learning_Resources-darkred?)
