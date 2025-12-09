@@ -1,0 +1,93 @@
+[project]
+name = "dnslookup-cli"
+version = "0.1.0"
+description = "Professional DNS lookup CLI with beautiful Rich output"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "CarterPerez-dev", email = "support@certgames.com" }]
+keywords = ["dns", "lookup", "cli", "networking", "security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: Name Service (DNS)",
+    "Topic :: System :: Networking",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "dnspython>=2.8.0",
+    "rich>=14.2.0",
+    "typer>=0.20.0",
+    "python-whois>=0.9.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/dnslookup-cli/"
+Documentation = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/dns-lookup/README.md"
+Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
+Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues"
+
+
+[project.scripts]
+dnslookup = "dnslookup.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dnslookup"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 95
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "C4", "UP", "SIM", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+strict_optional = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["dns.*", "whois.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["dnslookup.resolver"]
+disable_error_code = ["union-attr", "attr-defined", "arg-type"]
+
+[tool.pylint]
+ignore-paths = ["dnslookup", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --tb=short"
