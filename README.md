@@ -14,21 +14,6 @@
   <img src="https://img.shields.io/badge/Security-Learning_Resources-darkred" alt="resources"/>
 </div>
 
-
-<h3 align="center">
- Clone, Learn, Customize!❤️
-</h3>
-
-<div align="center">
-  <a href="https://github.com/sponsors/CarterPerez-dev">
-    <img src="https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=ff69b4" alt="Sponsor"/>
-  </a>
-</div>
-
-<p align="center">
- Gradually building all 60 projects. Contributions welcome!🧙 
-</p>
-
 <div align="center">
   <a href="https://github.com/sponsors/CarterPerez-dev">
     <img src="https://img.shields.io/static/v1?label=Contribute&message=%E2%9D%A4&logo=GitHub&color=darkgreen" alt="contribute"/>
@@ -64,9 +49,9 @@
 
 ---
 
-# Projects (Each Links To Their Brief Instructions)
+## Projects (Each link to their brief instructions)
 
-## Beginner Projects
+### Beginner Projects
 
 ### [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Port.Scanner.md)
 Build a Python script using the `socket` library to test common ports (22, 80, 443, 3306, etc.) on a target IP. Implement threading or asyncio to scan multiple ports concurrently for speed. Add service detection by analyzing banner responses from open ports.
