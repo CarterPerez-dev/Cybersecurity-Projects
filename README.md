@@ -1,43 +1,50 @@
 <div align="center">
   <img width="260" height="260" alt="Kali-dragon-icon svg" src="https://github.com/user-attachments/assets/d911b71f-6ad9-45b7-9513-237f83377023" alt="Kali Linux Icon"/>
-  <h2 align="center">Cybersecurity Projects 🐉</h2>
+  <h1 align="center">Cybersecurity Projects 🐉</h1>
   <p align="center">60 Cybersecurity Projects, Certification Roadmaps & Resources</p>
 </div>
+
 <div align="center">
-
-![GitHub stars](https://img.shields.io/github/stars/CarterPerez-dev/Cybersecurity-Projects?)
-![GitHub forks](https://img.shields.io/github/forks/CarterPerez-dev/Cybersecurity-Projects?)
-![GitHub issues](https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects?)
-![GitHub license](https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects?)
-![Cybersecurity](https://img.shields.io/badge/Cybersecurity-60_Projects-darkblue?)
-![Security Focus](https://img.shields.io/badge/Security-Learning_Resources-darkred?)
-
+  <img src="https://img.shields.io/github/stars/CarterPerez-dev/Cybersecurity-Projects" alt="stars"/>
+  <img src="https://img.shields.io/github/forks/CarterPerez-dev/Cybersecurity-Projects" alt="forks"/>
+  <img src="https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects" alt="issues"/>
+  <img src="https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects" alt="license"/>
+  <br/>
+  <img src="https://img.shields.io/badge/Cybersecurity-60_Projects-darkblue" alt="projects"/>
+  <img src="https://img.shields.io/badge/Security-Learning_Resources-darkred" alt="resources"/>
 </div>
-<p align="center">
- So far I've fully built 3 projects for you, with full source code and documentation so you can clone, learn, and customize!❤️
-</p>
+
+
+<h3 align="center">
+ Clone, Learn, Customize!❤️
+</h3>
+
 <div align="center">
   <a href="https://github.com/sponsors/CarterPerez-dev">
     <img src="https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=ff69b4" alt="Sponsor"/>
   </a>
-</div>  
-
 </div>
+
 <p align="center">
- As time goes on I will fully build each and every one of these projects so all 60 are available with full source code and documentation.(3/60) Feel free to contribute!🧙 
+ Gradually building all 60 projects. Contributions welcome!🧙 
 </p>
+
 <div align="center">
   <a href="https://github.com/sponsors/CarterPerez-dev">
-    <img src="https://img.shields.io/static/v1?label=Contribute&message=%E2%9D%A4&logo=GitHub&color=#darkgreen" alt="contribute"/>
+    <img src="https://img.shields.io/static/v1?label=Contribute&message=%E2%9D%A4&logo=GitHub&color=darkgreen" alt="contribute"/>
+  </a>
+</div>
+
+<h2 align="center"><strong>View Complete Projects:</strong></h2>
+<div align="center">
+  <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
+    <img src="https://img.shields.io/badge/Full_Source_Code-3/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
 ---
-# View complete projects: [Projects/](./PROJECTS/)
----
 
 ## Table of Contents
-
 - [Projects](#projects)
   - [Beginner Projects](#beginner-projects)
   - [Intermediate Projects](#intermediate-projects)
