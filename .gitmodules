@@ -1,0 +1,3 @@
+[submodule "templates/fullstack-template"]
+	path = templates/fullstack-template
+	url = https://github.com/CarterPerez-dev/fullstack-template
