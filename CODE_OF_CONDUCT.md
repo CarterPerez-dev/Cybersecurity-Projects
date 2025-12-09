@@ -1,5 +1,5 @@
 # Code of Conduct
-#### "©"AngelaMos | CarterPerez-dev | CertGames.com | 2025
+#### ©AngelaMos | CarterPerez-dev | CertGames.com | 2025
 
 ## Standards
 
