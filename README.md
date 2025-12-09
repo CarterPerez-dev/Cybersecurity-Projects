@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-3/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-4/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -62,8 +62,8 @@ Use Python's `pynput` library to capture keyboard events and log them to a local
 ### [Caesar Cipher](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Caesar.Cipher.md)
 Create a CLI tool that shifts characters by a specified number (the "key") to encrypt/decrypt text. Implement both encryption and brute-force decryption (try all 26 possible shifts). Bonus: Add support for preserving spaces and punctuation.
 
-### [DNS Lookup Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/DNS.Lookup.Tool.md)
-Use Python's `dnspython` library to query different DNS record types (A, AAAA, MX, TXT, NS, CNAME). Display results in a clean table format with color coding. Add reverse DNS lookup functionality.
+### *SOURCE CODE:* *[DNS Lookup CLI Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/dns-lookup)*
+Use Python's `dnspython` library to query different DNS record types (A, AAAA, MX, TXT, NS, CNAME). Display results in a clean table format with color coding using `rich` and `typer` libraries. Add reverse DNS lookup functionality and WHOIS.
 
 ### [Simple Vulnerability Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Vulnerability.Scanner.md)
 Build a script that checks installed software versions against a CVE database or uses `pip-audit` for Python packages. Parse system package managers (apt, yum, brew) to list installed software. Flag packages with known vulnerabilities and suggest updates.
