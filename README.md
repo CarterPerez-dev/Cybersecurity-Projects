@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-4/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-5/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -138,8 +138,8 @@ Create a network monitor that detects traffic spikes using packet sniffing (Scap
 ### [Container Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Container.Security.Scanner.md)
 Scan Docker images by parsing Dockerfiles for insecure practices (running as root, hardcoded secrets) and checking base image versions against vulnerability databases. Use Docker API to inspect running containers for exposed ports and mounted volumes. Output findings in JSON with severity ratings.
 
-### [API Rate Limiter](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/API.Rate.Limiter.md)
-Build middleware that implements token bucket or sliding window rate limiting for APIs. Support per-user, per-IP, and global limits. Include Redis backend for distributed rate limiting across multiple servers.
+### *SOURCE CODE:* *[Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-security-scanner)*
+Build an enterprise-grade automated API security scanner that performs deep vulnerability assessment across REST, GraphQL, and SOAP endpoints, detecting OWASP API Top 10 flaws through intelligent fuzzing, authentication bypass testing, broken object level authorization, mass assignment exploitation, and rate limiting analysis with ML-enhanced payload generation and comprehensive reporting dashboards. (FastAPI - React-Typescript - Vite - Nginx - Docker - CSS)
 
 ### [Wireless Deauth Detector](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Wireless.Deauth.Detector.md)
 Monitor WiFi networks for deauthentication attacks using packet sniffing. Alert when abnormal deauth frames detected. Track affected clients and potential attacker locations.
@@ -187,8 +187,8 @@ Scan Docker environments for security issues (privileged containers, exposed por
 
 ## Advanced Projects
 
-### *SOURCE CODE:* *[Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-security-scanner)*
-Build an enterprise-grade automated API security scanner that performs deep vulnerability assessment across REST, GraphQL, and SOAP endpoints, detecting OWASP API Top 10 flaws through intelligent fuzzing, authentication bypass testing, broken object level authorization, mass assignment exploitation, and rate limiting analysis with ML-enhanced payload generation and comprehensive reporting dashboards. (FastAPI - React-Typescript - Vite - Nginx - Docker - CSS)
+### *SOURCE CODE:* *[API Rate Limiter](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-rate-limiter)*
+Build middleware that implements token bucket or sliding window rate limiting for APIs. Support per-user, per-IP, and global limits. Include Redis backend for distributed rate limiting across multiple servers.
 
 ### *SOURCE CODE:* *[Encrypted Chat Application](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/encrypted-p2p-chat)*
 Build a real time encrypted chat using WebSockets with Signal Protocol encryption (X3DH key exchange + Double Ratchet) for forward secrecy and break-in recovery. Implement passwordless authentication via WebAuthn/Passkeys. Backend uses FastAPI with PostgreSQL, SurrealDB live queries, and Redis. SolidJS TypeScript frontend with nanostores and 8-bit retro design using TailwindCSS.
