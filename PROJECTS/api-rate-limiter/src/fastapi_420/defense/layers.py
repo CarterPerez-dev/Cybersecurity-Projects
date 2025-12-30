@@ -180,7 +180,8 @@ class LayeredDefense:
             ).build()
 
             endpoint_rule = RateLimitRule(
-                requests = rule.requests * self._settings.defense.ENDPOINT_LIMIT_MULTIPLIER,
+                requests = rule.requests *
+                self._settings.defense.ENDPOINT_LIMIT_MULTIPLIER,
                 window_seconds = rule.window_seconds,
             )
 

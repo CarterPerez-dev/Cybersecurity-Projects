@@ -27,6 +27,7 @@ from fastapi_420.config import (
 )
 from fastapi_420.exceptions import (
     EnhanceYourCalm,
+    StorageConnectionError,
     StorageError,
 )
 from fastapi_420.fingerprinting import (
@@ -91,17 +92,33 @@ class RateLimiter:
             if self._storage is None:
                 self._storage = create_storage(self._settings.storage)
 
-            if isinstance(self._storage, RedisStorage):
-                await self._storage.connect()
-
-            if isinstance(self._storage, MemoryStorage):
-                await self._storage.start_cleanup_task()
-
             if self._settings.storage.FALLBACK_TO_MEMORY:
                 self._fallback_storage = MemoryStorage.from_settings(
                     self._settings.storage
                 )
                 await self._fallback_storage.start_cleanup_task()
+
+            if isinstance(self._storage, RedisStorage):
+                try:
+                    await self._storage.connect()
+                except StorageConnectionError:
+                    if self._settings.FAIL_OPEN and self._fallback_storage:
+                        logger.warning(
+                            "Redis unavailable, using memory fallback",
+                            extra = {
+                                "redis_url":
+                                self._settings.storage.REDIS_URL
+                            },
+                        )
+                        self._storage = self._fallback_storage
+                        self._fallback_storage = None
+                    else:
+                        raise
+
+            if isinstance(self._storage,
+                          MemoryStorage
+                          ) and self._storage != self._fallback_storage:
+                await self._storage.start_cleanup_task()
 
             self._algorithm = create_algorithm(self._settings.ALGORITHM)
             self._fingerprinter = CompositeFingerprinter.from_settings(

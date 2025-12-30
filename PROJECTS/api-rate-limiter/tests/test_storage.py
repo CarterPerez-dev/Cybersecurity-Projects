@@ -32,15 +32,15 @@ class TestMemoryStorageBasic:
 
     @pytest.mark.asyncio
     async def test_create_storage_custom_settings(self) -> None:
-        storage = MemoryStorage(max_keys=5000, cleanup_interval=30)
+        storage = MemoryStorage(max_keys = 5000, cleanup_interval = 30)
         assert storage.max_keys == 5000
         assert storage.cleanup_interval == 30
 
     @pytest.mark.asyncio
     async def test_from_settings(self) -> None:
         settings = StorageSettings(
-            MEMORY_MAX_KEYS=2000,
-            MEMORY_CLEANUP_INTERVAL=120,
+            MEMORY_MAX_KEYS = 2000,
+            MEMORY_CLEANUP_INTERVAL = 120,
         )
         storage = MemoryStorage.from_settings(settings)
         assert storage.max_keys == 2000
@@ -74,9 +74,9 @@ class TestMemoryStorageSlidingWindow:
     async def test_increment_first_request(self) -> None:
         storage = MemoryStorage()
         result = await storage.increment(
-            key="test",
-            window_seconds=WINDOW_MINUTE,
-            limit=100,
+            key = "test",
+            window_seconds = WINDOW_MINUTE,
+            limit = 100,
         )
         assert result.allowed is True
         assert result.limit == 100
@@ -119,10 +119,10 @@ class TestMemoryStorageSlidingWindow:
         fixed_time = 1000000.0
 
         result = await storage.increment(
-            key="timestamp_test",
-            window_seconds=WINDOW_MINUTE,
-            limit=100,
-            timestamp=fixed_time,
+            key = "timestamp_test",
+            window_seconds = WINDOW_MINUTE,
+            limit = 100,
+            timestamp = fixed_time,
         )
         assert result.allowed is True
 
@@ -131,7 +131,10 @@ class TestMemoryStorageSlidingWindow:
     @pytest.mark.asyncio
     async def test_get_window_state_empty(self) -> None:
         storage = MemoryStorage()
-        state = await storage.get_window_state("nonexistent", WINDOW_MINUTE)
+        state = await storage.get_window_state(
+            "nonexistent",
+            WINDOW_MINUTE
+        )
         assert state.current_count == 0
         assert state.previous_count == 0
         await storage.close()
@@ -165,16 +168,16 @@ class TestMemoryStorageSlidingWindow:
         storage._windows[prev_key] = storage._windows.__class__().__class__
         from fastapi_420.storage.memory import WindowEntry
         storage._windows[prev_key] = WindowEntry(
-            count=50,
-            window_start=previous_window,
-            expires_at=base_time + window * 2,
+            count = 50,
+            window_start = previous_window,
+            expires_at = base_time + window * 2,
         )
 
         result = await storage.increment(
-            key=key,
-            window_seconds=window,
-            limit=limit,
-            timestamp=base_time + 1.0,
+            key = key,
+            window_seconds = window,
+            limit = limit,
+            timestamp = base_time + 1.0,
         )
 
         assert result.allowed is True
@@ -189,10 +192,10 @@ class TestMemoryStorageTokenBucket:
     async def test_consume_token_first_request(self) -> None:
         storage = MemoryStorage()
         result = await storage.consume_token(
-            key="bucket_test",
-            capacity=100,
-            refill_rate=1.67,
-            tokens_to_consume=1,
+            key = "bucket_test",
+            capacity = 100,
+            refill_rate = 1.67,
+            tokens_to_consume = 1,
         )
         assert result.allowed is True
         assert result.remaining == 99
@@ -205,9 +208,9 @@ class TestMemoryStorageTokenBucket:
 
         for i in range(10):
             result = await storage.consume_token(
-                key=key,
-                capacity=100,
-                refill_rate=1.67,
+                key = key,
+                capacity = 100,
+                refill_rate = 1.67,
             )
             assert result.allowed is True
             assert result.remaining == 100 - (i + 1)
@@ -222,16 +225,16 @@ class TestMemoryStorageTokenBucket:
 
         for _ in range(capacity):
             result = await storage.consume_token(
-                key=key,
-                capacity=capacity,
-                refill_rate=1.0,
+                key = key,
+                capacity = capacity,
+                refill_rate = 1.0,
             )
             assert result.allowed is True
 
         result = await storage.consume_token(
-            key=key,
-            capacity=capacity,
-            refill_rate=1.0,
+            key = key,
+            capacity = capacity,
+            refill_rate = 1.0,
         )
         assert result.allowed is False
         assert result.retry_after is not None
@@ -270,7 +273,11 @@ class TestMemoryStorageTokenBucket:
         storage = MemoryStorage()
         key = "bucket_state_test"
 
-        await storage.consume_token(key, capacity=100, refill_rate=1.67)
+        await storage.consume_token(
+            key,
+            capacity = 100,
+            refill_rate = 1.67
+        )
 
         state = await storage.get_token_bucket_state(key)
         assert state is not None
@@ -286,7 +293,7 @@ class TestMemoryStorageMaxKeys:
     """
     @pytest.mark.asyncio
     async def test_max_keys_eviction(self) -> None:
-        storage = MemoryStorage(max_keys=5)
+        storage = MemoryStorage(max_keys = 5)
 
         for i in range(10):
             await storage.increment(f"key_{i}", WINDOW_MINUTE, 100)
@@ -297,7 +304,7 @@ class TestMemoryStorageMaxKeys:
 
     @pytest.mark.asyncio
     async def test_lru_eviction_order(self) -> None:
-        storage = MemoryStorage(max_keys=3)
+        storage = MemoryStorage(max_keys = 3)
 
         await storage.increment("key_a", WINDOW_MINUTE, 100)
         await storage.increment("key_b", WINDOW_MINUTE, 100)
@@ -317,18 +324,18 @@ class TestMemoryStorageCleanup:
     """
     @pytest.mark.asyncio
     async def test_cleanup_expired_entries(self) -> None:
-        storage = MemoryStorage(cleanup_interval=60)
+        storage = MemoryStorage(cleanup_interval = 60)
 
         from fastapi_420.storage.memory import WindowEntry
         storage._windows["expired_key"] = WindowEntry(
-            count=10,
-            window_start=1,
-            expires_at=time.time() - 100,
+            count = 10,
+            window_start = 1,
+            expires_at = time.time() - 100,
         )
         storage._windows["valid_key"] = WindowEntry(
-            count=10,
-            window_start=1,
-            expires_at=time.time() + 100,
+            count = 10,
+            window_start = 1,
+            expires_at = time.time() + 100,
         )
 
         await storage._cleanup_expired()
@@ -340,7 +347,7 @@ class TestMemoryStorageCleanup:
 
     @pytest.mark.asyncio
     async def test_cleanup_task_starts(self) -> None:
-        storage = MemoryStorage(cleanup_interval=1)
+        storage = MemoryStorage(cleanup_interval = 1)
         await storage.start_cleanup_task()
 
         assert storage._cleanup_task is not None
@@ -350,7 +357,7 @@ class TestMemoryStorageCleanup:
 
     @pytest.mark.asyncio
     async def test_cleanup_task_stops_on_close(self) -> None:
-        storage = MemoryStorage(cleanup_interval=1)
+        storage = MemoryStorage(cleanup_interval = 1)
         await storage.start_cleanup_task()
 
         task = storage._cleanup_task
@@ -364,14 +371,14 @@ class TestStorageFactory:
     Tests for create_storage factory function
     """
     def test_create_memory_storage_no_redis(self) -> None:
-        settings = StorageSettings(REDIS_URL=None)
+        settings = StorageSettings(REDIS_URL = None)
         storage = create_storage(settings)
         assert isinstance(storage, MemoryStorage)
 
     def test_create_memory_storage_explicit(self) -> None:
         settings = StorageSettings(
-            REDIS_URL=None,
-            MEMORY_MAX_KEYS=5000,
+            REDIS_URL = None,
+            MEMORY_MAX_KEYS = 5000,
         )
         storage = create_storage(settings)
         assert isinstance(storage, MemoryStorage)

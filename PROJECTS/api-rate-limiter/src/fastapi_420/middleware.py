@@ -87,31 +87,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not await self._should_limit(request):
             return await call_next(request)  # type: ignore[no-any-return]
 
-        try:
-            limit = self._get_limit_for_path(request.url.path)
-            await self.limiter.check(
-                request,
-                limit,
-                key_func = self.key_func,
-                raise_on_limit = True,
+        limit = self._get_limit_for_path(request.url.path)
+        result = await self.limiter.check(
+            request,
+            limit,
+            key_func = self.key_func,
+            raise_on_limit = False,
+        )
+
+        if not result.allowed:
+            exc = EnhanceYourCalm(
+                result = result,
+                message = self.limiter.settings.HTTP_420_MESSAGE,
+                detail = self.limiter.settings.HTTP_420_DETAIL,
             )
-
-            response = await call_next(request)
-
-            if self.limiter.settings.INCLUDE_HEADERS:
-                result = await self.limiter.check(
-                    request,
-                    limit,
-                    key_func = self.key_func,
-                    raise_on_limit = False,
-                )
-                for header_name, header_value in result.headers.items():
-                    response.headers[header_name] = header_value
-
-            return response  # type: ignore[no-any-return]
-
-        except EnhanceYourCalm as exc:
             return self._create_420_response(exc)
+
+        response = await call_next(request)
+
+        if self.limiter.settings.INCLUDE_HEADERS:
+            for header_name, header_value in result.headers.items():
+                response.headers[header_name] = header_value
+
+        return response  # type: ignore[no-any-return]
 
     async def _should_limit(self, request: Request) -> bool:
         """

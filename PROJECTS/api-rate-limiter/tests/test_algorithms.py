@@ -59,9 +59,9 @@ class TestSlidingWindowAlgorithm:
         rule = RuleFactory.per_minute(100)
 
         result = await algo.check(
-            storage=storage,
-            key="test_key",
-            rule=rule,
+            storage = storage,
+            key = "test_key",
+            rule = rule,
         )
 
         assert result.allowed is True
@@ -87,7 +87,10 @@ class TestSlidingWindowAlgorithm:
     async def test_limit_exceeded(self) -> None:
         algo = SlidingWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             result = await algo.check(storage, "limit_key", rule)
@@ -103,7 +106,10 @@ class TestSlidingWindowAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = SlidingWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             await algo.check(storage, "key_a", rule)
@@ -149,10 +155,10 @@ class TestSlidingWindowAlgorithm:
         fixed_time = 1000000.0
 
         result = await algo.check(
-            storage=storage,
-            key="timestamp_key",
-            rule=rule,
-            timestamp=fixed_time,
+            storage = storage,
+            key = "timestamp_key",
+            rule = rule,
+            timestamp = fixed_time,
         )
 
         assert result.allowed is True
@@ -176,9 +182,9 @@ class TestTokenBucketAlgorithm:
         rule = RuleFactory.per_minute(100)
 
         result = await algo.check(
-            storage=storage,
-            key="bucket_test",
-            rule=rule,
+            storage = storage,
+            key = "bucket_test",
+            rule = rule,
         )
 
         assert result.allowed is True
@@ -190,7 +196,10 @@ class TestTokenBucketAlgorithm:
     async def test_burst_consumption(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=10, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 10,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for i in range(10):
             result = await algo.check(storage, "burst_key", rule)
@@ -203,7 +212,10 @@ class TestTokenBucketAlgorithm:
     async def test_bucket_exhausted(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             await algo.check(storage, "exhaust_key", rule)
@@ -217,7 +229,10 @@ class TestTokenBucketAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             await algo.check(storage, "bucket_a", rule)
@@ -272,9 +287,9 @@ class TestFixedWindowAlgorithm:
         rule = RuleFactory.per_minute(100)
 
         result = await algo.check(
-            storage=storage,
-            key="fixed_test",
-            rule=rule,
+            storage = storage,
+            key = "fixed_test",
+            rule = rule,
         )
 
         assert result.allowed is True
@@ -297,7 +312,10 @@ class TestFixedWindowAlgorithm:
     async def test_limit_exceeded(self) -> None:
         algo = FixedWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             result = await algo.check(storage, "limit_fixed", rule)
@@ -312,7 +330,10 @@ class TestFixedWindowAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = FixedWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for _ in range(5):
             await algo.check(storage, "fixed_a", rule)
@@ -358,10 +379,10 @@ class TestFixedWindowAlgorithm:
         fixed_time = 1000000.0
 
         result = await algo.check(
-            storage=storage,
-            key="timestamp_fixed",
-            rule=rule,
-            timestamp=fixed_time,
+            storage = storage,
+            key = "timestamp_fixed",
+            rule = rule,
+            timestamp = fixed_time,
         )
 
         assert result.allowed is True
@@ -395,7 +416,10 @@ class TestAlgorithmComparison:
             TokenBucketAlgorithm(),
             FixedWindowAlgorithm(),
         ]
-        rule = RuleFactory.create(requests=5, window_seconds=WINDOW_MINUTE)
+        rule = RuleFactory.create(
+            requests = 5,
+            window_seconds = WINDOW_MINUTE
+        )
 
         for algo in algorithms:
             storage = MemoryStorage()
@@ -408,6 +432,7 @@ class TestAlgorithmComparison:
 
     @pytest.mark.asyncio
     async def test_algorithms_have_correct_names(self) -> None:
-        assert SlidingWindowAlgorithm().name == Algorithm.SLIDING_WINDOW.value
+        assert SlidingWindowAlgorithm(
+        ).name == Algorithm.SLIDING_WINDOW.value
         assert TokenBucketAlgorithm().name == Algorithm.TOKEN_BUCKET.value
         assert FixedWindowAlgorithm().name == Algorithm.FIXED_WINDOW.value

@@ -3,7 +3,12 @@
 __init__.py
 """
 
-from fastapi_420.config import RateLimiterSettings, get_settings
+from fastapi_420.config import (
+    FingerprintSettings,
+    RateLimiterSettings,
+    StorageSettings,
+    get_settings,
+)
 from fastapi_420.defense import CircuitBreaker, LayeredDefense
 from fastapi_420.dependencies import (
     LimiterDep,
@@ -44,6 +49,7 @@ __all__ = [
     "EnhanceYourCalm",
     "FingerprintData",
     "FingerprintLevel",
+    "FingerprintSettings",
     "Layer",
     "LayeredDefense",
     "LimiterDep",
@@ -58,6 +64,7 @@ __all__ = [
     "ScopedRateLimiter",
     "SlowDownMiddleware",
     "StorageError",
+    "StorageSettings",
     "__version__",
     "create_rate_limit_dep",
     "get_limiter",

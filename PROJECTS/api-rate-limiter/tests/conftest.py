@@ -101,7 +101,7 @@ class MockScope:
     method: str = "GET"
     path: str = "/"
     query_string: bytes = b""
-    headers: list[tuple[bytes, bytes]] = field(default_factory=list)
+    headers: list[tuple[bytes, bytes]] = field(default_factory = list)
     client: tuple[str, int] | None = None
     route: Any = None
 
@@ -124,9 +124,12 @@ class RequestFactory:
         path: str = TEST_ENDPOINT,
         client_ip: str = TEST_IP_V4,
         client_port: int = 12345,
-        headers: dict[str, str] | None = None,
-        query_params: dict[str, str] | None = None,
-        cookies: dict[str, str] | None = None,
+        headers: dict[str,
+                      str] | None = None,
+        query_params: dict[str,
+                           str] | None = None,
+        cookies: dict[str,
+                      str] | None = None,
         include_route: bool = True,
     ) -> Request:
         """
@@ -160,7 +163,8 @@ class RequestFactory:
             "path": path,
             "query_string": query_string,
             "headers": header_list,
-            "client": (client_ip, client_port),
+            "client": (client_ip,
+                       client_port),
         }
 
         if include_route:
@@ -191,7 +195,7 @@ class RequestFactory:
         elif auth_type == "basic":
             headers["authorization"] = f"Basic {token}"
 
-        return RequestFactory.create(headers=headers, **kwargs)
+        return RequestFactory.create(headers = headers, **kwargs)
 
     @staticmethod
     def with_forwarded_for(
@@ -208,7 +212,7 @@ class RequestFactory:
         if real_ip:
             headers["x-real-ip"] = real_ip
 
-        return RequestFactory.create(headers=headers, **kwargs)
+        return RequestFactory.create(headers = headers, **kwargs)
 
 
 class FingerprintFactory:
@@ -231,15 +235,15 @@ class FingerprintFactory:
         Create FingerprintData with sensible defaults
         """
         return FingerprintData(
-            ip=ip,
-            ip_normalized=ip_normalized or ip,
-            user_agent=user_agent,
-            accept_language=accept_language,
-            accept_encoding=accept_encoding,
-            headers_hash=headers_hash,
-            auth_identifier=auth_identifier,
-            tls_fingerprint=tls_fingerprint,
-            geo_asn=geo_asn,
+            ip = ip,
+            ip_normalized = ip_normalized or ip,
+            user_agent = user_agent,
+            accept_language = accept_language,
+            accept_encoding = accept_encoding,
+            headers_hash = headers_hash,
+            auth_identifier = auth_identifier,
+            tls_fingerprint = tls_fingerprint,
+            geo_asn = geo_asn,
         )
 
     @staticmethod
@@ -253,16 +257,19 @@ class FingerprintFactory:
         """
         identifier = auth_id
         if hash_id:
-            identifier = hashlib.sha256(auth_id.encode()).hexdigest()[:16]
+            identifier = hashlib.sha256(auth_id.encode()).hexdigest()[: 16]
 
-        return FingerprintFactory.create(auth_identifier=identifier, **kwargs)
+        return FingerprintFactory.create(
+            auth_identifier = identifier,
+            **kwargs
+        )
 
     @staticmethod
     def anonymous(**kwargs: Any) -> FingerprintData:
         """
         Create anonymous fingerprint (no auth)
         """
-        return FingerprintFactory.create(auth_identifier=None, **kwargs)
+        return FingerprintFactory.create(auth_identifier = None, **kwargs)
 
     @staticmethod
     def minimal(ip: str = TEST_IP_V4) -> FingerprintData:
@@ -270,8 +277,8 @@ class FingerprintFactory:
         Create minimal fingerprint (IP only)
         """
         return FingerprintData(
-            ip=ip,
-            ip_normalized=ip,
+            ip = ip,
+            ip_normalized = ip,
         )
 
 
@@ -287,29 +294,44 @@ class RuleFactory:
         """
         Create RateLimitRule with defaults
         """
-        return RateLimitRule(requests=requests, window_seconds=window_seconds)
+        return RateLimitRule(
+            requests = requests,
+            window_seconds = window_seconds
+        )
 
     @staticmethod
     def per_second(requests: int = 10) -> RateLimitRule:
-        return RateLimitRule(requests=requests, window_seconds=WINDOW_SECOND)
+        return RateLimitRule(
+            requests = requests,
+            window_seconds = WINDOW_SECOND
+        )
 
     @staticmethod
     def per_minute(requests: int = 100) -> RateLimitRule:
-        return RateLimitRule(requests=requests, window_seconds=WINDOW_MINUTE)
+        return RateLimitRule(
+            requests = requests,
+            window_seconds = WINDOW_MINUTE
+        )
 
     @staticmethod
     def per_hour(requests: int = 1000) -> RateLimitRule:
-        return RateLimitRule(requests=requests, window_seconds=WINDOW_HOUR)
+        return RateLimitRule(
+            requests = requests,
+            window_seconds = WINDOW_HOUR
+        )
 
     @staticmethod
     def per_day(requests: int = 10000) -> RateLimitRule:
-        return RateLimitRule(requests=requests, window_seconds=WINDOW_DAY)
+        return RateLimitRule(
+            requests = requests,
+            window_seconds = WINDOW_DAY
+        )
 
     @staticmethod
     def strict() -> RateLimitRule:
         return RateLimitRule(
-            requests=STRICT_LIMIT_REQUESTS,
-            window_seconds=STRICT_LIMIT_WINDOW,
+            requests = STRICT_LIMIT_REQUESTS,
+            window_seconds = STRICT_LIMIT_WINDOW,
         )
 
     @staticmethod
@@ -331,10 +353,10 @@ class ResultFactory:
         Create allowed result
         """
         return RateLimitResult(
-            allowed=True,
-            limit=limit,
-            remaining=remaining if remaining is not None else limit - 1,
-            reset_after=reset_after,
+            allowed = True,
+            limit = limit,
+            remaining = remaining if remaining is not None else limit - 1,
+            reset_after = reset_after,
         )
 
     @staticmethod
@@ -347,11 +369,11 @@ class ResultFactory:
         Create denied result
         """
         return RateLimitResult(
-            allowed=False,
-            limit=limit,
-            remaining=0,
-            reset_after=reset_after,
-            retry_after=retry_after or reset_after,
+            allowed = False,
+            limit = limit,
+            remaining = 0,
+            reset_after = reset_after,
+            retry_after = retry_after or reset_after,
         )
 
     @staticmethod
@@ -364,10 +386,10 @@ class ResultFactory:
         Create result near the limit
         """
         return RateLimitResult(
-            allowed=True,
-            limit=limit,
-            remaining=remaining,
-            reset_after=reset_after,
+            allowed = True,
+            limit = limit,
+            remaining = remaining,
+            reset_after = reset_after,
         )
 
 
@@ -388,12 +410,12 @@ class KeyFactory:
         Create RateLimitKey with defaults
         """
         return RateLimitKey(
-            prefix=prefix,
-            version=version,
-            layer=layer,
-            endpoint=endpoint,
-            identifier=identifier,
-            window=window,
+            prefix = prefix,
+            version = version,
+            layer = layer,
+            endpoint = endpoint,
+            identifier = identifier,
+            window = window,
         )
 
     @staticmethod
@@ -403,10 +425,10 @@ class KeyFactory:
         window: int = WINDOW_MINUTE,
     ) -> RateLimitKey:
         return KeyFactory.create(
-            layer=Layer.USER,
-            endpoint=endpoint,
-            identifier=identifier,
-            window=window,
+            layer = Layer.USER,
+            endpoint = endpoint,
+            identifier = identifier,
+            window = window,
         )
 
     @staticmethod
@@ -415,19 +437,19 @@ class KeyFactory:
         window: int = WINDOW_MINUTE,
     ) -> RateLimitKey:
         return KeyFactory.create(
-            layer=Layer.ENDPOINT,
-            endpoint=endpoint,
-            identifier="global",
-            window=window,
+            layer = Layer.ENDPOINT,
+            endpoint = endpoint,
+            identifier = "global",
+            window = window,
         )
 
     @staticmethod
     def global_key(window: int = WINDOW_MINUTE) -> RateLimitKey:
         return KeyFactory.create(
-            layer=Layer.GLOBAL,
-            endpoint="",
-            identifier="global",
-            window=window,
+            layer = Layer.GLOBAL,
+            endpoint = "",
+            identifier = "global",
+            window = window,
         )
 
 
@@ -449,10 +471,10 @@ class WindowStateFactory:
             current_window = int(time.time() // window_seconds)
 
         return WindowState(
-            current_count=current_count,
-            previous_count=previous_count,
-            current_window=current_window,
-            window_seconds=window_seconds,
+            current_count = current_count,
+            previous_count = previous_count,
+            current_window = current_window,
+            window_seconds = window_seconds,
         )
 
     @staticmethod
@@ -462,8 +484,8 @@ class WindowStateFactory:
     @staticmethod
     def with_usage(current: int, previous: int = 0) -> WindowState:
         return WindowStateFactory.create(
-            current_count=current,
-            previous_count=previous,
+            current_count = current,
+            previous_count = previous,
         )
 
 
@@ -482,22 +504,25 @@ class TokenBucketStateFactory:
         Create TokenBucketState with defaults
         """
         return TokenBucketState(
-            tokens=tokens,
-            last_refill=last_refill or time.time(),
-            capacity=capacity,
-            refill_rate=refill_rate,
+            tokens = tokens,
+            last_refill = last_refill or time.time(),
+            capacity = capacity,
+            refill_rate = refill_rate,
         )
 
     @staticmethod
     def full(capacity: int = 100) -> TokenBucketState:
         return TokenBucketStateFactory.create(
-            tokens=float(capacity),
-            capacity=capacity,
+            tokens = float(capacity),
+            capacity = capacity,
         )
 
     @staticmethod
     def empty(capacity: int = 100) -> TokenBucketState:
-        return TokenBucketStateFactory.create(tokens=0.0, capacity=capacity)
+        return TokenBucketStateFactory.create(
+            tokens = 0.0,
+            capacity = capacity
+        )
 
 
 class DefenseContextFactory:
@@ -517,20 +542,20 @@ class DefenseContextFactory:
         Create DefenseContext with defaults
         """
         return DefenseContext(
-            fingerprint=fingerprint or FingerprintFactory.create(),
-            endpoint=endpoint,
-            method=method,
-            is_authenticated=is_authenticated,
-            reputation_score=reputation_score,
-            request_count_last_minute=request_count_last_minute,
+            fingerprint = fingerprint or FingerprintFactory.create(),
+            endpoint = endpoint,
+            method = method,
+            is_authenticated = is_authenticated,
+            reputation_score = reputation_score,
+            request_count_last_minute = request_count_last_minute,
         )
 
     @staticmethod
     def authenticated(**kwargs: Any) -> DefenseContext:
         fp = FingerprintFactory.authenticated()
         return DefenseContextFactory.create(
-            fingerprint=fp,
-            is_authenticated=True,
+            fingerprint = fp,
+            is_authenticated = True,
             **kwargs,
         )
 
@@ -540,8 +565,8 @@ class DefenseContextFactory:
         request_count: int = 500,
     ) -> DefenseContext:
         return DefenseContextFactory.create(
-            reputation_score=reputation_score,
-            request_count_last_minute=request_count,
+            reputation_score = reputation_score,
+            request_count_last_minute = request_count,
         )
 
 
@@ -561,11 +586,11 @@ class CircuitStateFactory:
         Create CircuitState with defaults
         """
         return CircuitState(
-            is_open=is_open,
-            failure_count=failure_count,
-            last_failure_time=last_failure_time,
-            half_open_requests=half_open_requests,
-            total_requests_in_window=total_requests_in_window,
+            is_open = is_open,
+            failure_count = failure_count,
+            last_failure_time = last_failure_time,
+            half_open_requests = half_open_requests,
+            total_requests_in_window = total_requests_in_window,
         )
 
     @staticmethod
@@ -575,9 +600,9 @@ class CircuitStateFactory:
     @staticmethod
     def open(failure_time: float | None = None) -> CircuitState:
         return CircuitStateFactory.create(
-            is_open=True,
-            failure_count=1,
-            last_failure_time=failure_time or time.time(),
+            is_open = True,
+            failure_count = 1,
+            last_failure_time = failure_time or time.time(),
         )
 
 
@@ -587,10 +612,10 @@ def storage_settings() -> StorageSettings:
     Create test storage settings (memory backend)
     """
     return StorageSettings(
-        REDIS_URL=None,
-        MEMORY_MAX_KEYS=10000,
-        MEMORY_CLEANUP_INTERVAL=60,
-        FALLBACK_TO_MEMORY=True,
+        REDIS_URL = None,
+        MEMORY_MAX_KEYS = 10000,
+        MEMORY_CLEANUP_INTERVAL = 60,
+        FALLBACK_TO_MEMORY = True,
     )
 
 
@@ -600,17 +625,17 @@ def fingerprint_settings() -> FingerprintSettings:
     Create test fingerprint settings
     """
     return FingerprintSettings(
-        LEVEL=FingerprintLevel.NORMAL,
-        USE_IP=True,
-        USE_USER_AGENT=True,
-        USE_ACCEPT_HEADERS=False,
-        USE_HEADER_ORDER=False,
-        USE_AUTH=True,
-        USE_TLS=False,
-        USE_GEO=False,
-        IPV6_PREFIX_LENGTH=64,
-        TRUSTED_PROXIES=[],
-        TRUST_X_FORWARDED_FOR=False,
+        LEVEL = FingerprintLevel.NORMAL,
+        USE_IP = True,
+        USE_USER_AGENT = True,
+        USE_ACCEPT_HEADERS = False,
+        USE_HEADER_ORDER = False,
+        USE_AUTH = True,
+        USE_TLS = False,
+        USE_GEO = False,
+        IPV6_PREFIX_LENGTH = 64,
+        TRUSTED_PROXIES = [],
+        TRUST_X_FORWARDED_FOR = False,
     )
 
 
@@ -620,15 +645,15 @@ def defense_settings() -> DefenseSettings:
     Create test defense settings
     """
     return DefenseSettings(
-        MODE=DefenseMode.ADAPTIVE,
-        GLOBAL_LIMIT="50000/minute",
-        CIRCUIT_THRESHOLD=CIRCUIT_THRESHOLD,
-        CIRCUIT_WINDOW=CIRCUIT_WINDOW,
-        CIRCUIT_RECOVERY_TIME=CIRCUIT_RECOVERY,
-        ADAPTIVE_REDUCTION_FACTOR=0.5,
-        ENDPOINT_LIMIT_MULTIPLIER=10,
-        LOCKDOWN_ALLOW_AUTHENTICATED=True,
-        LOCKDOWN_ALLOW_KNOWN_GOOD=True,
+        MODE = DefenseMode.ADAPTIVE,
+        GLOBAL_LIMIT = "50000/minute",
+        CIRCUIT_THRESHOLD = CIRCUIT_THRESHOLD,
+        CIRCUIT_WINDOW = CIRCUIT_WINDOW,
+        CIRCUIT_RECOVERY_TIME = CIRCUIT_RECOVERY,
+        ADAPTIVE_REDUCTION_FACTOR = 0.5,
+        ENDPOINT_LIMIT_MULTIPLIER = 10,
+        LOCKDOWN_ALLOW_AUTHENTICATED = True,
+        LOCKDOWN_ALLOW_KNOWN_GOOD = True,
     )
 
 
@@ -642,21 +667,22 @@ def rate_limiter_settings(
     Create test rate limiter settings
     """
     return RateLimiterSettings(
-        ENABLED=True,
-        ALGORITHM=Algorithm.SLIDING_WINDOW,
-        DEFAULT_LIMIT="100/minute",
-        DEFAULT_LIMITS=["100/minute", "1000/hour"],
-        FAIL_OPEN=True,
-        KEY_PREFIX=KEY_PREFIX,
-        KEY_VERSION=KEY_VERSION,
-        INCLUDE_HEADERS=True,
-        LOG_VIOLATIONS=False,
-        ENVIRONMENT="development",
-        HTTP_420_MESSAGE="Enhance your calm",
-        HTTP_420_DETAIL="Rate limit exceeded. Take a breather.",
-        storage=storage_settings,
-        fingerprint=fingerprint_settings,
-        defense=defense_settings,
+        ENABLED = True,
+        ALGORITHM = Algorithm.SLIDING_WINDOW,
+        DEFAULT_LIMIT = "100/minute",
+        DEFAULT_LIMITS = ["100/minute",
+                          "1000/hour"],
+        FAIL_OPEN = True,
+        KEY_PREFIX = KEY_PREFIX,
+        KEY_VERSION = KEY_VERSION,
+        INCLUDE_HEADERS = True,
+        LOG_VIOLATIONS = False,
+        ENVIRONMENT = "development",
+        HTTP_420_MESSAGE = "Enhance your calm",
+        HTTP_420_DETAIL = "Rate limit exceeded. Take a breather.",
+        storage = storage_settings,
+        fingerprint = fingerprint_settings,
+        defense = defense_settings,
     )
 
 
@@ -665,7 +691,7 @@ async def memory_storage() -> AsyncGenerator[MemoryStorage, None]:
     """
     Create and manage MemoryStorage instance
     """
-    storage = MemoryStorage(max_keys=10000, cleanup_interval=60)
+    storage = MemoryStorage(max_keys = 10000, cleanup_interval = 60)
     await storage.start_cleanup_task()
     yield storage
     await storage.close()
@@ -701,9 +727,9 @@ def ip_extractor() -> IPExtractor:
     Create IP extractor instance
     """
     return IPExtractor(
-        ipv6_prefix_length=64,
-        trusted_proxies=[],
-        trust_x_forwarded_for=False,
+        ipv6_prefix_length = 64,
+        trusted_proxies = [],
+        trust_x_forwarded_for = False,
     )
 
 
@@ -712,7 +738,7 @@ def headers_extractor() -> HeadersExtractor:
     """
     Create headers extractor instance
     """
-    return HeadersExtractor(use_header_order=False, hash_length=16)
+    return HeadersExtractor(use_header_order = False, hash_length = 16)
 
 
 @pytest.fixture
@@ -721,13 +747,13 @@ def auth_extractor() -> AuthExtractor:
     Create auth extractor instance
     """
     return AuthExtractor(
-        jwt_secret=None,
-        jwt_algorithms=["HS256"],
-        api_key_header="X-API-Key",
-        api_key_query_param="api_key",
-        session_cookie="session_id",
-        hash_identifiers=True,
-        hash_length=16,
+        jwt_secret = None,
+        jwt_algorithms = ["HS256"],
+        api_key_header = "X-API-Key",
+        api_key_query_param = "api_key",
+        session_cookie = "session_id",
+        hash_identifiers = True,
+        hash_length = 16,
     )
 
 
@@ -741,10 +767,10 @@ def composite_fingerprinter(
     Create composite fingerprinter instance
     """
     return CompositeFingerprinter(
-        level=FingerprintLevel.NORMAL,
-        ip_extractor=ip_extractor,
-        headers_extractor=headers_extractor,
-        auth_extractor=auth_extractor,
+        level = FingerprintLevel.NORMAL,
+        ip_extractor = ip_extractor,
+        headers_extractor = headers_extractor,
+        auth_extractor = auth_extractor,
     )
 
 
@@ -754,10 +780,10 @@ async def circuit_breaker() -> CircuitBreaker:
     Create circuit breaker instance
     """
     return CircuitBreaker(
-        threshold=CIRCUIT_THRESHOLD,
-        window_seconds=CIRCUIT_WINDOW,
-        recovery_time=CIRCUIT_RECOVERY,
-        defense_mode=DefenseMode.ADAPTIVE,
+        threshold = CIRCUIT_THRESHOLD,
+        window_seconds = CIRCUIT_WINDOW,
+        recovery_time = CIRCUIT_RECOVERY,
+        defense_mode = DefenseMode.ADAPTIVE,
     )
 
 
@@ -765,13 +791,14 @@ async def circuit_breaker() -> CircuitBreaker:
 async def rate_limiter(
     rate_limiter_settings: RateLimiterSettings,
     memory_storage: MemoryStorage,
-) -> AsyncGenerator[RateLimiter, None]:
+) -> AsyncGenerator[RateLimiter,
+                    None]:
     """
     Create and manage RateLimiter instance
     """
     limiter = RateLimiter(
-        settings=rate_limiter_settings,
-        storage=memory_storage,
+        settings = rate_limiter_settings,
+        storage = memory_storage,
     )
     await limiter.init()
     yield limiter
@@ -788,9 +815,9 @@ async def layered_defense(
     Create layered defense instance
     """
     return LayeredDefense(
-        storage=memory_storage,
-        settings=rate_limiter_settings,
-        circuit_breaker=circuit_breaker,
+        storage = memory_storage,
+        settings = rate_limiter_settings,
+        circuit_breaker = circuit_breaker,
     )
 
 
@@ -842,7 +869,7 @@ def create_test_app(
     """
     Create a test FastAPI application
     """
-    app = FastAPI(title="Test API")
+    app = FastAPI(title = "Test API")
 
     @app.get("/")
     async def root() -> dict[str, str]:
@@ -867,8 +894,8 @@ def create_test_app(
     if with_middleware and limiter:
         app.add_middleware(
             RateLimitMiddleware,
-            limiter=limiter,
-            default_limit=default_limit,
+            limiter = limiter,
+            default_limit = default_limit,
         )
 
     return app
@@ -889,19 +916,20 @@ async def test_app_with_limiter(
     """
     Create a test app with rate limiting middleware
     """
-    app = create_test_app(limiter=rate_limiter, with_middleware=True)
+    app = create_test_app(limiter = rate_limiter, with_middleware = True)
     set_global_limiter(rate_limiter)
     return app
 
 
 @pytest.fixture
-async def async_client(test_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+async def async_client(test_app: FastAPI) -> AsyncGenerator[AsyncClient,
+                                                            None]:
     """
     Create async HTTP client for testing
     """
     async with AsyncClient(
-        transport=ASGITransport(app=test_app),
-        base_url="http://test",
+            transport = ASGITransport(app = test_app),
+            base_url = "http://test",
     ) as client:
         yield client
 
@@ -909,13 +937,14 @@ async def async_client(test_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 async def rate_limited_client(
     test_app_with_limiter: FastAPI,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient,
+                    None]:
     """
     Create async HTTP client with rate limiting
     """
     async with AsyncClient(
-        transport=ASGITransport(app=test_app_with_limiter),
-        base_url="http://test",
+            transport = ASGITransport(app = test_app_with_limiter),
+            base_url = "http://test",
     ) as client:
         yield client
 
@@ -930,21 +959,24 @@ def sync_client(test_app: FastAPI) -> Generator[TestClient, None, None]:
 
 
 def assert_rate_limit_headers(
-    headers: dict[str, str],
+    headers: dict[str,
+                  str],
     expected_limit: int | None = None,
 ) -> None:
     """
     Assert rate limit headers are present and valid
     """
-    assert "RateLimit-Limit" in headers
-    assert "RateLimit-Remaining" in headers
-    assert "RateLimit-Reset" in headers
+    lower_headers = {k.lower(): v for k, v in headers.items()}
+
+    assert "ratelimit-limit" in lower_headers
+    assert "ratelimit-remaining" in lower_headers
+    assert "ratelimit-reset" in lower_headers
 
     if expected_limit is not None:
-        assert int(headers["RateLimit-Limit"]) == expected_limit
+        assert int(lower_headers["ratelimit-limit"]) == expected_limit
 
-    assert int(headers["RateLimit-Remaining"]) >= 0
-    assert int(headers["RateLimit-Reset"]) >= 0
+    assert int(lower_headers["ratelimit-remaining"]) >= 0
+    assert int(lower_headers["ratelimit-reset"]) >= 0
 
 
 def assert_420_response(
@@ -957,7 +989,8 @@ def assert_420_response(
     assert response.status_code == HTTP_420_ENHANCE_YOUR_CALM
 
     if check_headers:
-        assert "Retry-After" in response.headers or "RateLimit-Reset" in response.headers
+        lower_headers = {k.lower(): v for k, v in response.headers.items()}
+        assert "retry-after" in lower_headers or "ratelimit-reset" in lower_headers
 
 
 async def exhaust_rate_limit(
@@ -971,9 +1004,9 @@ async def exhaust_rate_limit(
     """
     for _ in range(limit):
         await storage.increment(
-            key=key,
-            window_seconds=window_seconds,
-            limit=limit,
+            key = key,
+            window_seconds = window_seconds,
+            limit = limit,
         )
 
 
