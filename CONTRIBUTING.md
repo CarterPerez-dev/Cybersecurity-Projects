@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to this cybersecurity projects repository! I welcome full project implementations that provide educational value to the security community.
 
+***Contact - [carterperez@certgames.com](mailto:carterperez@certgames.com)***
+
 ## Contributing a Full Project
 
 ### 1. Fork the Repository
