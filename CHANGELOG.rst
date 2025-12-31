@@ -12,22 +12,38 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 [Unreleased]
 ============
 
-Aenebris Haskell Reverse Proxy work in progress
+Aenebris Haskell Reverse Proxy WIP
+
+Bug Bounty Platform WIP
+
 -----
 
-Changed
--------
+[0.5.0] - 2025-12-30
+====================
 
-[0.3.0] - 2025-12-9
+Added api-rate-limiter project, completed Phase 1.5 of Aenebris, updated documentation
+
+----
+
+[0.4.0] - 2025-12-20
+====================
+
+Improved p2p-encrypted-chat, added fullstack-template, completed dns-lookup project
+
+----
+
+[0.3.0] - 2025-12-09
 ====================
 
 Fixed some bugs in p2p-encrypted-chat, added dns-lookup tool project, added wiki pages
+
 ----
 
 [0.2.0] - 2025-11-24
 ====================
 
 Added WIP p2p-encrypted-chat
+
 ----
 
 [0.1.0] - 2025-11-12
