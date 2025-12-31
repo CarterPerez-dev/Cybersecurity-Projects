@@ -23,6 +23,8 @@ library
                      , Aenebris.LoadBalancer
                      , Aenebris.HealthCheck
                      , Aenebris.TLS
+                     , Aenebris.Connection
+                     , Aenebris.Tunnel
                      , Aenebris.Middleware.Security
                      , Aenebris.Middleware.Redirect
   default-language:    Haskell2010
@@ -49,6 +51,9 @@ library
                      , case-insensitive >= 1.2
                      , directory >= 1.3
                      , data-default-class >= 0.1
+                     , network >= 3.1
+                     , streaming-commons >= 0.2
+                     , splice >= 0.6
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities

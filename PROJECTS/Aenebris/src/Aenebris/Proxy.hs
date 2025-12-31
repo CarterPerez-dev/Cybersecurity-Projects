@@ -12,12 +12,14 @@ module Aenebris.Proxy
 
 import Aenebris.Backend
 import Aenebris.Config
+import Aenebris.Connection
 import Aenebris.HealthCheck
 import Aenebris.LoadBalancer
 import Aenebris.TLS
+import Aenebris.Tunnel
 import Aenebris.Middleware.Security
 import Aenebris.Middleware.Redirect
-import Control.Concurrent.Async (Async, async, waitAnyCancel, mapConcurrently_)
+import Control.Concurrent.Async (Async, async, waitAnyCancel)
 import Control.Exception (try, SomeException)
 import Data.Function ((&))
 import Data.List (sortBy)
@@ -35,9 +37,9 @@ import Network.Wai
 import Network.Wai.Handler.Warp (run, defaultSettings, setPort)
 import Network.Wai.Handler.WarpTLS (runTLS)
 import System.IO (hPutStrLn, stderr)
+import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.ByteString.Lazy as LBS
 
 -- | Proxy runtime state
 data ProxyState = ProxyState
@@ -207,16 +209,15 @@ launchHTTPSWithSNI port tlsConfig app = do
 -- | Main proxy application (WAI)
 proxyApp :: Config -> Map Text LoadBalancer -> Manager -> Application
 proxyApp config loadBalancers manager req respond = do
-  -- Log incoming request
   logRequest req
 
-  -- Find matching route based on Host header and path
   let hostHeader = lookup "Host" (requestHeaders req)
       requestPath = rawPathInfo req
+      headers = requestHeaders req
+      connType = detectConnectionType headers
 
   case selectRoute config hostHeader requestPath of
     Nothing -> do
-      -- No matching route found - return 404
       hPutStrLn stderr $ "ERROR: No route found for request"
       respond $ responseLBS
         status404
@@ -224,7 +225,6 @@ proxyApp config loadBalancers manager req respond = do
         "Not Found: No route configured for this host/path"
 
     Just (upstreamName, _pathRoute) -> do
-      -- Find the load balancer for this upstream
       case Map.lookup upstreamName loadBalancers of
         Nothing -> do
           hPutStrLn stderr $ "ERROR: Load balancer not found: " ++ T.unpack upstreamName
@@ -234,7 +234,6 @@ proxyApp config loadBalancers manager req respond = do
             "Internal Server Error: Upstream configuration error"
 
         Just loadBalancer -> do
-          -- Select a backend using load balancing
           mBackend <- selectBackend loadBalancer
 
           case mBackend of
@@ -246,23 +245,57 @@ proxyApp config loadBalancers manager req respond = do
                 "Service Unavailable: No healthy backends available"
 
             Just backend -> do
-              -- Track this connection and forward request
-              result <- try $ trackConnection backend $
-                forwardRequest manager req (rbHost backend)
+              case connType of
+                WebSocket -> do
+                  hPutStrLn stderr $ "[WS] WebSocket upgrade detected"
+                  handleWebSocketUpgrade req respond backend
 
-              case result of
-                Left (err :: SomeException) -> do
-                  -- Handle errors gracefully
-                  hPutStrLn stderr $ "ERROR: " ++ show err
-                  respond $ responseLBS
-                    status502
-                    [("Content-Type", "text/plain")]
-                    "Bad Gateway: Could not connect to backend server"
+                RegularHttp -> do
+                  result <- try $ trackConnection backend $
+                    forwardRequest manager req (rbHost backend)
 
-                Right response -> do
-                  -- Log response status
-                  logResponse response
-                  respond response
+                  case result of
+                    Left (err :: SomeException) -> do
+                      hPutStrLn stderr $ "ERROR: " ++ show err
+                      respond $ responseLBS
+                        status502
+                        [("Content-Type", "text/plain")]
+                        "Bad Gateway: Could not connect to backend server"
+
+                    Right response -> do
+                      logResponse response
+                      respond response
+
+                _ -> do
+                  result <- try $ trackConnection backend $
+                    forwardRequest manager req (rbHost backend)
+
+                  case result of
+                    Left (err :: SomeException) -> do
+                      hPutStrLn stderr $ "ERROR: " ++ show err
+                      respond $ responseLBS
+                        status502
+                        [("Content-Type", "text/plain")]
+                        "Bad Gateway: Could not connect to backend server"
+
+                    Right response -> do
+                      logResponse response
+                      respond response
+
+handleWebSocketUpgrade :: Request -> (Response -> IO ResponseReceived) -> RuntimeBackend -> IO ResponseReceived
+handleWebSocketUpgrade req respond backend = do
+  let backendHost = rbHost backend
+      backupResponse = responseLBS
+        status502
+        [("Content-Type", "text/plain")]
+        "WebSocket upgrade failed"
+
+  respond $ responseRaw (wsHandler req backendHost) backupResponse
+
+wsHandler :: Request -> Text -> IO ByteString -> (ByteString -> IO ()) -> IO ()
+wsHandler req backendHost recv send = do
+  hPutStrLn stderr $ "[WS] Starting WebSocket tunnel to " ++ T.unpack backendHost
+  tunnelWebSocket req backendHost send recv
 
 -- | Select a route based on Host header and path
 selectRoute :: Config -> Maybe BS.ByteString -> BS.ByteString -> Maybe (Text, PathRoute)
@@ -297,33 +330,31 @@ selectUpstream config hostHeader requestPath =
 -- | Forward request to backend server
 forwardRequest :: Manager -> Request -> Text -> IO Response
 forwardRequest manager clientReq backendHost = do
-  -- Parse backend host:port
+  requestBody <- strictRequestBody clientReq
+
   let backendUrl = "http://" ++ T.unpack backendHost ++
                    BS8.unpack (rawPathInfo clientReq) ++
                    BS8.unpack (rawQueryString clientReq)
 
-  -- Parse and build backend request
   initReq <- parseRequest backendUrl
 
   let backendReq = initReq
         { HTTP.method = requestMethod clientReq
         , HTTP.requestHeaders = filterHeaders (requestHeaders clientReq)
-        , HTTP.requestBody = RequestBodyLBS LBS.empty  -- TODO: Forward request body
+        , HTTP.requestBody = RequestBodyLBS requestBody
         }
 
-  -- Make request to backend
   backendResponse <- httpLbs backendReq manager
 
-  -- Convert backend response to WAI response
   let status = HTTP.responseStatus backendResponse
       headers = HTTP.responseHeaders backendResponse
       body = HTTP.responseBody backendResponse
 
   return $ responseLBS status headers body
 
--- | Filter headers (remove hop-by-hop headers)
+-- | Filter headers for regular HTTP (remove hop-by-hop headers)
 filterHeaders :: [(HeaderName, BS.ByteString)] -> [(HeaderName, BS.ByteString)]
-filterHeaders = filter (\(name, _) -> name `notElem` hopByHopHeaders)
+filterHeaders headers = filter (\(name, _) -> name `notElem` hopByHopHeaders) headers
   where
     hopByHopHeaders =
       [ "Connection"
@@ -334,6 +365,18 @@ filterHeaders = filter (\(name, _) -> name `notElem` hopByHopHeaders)
       , "Trailers"
       , "Transfer-Encoding"
       , "Upgrade"
+      ]
+
+-- | Filter headers for WebSocket upgrade (preserve Upgrade and Connection)
+filterHeadersForUpgrade :: [(HeaderName, BS.ByteString)] -> [(HeaderName, BS.ByteString)]
+filterHeadersForUpgrade headers = filter (\(name, _) -> name `notElem` hopByHopHeaders) headers
+  where
+    hopByHopHeaders =
+      [ "Keep-Alive"
+      , "Proxy-Authenticate"
+      , "Proxy-Authorization"
+      , "TE"
+      , "Trailers"
       ]
 
 -- | Log incoming request

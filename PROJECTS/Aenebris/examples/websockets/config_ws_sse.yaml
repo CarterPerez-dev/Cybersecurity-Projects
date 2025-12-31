@@ -1,0 +1,64 @@
+version: 1
+
+listen:
+  - port: 8081
+
+upstreams:
+  - name: http-backend
+    servers:
+      - host: "127.0.0.1:8000"
+        weight: 1
+
+  - name: ws-backend
+    servers:
+      - host: "127.0.0.1:8002"
+        weight: 1
+
+  - name: sse-backend
+    servers:
+      - host: "127.0.0.1:8003"
+        weight: 1
+
+routes:
+  - host: "localhost"
+    paths:
+      - path: /ws
+        upstream: ws-backend
+      - path: /events
+        upstream: sse-backend
+      - path: /stream
+        upstream: sse-backend
+      - path: /
+        upstream: http-backend
+
+  - host: "localhost:8081"
+    paths:
+      - path: /ws
+        upstream: ws-backend
+      - path: /events
+        upstream: sse-backend
+      - path: /stream
+        upstream: sse-backend
+      - path: /
+        upstream: http-backend
+
+  - host: "127.0.0.1:8081"
+    paths:
+      - path: /ws
+        upstream: ws-backend
+      - path: /events
+        upstream: sse-backend
+      - path: /stream
+        upstream: sse-backend
+      - path: /
+        upstream: http-backend
+
+  - host: "ws.localhost"
+    paths:
+      - path: /
+        upstream: ws-backend
+
+  - host: "sse.localhost"
+    paths:
+      - path: /
+        upstream: sse-backend

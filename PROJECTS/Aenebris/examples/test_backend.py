@@ -41,11 +41,17 @@ class TestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
+        try:
+            body_json = json.loads(body.decode())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            body_json = body.decode('utf-8', errors='replace')
+
         response = {
             'message': 'Received POST',
             'path': self.path,
             'method': 'POST',
-            'body_length': content_length
+            'body_length': content_length,
+            'body_received': body_json
         }
         self.wfile.write(json.dumps(response, indent = 2).encode())
 
