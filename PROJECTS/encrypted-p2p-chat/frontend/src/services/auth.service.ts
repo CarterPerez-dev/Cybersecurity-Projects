@@ -16,6 +16,7 @@ import type {
 } from "../types"
 import { isPublicKeyCredential } from "../types/guards"
 import { setCurrentUser, logout as storeLogout } from "../stores"
+import { cryptoService } from "../crypto"
 
 interface PublicKeyCredentialStatic {
   isUserVerifyingPlatformAuthenticatorAvailable(): Promise<boolean>
@@ -131,6 +132,7 @@ export async function register(
   })
 
   setCurrentUser(user)
+  await cryptoService.initialize(user.id)
 
   return user
 }
@@ -161,6 +163,7 @@ export async function login(username?: string): Promise<User> {
   })
 
   setCurrentUser(user)
+  await cryptoService.initialize(user.id)
 
   return user
 }

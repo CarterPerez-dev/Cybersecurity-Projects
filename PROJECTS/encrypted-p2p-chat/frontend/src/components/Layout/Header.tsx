@@ -4,20 +4,24 @@
 
 import type { JSX } from "solid-js"
 import { Show } from "solid-js"
-import { A } from "@solidjs/router"
+import { A, useLocation } from "@solidjs/router"
 import { useStore } from "@nanostores/solid"
 import {
   $isAuthenticated,
   $sidebarOpen,
+  $currentUser,
   toggleSidebar,
   openModal,
 } from "../../stores"
 import { IconButton } from "../UI/IconButton"
 import { Badge } from "../UI/Badge"
+import { Avatar } from "../UI/Avatar"
 
 export function Header(): JSX.Element {
   const isAuthenticated = useStore($isAuthenticated)
   const sidebarOpen = useStore($sidebarOpen)
+  const currentUser = useStore($currentUser)
+  const location = useLocation()
 
   return (
     <header class="flex-shrink-0 bg-black border-b-4 border-orange">
@@ -73,6 +77,21 @@ export function Header(): JSX.Element {
               size="sm"
               onClick={() => openModal("new-conversation")}
             />
+            <Show when={currentUser()} keyed>
+              {(user) => (
+                <A
+                  href="/settings"
+                  class={`flex items-center gap-2 px-2 py-1 border-2 ${
+                    location.pathname === "/settings"
+                      ? "border-orange bg-orange text-black"
+                      : "border-transparent text-white hover:text-orange"
+                  }`}
+                >
+                  <Avatar alt={user.display_name} size="xs" fallback={user.display_name.slice(0, 2)} />
+                  <span class="font-pixel text-[10px] hidden sm:block">{user.display_name}</span>
+                </A>
+              )}
+            </Show>
           </Show>
         </nav>
       </div>

@@ -36,6 +36,7 @@ class PreKeyBundle:
     Recipient prekey bundle for X3DH protocol
     """
     identity_key: str
+    identity_key_ed25519: str
     signed_prekey: str
     signed_prekey_signature: str
     one_time_prekey: str | None = None

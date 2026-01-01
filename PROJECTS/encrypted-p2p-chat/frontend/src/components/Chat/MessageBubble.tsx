@@ -17,23 +17,23 @@ interface MessageBubbleProps {
 
 export function MessageBubble(props: MessageBubbleProps): JSX.Element {
   const bubbleClasses = (): string => {
-    const base = "max-w-[80%] p-3"
+    const base = "max-w-[70%] p-4"
     if (props.isOwnMessage) {
-      return `${base} bg-orange text-black ml-auto`
+      return `${base} bg-orange text-black`
     }
     return `${base} bg-black border-2 border-orange text-white`
   }
 
   return (
-    <div class={`flex ${props.isOwnMessage ? "justify-end" : "justify-start"} ${props.class ?? ""}`}>
+    <div class={`flex px-4 ${props.isOwnMessage ? "justify-end" : "justify-start"} ${props.class ?? ""}`}>
       <div class={bubbleClasses()}>
         <Show when={props.showSender === true && !props.isOwnMessage}>
-          <div class="font-pixel text-[8px] text-orange mb-1">
+          <div class="font-pixel text-[10px] text-orange mb-2">
             {props.message.sender_username}
           </div>
         </Show>
 
-        <div class="font-pixel text-[10px] break-words whitespace-pre-wrap">
+        <div class="font-placeholder break-words whitespace-pre-wrap" style="font-size: 32px; line-height: 1.4;">
           {props.message.content}
         </div>
 

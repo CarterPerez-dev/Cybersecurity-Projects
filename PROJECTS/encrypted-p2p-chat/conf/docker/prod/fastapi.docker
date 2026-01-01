@@ -5,11 +5,11 @@
 FROM python:3.13-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -18,8 +18,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY backend/pyproject.toml ./
-RUN pip install --user --no-warn-script-location .
-RUN pip install --user --no-warn-script-location gunicorn
+RUN uv pip install --target /app/deps . gunicorn
 
 FROM python:3.13-slim
 
@@ -32,8 +31,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     useradd -m -u 1000 appuser
 
-COPY --from=builder /root/.local /home/appuser/.local
-ENV PATH=/home/appuser/.local/bin:$PATH
+COPY --from=builder /app/deps /home/appuser/.local/lib/python3.13/site-packages
+ENV PYTHONPATH=/home/appuser/.local/lib/python3.13/site-packages:$PYTHONPATH \
+    PATH=/home/appuser/.local/lib/python3.13/site-packages/bin:$PATH
 
 COPY backend/ .
 

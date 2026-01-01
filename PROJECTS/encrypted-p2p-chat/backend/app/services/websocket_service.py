@@ -91,16 +91,18 @@ class WebSocketService:
                       Any]
     ) -> None:
         """
-        Process encrypted message from client and forward to recipient
+        Process client-encrypted message and forward to recipient (pass-through)
         """
         try:
             recipient_id = UUID(message.get("recipient_id"))
             room_id = message.get("room_id")
-            plaintext = message.get("plaintext")
+            ciphertext = message.get("ciphertext")
+            nonce = message.get("nonce")
+            header = message.get("header")
             temp_id = message.get("temp_id", "")
 
-            if not plaintext:
-                logger.error("Missing plaintext in message from %s", user_id)
+            if not ciphertext or not nonce or not header:
+                logger.error("Missing encryption fields in message from %s", user_id)
                 return
 
             if not room_id:
@@ -108,11 +110,13 @@ class WebSocketService:
                 return
 
             async with async_session_maker() as session:
-                result = await message_service.send_encrypted_message(
+                result = await message_service.store_encrypted_message(
                     session,
                     user_id,
                     recipient_id,
-                    plaintext,
+                    ciphertext,
+                    nonce,
+                    header,
                     room_id,
                 )
 
@@ -121,15 +125,15 @@ class WebSocketService:
                 sender_id = str(user_id),
                 recipient_id = str(recipient_id),
                 room_id = room_id,
-                content = plaintext,
-                ciphertext = result.ciphertext if hasattr(result, 'ciphertext') else "",
-                nonce = result.nonce if hasattr(result, 'nonce') else "",
-                header = result.header if hasattr(result, 'header') else "",
+                content = "",
+                ciphertext = ciphertext,
+                nonce = nonce,
+                header = header,
                 sender_username = result.sender_username if hasattr(result, 'sender_username') else ""
             )
 
             is_recipient_connected = connection_manager.is_user_connected(recipient_id)
-            logger.warning(
+            logger.debug(
                 "Sending to recipient %s - connected: %s",
                 recipient_id,
                 is_recipient_connected
@@ -139,7 +143,7 @@ class WebSocketService:
                 recipient_id,
                 ws_message.model_dump(mode = "json")
             )
-            logger.warning("Message sent to recipient %s", recipient_id)
+            logger.debug("Message sent to recipient %s", recipient_id)
 
             confirmation = MessageSentWS(
                 temp_id = temp_id,

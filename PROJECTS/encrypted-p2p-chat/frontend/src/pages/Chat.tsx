@@ -31,6 +31,7 @@ import {
   wsManager,
 } from "../websocket"
 import { roomService } from "../services"
+import { cryptoService, saveDecryptedMessage } from "../crypto"
 
 export default function Chat(): JSX.Element {
   const activeRoom = useStore($activeRoom)
@@ -47,14 +48,13 @@ export default function Chat(): JSX.Element {
 
   onMount(async () => {
     const currentUserId = userId()
-    console.log("[Chat] onMount - userId:", currentUserId)
     if (currentUserId) {
-      console.log("[Chat] Connecting WebSocket and loading rooms...")
+      try {
+        await cryptoService.initialize(currentUserId)
+      } catch {
+      }
       connectWebSocket()
       await roomService.loadRooms(currentUserId)
-      console.log("[Chat] Rooms loaded")
-    } else {
-      console.log("[Chat] No userId, skipping room load")
     }
   })
 
@@ -62,7 +62,7 @@ export default function Chat(): JSX.Element {
     disconnectWebSocket()
   })
 
-  const handleSendMessage = (content: string): void => {
+  const handleSendMessage = async (content: string): Promise<void> => {
     const roomId = activeRoomId()
     const room = activeRoom()
     const currentUserId = userId()
@@ -88,27 +88,37 @@ export default function Chat(): JSX.Element {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const now = new Date().toISOString()
 
-    addMessage(roomId, {
+    const messageToSend = {
       id: tempId,
       room_id: roomId,
       sender_id: currentUserId,
       sender_username: user?.username ?? "me",
       content,
-      status: "sending",
-      is_encrypted: false,
+      status: "sending" as const,
+      is_encrypted: true,
       created_at: now,
       updated_at: now,
-    })
+    }
 
-    const sent = wsManager.sendEncryptedMessage(
-      recipientId,
-      roomId,
-      content,
-      tempId
-    )
+    addMessage(roomId, messageToSend)
 
-    if (!sent) {
-      showToast("error", "SEND FAILED", "NOT CONNECTED")
+    try {
+      const encrypted = await cryptoService.encrypt(recipientId, content)
+      const sent = wsManager.sendEncryptedMessage(
+        recipientId,
+        roomId,
+        encrypted,
+        tempId
+      )
+
+      if (sent) {
+        void saveDecryptedMessage(messageToSend)
+      } else {
+        showToast("error", "SEND FAILED", "NOT CONNECTED")
+      }
+    } catch (error) {
+      console.error("[Chat] Encryption failed:", error)
+      showToast("error", "SEND FAILED", "ENCRYPTION ERROR")
     }
   }
 

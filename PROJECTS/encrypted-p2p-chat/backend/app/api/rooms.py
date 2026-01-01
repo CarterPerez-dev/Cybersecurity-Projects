@@ -140,8 +140,6 @@ async def list_rooms(
     """
     List all rooms for the specified user
     """
-    logger.info("list_rooms called for user_id: %s", user_id)
-
     user = await auth_service.get_user_by_id(session, UUID(user_id))
 
     if not user:
@@ -151,8 +149,6 @@ async def list_rooms(
         )
 
     room_data_list = await surreal_db.get_rooms_for_user(user_id)
-    logger.info("SurrealDB returned %d rooms for user %s", len(room_data_list), user_id)
-    logger.info("Room data: %s", room_data_list)
 
     rooms: list[RoomAPIResponse] = []
 

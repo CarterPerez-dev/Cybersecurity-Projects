@@ -117,7 +117,7 @@ export async function initiateX3DH(
   recipientBundle: PreKeyBundle
 ): Promise<X3DHResult> {
   const signatureValid = await verifySignedPreKey(
-    recipientBundle.identity_key,
+    recipientBundle.identity_key_ed25519,
     recipientBundle.signed_prekey,
     recipientBundle.signed_prekey_signature
   )

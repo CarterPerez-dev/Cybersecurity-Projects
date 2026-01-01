@@ -1,0 +1,278 @@
+# =============================================================================
+# AngelaMos | 2025
+# Justfile - Encrypted P2P Chat
+# =============================================================================
+
+set dotenv-load
+set export
+set shell := ["bash", "-uc"]
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+project := file_name(justfile_directory())
+version := `git describe --tags --always 2>/dev/null || echo "dev"`
+
+# =============================================================================
+# Default
+# =============================================================================
+
+default:
+    @just --list --unsorted
+
+# =============================================================================
+# Setup
+# =============================================================================
+
+[group('setup')]
+setup: setup-backend setup-frontend env
+    @echo "Setup complete!"
+
+[group('setup')]
+setup-backend:
+    @echo "Setting up backend..."
+    cd backend && uv venv ../.venv
+    cd backend && uv pip install -e .[dev]
+    @echo "Backend setup complete!"
+
+[group('setup')]
+setup-frontend:
+    @echo "Setting up frontend..."
+    cd frontend && npm install
+    @echo "Frontend setup complete!"
+
+[group('setup')]
+env:
+    @echo "Creating .env files..."
+    @if [ ! -f .env ]; then cp .env.example .env; echo "Created root .env"; fi
+    @if [ ! -f frontend/.env ]; then cp frontend/.env.example frontend/.env; echo "Created frontend/.env"; fi
+    @echo ".env files created! Please update with your values."
+
+# =============================================================================
+# Docker Compose (Dev)
+# =============================================================================
+
+[group('dev')]
+dev: build-dev up-dev
+
+[group('dev')]
+build-dev *ARGS:
+    @echo "Building development Docker images..."
+    docker compose -f dev.compose.yml build {{ARGS}}
+
+[group('dev')]
+up-dev *ARGS:
+    @echo "Starting development environment..."
+    docker compose -f dev.compose.yml up {{ARGS}}
+
+[group('dev')]
+start-dev *ARGS:
+    @echo "Starting development environment..."
+    docker compose -f dev.compose.yml up -d {{ARGS}}
+    @echo "Development environment started!"
+    @echo "Frontend: http://localhost:5173"
+    @echo "Backend: http://localhost:8000"
+    @echo "Nginx: http://localhost"
+
+[group('dev')]
+down-dev *ARGS:
+    @echo "Stopping development environment..."
+    docker compose -f dev.compose.yml down {{ARGS}}
+
+[group('dev')]
+stop-dev:
+    docker compose -f dev.compose.yml stop
+
+[group('dev')]
+rebuild-dev:
+    docker compose -f dev.compose.yml build --no-cache
+
+[group('dev')]
+logs-dev *SERVICE:
+    docker compose -f dev.compose.yml logs -f {{SERVICE}}
+
+[group('dev')]
+ps-dev:
+    docker compose -f dev.compose.yml ps
+
+[group('dev')]
+shell-dev service='backend':
+    docker compose -f dev.compose.yml exec -it {{service}} /bin/bash
+
+# =============================================================================
+# Docker Compose (Production)
+# =============================================================================
+
+[group('prod')]
+prod: build-prod up-prod
+
+[group('prod')]
+build-prod *ARGS:
+    @echo "Building production Docker images..."
+    docker compose build {{ARGS}}
+
+[group('prod')]
+up-prod *ARGS:
+    @echo "Starting production environment..."
+    docker compose up {{ARGS}}
+
+[group('prod')]
+start-prod *ARGS:
+    @echo "Starting production environment..."
+    docker compose up -d {{ARGS}}
+    @echo "Production environment started!"
+    @echo "Application: http://localhost"
+
+[group('prod')]
+down-prod *ARGS:
+    @echo "Stopping production environment..."
+    docker compose down {{ARGS}}
+
+[group('prod')]
+stop-prod:
+    docker compose stop
+
+[group('prod')]
+rebuild-prod:
+    docker compose -f build --no-cache
+
+[group('prod')]
+logs-prod *SERVICE:
+    docker compose logs -f {{SERVICE}}
+
+[group('prod')]
+ps-prod:
+    docker compose ps
+
+[group('prod')]
+shell-prod service='backend':
+    docker compose exec -it {{service}} /bin/bash
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+[group('test')]
+test-backend *ARGS:
+    @echo "Running backend tests..."
+    cd backend && uv run pytest tests/ -v {{ARGS}}
+
+[group('test')]
+test: test-backend
+
+# =============================================================================
+# Linting and Formatting
+# =============================================================================
+
+[group('lint')]
+ruff *ARGS:
+    cd backend && uv run ruff check . {{ARGS}}
+
+[group('lint')]
+ruff-fix:
+    cd backend && uv run ruff check . --fix
+    cd backend && uv run ruff format .
+
+[group('lint')]
+ruff-format:
+    cd backend && uv run ruff format .
+
+[group('lint')]
+lint: ruff
+
+# =============================================================================
+# Type Checking
+# =============================================================================
+
+[group('types')]
+mypy *ARGS:
+    cd backend && uv run mypy app {{ARGS}}
+
+[group('types')]
+typecheck: mypy
+
+# =============================================================================
+# Database (Docker)
+# =============================================================================
+
+[group('db')]
+migrate *ARGS:
+    docker compose -f dev.compose.yml exec backend alembic upgrade {{ARGS}}
+
+[group('db')]
+migration message:
+    docker compose -f dev.compose.yml exec backend alembic revision --autogenerate -m "{{message}}"
+
+[group('db')]
+rollback:
+    docker compose -f dev.compose.yml exec backend alembic downgrade -1
+
+[group('db')]
+db-history:
+    docker compose -f dev.compose.yml exec backend alembic history --verbose
+
+[group('db')]
+db-current:
+    docker compose -f dev.compose.yml exec backend alembic current
+
+# =============================================================================
+# Database (Local - no Docker)
+# =============================================================================
+
+[group('db-local')]
+migrate-local *ARGS:
+    cd backend && uv run alembic upgrade {{ARGS}}
+
+[group('db-local')]
+migration-local message:
+    cd backend && uv run alembic revision --autogenerate -m "{{message}}"
+
+[group('db-local')]
+rollback-local:
+    cd backend && uv run alembic downgrade -1
+
+[group('db-local')]
+db-history-local:
+    cd backend && uv run alembic history --verbose
+
+[group('db-local')]
+db-current-local:
+    cd backend && uv run alembic current
+
+# =============================================================================
+# CI / Quality
+# =============================================================================
+
+[group('ci')]
+ci: lint typecheck test
+
+[group('ci')]
+check: ruff mypy
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+[group('util')]
+[confirm("Remove all containers, volumes, and build artifacts?")]
+clean:
+    @echo "Cleaning up..."
+    -docker compose -f dev.compose.yml down -v
+    -docker compose down -v
+    -rm -rf frontend/node_modules
+    -rm -rf frontend/dist
+    -rm -rf .venv
+    -rm -rf backend/.venv
+    -rm -rf backend/__pycache__
+    -rm -rf backend/.pytest_cache
+    -rm -rf backend/.mypy_cache
+    -rm -rf backend/.ruff_cache
+    @echo "Cleanup complete!"
+
+# =============================================================================
+# Utilities
+# =============================================================================
+
+[group('util')]
+info:
+    @echo "Project: {{project}}"
+    @echo "Version: {{version}}"
+    @echo "OS: {{os()}} ({{arch()}})"

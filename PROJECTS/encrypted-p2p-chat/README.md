@@ -31,6 +31,7 @@ End-to-end encrypted P2P chat application with Signal Protocol (Double Ratchet +
 - Docker and Docker Compose
 - **Node.js 20.19+ or 22.12+** (required for Vite 7)
 - **Python 3.13+** (latest stable)
+- **uv** (Python package manager) - `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - Make
 
 ### Setup
@@ -161,10 +162,9 @@ encrypted-p2p-chat/
 
 ```bash
 cd backend
-python -m venv ../.venv
-source ../.venv/bin/activate
-pip install -e .[dev]
-python -m pytest tests/ -v
+uv venv ../.venv
+uv pip install -e .[dev]
+uv run pytest tests/ -v
 ```
 
 ### Frontend Development
@@ -189,7 +189,7 @@ Or manually:
 
 ```bash
 cd backend
-python -m pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ## Environment Variables

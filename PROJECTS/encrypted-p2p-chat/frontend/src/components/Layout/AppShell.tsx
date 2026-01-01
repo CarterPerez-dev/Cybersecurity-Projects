@@ -1,5 +1,5 @@
 /**
- * Main application shell with sidebar and content area
+ * Main application shell layout
  */
 
 import type { ParentProps, JSX } from "solid-js"
@@ -21,59 +21,30 @@ export function AppShell(props: AppShellProps): JSX.Element {
   const showSidebar = (): boolean => props.showSidebar ?? true
   const showHeader = (): boolean => props.showHeader ?? true
 
-  const getSidebarClasses = (): string => {
-    if (isMobile()) {
-      return sidebarOpen() ? "fixed inset-y-0 left-0 z-40 w-72" : "hidden"
-    }
-    return sidebarOpen() ? "w-72" : "w-0 overflow-hidden"
-  }
-
-  const handleBackdropClick = (): void => {
-    $sidebarOpen.set(false)
-  }
-
-  const handleBackdropKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-      e.preventDefault()
-      $sidebarOpen.set(false)
-    }
-  }
-
   return (
-    <div class="h-screen flex flex-col bg-black overflow-hidden">
+    <div class="flex flex-col h-screen w-screen overflow-hidden bg-black">
       <Show when={showHeader()}>
         <Header />
       </Show>
 
-      <div class="flex-1 flex overflow-hidden">
-        <Show when={showSidebar()}>
-          <aside
-            class={`
-              flex-shrink-0 h-full
-              border-r-2 border-orange
-              transition-all duration-100
-              ${getSidebarClasses()}
-            `}
-          >
+      <div class="flex flex-1 overflow-hidden">
+        <Show when={showSidebar() && sidebarOpen()}>
+          <div class="w-72 h-full border-r-2 border-orange overflow-hidden flex-shrink-0">
             <Sidebar />
-          </aside>
-
-          <Show when={isMobile() && sidebarOpen()}>
-            <div
-              class="fixed inset-0 z-30 bg-black/80"
-              role="button"
-              tabIndex={0}
-              onClick={handleBackdropClick}
-              onKeyDown={handleBackdropKeyDown}
-              aria-label="Close sidebar"
-            />
-          </Show>
+          </div>
         </Show>
 
         <main class="flex-1 overflow-hidden bg-black">
           {props.children}
         </main>
       </div>
+
+      <Show when={isMobile() && sidebarOpen()}>
+        <div
+          class="fixed inset-0 z-30 bg-black/80"
+          onClick={() => $sidebarOpen.set(false)}
+        />
+      </Show>
     </div>
   )
 }

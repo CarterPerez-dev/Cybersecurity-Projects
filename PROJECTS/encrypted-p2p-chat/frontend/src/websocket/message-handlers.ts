@@ -38,16 +38,30 @@ import {
   setUserTyping,
 } from "../stores/typing.store"
 import { showToast } from "../stores/ui.store"
+import { cryptoService, saveDecryptedMessage, updateMessageId } from "../crypto"
 
 type MessageHandler<T extends WSMessage> = (message: T) => void
 
-const encryptedMessageHandler: MessageHandler<EncryptedMessageWS> = (message) => {
+async function encryptedMessageHandler(message: EncryptedMessageWS): Promise<void> {
+  let decryptedContent: string
+
+  try {
+    decryptedContent = await cryptoService.decrypt(
+      message.sender_id,
+      message.ciphertext,
+      message.nonce,
+      message.header
+    )
+  } catch {
+    decryptedContent = "[Encrypted message - decryption failed]"
+  }
+
   const chatMessage: Message = {
     id: message.message_id,
     room_id: message.room_id,
     sender_id: message.sender_id,
     sender_username: message.sender_username,
-    content: message.content,
+    content: decryptedContent,
     status: "delivered",
     is_encrypted: true,
     encrypted_content: message.ciphertext,
@@ -58,6 +72,7 @@ const encryptedMessageHandler: MessageHandler<EncryptedMessageWS> = (message) =>
   }
 
   addMessage(message.room_id, chatMessage)
+  void saveDecryptedMessage(chatMessage)
 }
 
 const typingIndicatorHandler: MessageHandler<TypingIndicatorWS> = (message) => {
@@ -115,11 +130,12 @@ const messageSentHandler: MessageHandler<MessageSentWS> = (message) => {
   }
 
   confirmPendingMessage(message.room_id, message.temp_id, confirmedMessage)
+  void updateMessageId(message.temp_id, message.message_id)
 }
 
 export function handleWSMessage(message: WSMessage): void {
   if (isEncryptedMessageWS(message)) {
-    encryptedMessageHandler(message)
+    void encryptedMessageHandler(message)
   } else if (isTypingIndicatorWS(message)) {
     typingIndicatorHandler(message)
   } else if (isPresenceUpdateWS(message)) {
@@ -135,8 +151,8 @@ export function handleWSMessage(message: WSMessage): void {
   }
 }
 
-export function handleEncryptedMessage(message: EncryptedMessageWS): void {
-  encryptedMessageHandler(message)
+export async function handleEncryptedMessage(message: EncryptedMessageWS): Promise<void> {
+  await encryptedMessageHandler(message)
 }
 
 export function handleTypingIndicator(message: TypingIndicatorWS): void {

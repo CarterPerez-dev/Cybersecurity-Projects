@@ -108,14 +108,16 @@ class WebSocketManager {
   sendEncryptedMessage(
     recipientId: string,
     roomId: string,
-    plaintext: string,
+    encrypted: { ciphertext: string; nonce: string; header: string },
     tempId: string
   ): boolean {
     const message: WSOutgoingEncryptedMessage = {
       type: "encrypted_message",
       recipient_id: recipientId,
       room_id: roomId,
-      plaintext,
+      ciphertext: encrypted.ciphertext,
+      nonce: encrypted.nonce,
+      header: encrypted.header,
       temp_id: tempId,
     }
     return this.send(message)

@@ -44,13 +44,6 @@ class SurrealDBManager:
         if self._connected:
             return
 
-        logger.warning(
-            "SurrealDB connecting: URL=%s, NS=%s, DB=%s",
-            settings.SURREAL_URL,
-            settings.SURREAL_NAMESPACE,
-            settings.SURREAL_DATABASE,
-        )
-
         self.db = AsyncSurreal(settings.SURREAL_URL)
         await self.db.connect()
 
@@ -67,11 +60,6 @@ class SurrealDBManager:
         )
 
         self._connected = True
-        logger.warning(
-            "SurrealDB connected successfully to %s/%s",
-            settings.SURREAL_NAMESPACE,
-            settings.SURREAL_DATABASE,
-        )
 
     async def disconnect(self) -> None:
         """
@@ -87,31 +75,8 @@ class SurrealDBManager:
         Ensure connection is established
         """
         if not self._connected:
-            logger.warning("ensure_connected: Connection was lost, reconnecting...")
             await self.connect()
-        else:
-            logger.warning(
-                "ensure_connected: Already connected (id=%s)",
-                id(self.db)
-            )
 
-    async def _debug_connection_state(self) -> dict[str, Any]:
-        """
-        Debug helper to check current connection state
-        """
-        try:
-            info_result = await self.db.query("INFO FOR DB")
-            rooms_count = await self.db.query("SELECT count() FROM rooms GROUP ALL")
-            participants_count = await self.db.query(
-                "SELECT count() FROM room_participants GROUP ALL"
-            )
-            return {
-                "db_info": info_result,
-                "rooms_count": rooms_count,
-                "participants_count": participants_count,
-            }
-        except Exception as e:
-            return {"error": str(e)}
 
     def _extract_query_result(self, result: Any) -> list[dict[str, Any]]:
         """
@@ -146,16 +111,13 @@ class SurrealDBManager:
 
     async def create_message(
         self,
-        message_data: dict[str,
-                           Any]
+        message_data: dict[str, Any]
     ) -> MessageResponse:
         """
         Create a new message in SurrealDB
         """
         await self.ensure_connected()
-        logger.warning("create_message - data: %s", message_data)
         result = await self.db.create("messages", message_data)
-        logger.warning("create_message - result: %s", result)
         result["id"] = str(result["id"])
         return MessageResponse(**result)
 
@@ -169,10 +131,6 @@ class SurrealDBManager:
         Get messages for a specific room with pagination
         """
         await self.ensure_connected()
-        logger.warning("get_room_messages - room_id: %s", room_id)
-
-        all_messages = await self.db.query("SELECT * FROM messages")
-        logger.warning("get_room_messages - ALL messages in DB: %s", all_messages)
 
         query = """
             SELECT * FROM messages
@@ -189,9 +147,9 @@ class SurrealDBManager:
                 "offset": offset,
             }
         )
-        logger.warning("get_room_messages - RAW result: %s", result)
         messages = self._extract_query_result(result)
-        logger.warning("get_room_messages - extracted messages: %s", messages)
+        for msg in messages:
+            msg["id"] = str(msg["id"])
         return [MessageResponse(**msg) for msg in messages]
 
     async def create_room(self, room_data: dict[str, Any]) -> RoomResponse:
@@ -200,15 +158,11 @@ class SurrealDBManager:
         """
         await self.ensure_connected()
         query = "CREATE rooms CONTENT $data"
-        logger.warning("create_room - executing query with data: %s", room_data)
 
         result = await self.db.query(query, {"data": room_data})
-        logger.warning("create_room - RAW result type: %s", type(result))
-        logger.warning("create_room - RAW result: %s", result)
 
         if isinstance(result, list) and len(result) > 0:
             first = result[0]
-            logger.info("create_room - first element type: %s, value: %s", type(first), first)
 
             if isinstance(first, dict):
                 if "result" in first and first["result"]:
@@ -216,19 +170,15 @@ class SurrealDBManager:
                 elif "id" in first:
                     room = first
                 else:
-                    logger.error("create_room - unexpected dict structure: %s", first)
                     raise ValueError(f"Unexpected result structure: {first}")
             elif isinstance(first, list) and len(first) > 0:
                 room = first[0]
             else:
-                logger.error("create_room - unexpected first element: %s", first)
                 raise ValueError(f"Unexpected result: {first}")
 
             room["id"] = str(room["id"])
-            logger.info("create_room - final room: %s", room)
             return RoomResponse(**room)
 
-        logger.error("create_room - no results returned: %s", result)
         raise ValueError(f"Failed to create room, result: {result}")
 
     async def add_room_participant(
@@ -238,10 +188,21 @@ class SurrealDBManager:
         role: str = "member",
     ) -> None:
         """
-        Add a participant to a room
+        Add a participant to a room (skips if already exists)
         """
         await self.ensure_connected()
-       
+
+        check_query = """
+            SELECT * FROM room_participants
+            WHERE room_id = $room_id AND user_id = $user_id
+        """
+        existing = await self.db.query(check_query, {"room_id": room_id, "user_id": user_id})
+        existing_data = self._extract_query_result(existing)
+
+        if existing_data:
+            logger.info("Participant %s already in room %s, skipping", user_id, room_id)
+            return
+
         query = """
             CREATE room_participants CONTENT {
                 room_id: $room_id,
@@ -256,16 +217,8 @@ class SurrealDBManager:
             "role": role,
             "joined_at": datetime.now(UTC).isoformat(),
         }
-        logger.warning("add_room_participant - params: %s", params)
 
-        result = await self.db.query(query, params)
-        logger.warning("add_room_participant result: %s", result)
-
-        verify = await self.db.query("SELECT * FROM room_participants")
-        logger.warning("VERIFY ALL room_participants: %s", verify)
-
-        debug_state = await self._debug_connection_state()
-        logger.warning("add_room_participant - DB STATE after insert: %s", debug_state)
+        await self.db.query(query, params)
 
     async def get_rooms_for_user(self, user_id: str) -> list[dict[str, Any]]:
         """
@@ -273,27 +226,18 @@ class SurrealDBManager:
         """
         await self.ensure_connected()
 
-        debug_state = await self._debug_connection_state()
-        logger.warning("get_rooms_for_user - DB STATE: %s", debug_state)
-
         participants_query = """
             SELECT room_id FROM room_participants WHERE user_id = $user_id
         """
-        logger.warning("get_rooms_for_user - fetching participants for user_id: %s", user_id)
         result = await self.db.query(participants_query, {"user_id": user_id})
-        logger.warning("get_rooms_for_user - RAW result: %s", result)
         participant_data = self._extract_query_result(result)
-        logger.warning("Participant data after extract: %s", participant_data)
 
         if not participant_data:
-            logger.warning("No room_participants found for user %s", user_id)
             return []
 
-        room_ids = [p["room_id"] for p in participant_data if p.get("room_id")]
-        logger.info("Room IDs to fetch: %s", room_ids)
+        room_ids = list({p["room_id"] for p in participant_data if p.get("room_id")})
 
         if not room_ids:
-            logger.warning("No valid room_ids for user %s", user_id)
             return []
 
         rooms: list[dict[str, Any]] = []
@@ -305,10 +249,9 @@ class SurrealDBManager:
                         rooms.extend(room)
                     else:
                         rooms.append(room)
-            except Exception as e:
-                logger.warning("Failed to fetch room %s: %s", room_id, e)
+            except Exception:
+                pass
 
-        logger.info("Fetched %d rooms", len(rooms))
         return rooms
 
     async def get_room_participants(self, room_id: str) -> list[dict[str, Any]]:
@@ -335,7 +278,10 @@ class SurrealDBManager:
         result = await self.db.query(query, {"user_id": f"users:`{user_id}`"})
         data = self._extract_query_result(result)
         if data and isinstance(data[0], dict) and data[0].get("rooms"):
-            return [RoomResponse(**room) for room in data[0]["rooms"]]
+            rooms = data[0]["rooms"]
+            for room in rooms:
+                room["id"] = str(room["id"])
+            return [RoomResponse(**room) for room in rooms]
         return []
 
     async def update_presence(

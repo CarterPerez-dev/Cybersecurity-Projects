@@ -39,36 +39,50 @@ export async function x25519DeriveSharedSecret(
 }
 
 export async function importX25519PublicKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  if (keyBytes.length === 32) {
+    return await subtle.importKey(
+      "raw",
+      keyBytes.buffer as ArrayBuffer,
+      { name: "X25519" },
+      true,
+      []
+    )
+  }
   return await subtle.importKey(
-    "raw",
+    "spki",
     keyBytes.buffer as ArrayBuffer,
-    {
-      name: "X25519",
-    },
+    { name: "X25519" },
     true,
     []
   )
 }
 
 export async function importX25519PrivateKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  if (keyBytes.length === 32) {
+    return await subtle.importKey(
+      "raw",
+      keyBytes.buffer as ArrayBuffer,
+      { name: "X25519" },
+      true,
+      ["deriveBits"]
+    )
+  }
   return await subtle.importKey(
-    "raw",
+    "pkcs8",
     keyBytes.buffer as ArrayBuffer,
-    {
-      name: "X25519",
-    },
+    { name: "X25519" },
     true,
     ["deriveBits"]
   )
 }
 
 export async function exportPublicKey(key: CryptoKey): Promise<Uint8Array> {
-  const exported = await subtle.exportKey("raw", key)
+  const exported = await subtle.exportKey("spki", key)
   return new Uint8Array(exported)
 }
 
 export async function exportPrivateKey(key: CryptoKey): Promise<Uint8Array> {
-  const exported = await subtle.exportKey("raw", key)
+  const exported = await subtle.exportKey("pkcs8", key)
   return new Uint8Array(exported)
 }
 
@@ -112,24 +126,38 @@ export async function ed25519Verify(
 }
 
 export async function importEd25519PublicKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  if (keyBytes.length === 32) {
+    return await subtle.importKey(
+      "raw",
+      keyBytes.buffer as ArrayBuffer,
+      { name: "Ed25519" },
+      true,
+      ["verify"]
+    )
+  }
   return await subtle.importKey(
-    "raw",
+    "spki",
     keyBytes.buffer as ArrayBuffer,
-    {
-      name: "Ed25519",
-    },
+    { name: "Ed25519" },
     true,
     ["verify"]
   )
 }
 
 export async function importEd25519PrivateKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  if (keyBytes.length === 32) {
+    return await subtle.importKey(
+      "raw",
+      keyBytes.buffer as ArrayBuffer,
+      { name: "Ed25519" },
+      true,
+      ["sign"]
+    )
+  }
   return await subtle.importKey(
-    "raw",
+    "pkcs8",
     keyBytes.buffer as ArrayBuffer,
-    {
-      name: "Ed25519",
-    },
+    { name: "Ed25519" },
     true,
     ["sign"]
   )

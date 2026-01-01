@@ -4,6 +4,7 @@
 // ===================
 export interface PreKeyBundle {
   identity_key: string
+  identity_key_ed25519: string
   signed_prekey: string
   signed_prekey_signature: string
   one_time_prekey: string | null
@@ -60,6 +61,11 @@ export interface MessageHeader {
   dh_public_key: string
   message_number: number
   previous_chain_length: number
+}
+
+export interface FullMessageHeader {
+  ratchet: MessageHeader
+  x3dh?: X3DHHeader
 }
 
 export interface IdentityKeyPair {

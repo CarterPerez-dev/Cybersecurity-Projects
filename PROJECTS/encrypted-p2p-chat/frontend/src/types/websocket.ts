@@ -106,7 +106,9 @@ export interface WSOutgoingEncryptedMessage {
   type: "encrypted_message"
   recipient_id: string
   room_id: string
-  plaintext: string
+  ciphertext: string
+  nonce: string
+  header: string
   temp_id: string
 }
 

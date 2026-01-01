@@ -266,6 +266,53 @@ class MessageService:
             logger.error("Database error saving ratchet state: %s", e)
             raise DatabaseError("Failed to save ratchet state") from e
 
+    async def store_encrypted_message(
+        self,
+        session: AsyncSession,
+        sender_id: UUID,
+        recipient_id: UUID,
+        ciphertext: str,
+        nonce: str,
+        header: str,
+        room_id: str | None = None,
+    ) -> Any:
+        """
+        Stores client-encrypted message in SurrealDB (pass-through, no server encryption)
+        """
+        sender_user_statement = select(User).where(User.id == sender_id)
+        sender_user_result = await session.execute(sender_user_statement)
+        sender_user = sender_user_result.scalar_one_or_none()
+
+        if not sender_user:
+            raise UserNotFoundError("Sender not found")
+
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        surreal_message = {
+            "sender_id": str(sender_id),
+            "recipient_id": str(recipient_id),
+            "room_id": room_id,
+            "ciphertext": ciphertext,
+            "nonce": nonce,
+            "header": header,
+            "sender_username": sender_user.username,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+
+        try:
+            result = await surreal_db.create_message(surreal_message)
+            logger.info(
+                "Stored client-encrypted message: %s -> %s",
+                sender_id,
+                recipient_id
+            )
+            return result
+        except Exception as e:
+            logger.error("Failed to store encrypted message: %s", e)
+            raise DatabaseError(f"Failed to store message: {str(e)}") from e
+
     async def send_encrypted_message(
         self,
         session: AsyncSession,
@@ -275,6 +322,7 @@ class MessageService:
         room_id: str | None = None,
     ) -> Any:
         """
+        [DEPRECATED] Server-side encryption - kept for backwards compatibility
         Encrypts message with Double Ratchet and stores in SurrealDB
         """
         ratchet_state_statement = select(RatchetState).where(

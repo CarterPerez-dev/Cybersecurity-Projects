@@ -266,6 +266,36 @@ export async function getOneTimePreKey(id: string): Promise<OneTimePreKey | null
   }
 }
 
+export async function getOneTimePreKeyByPublicKey(publicKey: string): Promise<OneTimePreKey | null> {
+  const database = await openDatabase()
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORES.ONE_TIME_PREKEYS, "readonly")
+    const store = transaction.objectStore(STORES.ONE_TIME_PREKEYS)
+    const request = store.getAll()
+
+    request.onsuccess = () => {
+      const results = request.result as StoredOneTimePreKey[]
+      const match = results.find((r) => r.public_key === publicKey)
+
+      if (!match) {
+        resolve(null)
+        return
+      }
+
+      resolve({
+        id: match.id,
+        private_key: match.private_key,
+        public_key: match.public_key,
+        is_used: match.is_used,
+        created_at: match.created_at,
+      })
+    }
+
+    request.onerror = () => reject(new Error(request.error?.message ?? "Failed to find one-time prekey"))
+  })
+}
+
 export async function getUnusedOneTimePreKeys(userId: string): Promise<OneTimePreKey[]> {
   const database = await openDatabase()
 

@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
         title = settings.APP_NAME,
         description = APP_DESCRIPTION,
         version = APP_VERSION,
+        openapi_version = "3.1.0",        
         docs_url = "/docs" if settings.is_development else None,
         redoc_url = "/redoc" if settings.is_development else None,
         default_response_class = ORJSONResponse,
