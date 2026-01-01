@@ -1,0 +1,48 @@
+{
+  "name": "frontend-template",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "lint:scss": "stylelint '**/*.scss'",
+    "lint:scss:fix": "stylelint '**/*.scss' --fix"
+  },
+  "dependencies": {
+    "react": "^19.2.1",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.1.1",
+    "@tanstack/react-query": "^5.90.12",
+    "zustand": "^5.0.9",
+    "axios": "^1.13.0",
+    "zod": "^4.1.13",
+    "sonner": "^2.0.7",
+    "react-error-boundary": "^6.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.8",
+    "@tanstack/react-query-devtools": "^5.91.1",
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "sass": "^1.95.0",
+    "stylelint": "^16.26.1",
+    "stylelint-config-prettier-scss": "^1.0.0",
+    "stylelint-config-standard-scss": "^16.0.0",
+    "typescript": "~5.9.3",
+    "vite": "npm:rolldown-vite@7.2.5",
+    "vite-tsconfig-paths": "^5.1.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@7.2.5"
+    }
+  }
+}

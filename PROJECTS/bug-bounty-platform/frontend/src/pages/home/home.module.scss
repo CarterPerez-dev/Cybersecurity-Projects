@@ -1,0 +1,18 @@
+// ===================
+// © AngelaMos | 2025
+// home.module.scss
+// ===================
+
+@use '@/styles' as *;
+
+.home {
+  h1 {
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $space-4;
+  }
+
+  p {
+    color: var(--color-text-muted);
+  }
+}

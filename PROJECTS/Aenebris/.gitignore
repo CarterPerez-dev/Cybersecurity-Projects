@@ -20,6 +20,4 @@ examples/certs/
 *.log
 
 # Private progress tracking
-PROGRESS.md
-decisions.md
-notes.md
+refer/

@@ -1,0 +1,57 @@
+[project]
+name = "minimal-fastapi-template"
+version = "1.0.0"
+description = "Minimal production FastAPI template with async SQLAlchemy and JWT auth"
+requires-python = ">=3.12"
+
+dependencies = [
+    "fastapi[standard]>=0.123.0,<1.0.0",
+    "pydantic>=2.12.5,<3.0.0",
+    "pydantic-settings>=2.12.0,<3.0.0",
+    "psycopg2-binary>=2.9.11",
+    "sqlalchemy>=2.0.44,<3.0.0",
+    "alembic>=1.17.0,<2.0.0",
+    "asyncpg>=0.31.0,<1.0.0",
+    "python-multipart>=0.0.20",
+    "pyjwt>=2.10.0",
+    "pwdlib[argon2]>=0.3.0",
+    "uuid6>=2025.0.1",
+    "gunicorn>=23.0.0",
+    "uvicorn[standard]>=0.38.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "httpx>=0.28.1",
+    "aiosqlite>=0.21.0",
+    "ruff>=0.14.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["app"]
+exclude = ["alembic"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+]
+ignore = [
+    "E501",     # line too long
+    "B008",     # function call in default argument (FastAPI Depends)
+]

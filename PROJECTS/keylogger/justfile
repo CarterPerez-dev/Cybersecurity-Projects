@@ -1,0 +1,140 @@
+# CarterPerez-dev | 2025
+# Keylogger Development Commands
+
+set dotenv-load
+set export
+set shell := ["bash", "-uc"]
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+# Show available commands
+default:
+    @just --list --unsorted
+
+# =============================================================================
+# Setup Commands
+# =============================================================================
+
+# Create virtual environment and install all dependencies
+[group('setup')]
+setup:
+    @echo "Creating virtual environment with uv..."
+    uv venv
+    @echo ""
+    @echo "Installing dependencies..."
+    uv sync --all-extras
+    @echo ""
+    @echo "✓ Setup complete!"
+    @echo ""
+    @echo "Activate with:"
+    @echo "  source .venv/bin/activate  (Linux/macOS)"
+    @echo "  .venv\\Scripts\\activate    (Windows)"
+    @echo ""
+    @echo "Run tests with: just test"
+
+# Install main dependencies only
+[group('setup')]
+install:
+    @echo "Installing main dependencies..."
+    uv sync
+    @echo "Dependencies installed"
+
+# Install with dev dependencies
+[group('setup')]
+install-dev:
+    @echo "Installing with dev dependencies..."
+    uv sync --all-extras
+    @echo "Dev dependencies installed"
+
+# =============================================================================
+# Testing & Quality
+# =============================================================================
+
+# Run test suite
+[group('test')]
+test:
+    @echo "Running tests..."
+    @echo ""
+    uv run python test_keylogger.py
+
+# Run all linting checks (ruff, pylint, mypy)
+[group('test')]
+lint:
+    @echo "Running linting checks..."
+    @echo ""
+    @echo "=== Ruff ==="
+    uv run ruff check keylogger.py
+    @echo ""
+    @echo "=== Pylint ==="
+    uv run pylint keylogger.py
+    @echo ""
+    @echo "=== Mypy ==="
+    uv run mypy keylogger.py
+    @echo ""
+    @echo "All linting checks passed!"
+
+# Format code with yapf
+[group('test')]
+format:
+    @echo "Formatting code with yapf..."
+    uv run yapf -i keylogger.py test_keylogger.py
+    @echo "Code formatted"
+
+# Run ruff check and fix
+[group('test')]
+fix:
+    @echo "Running ruff fix..."
+    uv run ruff check keylogger.py --fix
+    @echo "Ruff fixes applied"
+
+# =============================================================================
+# Utilities
+# =============================================================================
+
+# Remove virtual environment and cache files
+[group('utility')]
+clean:
+    @echo "Cleaning up..."
+    rm -rf .venv
+    rm -rf __pycache__
+    rm -rf *.pyc
+    rm -rf .mypy_cache
+    rm -rf .ruff_cache
+    rm -rf .pytest_cache
+    rm -rf *.egg-info
+    rm -rf build
+    rm -rf dist
+    @echo "Cleaned"
+
+# Lock dependencies
+[group('utility')]
+lock:
+    uv lock
+
+# Update all dependencies
+[group('utility')]
+update:
+    uv lock --upgrade
+    uv sync --all-extras
+
+# Run the keylogger (use with caution - for testing only)
+[group('utility')]
+[confirm("This will start the keylogger. Continue?")]
+run:
+    uv run python keylogger.py
+
+# =============================================================================
+# CI / Full Pipeline
+# =============================================================================
+
+# Setup, test, and lint everything
+[group('ci')]
+all: setup test lint
+    @echo ""
+    @echo "=========================================="
+    @echo "Everything complete!"
+    @echo "=========================================="
+
+# CI pipeline (tests and linting only, no setup)
+[group('ci')]
+ci: lint test
+    @echo "✓ CI checks passed"

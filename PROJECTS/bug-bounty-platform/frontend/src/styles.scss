@@ -1,0 +1,29 @@
+// ===================
+// © AngelaMos | 2025
+// styles.scss
+// ===================
+
+@forward 'styles/tokens';
+@forward 'styles/fonts';
+@forward 'styles/mixins';
+
+@use 'styles/reset';
+@use 'styles/tokens' as *;
+@use 'styles/fonts' as *;
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}

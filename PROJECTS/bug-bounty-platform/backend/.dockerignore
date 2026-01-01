@@ -1,0 +1,85 @@
+# ===============================
+# © AngelaMos | 2025
+# .dockerignore
+# ===============================
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Type checker / linter caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ty_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker (don't need these in the image)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Tests (not needed in prod image)
+tests/
+conftest.py
+pytest.ini
+.coveragerc
+
+# Documentation
+docs/
+*.md
+*.rst
+LICENSE
+
+# Logs
+*.log
+logs/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Alembic versions not needed in image (migrations run separately)
+# alembic/versions/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.bak

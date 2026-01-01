@@ -1,0 +1,128 @@
+# =============================================================================
+# AngelaMos | 2025
+# dev.compose.yml
+# =============================================================================
+
+name: ${APP_NAME:-template}-dev
+
+services:
+  # Nginx
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ${APP_NAME:-template}-nginx-dev
+    ports:
+      - "${NGINX_HOST_PORT:-8420}:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/dev.nginx:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  # FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../infra/docker/fastapi.dev
+    container_name: ${APP_NAME:-template}-backend-dev
+    ports:
+      - "${BACKEND_HOST_PORT:-5420}:8000"
+    volumes:
+      - ./backend:/app
+      - backend_cache:/app/.venv
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - RELOAD=true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Vite dev server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/vite.dev
+    container_name: ${APP_NAME:-template}-frontend-dev
+    ports:
+      - "${FRONTEND_HOST_PORT:-3420}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-/api}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-My App}
+    networks:
+      - frontend
+    restart: unless-stopped
+
+  # PostgreSQL DB
+  db:
+    image: postgres:16-alpine
+    container_name: ${APP_NAME:-template}-db-dev
+    ports:
+      - "${POSTGRES_HOST_PORT:-3420}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-app_db}
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ${APP_NAME:-template}-redis-dev
+    ports:
+      - "${REDIS_HOST_PORT:-6420}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_cache:
+  frontend_modules:

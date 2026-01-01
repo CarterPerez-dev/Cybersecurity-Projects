@@ -1,0 +1,342 @@
+// ===================
+// © AngelaMos | 2025
+// _mixins.scss
+// ===================
+
+@use 'sass:math';
+@use 'sass:map';
+@use 'sass:list';
+@use 'tokens' as *;
+
+// BREAKPOINT MIXINS
+$breakpoints: (
+  'xs': $breakpoint-xs,
+  'sm': $breakpoint-sm,
+  'md': $breakpoint-md,
+  'lg': $breakpoint-lg,
+  'xl': $breakpoint-xl,
+  '2xl': $breakpoint-2xl,
+  '3xl': $breakpoint-3xl,
+);
+
+@mixin breakpoint-up($size) {
+  @media (min-width: map.get($breakpoints, $size)) {
+    @content;
+  }
+}
+
+@mixin breakpoint-down($size) {
+  @media (width <= calc(map.get($breakpoints, $size) - 1px)) {
+    @content;
+  }
+}
+
+@mixin breakpoint-between($min, $max) {
+  @media (min-width: map.get($breakpoints, $min)) and (width <= calc(map.get($breakpoints, $max) - 1px)) {
+    @content;
+  }
+}
+
+@mixin breakpoint-only($size) {
+  $keys: map.keys($breakpoints);
+  $index: list.index($keys, $size);
+  $next-index: $index + 1;
+
+  @if $next-index <= list.length($keys) {
+    $next-key: list.nth($keys, $next-index);
+    @include breakpoint-between($size, $next-key) {
+      @content;
+    }
+  } @else {
+    @include breakpoint-up($size) {
+      @content;
+    }
+  }
+}
+
+
+@mixin container($name: null) {
+  container-type: inline-size;
+  @if $name {
+    container-name: #{$name};
+  }
+}
+
+@mixin container-up($min-width, $name: null) {
+  @if $name {
+    @container #{$name} (min-width: #{$min-width}) {
+      @content;
+    }
+  } @else {
+    @container (min-width: #{$min-width}) {
+      @content;
+    }
+  }
+}
+
+@function fluid-size($min-size, $max-size, $min-vw: 360px, $max-vw: 1536px) {
+  $slope: math.div($max-size - $min-size, $max-vw - $min-vw);
+  $intercept: $min-size - ($slope * $min-vw);
+  @return clamp(#{$min-size}, #{$intercept} + #{$slope * 100}vw, #{$max-size});
+}
+
+@mixin fluid-type($min-size, $max-size, $min-vw: 360px, $max-vw: 1536px) {
+  font-size: fluid-size($min-size, $max-size, $min-vw, $max-vw);
+}
+
+
+// FLEXBOX UTILITIES
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-column-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+// GRID UTILITIES
+@mixin grid-auto-fit($min-width: 250px, $gap: $space-4) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, #{$min-width}), 1fr));
+  gap: $gap;
+}
+
+@mixin grid-auto-fill($min-width: 250px, $gap: $space-4) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, #{$min-width}), 1fr));
+  gap: $gap;
+}
+
+// ACCESSIBILITY
+@mixin sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@mixin sr-only-focusable {
+  @include sr-only;
+
+  &:focus,
+  &:active {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+@mixin focus-ring($color: currentcolor, $offset: 2px, $width: 2px) {
+  &:focus-visible {
+    outline: #{$width} solid #{$color};
+    outline-offset: #{$offset};
+  }
+}
+
+@mixin focus-ring-inset($color: currentcolor, $width: 2px) {
+  &:focus-visible {
+    outline: #{$width} solid #{$color};
+    outline-offset: -#{$width};
+  }
+}
+
+// TRUNCATION
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: #{$lines};
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// BUTTON RESET
+@mixin reset-button {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+// INPUT RESET
+@mixin reset-input {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  outline: none;
+
+  &::placeholder {
+    color: inherit;
+    opacity: 0.5;
+  }
+}
+
+// SCROLLBAR
+@mixin hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@mixin thin-scrollbar($thumb-color: rgb(255 255 255 / 20%), $track-color: transparent) {
+  scrollbar-width: thin;
+  scrollbar-color: #{$thumb-color} #{$track-color};
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #{$track-color};
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #{$thumb-color};
+    border-radius: 3px;
+  }
+}
+
+// TRANSITIONS
+@mixin transition($properties: all, $duration: $duration-normal, $easing: $ease-in-out) {
+  transition-property: #{$properties};
+  transition-duration: #{$duration};
+  transition-timing-function: #{$easing};
+}
+
+@mixin transition-transform($duration: $duration-normal, $easing: $ease-in-out) {
+  transition: transform #{$duration} #{$easing};
+}
+
+@mixin transition-opacity($duration: $duration-normal, $easing: $ease-in-out) {
+  transition: opacity #{$duration} #{$easing};
+}
+
+@mixin transition-colors($duration: $duration-normal, $easing: $ease-in-out) {
+  transition: color #{$duration} #{$easing},
+              background-color #{$duration} #{$easing},
+              border-color #{$duration} #{$easing};
+}
+
+// POSITION UTILITIES
+@mixin absolute-fill {
+  position: absolute;
+  inset: 0;
+}
+
+@mixin fixed-fill {
+  position: fixed;
+  inset: 0;
+}
+
+@mixin absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+// ASPECT RATIO (for older browser support alongside native)
+@mixin aspect-ratio($width, $height) {
+  aspect-ratio: #{$width} / #{$height};
+
+  @supports not (aspect-ratio: 1 / 1) {
+    &::before {
+      content: '';
+      display: block;
+      padding-top: calc(#{$height} / #{$width} * 100%);
+    }
+  }
+}
+
+// INTERACTIVE STATES
+@mixin hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @content;
+    }
+  }
+}
+
+@mixin active {
+  &:active {
+    @content;
+  }
+}
+
+@mixin hover-active {
+  @include hover {
+    @content;
+  }
+
+  @include active {
+    @content;
+  }
+}
+
+// LAYER MANAGEMENT (CSS Cascade Layers)
+@mixin layer($name) {
+  @layer #{$name} {
+    @content;
+  }
+}

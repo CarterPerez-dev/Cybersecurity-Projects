@@ -1,0 +1,36 @@
+# .pre-commit-config.yaml
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.8
+    hooks:
+      - id: ruff
+        args: ["backend/"]
+        always_run: true
+
+  - repo: local
+    hooks:
+      - id: mypy-check
+        name: MyPy Type Checking
+        entry: bash -c 'cd backend && mypy .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: pylint-check
+        name: PyLint Code Quality
+        entry: bash -c 'cd backend && pylint .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]

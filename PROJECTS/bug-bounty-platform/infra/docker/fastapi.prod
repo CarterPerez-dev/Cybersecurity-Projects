@@ -1,0 +1,59 @@
+# =============================================================================
+# AngelaMos | 2025
+# fastapi.prod
+# =============================================================================
+# Production Dockerfile for FastAPI backend
+# Features: uv, multi-stage build, non-root user, health check
+# =============================================================================
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# BUILD STAGE
+# ============================================================================
+FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock* ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project --no-dev
+
+COPY . .
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable
+
+# ============================================================================
+# PRODUCTION STAGE
+# ============================================================================
+FROM python:3.12-slim AS production
+
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -m -s /bin/false appuser
+
+WORKDIR /app
+
+COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appgroup /app/app /app/app
+COPY --from=builder --chown=appuser:appgroup /app/alembic /app/alembic
+COPY --from=builder --chown=appuser:appgroup /app/alembic.ini /app/alembic.ini
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/app
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["sh", "-c", "alembic upgrade head && gunicorn __main__:app --worker-class uvicorn.workers.UvicornWorker --workers 4 --bind 0.0.0.0:8000 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]

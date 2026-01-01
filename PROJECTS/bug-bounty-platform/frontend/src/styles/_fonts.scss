@@ -1,0 +1,118 @@
+// ===================
+// © AngelaMos | 2025
+// _fonts.scss
+// ===================
+
+@use 'tokens' as *;
+
+// ============================================================================
+// FONT IMPORTS
+// ============================================================================
+
+// System font stack (no external imports needed)
+$font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+  'Noto Color Emoji';
+
+$font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+  monospace;
+
+// ============================================================================
+// FONT FACE DECLARATIONS (uncomment and customize as needed)
+// ============================================================================
+
+// Example: Inter font
+// @font-face {
+//   font-family: 'Inter';
+//   font-style: normal;
+//   font-weight: 100 900;
+//   font-display: swap;
+//   src: url('/fonts/Inter-Variable.woff2') format('woff2');
+// }
+
+// Example: Custom font with multiple weights
+// @font-face {
+//   font-family: 'CustomFont';
+//   font-style: normal;
+//   font-weight: 400;
+//   font-display: swap;
+//   src: url('/fonts/CustomFont-Regular.woff2') format('woff2');
+// }
+//
+// @font-face {
+//   font-family: 'CustomFont';
+//   font-style: normal;
+//   font-weight: 700;
+//   font-display: swap;
+//   src: url('/fonts/CustomFont-Bold.woff2') format('woff2');
+// }
+
+// FONT FAMILY VARIABLES
+$font-sans: $font-system;
+$font-display: $font-system;
+$font-body: $font-system;
+$font-code: $font-mono;
+
+// FONT UTILITY CLASSES
+%font-display {
+  font-family: $font-display;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  letter-spacing: $tracking-tight;
+}
+
+%font-heading {
+  font-family: $font-sans;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  letter-spacing: $tracking-tight;
+}
+
+%font-subheading {
+  font-family: $font-sans;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-snug;
+  letter-spacing: $tracking-normal;
+}
+
+%font-body {
+  font-family: $font-body;
+  font-weight: $font-weight-regular;
+  line-height: $line-height-normal;
+  letter-spacing: $tracking-normal;
+}
+
+%font-body-medium {
+  font-family: $font-body;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  letter-spacing: $tracking-normal;
+}
+
+%font-caption {
+  font-family: $font-body;
+  font-weight: $font-weight-regular;
+  line-height: $line-height-normal;
+  letter-spacing: $tracking-wide;
+}
+
+%font-label {
+  font-family: $font-sans;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-none;
+  letter-spacing: $tracking-wide;
+  text-transform: uppercase;
+}
+
+%font-code {
+  font-family: $font-code;
+  font-weight: $font-weight-regular;
+  line-height: $line-height-normal;
+  letter-spacing: $tracking-normal;
+}
+
+// BASE TYPOGRAPHY SETUP
+:root {
+  --font-sans: #{$font-sans};
+  --font-mono: #{$font-mono};
+}
