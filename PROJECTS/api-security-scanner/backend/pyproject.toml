@@ -11,24 +11,24 @@ license = {text = "MIT"}
 
 dependencies = [
     # FastAPI and server
-    "fastapi==0.121.1",
-    "uvicorn[standard]==0.38.0",
-    "python-multipart===0.0.20",
+    "fastapi==0.128.0",
+    "uvicorn[standard]==0.40.0",
+    "python-multipart===0.0.21",
     # Database
-    "sqlalchemy==2.0.44",
+    "sqlalchemy==2.0.45",
     "psycopg2-binary==2.9.11",
-    "alembic==1.17.1",
+    "alembic==1.17.2",
     # Security
     "slowapi==0.1.9",
     "python-jose[cryptography]==3.5.0",
     "bcrypt==5.0.0",
     # HTTP client for scanners
-    "requests==2.32.3",
+    "requests==2.32.5",
     "httpx==0.28.1",
     "aiohttp==3.13.2",
     # Settings management
-    "pydantic==2.12.4",
-    "pydantic-settings==2.11.0",
+    "pydantic==2.12.5",
+    "pydantic-settings==2.12.0",
     "python-dotenv==1.2.1",
     # Utilities
     "email-validator==2.3.0",
@@ -36,17 +36,17 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pylint==3.3.8",
-    "pre-commit==4.3.0",
-    "pip-audit==2.9.0",
-    "ruff==0.14.4",
-    "mypy==1.18.2",
-    "bandit[toml]==1.8.6",
+    "pylint==4.0.4",
+    "pre-commit==4.5.1",
+    "pip-audit==2.10.0",
+    "ruff==0.14.10",
+    "mypy==1.19.1",
+    "bandit[toml]==1.9.2",
     "yapf==0.43.0",
-    "pylint-pydantic==0.3.5",
-    "pylint-per-file-ignores==1.4.0",
+    "pylint-pydantic==0.4.1",
+    "pylint-per-file-ignores==3.2.0",
     "pylint-plugin-utils==0.9.0",
-    "pylint-pydantic==0.3.5"
+    "pylint-pydantic==0.4.1"
 ]
 
 [build-system]
