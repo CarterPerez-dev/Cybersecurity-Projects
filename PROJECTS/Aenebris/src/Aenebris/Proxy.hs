@@ -30,16 +30,19 @@ import Data.Ord (comparing)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Network.HTTP.Client (Manager, httpLbs, parseRequest, RequestBody(..))
+import Network.HTTP.Client (Manager, httpLbs, withResponse, parseRequest, RequestBody(..), brRead)
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types
 import Network.Wai
+import Data.ByteString.Builder (byteString)
+import Control.Monad (unless)
 import Network.Wai.Handler.Warp (run, defaultSettings, setPort)
 import Network.Wai.Handler.WarpTLS (runTLS)
 import System.IO (hPutStrLn, stderr)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy as LBS
 
 -- | Proxy runtime state
 data ProxyState = ProxyState
@@ -252,7 +255,7 @@ proxyApp config loadBalancers manager req respond = do
 
                 RegularHttp -> do
                   result <- try $ trackConnection backend $
-                    forwardRequest manager req (rbHost backend)
+                    forwardRequest manager req (rbHost backend) respond
 
                   case result of
                     Left (err :: SomeException) -> do
@@ -262,13 +265,12 @@ proxyApp config loadBalancers manager req respond = do
                         [("Content-Type", "text/plain")]
                         "Bad Gateway: Could not connect to backend server"
 
-                    Right response -> do
-                      logResponse response
-                      respond response
+                    Right responseReceived ->
+                      return responseReceived
 
                 _ -> do
                   result <- try $ trackConnection backend $
-                    forwardRequest manager req (rbHost backend)
+                    forwardRequest manager req (rbHost backend) respond
 
                   case result of
                     Left (err :: SomeException) -> do
@@ -278,9 +280,8 @@ proxyApp config loadBalancers manager req respond = do
                         [("Content-Type", "text/plain")]
                         "Bad Gateway: Could not connect to backend server"
 
-                    Right response -> do
-                      logResponse response
-                      respond response
+                    Right responseReceived ->
+                      return responseReceived
 
 handleWebSocketUpgrade :: Request -> (Response -> IO ResponseReceived) -> RuntimeBackend -> IO ResponseReceived
 handleWebSocketUpgrade req respond backend = do
@@ -327,9 +328,9 @@ selectUpstream :: Config -> Maybe BS.ByteString -> BS.ByteString -> Maybe Text
 selectUpstream config hostHeader requestPath =
   fmap fst $ selectRoute config hostHeader requestPath
 
--- | Forward request to backend server
-forwardRequest :: Manager -> Request -> Text -> IO Response
-forwardRequest manager clientReq backendHost = do
+-- | Forward request to backend server with streaming support
+forwardRequest :: Manager -> Request -> Text -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+forwardRequest manager clientReq backendHost respond = do
   requestBody <- strictRequestBody clientReq
 
   let backendUrl = "http://" ++ T.unpack backendHost ++
@@ -344,13 +345,64 @@ forwardRequest manager clientReq backendHost = do
         , HTTP.requestBody = RequestBodyLBS requestBody
         }
 
-  backendResponse <- httpLbs backendReq manager
+  withResponse backendReq manager $ \backendResponse -> do
+    let status = HTTP.responseStatus backendResponse
+        headers = HTTP.responseHeaders backendResponse
+        bodyReader = HTTP.responseBody backendResponse
 
-  let status = HTTP.responseStatus backendResponse
-      headers = HTTP.responseHeaders backendResponse
-      body = HTTP.responseBody backendResponse
+    if shouldStreamResponse headers
+      then do
+        hPutStrLn stderr "[STREAM] Streaming response detected"
+        respond $ responseStream status (filterResponseHeaders headers) $ \write flush -> do
+          let loop = do
+                chunk <- brRead bodyReader
+                unless (BS.null chunk) $ do
+                  write (byteString chunk)
+                  flush
+                  loop
+          loop
+      else do
+        body <- readFullBody bodyReader
+        respond $ responseLBS status (filterResponseHeaders headers) body
 
-  return $ responseLBS status headers body
+shouldStreamResponse :: [(HeaderName, BS.ByteString)] -> Bool
+shouldStreamResponse headers =
+  isSSE || isChunkedWithoutLength
+  where
+    isSSE = case lookup "Content-Type" headers of
+      Just ct -> "text/event-stream" `BS.isInfixOf` ct
+      Nothing -> False
+
+    isChunkedWithoutLength =
+      hasChunkedEncoding && not hasContentLength
+
+    hasChunkedEncoding = case lookup "Transfer-Encoding" headers of
+      Just te -> "chunked" `BS.isInfixOf` te
+      Nothing -> False
+
+    hasContentLength = case lookup "Content-Length" headers of
+      Just _ -> True
+      Nothing -> False
+
+readFullBody :: HTTP.BodyReader -> IO LBS.ByteString
+readFullBody bodyReader = LBS.fromChunks <$> go
+  where
+    go = do
+      chunk <- brRead bodyReader
+      if BS.null chunk
+        then return []
+        else do
+          rest <- go
+          return (chunk : rest)
+
+filterResponseHeaders :: [(HeaderName, BS.ByteString)] -> [(HeaderName, BS.ByteString)]
+filterResponseHeaders = filter (\(name, _) -> name `notElem` hopByHopHeaders)
+  where
+    hopByHopHeaders =
+      [ "Transfer-Encoding"
+      , "Connection"
+      , "Keep-Alive"
+      ]
 
 -- | Filter headers for regular HTTP (remove hop-by-hop headers)
 filterHeaders :: [(HeaderName, BS.ByteString)] -> [(HeaderName, BS.ByteString)]
