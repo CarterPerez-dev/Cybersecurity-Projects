@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-6/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-7/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -49,12 +49,13 @@
 
 ---
 
-## Projects (Each link to their brief instructions)
+# Projects 
+### *Each link to their brief instructions or source code*
 
-### Beginner Projects
+## Beginner Projects
 
-### [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Port.Scanner.md)
-Build a Python script using the `socket` library to test common ports (22, 80, 443, 3306, etc.) on a target IP. Implement threading or asyncio to scan multiple ports concurrently for speed. Add service detection by analyzing banner responses from open ports.
+### *SOURCE CODE:* *[Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/simple-port-scanner)*
+Asynchronous TCP port scanner in C++ using boost::asio for concurrent port scanning with configurable ranges and timeouts. Implements service detection through banner grabbing and demonstrates async I/O patterns with TCP socket programming.
 
 ### *SOURCE CODE:* *[Keylogger](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/keylogger)*
 Use Python's `pynput` library to capture keyboard events and log them to a local file with timestamps. Include a toggle key (like F12) to start/stop logging. **Important**: Add clear disclaimers and only test on systems you own.
