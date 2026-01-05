@@ -1,3 +1,10 @@
+"""
+Read command - Display metadata from files.
+
+This command reads and displays metadata from image files in a
+formatted table view. Supports single files or recursive directory processing.
+"""
+
 import logging
 from pathlib import Path
 
@@ -19,7 +26,6 @@ def get_metadata(
         file_okay=True,  # Can be a file
         dir_okay=True,  # Can be a directory
         readable=True,  # Must be readable (permissions check)
-        writable=True,  # Must be writable (permissions check)
         resolve_path=True,  # Auto-convert to absolute path
         help="The path to the file you want to process",
     ),
@@ -39,7 +45,9 @@ def get_metadata(
             # Read
             console.print(f"🔎 Processing [bold cyan]{file.name}[/bold cyan]...")
             current_data = handler.read()
-            log.info(f"Successfully read metadata from {file_path.name}")
+            if log.isEnabledFor(logging.DEBUG):
+                # if verbose mode is enabled, log the Info
+                log.info(f"Successfully read metadata from {file_path.name}")
             print_metadata_table(current_data)
 
         except Exception as e:

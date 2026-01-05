@@ -1,22 +1,30 @@
+"""
+Custom exceptions for metadata processing operations.
+
+This module defines a hierarchy of exceptions used throughout the
+metadata scrubber tool for handling various error conditions.
+"""
+
+
 class MetadataException(Exception):
-    """Base class for other exceptions in this module."""
+    """Base class for all metadata-related exceptions."""
 
     pass
 
 
 class UnsupportedFormatError(MetadataException):
-    """Exception raised when an unsupported file format is encountered."""
+    """Raised when attempting to process an unsupported file format."""
 
     pass
 
 
 class MetadataNotFoundError(MetadataException):
-    """Exception raised when metadata is not found."""
+    """Raised when no metadata is found in a file."""
 
     pass
 
 
 class MetadataProcessingError(MetadataException):
-    """Exception raised when an error occurs during metadata processing."""
+    """Raised when an error occurs during metadata processing."""
 
     pass

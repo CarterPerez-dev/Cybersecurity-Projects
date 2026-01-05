@@ -1,3 +1,10 @@
+"""
+Logging configuration for the metadata scrubber CLI.
+
+This module provides the setup_logging function which configures the
+application's logging with Rich handlers for beautiful terminal output.
+"""
+
 import logging
 
 from rich.logging import RichHandler
@@ -5,14 +12,23 @@ from rich.logging import RichHandler
 
 def setup_logging(verbose: bool = False):
     """
-    - Default (Info): Shows main steps and errors.
-    - Verbose (Debug): Shows file paths, extraction details, and raw values.
+    Configure application logging with Rich formatting.
+
+    Sets up the logger with appropriate level and Rich handlers for
+    beautiful terminal output including colorful stack traces.
+
+    Args:
+        verbose: If True, enables DEBUG level logging.
+                If False (default), enables INFO level logging.
+
+    Returns:
+        Logger instance for 'metadata-scrubber'.
     """
     # Define the log level
     level = logging.DEBUG if verbose else logging.INFO
 
     # Configure the logger
-    # remove existing handlers to avoid duplicate lines if the app restarts
+    # Remove existing handlers to avoid duplicate lines if the app restarts
     logging.getLogger().handlers.clear()
 
     logging.basicConfig(

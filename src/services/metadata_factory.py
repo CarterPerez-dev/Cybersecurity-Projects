@@ -1,11 +1,44 @@
+"""
+Factory for creating metadata handlers.
+
+This module provides the MetadataFactory class which uses the factory pattern
+to create appropriate handler instances based on file type. It enables
+extensibility for supporting new file formats (PDF, Office docs, etc.).
+"""
+
 from pathlib import Path
 
 from src.services.image_handler import ImageHandler
 
 
 class MetadataFactory:
+    """
+    Factory class for creating metadata handlers.
+
+    Uses the factory pattern to return the appropriate handler instance
+    based on file extension. This design allows easy extension to support
+    new file types without modifying existing code.
+
+    Supported formats:
+        - Images: .jpg, .jpeg, .png
+        - Future: .pdf, .docx, .xlsx, .pptx
+    """
+
     @staticmethod
     def get_handler(filepath: str):
+        """
+        Create and return the appropriate metadata handler for a file.
+
+        Args:
+            filepath: Path to the file to process.
+
+        Returns:
+            MetadataHandler: An instance of the appropriate handler subclass.
+
+        Raises:
+            ValueError: If no handler is defined for the file type or
+                       if the path is not a valid file.
+        """
         ext = Path(filepath).suffix.lower()
         if Path(filepath).is_file():
             if ext in [".jpg", ".jpeg", ".png"]:

@@ -1,3 +1,10 @@
+"""
+Display utilities for rich terminal output.
+
+This module provides functions for displaying metadata and batch processing
+results in beautifully formatted tables and panels using the Rich library.
+"""
+
 from typing import Any, Dict
 
 from rich import box
@@ -13,7 +20,13 @@ console = Console()
 
 def print_metadata_table(metadata: Dict[str, Any]):
     """
-    Displays metadata organized by logical groups.
+    Display metadata in a formatted table organized by logical groups.
+
+    Organizes metadata into categories (Device Info, Exposure Settings,
+    Image Data, Dates) and displays them in a Rich panel with color coding.
+
+    Args:
+        metadata: Dict of metadata key-value pairs to display.
     """
 
     # Define the groups using simple lists of keys
@@ -78,3 +91,50 @@ def print_metadata_table(metadata: Dict[str, Any]):
     console.print(
         Panel(table, title="Metadata Report", border_style="blue", expand=False)
     )
+
+
+def print_batch_summary(summary) -> None:
+    """
+    Display batch processing results in a rich panel.
+
+    Args:
+        summary: BatchSummary object with processing statistics.
+    """
+    # Build the summary table
+    table = Table(box=box.ROUNDED, show_header=False, expand=False)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+
+    if summary.dry_run:
+        table.add_row("Mode", "[yellow]DRY-RUN (no changes made)[/yellow]")
+        table.add_row("Would process", str(summary.success))
+        table.add_row("Would skip", str(summary.skipped))
+    else:
+        table.add_row("Total processed", str(summary.total))
+        table.add_row("✅ Success", f"[green]{summary.success}[/green]")
+        table.add_row("⚠️ Skipped", f"[yellow]{summary.skipped}[/yellow]")
+        if summary.output_dir:
+            table.add_row("📁 Output", str(summary.output_dir.resolve()))
+
+    # Show failed files if any
+    failed = [r for r in summary.results if not r.success]
+    if failed:
+        table.add_section()
+        table.add_row(Text("Failed files:", style="bold red"), "")
+        for result in failed[:5]:  # Show max 5 failures
+            table.add_row(f"  {result.filepath.name}", f"[dim]{result.error}[/dim]")
+        if len(failed) > 5:
+            table.add_row("", f"[dim]... and {len(failed) - 5} more[/dim]")
+
+    # Determine panel title and style
+    if summary.dry_run:
+        title = "🔍 Dry-Run Summary"
+        border_style = "yellow"
+    elif summary.skipped == 0:
+        title = "✅ Scrub Complete"
+        border_style = "green"
+    else:
+        title = "⚠️ Scrub Complete (with warnings)"
+        border_style = "yellow"
+
+    console.print(Panel(table, title=title, border_style=border_style, expand=False))
