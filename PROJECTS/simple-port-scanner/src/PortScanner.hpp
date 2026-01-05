@@ -1,7 +1,15 @@
 #ifndef PORTSCANNER_HPP
 #define PORTSCANNER_HPP
 #include <boost/asio.hpp>
-#include <bits/stdc++.h>
+#include <string>
+#include <queue>
+#include <unordered_map>
+#include <iostream>
+#include <array>
+#include <memory>
+#include <cstdint>
+#include <stdio.h>
+
 #define RED   "\033[31m"
 #define GREEN "\033[32m"
 #define RESET "\033[0m"
