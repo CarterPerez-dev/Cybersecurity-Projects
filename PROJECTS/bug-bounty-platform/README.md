@@ -258,6 +258,7 @@ All configuration is done via `.env` file. Key variables:
 | `ENVIRONMENT` | dev/staging/production | development |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime | 15 |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | 7 |
+| `CORS_ORIGINS` | Allowed origins for CORS | `["*"]` (all origins) |
 
 See `.env.example` for all available options.
 
@@ -271,9 +272,20 @@ BACKEND_HOST_PORT=5420      # Change to any available port
 FRONTEND_HOST_PORT=3420     # Change to any available port
 POSTGRES_HOST_PORT=4420     # Change to any available port
 REDIS_HOST_PORT=6420        # Change to any available port
+```
 
-# IMPORTANT: Update CORS_ORIGINS to match NGINX_HOST_PORT
-CORS_ORIGINS=http://localhost,http://localhost:8420,http://localhost:3420
+### CORS Configuration
+
+The API is configured to accept requests from **all origins** by default:
+
+```bash
+CORS_ORIGINS=["*"]  # Allows all origins (public API)
+```
+
+If you need to restrict access to specific origins:
+
+```bash
+CORS_ORIGINS=["https://yourdomain.com","https://app.yourdomain.com"]
 ```
 
 ---

@@ -158,11 +158,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: RedisDsn | None = None
 
-    CORS_ORIGINS: list[str] = [
-        "http://localhost",
-        "http://localhost:3420",
-        "http://localhost:8420",
-    ]
+    CORS_ORIGINS: list[str] = ["*"]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: list[str] = [
         "GET",
