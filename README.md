@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-7/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-8/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -200,7 +200,7 @@ Build a modular framework in Python where exploits are plugins (one file per vul
 ### [AI Threat Detection](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/AI.Threat.Detection.md)
 Train a machine learning model (Random Forest or LSTM) on network traffic data (CICIDS2017 dataset) to classify normal vs. malicious behavior. Use feature engineering on packet metadata (packet size, timing, protocols). Deploy model with FastAPI for real-time inference on live traffic.
 
-### [Bug Bounty Platform](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Bug.Bounty.Platform.md)
+### *SOURCE CODE:* *[Bug Bounty Platform](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/bug-bounty-platform)*
 Create a web app with user roles (researchers, companies), vulnerability submission workflow, and reward management. Implement severity scoring (CVSS), status tracking, and encrypted communications. Use React frontend, FastAPI/Django backend, PostgreSQL database, and S3 for file uploads.
 
 ### [Cloud Security Posture Management](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Cloud.Security.Posture.Management.md)
