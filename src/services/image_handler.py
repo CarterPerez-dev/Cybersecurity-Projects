@@ -16,6 +16,14 @@ from PIL import Image
 from src.core.jpeg_metadata import JpegProcessor
 from src.core.png_metadata import PngProcessor
 from src.services.metadata_handler import MetadataHandler
+from src.utils.exceptions import UnsupportedFormatError
+
+# Map Pillow format names to processor keys
+FORMAT_MAP = {
+    "jpeg": "jpeg",
+    "jpg": "jpeg",
+    "png": "png",
+}
 
 
 class ImageHandler(MetadataHandler):
@@ -23,11 +31,13 @@ class ImageHandler(MetadataHandler):
     Metadata handler for image files (JPEG, PNG).
 
     Implements the MetadataHandler interface using format-specific processors
-    to read, wipe, and save image metadata. Uses piexif for EXIF manipulation.
+    to read, wipe, and save image metadata. Uses Pillow's format detection
+    to handle files with incorrect extensions.
 
     Attributes:
-        processors: Dict mapping file extensions to processor instances.
+        processors: Dict mapping format names to processor instances.
         tags_to_delete: List of EXIF tags to remove during wipe operation.
+        detected_format: Actual image format detected by Pillow.
     """
 
     def __init__(self, filepath: str):
@@ -39,57 +49,121 @@ class ImageHandler(MetadataHandler):
         """
         super().__init__(filepath)
         self.processors = {
-            ".jpeg": JpegProcessor(),
-            ".jpg": JpegProcessor(),
-            ".png": PngProcessor(),
+            "jpeg": JpegProcessor(),
+            "png": PngProcessor(),
         }
         self.tags_to_delete = []
+        self.detected_format: Optional[str] = None
+        self.text_keys_to_delete = []
+
+    def _detect_format(self) -> str:
+        """
+        Detect actual image format using Pillow, not file extension.
+
+        This protects against misnamed files (e.g., a PNG saved as .jpg).
+
+        Returns:
+            Normalized format string ('jpeg' or 'png').
+
+        Raises:
+            UnsupportedFormatError: If format is not supported or undetectable.
+        """
+        with Image.open(Path(self.filepath)) as img:
+            if img.format is None:
+                raise UnsupportedFormatError(
+                    f"Could not detect format for: {self.filepath}"
+                )
+
+            pillow_format = img.format.lower()
+            normalized = FORMAT_MAP.get(pillow_format)
+
+            if normalized is None:
+                raise UnsupportedFormatError(
+                    f"Unsupported format: {pillow_format} (file: {self.filepath})"
+                )
+
+            return normalized
 
     def read(self):
-        """Extract metadata from the file."""
+        """
+        Extract metadata from the file.
+
+        Uses actual format detection to select the appropriate processor.
+        """
+        self.detected_format = self._detect_format()
+        processor = self.processors.get(self.detected_format)
+
+        if not processor:
+            raise UnsupportedFormatError(f"Unsupported format: {self.detected_format}")
+
         with Image.open(Path(self.filepath)) as img:
-            extension = Path(self.filepath).suffix
-            processor = self.processors.get(extension)
-
-            if not processor:
-                raise ValueError(f"Unsupported format: {extension}")
-
-            self.metadata = processor.get_metadata(img)["data"]
-            self.tags_to_delete = processor.get_metadata(img)["tags_to_delete"]
+            result = processor.get_metadata(img)
+            self.metadata = result["data"]
+            self.tags_to_delete = result["tags_to_delete"]
+            # Store text keys for PNG processing
+            self.text_keys_to_delete = result.get("text_keys", [])
             return self.metadata
 
     def wipe(self) -> None:
-        """Wipes internal metadata state."""
+        """
+        Remove privacy-sensitive metadata from the file.
+
+        Uses actual format detection to select the appropriate processor.
+        """
+        # Use cached format if available, otherwise detect
+        if not self.detected_format:
+            self.detected_format = self._detect_format()
+
+        processor = self.processors.get(self.detected_format)
+
+        if not processor:
+            raise UnsupportedFormatError(f"Unsupported format: {self.detected_format}")
+
         with Image.open(Path(self.filepath)) as img:
-            extension = Path(self.filepath).suffix
-            processor = self.processors.get(extension)
-
-            if not processor:
-                raise ValueError(f"Unsupported format: {extension}")
-
             self.processed_metadata = processor.delete_metadata(
                 img, self.tags_to_delete
             )
+            # For PNG, also get clean PngInfo
+            if self.detected_format == "png" and hasattr(
+                processor, "get_clean_pnginfo"
+            ):
+                self.clean_pnginfo = processor.get_clean_pnginfo(
+                    img, self.text_keys_to_delete
+                )
 
     def save(self, output_path: Optional[str] = None) -> None:
         """
         Writes the changes to a copy of the original file.
 
+        Handles format-specific saving:
+        - JPEG: Uses piexif to write cleaned EXIF data
+        - PNG: Saves without EXIF and strips textual metadata
+
         Args:
-            output_path: Can be a directory path (legacy behavior) or a full file path.
-                        If a directory, generates filename as 'processed_{original_name}'.
-                        If a file path, uses it directly.
+            output_path: Full path to the destination file.
         """
-        destination_file_path = ""
-        if output_path:
-            # setup the destination directory.
-            # which was created by the batch_processor
-            destination_file_path = Path(output_path)
+        destination_file_path = Path(output_path) if output_path else None
 
-        # copies the original file to the destination directory
-        shutil.copy2(self.filepath, destination_file_path)
+        if not destination_file_path:
+            raise ValueError("output_path is required")
 
-        # writes the processed metadata to the image in the destination directory
-        with Image.open(destination_file_path) as img:
-            exif_bytes = piexif.dump(self.processed_metadata)
-            img.save(destination_file_path, exif=exif_bytes)
+        # Use detected format (falls back to extension if not detected)
+        actual_format = self.detected_format or self._detect_format()
+
+        if actual_format == "jpeg":
+            # JPEG: Copy then write cleaned EXIF data
+            shutil.copy2(self.filepath, destination_file_path)
+            with Image.open(destination_file_path) as img:
+                exif_bytes = piexif.dump(self.processed_metadata)
+                img.save(destination_file_path, exif=exif_bytes)
+        elif actual_format == "png":
+            # PNG: Open original, save fresh copy without metadata
+            with Image.open(Path(self.filepath)) as img:
+                # Save without exif and without pnginfo to strip all metadata
+                # Preserve image mode and data integrity
+                img.save(
+                    destination_file_path,
+                    format="PNG",
+                    exif=None,
+                    pnginfo=getattr(self, "clean_pnginfo", None),
+                )

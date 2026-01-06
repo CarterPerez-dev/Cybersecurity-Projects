@@ -1,11 +1,15 @@
 """
 PNG metadata processor using PIL.
 
-This module provides the PngProcessor class which handles EXIF metadata
-extraction and manipulation for PNG images using PIL's built-in EXIF support.
+This module provides the PngProcessor class which handles metadata
+extraction and manipulation for PNG images, including both EXIF data
+and PNG textual metadata (PngInfo chunks).
 """
 
-from PIL import ExifTags
+from typing import Any, Dict, List, Optional
+
+from PIL import ExifTags, PngImagePlugin
+from PIL.Image import Exif, Image
 
 from src.utils.exceptions import MetadataNotFoundError, MetadataProcessingError
 
@@ -14,71 +18,110 @@ class PngProcessor:
     """
     Processor for PNG image metadata.
 
-    Handles reading, extracting, and deleting EXIF metadata from PNG files.
-    Processes both standard EXIF tags and GPS IFD data.
+    Handles reading, extracting, and deleting metadata from PNG files.
+    Processes both EXIF data and PNG textual chunks (PngInfo).
 
     Attributes:
         tags_to_delete: List of EXIF tag IDs to remove.
+        text_keys_to_delete: List of PngInfo text keys to remove.
         data: Dict of extracted metadata with human-readable keys.
     """
 
+    # Privacy-sensitive PNG text keys to remove
+    SENSITIVE_TEXT_KEYS = {
+        "Author",
+        "Comment",
+        "Copyright",
+        "Creation Time",
+        "Description",
+        "Disclaimer",
+        "Software",
+        "Source",
+        "Title",
+        "Warning",
+        "XML:com.adobe.xmp",  # XMP metadata
+    }
+
     def __init__(self):
         """Initialize the PNG processor with empty data structures."""
-        self.tags_to_delete = []
-        self.data = {}
+        self.tags_to_delete: List[int] = []
+        self.text_keys_to_delete: List[str] = []
+        self.data: Dict[str, Any] = {}
 
-    def get_metadata(self, img):
+    def get_metadata(self, img: Image) -> Dict[str, Any]:
         """
-        Extract EXIF metadata from a PNG image.
+        Extract metadata from a PNG image.
+
+        Extracts both EXIF data (if present) and PNG textual chunks (PngInfo).
 
         Args:
             img: PIL Image object.
 
         Returns:
-            Dict with 'data' (metadata dict) and 'tags_to_delete' (tag IDs list).
+            Dict with 'data' (metadata dict), 'tags_to_delete' (EXIF tag IDs),
+            and 'text_keys' (PngInfo keys to remove).
 
         Raises:
-            MetadataNotFoundError: If no EXIF data is found in the image.
+            MetadataNotFoundError: If no metadata is found in the image.
         """
         img.load()
+        found_metadata = False
+
+        # Extract EXIF data (if present)
         exif = img.getexif()
+        if exif:
+            found_metadata = True
+            # Main IFD
+            for tag, value in exif.items():
+                tag_name = ExifTags.TAGS.get(tag, f"Tag_{tag}")
+                self.tags_to_delete.append(tag)
+                self.data[f"EXIF:{tag_name}"] = value
 
-        if not exif:
-            raise MetadataNotFoundError("No EXIF data found in the image.")
+            # GPS IFD
+            gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
+            for tag, value in gps_ifd.items():
+                tag_name = ExifTags.GPSTAGS.get(tag, f"GPSTag_{tag}")
+                self.tags_to_delete.append(tag)
+                self.data[f"GPS:{tag_name}"] = value
 
-        # Iterate through the (0th) IFD
-        for tag, value in exif.items():
-            # Get the human-readable name for the tag
-            tag_name = ExifTags.TAGS.get(tag, tag)
+        # Extract PNG textual metadata (PngInfo chunks)
+        if hasattr(img, "info") and img.info:
+            for key, value in img.info.items():
+                # Skip binary/internal data
+                if key in ("icc_profile", "exif", "transparency", "gamma"):
+                    continue
 
-            # Save to list and dict
-            self.tags_to_delete.append(tag)
-            self.data[tag_name] = value
-            print(f"{tag_name}: {value}")
+                if isinstance(value, (str, bytes)):
+                    found_metadata = True
+                    if isinstance(value, bytes):
+                        try:
+                            value = value.decode("utf-8", errors="replace")
+                        except Exception:
+                            value = str(value)
 
-        # Iterate through the (GPS) IFD
-        gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
-        for tag, value in gps_ifd.items():
-            # Get the human-readable name for the tag
-            tag_name = ExifTags.GPSTAGS.get(tag, tag)
+                    self.data[f"PNG:{key}"] = value
+                    if isinstance(key, str):  # Only add string keys
+                        self.text_keys_to_delete.append(key)
 
-            # Save to list and dict
-            self.tags_to_delete.append(tag)
-            self.data[tag_name] = value
-            print(f"{tag_name}: {value}")
+        if not found_metadata:
+            raise MetadataNotFoundError("No metadata found in the PNG image.")
 
-        return {"data": self.data, "tags_to_delete": self.tags_to_delete}
+        return {
+            "data": self.data,
+            "tags_to_delete": self.tags_to_delete,
+            "text_keys": self.text_keys_to_delete,
+        }
 
-    def delete_metadata(self, img, tags_to_delete):
+    def delete_metadata(self, img: Image, tags_to_delete: List[int]) -> Exif:
         """
-        Remove specified EXIF tags from a PNG image.
+        Remove EXIF tags from a PNG image.
 
         Args:
             img: PIL Image object.
-            tags_to_delete: List of tag IDs to remove.
+            tags_to_delete: List of EXIF tag IDs to remove.
 
         Returns:
-            Modified EXIF data with specified tags removed.
+            Mutated Exif object with specified tags removed.
 
         Raises:
             MetadataProcessingError: If an error occurs during processing.
@@ -86,17 +129,53 @@ class PngProcessor:
         img.load()
         exif = img.getexif()
         try:
-            # Iterate through the (0th) IFD
-            for tag_id, value in exif.items():
+            # Delete tags from main IFD (iterate over copy of keys)
+            for tag_id in list(exif.keys()):
                 if tag_id in tags_to_delete:
                     del exif[tag_id]
 
-            # Iterate through the (GPS) IFD
+            # Clear GPS IFD entirely (privacy-sensitive)
             gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
-            for tag_id, value in gps_ifd.items():
-                if tag_id in tags_to_delete:
-                    del gps_ifd[tag_id]
+            gps_ifd.clear()
 
-            return exif + gps_ifd
+            return exif
         except Exception as e:
-            raise MetadataProcessingError(f"Error Processing image: {str(e)}")
+            raise MetadataProcessingError(f"Error processing PNG EXIF: {str(e)}")
+
+    def get_clean_pnginfo(
+        self, img: Image, keys_to_remove: Optional[List[str]] = None
+    ) -> Optional[PngImagePlugin.PngInfo]:
+        """
+        Create a new PngInfo with sensitive keys removed.
+
+        Args:
+            img: PIL Image object.
+            keys_to_remove: Specific keys to remove. If None, removes all sensitive keys.
+
+        Returns:
+            New PngInfo object with only safe metadata, or None if no safe metadata.
+        """
+        if not hasattr(img, "info") or not img.info:
+            return None
+
+        keys_to_remove = keys_to_remove or list(self.text_keys_to_delete)
+
+        # Create new PngInfo with only safe keys
+        pnginfo = PngImagePlugin.PngInfo()
+        has_safe_data = False
+
+        for key, value in img.info.items():
+            # Skip keys to remove
+            if key in keys_to_remove:
+                continue
+
+            # Skip binary/internal data
+            if key in ("icc_profile", "exif", "transparency", "gamma"):
+                continue
+
+            # Only include text data with string keys
+            if isinstance(key, str) and isinstance(value, str):
+                pnginfo.add_text(key, value)
+                has_safe_data = True
+
+        return pnginfo if has_safe_data else None

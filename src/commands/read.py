@@ -43,19 +43,19 @@ def get_metadata(
             handler = MetadataFactory.get_handler(str(file))
 
             # Read
-            console.print(f"🔎 Processing [bold cyan]{file.name}[/bold cyan]...")
+            console.print(f"🔎 Reading [bold cyan]{file.name}[/bold cyan]...")
             current_data = handler.read()
             if log.isEnabledFor(logging.DEBUG):
                 # if verbose mode is enabled, log the Info
-                log.info(f"Successfully read metadata from {file_path.name}")
+                log.info(f"Successfully read metadata from {file.name}")
             print_metadata_table(current_data)
 
         except Exception as e:
             # display error in console
-            console.print(f"❌ [bold red]Skipped[/bold red] [cyan]{file_path.name}[/cyan]: [dim]{e}[/dim]")
+            console.print(f"❌ [bold red]Skipped[/bold red] [cyan]{file.name}[/cyan]: [dim]{e}[/dim]")
 
             # LOG: Full technical details (Stack trace) for you to debug
 
             if log.isEnabledFor(logging.DEBUG):
                 # if verbose mode is enabled, log the traceback
-                log.error(f"Failed to process {file_path}", exc_info=True)
+                log.error(f"Failed to read metadata from {file}", exc_info=True)

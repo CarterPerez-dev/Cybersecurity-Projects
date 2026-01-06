@@ -92,6 +92,8 @@ class BatchProcessor:
         Returns:
             FileResult with success status and details.
         """
+        output_path: Optional[Path] = None  # Track reserved path for cleanup
+
         try:
             # Dry-run mode: just report what would happen
             if self.dry_run:
@@ -131,6 +133,9 @@ class BatchProcessor:
             return result
 
         except Exception as e:
+            # Cleanup: remove empty placeholder file if reservation failed
+            self._cleanup_reserved_path(output_path)
+
             result = FileResult(
                 filepath=file,
                 success=False,
@@ -222,6 +227,28 @@ class BatchProcessor:
         """Thread-safe append to results list."""
         with self._results_lock:
             self.results.append(result)
+
+    def _cleanup_reserved_path(self, output_path: Optional[Path]) -> None:
+        """
+        Remove empty placeholder file created during path reservation.
+
+        Called when processing fails after _get_unique_output_path() reserved
+        a path via touch(). Only removes files that are empty (0 bytes) to
+        avoid deleting partially written data.
+
+        Args:
+            output_path: Path that was reserved, or None if not yet reserved.
+        """
+        if output_path is None:
+            return
+
+        try:
+            if output_path.exists() and output_path.stat().st_size == 0:
+                output_path.unlink()
+                log.debug(f"Cleaned up empty placeholder: {output_path}")
+        except OSError:
+            # Best effort cleanup - don't fail if we can't delete
+            pass
 
     def _get_unique_output_path(self, file: Path) -> Path:
         """

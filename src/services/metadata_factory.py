@@ -9,6 +9,7 @@ extensibility for supporting new file formats (PDF, Office docs, etc.).
 from pathlib import Path
 
 from src.services.image_handler import ImageHandler
+from src.utils.exceptions import UnsupportedFormatError
 
 
 class MetadataFactory:
@@ -36,8 +37,8 @@ class MetadataFactory:
             MetadataHandler: An instance of the appropriate handler subclass.
 
         Raises:
-            ValueError: If no handler is defined for the file type or
-                       if the path is not a valid file.
+            UnsupportedFormatError: If no handler is defined for the file type.
+            ValueError: If the path is not a valid file.
         """
         ext = Path(filepath).suffix.lower()
         if Path(filepath).is_file():
@@ -52,7 +53,7 @@ class MetadataFactory:
             # elif ext == ".pptx":
             #     return PowerPointHandler(filepath)
             else:
-                raise ValueError(f"No handler defined for {ext} files.")
+                raise UnsupportedFormatError(f"No handler defined for {ext} files.")
         else:
             raise ValueError(
                 f"{filepath} is not a file. if you want to process a directory, use the --recursive flag."
