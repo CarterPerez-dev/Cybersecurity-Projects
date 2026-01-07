@@ -1,0 +1,74 @@
+[project]
+name = "metadata-scrubber-tool"
+version = "0.1.0"
+description = "A privacy-focused CLI tool that removes sensitive metadata from image files"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.21.0",
+    "rich>=14.0.0",
+    "pillow>=12.0.0",
+    "piexif>=1.1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.0",
+    "pytest-cov>=6.0.0",
+    "mypy>=1.19.0",
+    "ruff>=0.14.0",
+]
+
+[project.scripts]
+mst = "src.main:app"
+metadata-scrubber = "src.main:app"
+
+
+# ============ THE BUILD SYSTEM ================
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ============ PACKAGE DISCOVERY =================
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ============== Ruff Configuration ==============
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["typings"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "C4"]
+ignore = ["E501"]  # Line too long (handled by formatter)
+
+# ============== Pytest Configuration ==============
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+# ============== Coverage Configuration ==============
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/__init__.py", "*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+
+# ============== MyPy Configuration ==============
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
