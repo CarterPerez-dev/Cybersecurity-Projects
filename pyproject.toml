@@ -1,5 +1,5 @@
 [project]
-name = "metadata-scrubber-tool"
+name = "metadata-scrubber"
 version = "0.1.0"
 description = "A privacy-focused CLI tool that removes sensitive metadata from image files"
 readme = "README.md"
