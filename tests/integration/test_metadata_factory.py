@@ -4,25 +4,26 @@ from pathlib import Path
 import pytest
 
 from src.services.metadata_factory import MetadataFactory
-from src.utils.exceptions import MetadataNotFoundError
+from src.utils.exceptions import MetadataNotFoundError, UnsupportedFormatError
 
-# Test file paths
-JPG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\test_fuji.jpg"
-PNG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\generated_test_03.png"
+# Import path helpers from conftest
+from tests.conftest import get_jpg_test_file, get_png_test_file
 
-# ============== success Case Tests ==============
+# Test file paths (cross-platform)
+JPG_TEST_FILE = get_jpg_test_file()
+PNG_TEST_FILE = get_png_test_file()
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+# ============== Success Case Tests ==============
+
+
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_read_image_metadata(x):
     """
     test for reading image metadata
     """
     # checks if file exists
-    assert Path(x).exists()
+    assert Path(x).exists(), f"Test file not found: {x}"
     handler = MetadataFactory.get_handler(str(x))
     metadata = handler.read()
 
@@ -36,16 +37,13 @@ def test_read_image_metadata(x):
     assert isinstance(metadata, dict)
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_wipe_image_metadata(x):
     """
     test for wiping image metadata
     """
     # checks if file exists
-    assert Path(x).exists()
+    assert Path(x).exists(), f"Test file not found: {x}"
     handler = MetadataFactory.get_handler(str(x))
     metadata = handler.read()
     handler.wipe()
@@ -54,10 +52,7 @@ def test_wipe_image_metadata(x):
     assert handler.processed_metadata != metadata
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_save_processed_image_metadata(x):
     """
     test for saving image processed metadata to a copy of the file
@@ -82,10 +77,7 @@ def test_save_processed_image_metadata(x):
     shutil.rmtree(output_dir)
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_output_file_has_less_metadata(x):
     """
     Test that the output file has metadata stripped
@@ -136,8 +128,6 @@ def test_unsupported_format_raises_error(tmp_path):
     """
     Test that unsupported file formats raise an error
     """
-    from src.utils.exceptions import UnsupportedFormatError
-
     # Create a fake text file
     fake_file = tmp_path / "test.txt"
     fake_file.write_text("not an image")

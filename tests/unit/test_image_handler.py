@@ -6,24 +6,24 @@ import pytest
 from src.services.image_handler import ImageHandler
 from src.utils.exceptions import MetadataNotFoundError, UnsupportedFormatError
 
-# Test file paths
-JPG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\test_fuji.jpg"
-PNG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\generated_test_03.png"
+# Import path helpers from conftest
+from tests.conftest import get_jpg_test_file, get_png_test_file
+
+# Test file paths (cross-platform)
+JPG_TEST_FILE = get_jpg_test_file()
+PNG_TEST_FILE = get_png_test_file()
 
 
-# ============== success Case Tests ==============
+# ============== Success Case Tests ==============
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_read_image_metadata(x):
     """
     test for reading image metadata
     """
     # checks if file exists
-    assert Path(x).exists()
+    assert Path(x).exists(), f"Test file not found: {x}"
     processor = ImageHandler(x)
     metadata = processor.read()
 
@@ -40,16 +40,13 @@ def test_read_image_metadata(x):
     assert isinstance(metadata, dict)
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_wipe_image_metadata(x):
     """
     test for wiping image metadata
     """
     # checks if file exists
-    assert Path(x).exists()
+    assert Path(x).exists(), f"Test file not found: {x}"
     processor = ImageHandler(x)
     metadata = processor.read()
     processor.wipe()
@@ -58,10 +55,7 @@ def test_wipe_image_metadata(x):
     assert processor.processed_metadata != metadata
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_save_processed_image_metadata(x):
     """
     test for saving image processed metadata to a copy of the file
@@ -86,10 +80,37 @@ def test_save_processed_image_metadata(x):
     shutil.rmtree(output_dir)
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+# ============== Error Case Tests ==============
+
+
+def test_unsupported_format_raises_error(tmp_path):
+    """
+    Test that unsupported file formats raise an error (PIL or custom)
+    """
+    from PIL import UnidentifiedImageError
+
+    # Create a fake text file
+    fake_file = tmp_path / "test.txt"
+    fake_file.write_text("not an image")
+
+    handler = ImageHandler(str(fake_file))
+    # Either our UnsupportedFormatError or PIL's UnidentifiedImageError is acceptable
+    with pytest.raises((UnsupportedFormatError, UnidentifiedImageError)):
+        handler.read()
+
+
+def test_save_without_output_path_raises_error():
+    """
+    Test that save() raises ValueError when output_path is None
+    """
+    handler = ImageHandler(JPG_TEST_FILE)
+    handler.read()
+    handler.wipe()
+    with pytest.raises(ValueError):
+        handler.save(None)
+
+
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_output_file_has_less_metadata(x):
     """
     Test that the output file has metadata stripped
@@ -131,33 +152,3 @@ def test_format_detection_works():
     handler_png = ImageHandler(PNG_TEST_FILE)
     detected_png = handler_png._detect_format()
     assert detected_png == "png"
-
-
-# ============== Error Case Tests ==============
-
-
-def test_unsupported_format_raises_error(tmp_path):
-    """
-    Test that unsupported file formats raise an error (PIL or custom)
-    """
-    from PIL import UnidentifiedImageError
-
-    # Create a fake text file
-    fake_file = tmp_path / "test.txt"
-    fake_file.write_text("not an image")
-
-    handler = ImageHandler(str(fake_file))
-    # Either our UnsupportedFormatError or PIL's UnidentifiedImageError is acceptable
-    with pytest.raises((UnsupportedFormatError, UnidentifiedImageError)):
-        handler.read()
-
-
-def test_save_without_output_path_raises_error():
-    """
-    Test that save() raises ValueError when output_path is None
-    """
-    handler = ImageHandler(JPG_TEST_FILE)
-    handler.read()
-    handler.wipe()
-    with pytest.raises(ValueError):
-        handler.save(None)

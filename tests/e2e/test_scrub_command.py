@@ -11,14 +11,15 @@ from typer.testing import CliRunner
 
 from src.main import app
 
+# Import path helpers from conftest
+from tests.conftest import get_jpg_test_file, get_png_test_file, get_test_images_dir
+
 runner = CliRunner()
 
-# Test file paths
-JPG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\test_fuji.jpg"
-PNG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\generated_test_03.png"
-EXAMPLES_DIR = (
-    r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images"
-)
+# Test file paths (cross-platform)
+JPG_TEST_FILE = get_jpg_test_file()
+PNG_TEST_FILE = get_png_test_file()
+EXAMPLES_DIR = get_test_images_dir()
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def test_scrub_command_single_file_success(x, output_dir):
     """
     result = runner.invoke(app, ["scrub", x, "--output", str(output_dir)])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
     # Check output file was created (has processed_ prefix)
     output_file = output_dir / f"processed_{Path(x).name}"
     assert output_file.exists()
@@ -54,7 +55,7 @@ def test_scrub_command_recursive_jpg_success(output_dir):
         app, ["scrub", EXAMPLES_DIR, "-r", "-ext", "jpg", "--output", str(output_dir)]
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
     # Check at least one output file was created
     output_files = list(output_dir.glob("processed_*.jpg"))
     assert len(output_files) > 0
@@ -68,7 +69,7 @@ def test_scrub_command_dry_run(output_dir):
         app, ["scrub", JPG_TEST_FILE, "--output", str(output_dir), "--dry-run"]
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
     assert "DRY-RUN" in result.stdout
     # No files should be created in dry-run mode
     output_file = output_dir / f"processed_{Path(JPG_TEST_FILE).name}"
@@ -94,7 +95,7 @@ def test_scrub_command_with_workers(output_dir):
         ],
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
 
 
 # ============== Error Case Tests ==============

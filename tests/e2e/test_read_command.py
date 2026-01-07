@@ -5,43 +5,40 @@ from typer.testing import CliRunner
 
 from src.main import app
 
+# Import path helpers from conftest
+from tests.conftest import get_jpg_test_file, get_png_test_file, get_test_images_dir
+
 runner = CliRunner()
 
-# Test file paths
-JPG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\test_fuji.jpg"
-PNG_TEST_FILE = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images\generated_test_03.png"
-TEST_DIR = r"C:\Users\Xheri\development\metadata-scrubber-tool\tests\assets\test_images"
+# Test file paths (cross-platform)
+JPG_TEST_FILE = get_jpg_test_file()
+PNG_TEST_FILE = get_png_test_file()
+TEST_DIR = get_test_images_dir()
 
 
 # ============== Success Case Tests ==============
 
 
-@pytest.mark.parametrize(
-    "x",
-    [JPG_TEST_FILE, PNG_TEST_FILE],
-)
+@pytest.mark.parametrize("x", [JPG_TEST_FILE, PNG_TEST_FILE])
 def test_read_command_single_file_success(x):
     """
     Test the 'read' command with a single file (JPG and PNG).
     """
     result = runner.invoke(app, ["read", str(x)])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
     assert "Reading" in result.stdout
     assert Path(x).name in result.stdout
 
 
-@pytest.mark.parametrize(
-    "ext",
-    ["jpg", "png"],
-)
+@pytest.mark.parametrize("ext", ["jpg", "png"])
 def test_read_command_recursive_directory_success(ext):
     """
     Test the 'read' command with recursive directory processing.
     """
     result = runner.invoke(app, ["read", TEST_DIR, "-r", "-ext", ext])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, f"Failed with: {result.stdout}"
     assert "Reading" in result.stdout
 
 
