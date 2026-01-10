@@ -234,6 +234,36 @@ docs/
 - **[Metadata Risks](docs/metadata-risks.md)** - Why metadata matters for privacy
 - **[Best Practices](docs/best-practices.md)** - Guidelines for secure file sharing
 
+
+---
+
+## ⚠️ Known Limitations
+
+### File Format Support
+
+| Category | Supported | Not Supported |
+|----------|-----------|---------------|
+| **Images** | JPEG, PNG | TIFF, GIF, HEIC, WebP, RAW |
+| **Documents** | `.docx` | Legacy `.doc` |
+| **Spreadsheets** | `.xlsx`, `.xlsm`, `.xltx`, `.xltm` | Legacy `.xls` |
+| **Presentations** | `.pptx`, `.pptm`, `.potx`, `.potm` | Legacy `.ppt` |
+| **PDF** | Standard PDFs | Encrypted/password-protected |
+
+### Known Constraints
+
+- **No in-place editing** - Always creates a processed copy (by design for safety)
+- **Password-protected files** - Cannot process encrypted documents
+- **PNG metadata** - Many PNGs have minimal/no extractable metadata
+- **Embedded files** - Objects embedded in Office documents are not deep-scanned
+- **PDF embedded images** - Images inside PDFs retain their original metadata
+- **Large files** - Files are loaded into memory; very large files may be slow
+
+### Potential Enhancements
+
+- HEIC/HEIF support (common on iOS devices)
+- Legacy Office format support (`.doc`, `.xls`, `.ppt`)
+- Deep scanning of embedded objects
+- PDF embedded image metadata stripping
 ---
 
 ## ⚠️ Security Considerations
