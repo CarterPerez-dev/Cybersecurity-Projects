@@ -18,6 +18,8 @@ from pptx import Presentation
 from src.services.metadata_handler import MetadataHandler
 from src.utils.exceptions import (
     MetadataNotFoundError,
+    MetadataProcessingError,
+    MetadataReadingError,
     UnsupportedFormatError,
 )
 
@@ -117,6 +119,8 @@ class PowerpointHandler(MetadataHandler):
                         self.keys_to_delete.append(attr)
 
             return self.metadata
+        except Exception as e:
+            raise MetadataReadingError(f"error reading metadata. {e}")
         finally:
             del prs
 
@@ -139,7 +143,8 @@ class PowerpointHandler(MetadataHandler):
             # Clear each property marked for deletion
             for attr in self.keys_to_delete:
                 self.processed_metadata[attr] = None
-
+        except Exception as e:
+            raise MetadataProcessingError(f"error processing metadata. {e}")
         finally:
             del prs
 
@@ -170,5 +175,7 @@ class PowerpointHandler(MetadataHandler):
                     setattr(prs.core_properties, attr, self.processed_metadata[attr])
 
             prs.save(str(destination_file_path))
+        except Exception as e:
+            raise MetadataProcessingError(f"error processing metadata. {e}")
         finally:
             del prs

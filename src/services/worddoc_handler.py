@@ -16,7 +16,12 @@ from typing import Any
 from docx import Document  # type: ignore[import-untyped]
 
 from src.services.metadata_handler import MetadataHandler
-from src.utils.exceptions import MetadataNotFoundError, UnsupportedFormatError
+from src.utils.exceptions import (
+    MetadataNotFoundError,
+    MetadataProcessingError,
+    MetadataReadingError,
+    UnsupportedFormatError,
+)
 
 # Supported Word document formats
 FORMAT_MAP = {
@@ -111,6 +116,8 @@ class WorddocHandler(MetadataHandler):
                         self.keys_to_delete.append(attr)
 
             return self.metadata
+        except Exception as e:
+            raise MetadataReadingError(f"error reading metadata. {e}")
         finally:
             del doc
 
@@ -133,7 +140,8 @@ class WorddocHandler(MetadataHandler):
             # Clear each property marked for deletion
             for attr in self.keys_to_delete:
                 self.processed_metadata[attr] = None
-
+        except Exception as e:
+            raise MetadataProcessingError(f"error processing metadata. {e}")
         finally:
             del doc
 
@@ -164,5 +172,7 @@ class WorddocHandler(MetadataHandler):
                     setattr(doc.core_properties, attr, self.processed_metadata[attr])
 
             doc.save(str(destination_file_path))
+        except Exception as e:
+            raise MetadataProcessingError(f"error processing metadata. {e}")
         finally:
             del doc
