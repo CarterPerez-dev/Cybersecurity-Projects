@@ -80,3 +80,4 @@ def verify(
         console.print(f"[red]Error during verification:[/red] {e}")
         if log.isEnabledFor(logging.DEBUG):
             console.print_exception()
+        raise typer.Exit(code=1)
