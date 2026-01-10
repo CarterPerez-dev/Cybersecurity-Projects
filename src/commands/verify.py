@@ -14,27 +14,26 @@ from rich.console import Console
 from src.services.metadata_factory import MetadataFactory
 from src.services.report_generator import ReportGenerator
 
-
 console = Console()
 log = logging.getLogger("metadata-scrubber")
 
 
 def verify(
     original_path: Path = typer.Argument(
-        exists = True,
-        file_okay = True,
-        dir_okay = False,
-        readable = True,
-        resolve_path = True,
-        help = "Path to the original file (before scrubbing)",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to the original file (before scrubbing)",
     ),
     processed_path: Path = typer.Argument(
-        exists = True,
-        file_okay = True,
-        dir_okay = False,
-        readable = True,
-        resolve_path = True,
-        help = "Path to the processed file (after scrubbing)",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to the processed file (after scrubbing)",
     ),
 ) -> None:
     """
@@ -59,10 +58,10 @@ def verify(
         # Generate comparison report
         generator = ReportGenerator()
         report = generator.generate_report(
-            original_file = str(original_path),
-            processed_file = str(processed_path),
-            before_metadata = before_metadata,
-            after_metadata = after_metadata,
+            original_file=str(original_path),
+            processed_file=str(processed_path),
+            before_metadata=before_metadata,
+            after_metadata=after_metadata,
         )
 
         # Render the report
@@ -71,10 +70,6 @@ def verify(
         )
         console.print()
         generator.render_table(report)
-
-        # Exit with appropriate code on warnings
-        if report.status == VerificationStatus.WARNING:
-            raise typer.Exit(code=1)
 
     except Exception as e:
         console.print(f"[red]Error during verification:[/red] {e}")
