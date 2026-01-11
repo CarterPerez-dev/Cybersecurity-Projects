@@ -39,6 +39,7 @@ class ImageHandler(MetadataHandler):
         tags_to_delete: List of EXIF tags to remove during wipe operation.
         detected_format: Actual image format detected by Pillow.
     """
+
     def __init__(self, filepath: str):
         """
         Initialize the image handler.
@@ -47,11 +48,10 @@ class ImageHandler(MetadataHandler):
             filepath: Path to the image file to process.
         """
         super().__init__(filepath)
-        self.processors: dict[str,
-                              JpegProcessor | PngProcessor] = {
-                                  "jpeg": JpegProcessor(),
-                                  "png": PngProcessor(),
-                              }
+        self.processors: dict[str, JpegProcessor | PngProcessor] = {
+            "jpeg": JpegProcessor(),
+            "png": PngProcessor(),
+        }
         self.tags_to_delete: list[int] = []
         self.detected_format: str | None = None
         self.text_keys_to_delete: list[str] = []
@@ -105,7 +105,7 @@ class ImageHandler(MetadataHandler):
             self.metadata = result["data"]
             self.tags_to_delete = result["tags_to_delete"]
             # Store text keys for PNG processing
-            if isinstance(result, PngProcessor):
+            if isinstance(processor, PngProcessor):
                 self.text_keys_to_delete = result.get("text_keys", [])
             return self.metadata
 
@@ -128,16 +128,12 @@ class ImageHandler(MetadataHandler):
 
         with Image.open(Path(self.filepath)) as img:
             self.processed_metadata = cast(
-                dict[str,
-                     Any],
-                processor.delete_metadata(img,
-                                          self.tags_to_delete)
+                dict[str, Any], processor.delete_metadata(img, self.tags_to_delete)
             )
             # For PNG, also get clean PngInfo
             if isinstance(processor, PngProcessor):
                 self.clean_pnginfo = processor.get_clean_pnginfo(
-                    img,
-                    self.text_keys_to_delete
+                    img, self.text_keys_to_delete
                 )
 
     def save(self, output_path: str | Path | None = None) -> None:
@@ -164,7 +160,7 @@ class ImageHandler(MetadataHandler):
             shutil.copy2(self.filepath, destination_file_path)
             with Image.open(destination_file_path) as img:
                 exif_bytes = piexif.dump(self.processed_metadata)
-                img.save(destination_file_path, exif = exif_bytes)
+                img.save(destination_file_path, exif=exif_bytes)
 
         elif actual_format == "png":
             # PNG: Open original, save fresh copy without metadata
@@ -173,9 +169,7 @@ class ImageHandler(MetadataHandler):
                 # Preserve image mode and data integrity
                 img.save(
                     destination_file_path,
-                    format = "PNG",
-                    exif = None,
-                    pnginfo = getattr(self,
-                                      "clean_pnginfo",
-                                      None),
+                    format="PNG",
+                    exif=None,
+                    pnginfo=getattr(self, "clean_pnginfo", None),
                 )

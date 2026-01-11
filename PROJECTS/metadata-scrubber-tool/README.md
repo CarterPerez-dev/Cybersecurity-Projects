@@ -258,6 +258,17 @@ docs/
 - **PDF embedded images** - Images inside PDFs retain their original metadata
 - **Large files** - Files are loaded into memory; very large files may be slow
 
+### PNG Verification Behavior
+
+When a PNG file has no EXIF metadata (only PngInfo text chunks), the scrub operation removes all text keys. Attempting to verify or read the processed file will show:
+
+```
+Error during verification: No metadata found in the PNG image.
+```
+
+**This is expected behavior** - the error confirms that all metadata has been successfully removed. You can also use `mst read processed_file.png` to verify; the same error indicates a clean file.
+
+
 ### Potential Enhancements
 
 - HEIC/HEIF support (common on iOS devices)
