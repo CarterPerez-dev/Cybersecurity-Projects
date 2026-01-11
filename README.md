@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-8/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-9/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -47,6 +47,10 @@
 - [LinkedIn Professionals](#linkedin-professionals-to-follow)
 - [Additional Learning Resources](#additional-learning-resources)
 
+
+Big thanks to the current contributors! ❤️
+- [@deniskhud](https://github.com/deniskhud):  [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/simple-port-scanner)
+- [@Heritage-XioN](https://github.com/Heritage-XioN): [Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/metadata-scrubber-tool)
 ---
 
 # Projects 
@@ -69,8 +73,8 @@ Use Python's `dnspython` library to query different DNS record types (A, AAAA, M
 ### [Simple Vulnerability Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Vulnerability.Scanner.md)
 Build a script that checks installed software versions against a CVE database or uses `pip-audit` for Python packages. Parse system package managers (apt, yum, brew) to list installed software. Flag packages with known vulnerabilities and suggest updates.
 
-### [Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Metadata.Scrubber.Tool.md)
-Build a tool that removes metadata from files (images, PDFs, Office docs) to protect privacy. Extract and display EXIF data, GPS coordinates, author info, and edit history. Support batch processing and create sanitized copies. Add detection for hidden data in file headers and warn users about information leakage risks.
+### *SOURCE CODE:* *[Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/metadata-scrubber-tool)*
+CLI tool that removes privacy sensitive metadata (EXIF, GPS, author info) from images, PDFs, and Office documents using concurrent batch processing. Features read/scrub/verify commands with rich terminal output, supports dry-run previews, and generates detailed comparison reports showing exactly what metadata was removed.
 
 ### [Network Traffic Analyzer](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Network.Traffic.Analyzer.md)
 Use `scapy` to capture packets on local network and display protocol distribution, top talkers, and bandwidth usage. Filter by protocol (HTTP, DNS, TCP, UDP) and visualize data with simple bar charts. Add export to CSV functionality.
