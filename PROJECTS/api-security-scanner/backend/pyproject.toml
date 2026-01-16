@@ -17,7 +17,7 @@ dependencies = [
     # Database
     "sqlalchemy==2.0.45",
     "psycopg2-binary==2.9.11",
-    "alembic==1.17.2",
+    "alembic==1.18.1",
     # Security
     "slowapi==0.1.9",
     "python-jose[cryptography]==3.5.0",
@@ -39,7 +39,7 @@ dev = [
     "pylint==4.0.4",
     "pre-commit==4.5.1",
     "pip-audit==2.10.0",
-    "ruff==0.14.11",
+    "ruff==0.14.13",
     "mypy==1.19.1",
     "bandit[toml]==1.9.2",
     "yapf==0.43.0",
