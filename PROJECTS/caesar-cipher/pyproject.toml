@@ -1,0 +1,253 @@
+[project]
+name = "caesar-cipher"
+version = "0.1.0"
+description = "CLI tool that shifts characters by a specified number (the key) to encrypt/decrypt text."
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.20.0,<0.21.0",
+    "rich>=14.2.0,<15.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2,<10.0.0",
+    "pytest-cov>=7.0.0,<8.0.0",
+    "mypy>=1.19.0,<2.0.0",
+    "ruff>=0.14.8,<0.15.0",
+    "ty>=0.0.1a32,<0.1.0",
+    "pre-commit>=4.5.0,<5.0.0",
+    "pylint>=4.0.4,<5.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main"
+Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/caesar-cipher"
+Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/caesar-cipher/issues"
+
+[project.scripts]
+caesar-cipher = "caesar_cipher.main:app"
+
+[build-system]
+requires = [
+    "hatchling",
+]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/caesar_cipher",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = [
+    "src",
+]
+exclude = [
+    "alembic",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "B",
+    "C4",
+    "UP",
+    "ARG",
+    "SIM",
+    "PTH",
+    "RUF",
+    "ASYNC",
+    "S",
+    "N",
+]
+ignore = [
+    "E501",
+    "B008",
+    "S101",
+    "S104",
+    "S105",
+    "ARG001",
+    "E712",
+    "N999",
+    "N818",
+    "UP046",
+    "RUF005",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",
+    "ARG001",
+]
+"conftest.py" = [
+    "S107",
+]
+"src/core/rate_limit.py" = [
+    "S110",
+]
+"src/config.py" = [
+    "F401",
+]
+"src/schemas/**/*.py" = [
+    "RUF012",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+exclude = [
+    "alembic",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "conftest",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+    "src.core.logging",
+]
+disable_error_code = [
+    "no-any-return",
+]
+
+
+[[tool.mypy.overrides]]
+module = [
+    "src.config",
+]
+implicit_reexport = true
+
+
+[tool.pylint.main]
+py-version = "3.12"
+jobs = 4
+load-plugins = [
+    "pylint_per_file_ignores",
+]
+persistent = true
+suggestion-mode = true
+ignore = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".git",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+ignore-paths = [
+    "^venv/.*",
+    "^.venv/.*",
+    "^build/.*",
+    "^dist/.*",
+]
+
+[tool.pylint.messages_control]
+disable = [
+    "C0103",
+    "C0116",
+    "C0121",
+    "C0301",
+    "C0302",
+    "C0303",
+    "C0304",
+    "C0305",
+    "C0411",
+    "E0401",
+    "E1102",
+    "E1136",
+    "R0801",
+    "R0901",
+    "R0903",
+    "R0917",
+    "W0611",
+    "W0612",
+    "W0613",
+    "W0621",
+    "W0622",
+    "W0718",
+]
+
+[tool.pylint.pylint-per-file-ignores]
+"conftest.py" = "import-outside-toplevel"
+
+[tool.pylint.format]
+max-line-length = 95
+
+[tool.pylint.design]
+max-args = 12
+max-attributes = 10
+max-branches = 15
+max-locals = 20
+max-statements = 55
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = [
+    "tests",
+]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ty.src]
+include = [
+    "src",
+    "tests",
+]
+exclude = [
+    ".venv/**",
+]
+respect-ignore-files = true
+
+[tool.ty.environment]
+python-version = "3.12"
+root = [
+    "./src",
+]
+python = "./.venv"
+
+[tool.ty.rules]
+possibly-missing-attribute = "error"
+possibly-missing-import = "error"
+unused-ignore-comment = "warn"
+redundant-cast = "warn"
+undefined-reveal = "warn"
+
+[[tool.ty.overrides]]
+include = [
+    "tests/**",
+]
+
+[tool.ty.overrides.rules]
+unresolved-reference = "warn"
+invalid-argument-type = "warn"
+
+[[tool.ty.overrides]]
+include = [
+    "src/repositories/**",
+    "src/services/**",
+]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "warn"
+
+[tool.ty.terminal]
+error-on-warning = false
+output-format = "full"

@@ -1,2 +1,3 @@
 cyber-proj
 *.cache
+*.coverage
