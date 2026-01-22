@@ -1,5 +1,5 @@
 [project]
-name = "caesar-cipher"
+name = "caesar-salad-cipher"
 version = "0.1.0"
 description = "CLI tool that shifts characters by a specified number (the key) to encrypt/decrypt text."
 requires-python = ">=3.12"

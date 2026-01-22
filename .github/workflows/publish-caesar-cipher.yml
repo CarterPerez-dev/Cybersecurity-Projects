@@ -3,7 +3,7 @@
 # publish-caesar-cipher.yml
 # =============================================================================
 
-name: Publish caesar-cipher to PyPI
+name: Publish caesar-salad-cipher to PyPI
 
 on:
   push:
@@ -19,11 +19,11 @@ permissions:
 
 jobs:
   pypi-publish:
-    name: Upload caesar-cipher to PyPI
+    name: Upload caesar-salad-cipher to PyPI
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/caesar-cipher
+      url: https://pypi.org/p/caesar-salad-cipher
     permissions:
       id-token: write
     steps:
