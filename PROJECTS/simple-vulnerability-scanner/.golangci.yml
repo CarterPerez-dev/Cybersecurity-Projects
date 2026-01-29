@@ -1,0 +1,113 @@
+# AngelaMos | 2026
+# .golangci.yml
+
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - gosec
+    - bodyclose
+    - nilerr
+    - errorlint
+    - exhaustive
+    - gocritic
+    - funlen
+    - gocognit
+    - dupl
+    - goconst
+    - ineffassign
+    - unused
+    - unconvert
+    - unparam
+    - testifylint
+    - fatcontext
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    funlen:
+      lines: 100
+      statements: 50
+
+    gocognit:
+      min-complexity: 20
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: var-declaration
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+
+    staticcheck:
+      checks:
+        - all
+
+    gosec:
+      excludes:
+        - G104
+
+    sloglint:
+      no-mixed-args: true
+      kv-only: true
+      context: all
+
+issues:
+  max-same-issues: 50
+  exclude-dirs:
+    - vendor
+    - testdata
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - dupl
+        - goconst
+
+
+formatters:
+  enable:
+    - gci        # Groups imports
+    - gofumpt    # Whitespace
+    - golines    # Vertical wrap
+  settings:
+    golines:
+      max-len: 80
+      reformat-tags: true
+    goimports:
+      local-prefixes:
+        - github.com/carterperez-dev/angela
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/carterperez-dev)
+      custom-order: true
+    gofumpt:
+      extra-rules: true

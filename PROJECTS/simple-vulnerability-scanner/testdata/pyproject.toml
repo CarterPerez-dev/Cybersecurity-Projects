@@ -1,0 +1,23 @@
+# Sample pyproject.toml for testing angela
+[project]
+name = "sample-app"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+# Core runtime dependencies (outdated)
+dependencies = [
+    "requests>=2.28.0",
+    "django>=3.2,<4.0",
+    "click>=8.0.0",
+    "pydantic>=2.0",
+    "flask[async]>=2.0",
+]
+
+[project.optional-dependencies]
+# Development and testing tools (outdated)
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",  # Code formatter
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]

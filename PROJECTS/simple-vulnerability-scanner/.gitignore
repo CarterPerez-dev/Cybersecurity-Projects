@@ -1,0 +1,44 @@
+# AngelaMos | 2026
+# .gitignore
+
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.meep
+
+# Test
+*.test
+coverage.out
+*.prof
+trace.out
+
+# Build
+tmp/
+
+# Cache
+.ruff_cache/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Debug
+__debug_bin*
