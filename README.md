@@ -49,31 +49,31 @@
 
 
 Big thanks to the current contributors! ❤️
-- [@deniskhud](https://github.com/deniskhud):  [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/simple-port-scanner)
-- [@Heritage-XioN](https://github.com/Heritage-XioN): [Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/metadata-scrubber-tool)
+- [@deniskhud](https://github.com/deniskhud):  [Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/simple-port-scanner)
+- [@Heritage-XioN](https://github.com/Heritage-XioN): [Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/metadata-scrubber-tool)
 ---
 
-# Projects 
+# Projects
 ### *Each link to their brief instructions or source code*
 ---
 ## Beginner Projects
 
-### *SOURCE CODE:* *[Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/simple-port-scanner)*
+### *SOURCE CODE:* *[Simple Port Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/simple-port-scanner)*
 Asynchronous TCP port scanner in C++ using boost::asio for concurrent port scanning with configurable ranges and timeouts. Implements service detection through banner grabbing and demonstrates async I/O patterns with TCP socket programming.
 
-### *SOURCE CODE:* *[Keylogger](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/keylogger)*
+### *SOURCE CODE:* *[Keylogger](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/keylogger)*
 Use Python's `pynput` library to capture keyboard events and log them to a local file with timestamps. Include a toggle key (like F12) to start/stop logging. **Important**: Add clear disclaimers and only test on systems you own.
 
-### *SOURCE CODE:* *[Caesar Cipher](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/caesar-cipher)*
+### *SOURCE CODE:* *[Caesar Cipher](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/caesar-cipher)*
 Create a CLI tool that shifts characters by a specified number (the "key") to encrypt/decrypt text. Implement both encryption and brute-force decryption (try all 26 possible shifts). Bonus: Add support for preserving spaces and punctuation.
 
-### *SOURCE CODE:* *[DNS Lookup CLI Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/dns-lookup)*
+### *SOURCE CODE:* *[DNS Lookup CLI Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/dns-lookup)*
 Use Python's `dnspython` library to query different DNS record types (A, AAAA, MX, TXT, NS, CNAME). Display results in a clean table format with color coding using `rich` and `typer` libraries. Add reverse DNS lookup functionality and WHOIS.
 
 ### [Simple Vulnerability Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Simple.Vulnerability.Scanner.md)
 Build a script that checks installed software versions against a CVE database or uses `pip-audit` for Python packages. Parse system package managers (apt, yum, brew) to list installed software. Flag packages with known vulnerabilities and suggest updates.
 
-### *SOURCE CODE:* *[Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/metadata-scrubber-tool)*
+### *SOURCE CODE:* *[Metadata Scrubber Tool](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/metadata-scrubber-tool)*
 CLI tool that removes privacy sensitive metadata (EXIF, GPS, author info) from images, PDFs, and Office documents using concurrent batch processing. Features read/scrub/verify commands with rich terminal output, supports dry-run previews, and generates detailed comparison reports showing exactly what metadata was removed.
 
 ### [Network Traffic Analyzer](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/beginner/Network.Traffic.Analyzer.md)
@@ -143,7 +143,7 @@ Create a network monitor that detects traffic spikes using packet sniffing (Scap
 ### [Container Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Container.Security.Scanner.md)
 Scan Docker images by parsing Dockerfiles for insecure practices (running as root, hardcoded secrets) and checking base image versions against vulnerability databases. Use Docker API to inspect running containers for exposed ports and mounted volumes. Output findings in JSON with severity ratings.
 
-### *SOURCE CODE:* *[Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-security-scanner)*
+### *SOURCE CODE:* *[Full Stack API Security Scanner](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/intermediate/api-security-scanner)*
 Build an enterprise-grade automated API security scanner that performs deep vulnerability assessment across REST, GraphQL, and SOAP endpoints, detecting OWASP API Top 10 flaws through intelligent fuzzing, authentication bypass testing, broken object level authorization, mass assignment exploitation, and rate limiting analysis with ML-enhanced payload generation and comprehensive reporting dashboards. (FastAPI - React-Typescript - Vite - Nginx - Docker - CSS)
 
 ### [Wireless Deauth Detector](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Wireless.Deauth.Detector.md)
@@ -185,17 +185,17 @@ Analyze Linux/Windows systems for potential privilege escalation vectors. Check 
 ### [Network Baseline Monitor](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/intermediate/Network.Baseline.Monitor.md)
 Establish normal network behavior patterns (traffic volume, protocol distribution, top talkers). Alert on deviations that could indicate compromises or attacks.
 
-### *SOURCE CODE:* *[Docker Security Audit](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/docker-security-audit)*
+### *SOURCE CODE:* *[Docker Security Audit](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/intermediate/docker-security-audit)*
 Go CLI tool that scans Docker containers, images, Dockerfiles, and compose files for security misconfigurations. Checks against CIS Docker Benchmark v1.6.0 controls (privileged mode, dangerous capabilities, sensitive mounts, secrets in images, missing security profiles). Outputs findings with remediation guidance in terminal, JSON, SARIF, or JUnit formats.
 
 ---
 
 ## Advanced Projects
 
-### *SOURCE CODE:* *[API Rate Limiter](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/api-rate-limiter)*
+### *SOURCE CODE:* *[API Rate Limiter](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/advanced/api-rate-limiter)*
 Build middleware that implements token bucket or sliding window rate limiting for APIs. Support per-user, per-IP, and global limits. Include Redis backend for distributed rate limiting across multiple servers.
 
-### *SOURCE CODE:* *[Encrypted Chat Application](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/encrypted-p2p-chat)*
+### *SOURCE CODE:* *[Encrypted Chat Application](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/advanced/encrypted-p2p-chat)*
 Build a real time encrypted chat using WebSockets with Signal Protocol encryption (X3DH key exchange + Double Ratchet) for forward secrecy and break-in recovery. Implement passwordless authentication via WebAuthn/Passkeys. Backend uses FastAPI with PostgreSQL, SurrealDB live queries, and Redis. SolidJS TypeScript frontend with nanostores and 8-bit retro design using TailwindCSS.
 
 ### [Exploit Development Framework](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Exploit.Development.Framework.md)
@@ -204,7 +204,7 @@ Build a modular framework in Python where exploits are plugins (one file per vul
 ### [AI Threat Detection](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/AI.Threat.Detection.md)
 Train a machine learning model (Random Forest or LSTM) on network traffic data (CICIDS2017 dataset) to classify normal vs. malicious behavior. Use feature engineering on packet metadata (packet size, timing, protocols). Deploy model with FastAPI for real-time inference on live traffic.
 
-### *SOURCE CODE:* *[Bug Bounty Platform](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/bug-bounty-platform)*
+### *SOURCE CODE:* *[Bug Bounty Platform](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/advanced/bug-bounty-platform)*
 Create a web app with user roles (researchers, companies), vulnerability submission workflow, and reward management. Implement severity scoring (CVSS), status tracking, and encrypted communications. Use React frontend, FastAPI/Django backend, PostgreSQL database, and S3 for file uploads.
 
 ### [Cloud Security Posture Management](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/SYNOPSES/advanced/Cloud.Security.Posture.Management.md)

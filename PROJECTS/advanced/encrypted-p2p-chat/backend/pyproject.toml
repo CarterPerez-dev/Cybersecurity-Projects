@@ -1,0 +1,253 @@
+[project]
+name = "encrypted-p2p-chat"
+version = "1.0.0"
+description = "End-to-end encrypted P2P chat with Triple Ratchet and WebAuthn"
+requires-python = ">=3.13"
+authors = [
+    {name = "Carter", email = "carter@certgames.com"}
+]
+
+dependencies = [
+    "fastapi>=0.121.0",
+    "uvicorn[standard]>=0.38.0",
+    "websockets>=15.0.1",
+    "redis[hiredis]>=7.1.0",
+    "sqlalchemy>=2.0.44",
+    "sqlmodel>=0.0.27",
+    "alembic>=1.17.2",
+    "asyncpg>=0.30.0",
+    "pydantic>=2.12.4",
+    "pydantic-settings>=2.12.0",
+    "webauthn>=2.7.0",
+    "fido2>=2.0.0",
+    "cryptography>=46.0.3",
+    "pynacl>=1.6.1",
+    "passlib>=1.7.4",
+    "python-multipart>=0.0.20",
+    "httpx>=0.28.1",
+    "orjson>=3.11.4",
+    "surrealdb>=1.0.6",
+    "liboqs-python>=0.14.1"
+]
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "aiosqlite>=0.20.0",
+    "ruff>=0.8.0",
+    "mypy>=1.9.0",
+    "pre-commit>=3.0.0",
+    "types-redis>=4.6.0",
+    "types-passlib>=1.7.0",
+]
+
+[build-system]
+requires = ["setuptools>=80.9.0", "wheel>=0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 95
+indent-width = 4
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "_build",
+    "build",
+    "dist",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.format]
+line-ending = "auto"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = [
+    "E1",   # Indentation
+    "E4",   # Imports
+    "E7",   # Statement
+    "F",    # Pyflakes (all F rules)
+    "W292", # No newline at end of file
+    "W605", # Invalid escape sequence
+    "B",    # Bugbear
+    "C4",   # Comprehensions
+    "UP",   # Pyupgrade
+    "ARG",  # Unused arguments
+    "SIM",  # Simplify
+    "I",    # isort rules
+    "F401", # Unused imports
+    "F811", # Redefined imports
+    "F821", # Undefined name
+]
+
+ignore = [
+    "E501",   # Line length (handled by formatter)
+    "W291",   # Trailing whitespace
+    "W293",   # Blank line contains whitespace
+    "I001",   # Import sorting
+    "RUF001", # Ambiguous unicode
+    "RUF002", # Docstring with ambiguous unicode
+    "B008",   # FastAPI Depends() in defaults is standard pattern
+    "ARG001", # Unused function args (lifespan protocol)
+    "E712",   # SQLAlchemy requires == True/False for query filters
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["ARG002"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.models.*"
+disable_error_code = ["call-arg", "misc"]
+
+[[tool.mypy.overrides]]
+module = "app.core.surreal_manager"
+disable_error_code = ["union-attr", "no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "app.core.redis_manager"
+disable_error_code = ["type-arg", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = "app.core.exception_handlers"
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
+module = "app.services.presence_service"
+disable_error_code = ["union-attr", "type-arg"]
+
+[[tool.mypy.overrides]]
+module = "app.services.auth_service"
+disable_error_code = ["arg-type", "no-any-return", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = "app.services.prekey_service"
+disable_error_code = ["attr-defined", "no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "app.services.message_service"
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "app.core.websocket_manager"
+disable_error_code = ["attr-defined", "type-arg"]
+
+
+[tool.pylint.main]
+py-version = "3.13"
+jobs = 4
+load-plugins = [
+    "pylint_mongoengine",
+    "pylint_pydantic",
+    "pylint_per_file_ignores",
+    "pylint_flask",
+    "pylint_celery"
+]
+persistent = true
+suggestion-mode = true
+ignore = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".git",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+ignore-paths = [
+    "^venv/.*",
+    "^.venv/.*",
+    "^build/.*",
+    "^dist/.*",
+]
+[tool.pylint.type-check]
+generated-members = [
+    "objects",
+    "id",
+    "get_or_create",
+    "DoesNotExist",
+    "MultipleObjectsReturned",
+    "objects.get_or_create"
+]
+
+[tool.pylint.messages_control]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "R0903",  # too-few-public-methods
+    "W0511",  # fixme
+    "W0622",  # redefined-builtin
+    "W0612",  # unused-variable (handled by ruff)
+    "W0613",  # unused-argument (handled by ruff)
+    "C0301",  # Line too long
+    "C0302",  # Too many lines
+    "C0411",  # Wrong import order
+    "C0305",  # Trailing newlines
+    "C0303",  # Trailing whitespace
+    "C0304",  # Final newline missing
+    "R0801",  # Similar lines (want exact duplicates only)
+    "E0401",  # Unable to import - packages not in pylint env
+    "C0412",  # Import grouping - don't care about grouping imports
+    "W0718",  # Broad exception catching - intentional for service layer
+    "E0611",  # No name in module - false positive for dynamic imports
+    "E1101",  # No member - false positive for alembic context
+]
+
+[tool.pylint.design]
+max-args = 7
+max-attributes = 10
+max-locals = 30
+max-positional-arguments = 7
+
+[tool.pylint."messages control"]
+per-file-ignores = [
+    "alembic/env.py:W0611",  # Unused imports needed for SQLModel metadata
+    "app/services/*:C0121",  # SQLAlchemy requires == True/False for query filters
+    "tests/*:W0212,W0621",   # Tests access protected members; pytest fixtures reuse names
+]
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

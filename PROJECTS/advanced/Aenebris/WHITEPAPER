@@ -1,0 +1,1647 @@
+```
+
+  Ᾰenebris: Next Gen Reverse Proxy
+
+  Technical White Paper & Development Roadmap
+
+  Version: 0.1.0
+  Date: 2025-11-12 - Project Name: Ᾰenebris
+
+  ---
+  Abstract
+
+  Ᾰenebris is a production grade, security first reverse proxy built in Haskell
+   that aims to surpass nginx in performance, security, and developer
+  experience. By leveraging Haskell's type system, STM concurrency, and the
+  fast Warp web server, combined with ML based threat detection and
+  intelligent routing, Ᾰenebris provides a modern alternative to traditional
+  reverse proxies with native support for WebSockets, HTTP/3, streaming, and
+  advanced DDoS mitigation.
+
+  Key Innovation: While nginx requires complex configuration and external
+  modules for advanced features, Ᾰenebris provides security, intelligence, and
+  modern protocol support out of the box with a clean, type-safe
+  architecture.
+
+  ---
+  Table of Contents
+
+  1. #problem-statement
+  2. #architecture-overview
+  3. #technical-specifications
+  4. #development-phases
+  5. #core-components
+  6. #security-model
+  7. #performance-targets
+  8. #deployment-strategy
+  9. #long-term-roadmap
+  10. #competitive-analysis
+
+  ---
+  1. Problem Statement
+
+  Current State of Reverse Proxies
+
+  Nginx:
+  - Complex configuration syntax
+  - Requires external modules for WAF, bot detection
+  - WebSocket + streaming conflicts require manual tuning
+  - No native ML capabilities
+  - C codebase = memory safety concerns
+  - Difficult to extend without C knowledge
+
+  Traefik:
+  - Resource heavy (Go runtime overhead)
+  - Limited security features
+  - Configuration complexity at scale
+
+  Cloudflare:
+  - External dependency
+  - Privacy concerns (traffic routed through CF)
+  - Cost at scale
+  - No on-premise option for sensitive workloads
+
+  What Ᾰenebris Solves
+
+  1. Native streaming + WebSocket support - No configuration conflicts
+  2. Built in ML threat detection - No external services needed
+  3. Type safe configuration - Catch errors at compile time
+  4. Security first design - WAF, honeypots, and DDoS protection included
+  5. Production ready performance - Warp powers major Haskell web frameworks
+  6. Developer friendly - Clean config, hot reload, excellent error messages
+  7. Open source & self-hosted - Full control, no vendor lock in
+
+  ---
+  2. Architecture Overview
+
+  High Level Design
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │                         Ᾰenebris CORE                         │
+  │                                                             │
+  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+  │  │   Ingress    │  │   Analysis   │  │   Routing    │    │
+  │  │   Manager    │─▶│   Engine     │─▶│   Engine     │    │
+  │  └──────────────┘  └──────────────┘  └──────────────┘    │
+  │         │                  │                  │            │
+  │         ▼                  ▼                  ▼            │
+  │  ┌──────────────────────────────────────────────────┐    │
+  │  │              Connection Manager                  │    │
+  │  │         (STM-based state management)             │    │
+  │  └──────────────────────────────────────────────────┘    │
+  │                           │                               │
+  └───────────────────────────┼───────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+  │   Backend    │   │   Backend    │   │   Honeypot   │
+  │   Server 1   │   │   Server 2   │   │    Server    │
+  └──────────────┘   └──────────────┘   └──────────────┘
+
+  Component Interaction Flow
+
+  Client Request
+      │
+      ▼
+  ┌─────────────────────┐
+  │  TLS Termination    │ (Native Haskell TLS)
+  └─────────────────────┘
+      │
+      ▼
+  ┌─────────────────────┐
+  │  Protocol Handler   │ (HTTP/1.1, HTTP/2, HTTP/3, WebSocket)
+  └─────────────────────┘
+      │
+      ▼
+  ┌─────────────────────┐
+  │  Rate Limiter       │ (Multi-strategy: Token Bucket, Adaptive, ML-based)
+  └─────────────────────┘
+      │
+      ▼
+  ┌─────────────────────┐
+  │  WAF Scanner        │ (SQLi, XSS, Path Traversal detection)
+  └─────────────────────┘
+      │
+      ▼
+  ┌─────────────────────┐
+  │  ML Bot Detector    │ (Behavioral analysis, request fingerprinting)
+  └─────────────────────┘
+      │
+      ├─[Suspicious]──▶ Honeypot
+      │
+      ▼
+  ┌─────────────────────┐
+  │  Intelligent Router │ (Load balancing, health checks, A/B testing)
+  └─────────────────────┘
+      │
+      ▼
+  ┌─────────────────────┐
+  │  Backend Proxy      │ (Zero-copy streaming, connection pooling)
+  └─────────────────────┘
+      │
+      ▼
+  Response to Client
+
+  ---
+  3. Technical Specifications
+
+  Language & Core Libraries
+
+  Primary Language: Haskell (GHC 9.6+)
+
+  Core Dependencies:
+  - warp (v3.3+) - HTTP server (handles 100k+ req/s)
+  - wai - Web Application Interface
+  - http-conduit - HTTP client for proxying
+  - stm - Software Transactional Memory
+  - websockets - WebSocket protocol
+  - tls - TLS 1.2/1.3 support
+  - http2 - HTTP/2 implementation
+  - quic - HTTP/3 (QUIC) support
+  - yaml / dhall - Configuration parsing
+  - aeson - JSON handling
+  - fast-logger - High performance logging
+  - prometheus-client - Metrics export
+
+  ML Component:
+  - hmatrix - Linear algebra in Haskell
+  - Models: Isolation Forest, Random Forest, LSTM for sequence analysis
+
+  External Integrations:
+  - Redis (caching, distributed rate limiting)
+  - PostgreSQL/SQLite (metrics, request logs)
+  - Prometheus/Grafana (observability)
+  - Let's Encrypt (ACME client for SSL)
+
+  System Requirements
+
+  Development:
+  - Linux/macOS/WSL
+  - GHC 9.6+
+  - Stack or Cabal
+  - 4GB RAM minimum
+
+  Production:
+  - Linux (primary target)
+  - 2+ CPU cores (multi-core scaling)
+  - 1GB RAM minimum (scales with traffic)
+  - Docker & Kubernetes support
+
+  ---
+  4. Development Phases
+
+  Phase 0: Foundation (Week 0 - Setup)
+
+  Duration: 2-3 daysGoal: Project scaffolding
+
+  Tasks:
+  - Set up Haskell dev environment (Stack)
+  - Study Warp/WAI documentation
+  - Create project structure
+  - Set up Git repo + CI/CD (GitHub Actions)
+  - Design config file schema (YAML)
+
+
+  ---
+  Phase 1: Core Proxy (Weeks 1-2)
+
+  Duration: 2 weeksGoal: Functional reverse proxy that can replace nginx in
+  dev
+
+  Milestone 1.1: Basic HTTP Proxying (Days 1-3)
+  - Parse incoming HTTP requests
+  - Forward to backend server
+  - Stream response back to client
+  - Handle connection errors gracefully
+  - Basic logging (stdout)
+
+  Milestone 1.2: Configuration System (Days 4-5)
+  - YAML config parsing
+  - Define upstream backends
+  - Host-based routing (virtual hosts)
+  - Path-based routing
+  - Config validation with type safety
+
+  Example config:
+  version: 1
+  listen:
+    - port: 80
+    - port: 443
+      tls:
+        cert: /path/to/cert.pem
+        key: /path/to/key.pem
+
+  upstreams:
+    - name: api-backend
+      servers:
+        - host: 127.0.0.1:8000
+          weight: 1
+        - host: 127.0.0.1:8001
+          weight: 1
+      health_check:
+        path: /health
+        interval: 10s
+
+  routes:
+    - host: api.example.com
+      paths:
+        - path: /
+          upstream: api-backend
+          rate_limit: 100/minute
+
+  Milestone 1.3: Load Balancing (Days 6-7)
+  - Round-robin algorithm
+  - Least connections algorithm
+  - Weighted distribution
+  - Health check system (active probing)
+  - Automatic backend removal on failure
+
+  Milestone 1.4: TLS/SSL Support (Days 8-10)
+  - TLS termination (Haskell tls library)
+  - SNI (Server Name Indication) support
+  - Cipher suite configuration
+  - TLS 1.2 & 1.3 support
+  - Automatic redirect HTTP → HTTPS
+
+  Milestone 1.5: WebSocket Support (Days 11-12)
+  - WebSocket handshake detection
+  - Upgrade HTTP connection to WebSocket
+  - Bidirectional streaming
+  - Backend WebSocket proxying
+  - Connection timeout handling
+
+  Milestone 1.6: Streaming Support (Days 13-14)
+  - Chunked transfer encoding
+  - SSE (Server-Sent Events) support
+  - No buffering for streaming responses
+  - CRITICAL: Test WebSocket + streaming simultaneously (your nginx issue)
+  - Verify AI model streaming works
+
+  Phase 1 Deliverable:
+  - Compiled binary (Ᾰenebris)
+  - Basic config file
+  - Can replace nginx for simple use cases
+  - Handles your website's traffic
+  - Test deployment to your projects
+
+  ---
+  Phase 2: Security & Intelligence (Weeks 3-6)
+
+  Duration: 4 weeksGoal: Advanced security features that surpass nginx
+
+  Milestone 2.1: Rate Limiting (Week 3)
+  - Token bucket algorithm (classic)
+  - Leaky bucket algorithm
+  - Sliding window counters
+  - Fixed window counters
+  - Per-IP rate limiting
+  - Per-user rate limiting (auth token tracking)
+  - Per-endpoint rate limiting
+  - Adaptive rate limiting (based on server load)
+  - Geographic rate limiting
+  - Time-of-day adjustments
+  - Redis backend for distributed limiting
+  - Custom rate limit responses (429 with Retry-After)
+
+  Advanced Rate Limiting Strategies:
+  data RateLimitStrategy
+    = TokenBucket { capacity :: Int, refillRate :: Int }
+    | LeakyBucket { capacity :: Int, leakRate :: Int }
+    | SlidingWindow { windowSize :: Int, limit :: Int }
+    | Adaptive { baseRate :: Int, loadFactor :: Float }
+    | Behavioral { mlModel :: ModelHandle, threshold :: Float }
+    | ProofOfWork { difficulty :: Int }
+
+  Milestone 2.2: WAF (Web Application Firewall) (Week 4)
+  - SQL injection detection (regex + ML)
+  - XSS detection (script tag patterns, event handlers)
+  - Path traversal detection (../, %2e%2e%2f)
+  - Command injection detection
+  - SSRF (Server-Side Request Forgery) prevention
+  - CSRF token validation
+  - Header injection detection
+  - Multipart form bomb protection
+  - JSON/XML bomb protection
+  - Custom WAF rules (user-defined patterns)
+  - Rule bypass detection (encoding tricks)
+
+  Detection Engine:
+  data ThreatLevel = Low | Medium | High | Critical
+
+  data AttackSignature = AttackSignature
+    { pattern :: Regex
+    , threatLevel :: ThreatLevel
+    , action :: Action -- Block | Log | Honeypot
+    , description :: Text
+    }
+
+  -- Example signatures
+  sqlInjectionSignatures :: [AttackSignature]
+  xssSignatures :: [AttackSignature]
+  pathTraversalSignatures :: [AttackSignature]
+
+  Milestone 2.3: ML-Based Bot Detection (Week 5)
+  - Request feature extraction (headers, timing, patterns)
+  - Training data collection system
+  - Isolation Forest for anomaly detection
+  - Random Forest classifier (bot vs human)
+  - LSTM for behavioral sequences
+  - Browser fingerprinting
+  - TLS fingerprinting (JA3 hash)
+  - Mouse movement analysis (if JavaScript SDK added later)
+  - Request entropy analysis
+  - Reputation scoring system
+
+  Features for ML Model:
+  features = [
+      'request_rate',           # req/sec
+      'user_agent_entropy',     # Shannon entropy
+      'header_count',           # number of headers
+      'header_order_anomaly',   # unusual ordering
+      'tls_ja3_hash',          # TLS fingerprint
+      'request_method_dist',    # GET/POST ratio
+      'path_entropy',          # randomness in URLs
+      'referer_consistency',    # legit navigation
+      'cookie_presence',        # has cookies
+      'timing_variance',        # human-like delays
+  ]
+
+  Model Training Pipeline:
+  - Collect legitimate traffic (labeled "human")
+  - Collect bot traffic from honeypots (labeled "bot")
+  - Train ensemble model (Random Forest + Isolation Forest)
+  - Export to ONNX or pickle
+  - Load in Haskell via FFI or HTTP API
+
+  Milestone 2.4: DDoS Protection (Week 6)
+  - SYN flood protection (SYN cookies)
+  - Connection limiting (max concurrent per IP)
+  - Bandwidth throttling
+  - Slowloris protection (timeout slow requests)
+  - HTTP flood detection (abnormal request rates)
+  - Geographic blocking (block entire countries)
+  - IP reputation integration (AbuseIPDB, IPQualityScore)
+  - Challenge-response (CAPTCHA, proof-of-work)
+  - Automatic IP blacklisting (temporary bans)
+  - BGP-level mitigation (future: integrate with upstream)
+
+  Milestone 2.5: Honeypot System (Week 6)
+  - Fake backend deployment
+  - Route suspicious traffic to honeypot
+  - Log attacker behavior
+  - Infinite response generation (tarpit)
+  - Fake vulnerabilities (lure attackers)
+  - Collect attack signatures for ML training
+  - Integration with threat intel feeds
+
+  Phase 2 Deliverable:
+  - Security-hardened proxy
+  - ML model deployment
+  - Honeypot infrastructure
+  - WAF rule engine
+  - Production-ready security features
+
+  ---
+  Phase 3: Performance & Scale (Weeks 7-10)
+
+  Duration: 4 weeksGoal: Optimize for production scale & performance
+
+  Milestone 3.1: HTTP/2 Support (Week 7)
+  - HTTP/2 protocol implementation
+  - Server push capability
+  - Stream multiplexing
+  - Header compression (HPACK)
+  - Priority scheduling
+
+  Milestone 3.2: HTTP/3 (QUIC) Support (Week 8)
+  - QUIC protocol integration
+  - UDP-based transport
+  - 0-RTT connection establishment
+  - Built-in encryption
+  - Loss recovery
+
+  Milestone 3.3: Zero-Copy Optimizations (Week 9)
+  - Splice syscall for direct kernel transfer
+  - Sendfile for static assets
+  - Memory-mapped I/O
+  - Buffer pooling
+  - Lazy ByteString optimization
+
+  Milestone 3.4: Caching Layer (Week 9)
+  - In-memory LRU cache
+  - Redis integration for distributed caching
+  - Cache invalidation strategies
+  - Conditional requests (ETag, If-Modified-Since)
+  - Vary header support
+  - Cache key customization
+
+  Milestone 3.5: Multi-Core Scaling (Week 10)
+  - Multi-threaded request handling
+  - CPU affinity tuning
+  - Work-stealing scheduler
+  - Non-blocking I/O everywhere
+  - Benchmark on 16+ core machine
+
+  Milestone 3.6: Connection Pooling (Week 10)
+  - Backend connection reuse
+  - Idle connection cleanup
+  - Connection health tracking
+  - Configurable pool size
+  - Per-backend pools
+
+  Performance Targets:
+  - Latency: <1ms added latency (p99)
+  - Throughput: 100k+ req/s on 4-core machine
+  - Memory: <500MB for typical workload
+  - CPU: <20% overhead vs direct connection
+
+  Phase 3 Deliverable:
+  - Production-ready performance
+  - HTTP/2 & HTTP/3 support
+  - Caching infrastructure
+  - Benchmark results vs nginx
+
+  ---
+  Phase 4: Operations & Observability (Weeks 11-12)
+
+  Duration: 2 weeksGoal: Production operations tooling
+
+  Milestone 4.1: Logging & Metrics (Week 11)
+  - Structured JSON logging
+  - Log levels (debug, info, warn, error)
+  - Access logs (Apache/nginx format compatible)
+  - Error logs
+  - Prometheus metrics endpoint
+  - Custom metrics (request duration, backend health, etc.)
+  - Grafana dashboard templates
+  - OpenTelemetry integration (traces)
+
+  Key Metrics:
+  Ᾰenebris_requests_total{method, status, route}
+  Ᾰenebris_request_duration_seconds{method, route}
+  Ᾰenebris_backend_health{backend}
+  Ᾰenebris_active_connections{backend}
+  Ᾰenebris_rate_limit_hits{limiter}
+  Ᾰenebris_waf_blocks{attack_type}
+  Ᾰenebris_bot_detections{confidence}
+
+  Milestone 4.2: Hot Reload (Week 11)
+  - Watch config file for changes
+  - Parse & validate new config
+  - Swap config atomically (no dropped requests)
+  - Graceful backend rotation
+  - Zero-downtime deployments
+
+  Milestone 4.3: Admin API (Week 12)
+  - RESTful admin interface
+  - View current config
+  - View live metrics
+  - Manual IP ban/unban
+  - Drain backend (stop routing, wait for connections to finish)
+  - Runtime config updates
+
+  Milestone 4.4: Let's Encrypt Integration (Week 12)
+  - ACME protocol client
+  - Automatic cert provisioning
+  - Cert renewal (30 days before expiry)
+  - Multi-domain support (SAN certificates)
+  - HTTP-01 challenge handling
+  - DNS-01 challenge (optional, for wildcard certs)
+
+  Phase 4 Deliverable:
+  - Full observability stack
+  - Hot reload capability
+  - Admin API
+  - Automatic SSL
+
+  ---
+  Phase 5: Deployment & Distribution (Weeks 13-14)
+
+  Duration: 2 weeksGoal: Make it easy to install & deploy
+
+  Milestone 5.1: Packaging (Week 13)
+  - Compile static binary (musl libc)
+  - Debian package (.deb)
+  - RPM package (.rpm)
+  - Homebrew formula (macOS)
+  - AUR package (Arch Linux)
+  - Nix package
+  - Binary releases on GitHub
+
+  Milestone 5.2: Docker Support (Week 13)
+  - Multi-stage Dockerfile
+  - Alpine-based image (<50MB)
+  - Docker Compose example
+  - Health check endpoint
+  - Graceful shutdown (SIGTERM handling)
+  - Non-root user in container
+
+  Milestone 5.3: Kubernetes Support (Week 14)
+  - Helm chart
+  - Kubernetes manifests (Deployment, Service, Ingress)
+  - ConfigMap for config
+  - Secret management
+  - Horizontal Pod Autoscaler
+  - Liveness & readiness probes
+  - Example ingress controller usage
+
+  Milestone 5.4: Documentation (Week 14)
+  - README with quickstart
+  - Configuration reference
+  - Architecture documentation
+  - Performance tuning guide
+  - Security best practices
+  - Migration guide from nginx
+  - API documentation
+  - Contribution guidelines
+
+  Milestone 5.5: Testing & CI/CD (Week 14)
+  - Unit tests (HSpec)
+  - Integration tests
+  - Performance benchmarks (criterion)
+  - Load testing (hey, wrk)
+  - GitHub Actions CI
+  - Automated releases
+  - Docker image builds
+
+  Phase 5 Deliverable:
+  - Installable packages for major distros
+  - Docker & Kubernetes support
+  - Complete documentation
+  - Automated testing & releases
+
+  ---
+  5. Core Components
+
+  5.1 Ingress Manager
+
+  Responsibility: Accept incoming connections, TLS termination, protocol
+  detection
+
+  Implementation:
+  data IngressConfig = IngressConfig
+    { listenPorts :: [Port]
+    , tlsConfig :: Maybe TLSConfig
+    , maxConnections :: Int
+    , connectionTimeout :: NominalDiffTime
+    }
+
+  ingressManager :: IngressConfig -> IO ()
+  ingressManager config = do
+    runSettings (warpSettings config) $ \req respond -> do
+      -- Protocol detection
+      protocol <- detectProtocol req
+      case protocol of
+        HTTP -> handleHTTP req respond
+        WebSocket -> handleWebSocket req respond
+        HTTP2 -> handleHTTP2 req respond
+        HTTP3 -> handleHTTP3 req respond
+
+  Key Features:
+  - Multi-port listening (80, 443, custom)
+  - SNI support for multi-domain TLS
+  - Connection limiting
+  - Protocol detection (HTTP/1.1, HTTP/2, HTTP/3, WebSocket)
+
+  ---
+  5.2 Analysis Engine
+
+  Responsibility: Security scanning, bot detection, WAF
+
+  Implementation:
+  data AnalysisResult
+    = Clean
+    | Suspicious ThreatLevel [ThreatIndicator]
+    | Malicious AttackType
+
+  data ThreatIndicator
+    = SQLInjection Pattern
+    | XSSAttempt Pattern
+    | BotBehavior Float -- confidence score
+    | RateLimitExceeded
+    | IPReputationLow
+
+  analyzeRequest :: Request -> IO AnalysisResult
+  analyzeRequest req = do
+    wafResult <- runWAFChecks req
+    botScore <- mlBotDetector req
+    rateLimit <- checkRateLimit req
+    reputation <- checkIPReputation (remoteHost req)
+
+    return $ aggregateResults [wafResult, botScore, rateLimit, reputation]
+
+  Security Layers:
+  1. WAF Scanner - Regex + pattern matching
+  2. ML Bot Detector - Behavioral analysis
+  3. Rate Limiter - Multiple strategies
+  4. IP Reputation - External threat feeds
+
+  ---
+  5.3 Routing Engine
+
+  Responsibility: Intelligent request routing, load balancing, A/B testing
+
+  Implementation:
+  data Route = Route
+    { matcher :: RequestMatcher
+    , upstream :: Upstream
+    , middleware :: [Middleware]
+    }
+
+  data RequestMatcher
+    = HostMatch Hostname
+    | PathMatch PathPattern
+    | HeaderMatch HeaderName HeaderValue
+    | Composite [RequestMatcher]
+
+  data Upstream = Upstream
+    { backends :: [Backend]
+    , balancer :: LoadBalancer
+    , healthCheck :: HealthCheckConfig
+    }
+
+  data LoadBalancer
+    = RoundRobin
+    | LeastConnections
+    | Weighted [(Backend, Int)]
+    | IPHash
+    | LatencyBased
+
+  Routing Strategies:
+  - Host-based (virtual hosts)
+  - Path-based (URL routing)
+  - Header-based (A/B testing, canary)
+  - Geographic routing
+  - Latency-based routing
+
+  ---
+  5.4 Connection Manager
+
+  Responsibility: Backend connection pooling, health tracking
+
+  Implementation:
+  data ConnectionPool = ConnectionPool
+    { available :: TVar [Connection]
+    , inUse :: TVar (Set Connection)
+    , maxSize :: Int
+    , backend :: Backend
+    }
+
+  acquireConnection :: ConnectionPool -> IO Connection
+  acquireConnection pool = atomically $ do
+    avail <- readTVar (available pool)
+    case avail of
+      (conn:rest) -> do
+        writeTVar (available pool) rest
+        modifyTVar' (inUse pool) (Set.insert conn)
+        return conn
+      [] -> retry -- STM will block until connection available
+
+  releaseConnection :: ConnectionPool -> Connection -> IO ()
+  releaseConnection pool conn = atomically $ do
+    modifyTVar' (inUse pool) (Set.delete conn)
+    modifyTVar' (available pool) (conn:)
+
+  Features:
+  - Per-backend connection pools
+  - Automatic connection recycling
+  - Health-based connection invalidation
+  - Configurable pool size
+
+  ---
+  5.5 ML Bot Detection System
+
+  Architecture:
+
+  ┌─────────────────────────────────────────────────────┐
+  │                   Ᾰenebris Proxy                      │
+  │                                                     │
+  │  ┌──────────────────────────────────────────────┐ │
+  │  │         Feature Extractor (Haskell)          │ │
+  │  │  - Parse request headers                     │ │
+  │  │  - Calculate entropy, timing, patterns       │ │
+  │  │  - Extract TLS fingerprint                   │ │
+  │  └──────────────────────────────────────────────┘ │
+  │                      │                              │
+  │                      ▼                              │
+  │  ┌──────────────────────────────────────────────┐ │
+  │  │      ML Model Inference (Python Service)     │ │
+  │  │  - Load trained model (pickle/ONNX)          │ │
+  │  │  - Predict: bot probability                  │ │
+  │  │  - Return confidence score                   │ │
+  │  └──────────────────────────────────────────────┘ │
+  │                      │                              │
+  │                      ▼                              │
+  │  ┌──────────────────────────────────────────────┐ │
+  │  │         Decision Engine (Haskell)            │ │
+  │  │  - If score > 0.8 → Honeypot                │ │
+  │  │  - If score > 0.5 → Rate limit               │ │
+  │  │  - If score < 0.5 → Allow                    │ │
+  │  └──────────────────────────────────────────────┘ │
+  └─────────────────────────────────────────────────────┘
+
+  Training Pipeline:
+
+  1. Data Collection:
+    - Legitimate traffic: Your production logs
+    - Bot traffic: Honeypot captures, public datasets
+  2. Feature Engineering:
+  def extract_features(request):
+      return {
+          'request_rate': calculate_rate(request.ip),
+          'ua_entropy': shannon_entropy(request.user_agent),
+          'header_count': len(request.headers),
+          'tls_fingerprint': ja3_hash(request.tls_info),
+          'timing_variance': np.std(request.timings),
+          # ... 20+ features
+      }
+  3. Model Training:
+  from sklearn.ensemble import RandomForestClassifier, IsolationForest
+
+  # Supervised: Random Forest
+  rf = RandomForestClassifier(n_estimators=100)
+  rf.fit(X_train, y_train)
+
+  # Unsupervised: Isolation Forest (anomaly detection)
+  iso = IsolationForest(contamination=0.1)
+  iso.fit(X_legitimate)
+
+  # Ensemble
+  def predict(features):
+      rf_score = rf.predict_proba(features)[1]
+      iso_score = iso.decision_function(features)
+      return 0.7 * rf_score + 0.3 * normalize(iso_score)
+  4. Deployment:
+    - Export model to ONNX
+    - Load in Python microservice (FastAPI)
+    - Haskell calls via HTTP (POST /predict)
+    - Cache predictions (1 min TTL per IP)
+
+  Continuous Learning:
+  - Feedback loop: Honeypot captures → retrain model
+  - Weekly model updates
+  - A/B test new models before deployment
+
+  ---
+  6. Security Model
+
+  6.1 Threat Model
+
+  Attackers We Defend Against:
+  1. Script kiddies - Automated scanners, known exploits
+  2. Bot operators - Credential stuffing, scraping, spam
+  3. DDoS attackers - Volumetric attacks, application-layer floods
+  4. Sophisticated attackers - 0-day exploits, APTs (defense-in-depth)
+
+  Assets We Protect:
+  - Backend services (API, web apps)
+  - User data (prevent exfiltration)
+  - System availability (uptime)
+  - Infrastructure costs (prevent resource exhaustion)
+
+  6.2 Security Principles
+
+  1. Defense in Depth: Multiple layers (WAF → ML → Rate Limiting)
+  2. Fail Secure: Errors block traffic, not allow it
+  3. Least Privilege: Proxy runs as non-root user
+  4. Audit Everything: All security events logged
+  5. Type Safety: Haskell prevents memory corruption, buffer overflows
+
+  6.3 WAF Rule Engine
+
+  Rule Format:
+  waf_rules:
+    - name: sql-injection-basic
+      pattern: "(?i)(union|select|insert|update|delete|drop|create|alter)\\s"
+      threat_level: high
+      action: block
+
+    - name: xss-script-tag
+      pattern: "<script[^>]*>.*?</script>"
+      threat_level: high
+      action: block
+
+    - name: path-traversal
+      pattern: "\\.\\./|%2e%2e%2f"
+      threat_level: medium
+      action: log_and_block
+
+  Custom Rules:
+  Users can add their own regex patterns via config.
+
+  6.4 IP Reputation System
+
+  Data Sources:
+  - AbuseIPDB API
+  - IPQualityScore API
+  - Spamhaus DROP list
+  - Local blacklist/whitelist
+
+  Scoring System:
+  data ReputationScore = ReputationScore
+    { score :: Float -- 0.0 (bad) to 1.0 (good)
+    , sources :: [ReputationSource]
+    , lastUpdated :: UTCTime
+    }
+
+  calculateReputation :: IP -> IO ReputationScore
+  calculateReputation ip = do
+    abuseScore <- queryAbuseIPDB ip
+    qualityScore <- queryIPQuality ip
+    spamhausListed <- checkSpamhaus ip
+    localScore <- checkLocalLists ip
+
+    return $ aggregateScores [abuseScore, qualityScore, spamhausListed,
+  localScore]
+
+  Actions Based on Score:
+  - Score < 0.3: Block immediately
+  - Score 0.3-0.6: Rate limit aggressively
+  - Score 0.6-0.8: Normal rate limits
+  - Score > 0.8: Trusted, higher limits
+
+  ---
+  7. Performance Targets
+
+  7.1 Benchmarks
+
+  Target Performance (4-core machine, 16GB RAM):
+
+  | Metric        | Target            | Stretch Goal |
+  |---------------|-------------------|--------------|
+  | Requests/sec  | 100,000           | 200,000      |
+  | Latency (p50) | <0.5ms            | <0.3ms       |
+  | Latency (p99) | <2ms              | <1ms         |
+  | Memory usage  | <500MB            | <300MB       |
+  | CPU overhead  | <20%              | <10%         |
+  | Connections   | 10,000 concurrent | 50,000       |
+
+  Comparison to Nginx:
+  - Match or exceed nginx performance on similar hardware
+  - Lower latency for WebSocket/streaming workloads
+  - Comparable or better throughput for HTTP/2
+
+  7.2 Optimization Techniques
+
+  Haskell-Specific:
+  - Strictness annotations to avoid space leaks
+  - Unboxed types for performance-critical paths
+  - INLINE pragmas for hot functions
+  - Compiled with -O2 optimization
+  - Profile-guided optimization (PGO)
+
+  System-Level:
+  - Zero-copy via splice() syscall
+  - SO_REUSEPORT for multi-core scaling
+  - TCP_NODELAY for low latency
+  - Large buffer sizes for throughput
+  - Kernel bypass (io_uring) for extreme performance (future)
+
+  Application-Level:
+  - Connection pooling (reuse backend connections)
+  - HTTP keep-alive
+  - Request pipelining
+  - Lazy evaluation for streaming
+  - STM for lock-free concurrency
+
+  7.3 Benchmark Suite
+
+  Tools:
+  - wrk - HTTP benchmarking
+  - h2load - HTTP/2 benchmarking
+  - hey - Load testing
+  - criterion - Haskell microbenchmarks
+
+  Test Scenarios:
+  1. Static file serving (1KB, 10KB, 100KB)
+  2. Simple proxy (echo server backend)
+  3. WebSocket throughput
+  4. Streaming response (chunked transfer)
+  5. TLS handshake performance
+  6. HTTP/2 multiplexing
+  7. Rate limiting overhead
+  8. WAF scanning overhead
+
+  Continuous Benchmarking:
+  - Run benchmarks on every commit (GitHub Actions)
+  - Track performance regression
+  - Publish results publicly
+
+  ---
+  8. Deployment Strategy
+
+  8.1 Installation Methods
+
+  Binary Installation:
+  # Linux (curl)
+  curl -sSL https://get.Ᾰenebris.sh | sh
+
+  # Homebrew (macOS/Linux)
+  brew install Ᾰenebris
+
+  # Debian/Ubuntu
+  sudo apt install Ᾰenebris
+
+  # Arch Linux
+  yay -S Ᾰenebris
+
+  From Source:
+  git clone https://github.com/username/Ᾰenebris
+  cd Ᾰenebris
+  stack build
+  stack install
+
+  Docker:
+  docker pull Ᾰenebris/Ᾰenebris:latest
+  docker run -p 80:80 -p 443:443 -v ./config.yaml:/etc/Ᾰenebris/config.yaml
+  Ᾰenebris/Ᾰenebris
+
+  Kubernetes:
+  helm repo add Ᾰenebris https://charts.Ᾰenebris.sh
+  helm install my-proxy Ᾰenebris/Ᾰenebris
+
+  8.2 Configuration Example
+
+  Minimal Config:
+  version: 1
+
+  listen:
+    - port: 80
+    - port: 443
+      tls:
+        auto: true  # Let's Encrypt
+
+  upstreams:
+    - name: my-app
+      servers:
+        - host: localhost:8000
+
+  routes:
+    - host: example.com
+      upstream: my-app
+
+  Advanced Config:
+  version: 1
+
+  global:
+    worker_threads: 4
+    max_connections: 10000
+    log_level: info
+
+  listen:
+    - port: 80
+    - port: 443
+      tls:
+        auto: true
+        email: admin@example.com
+
+  upstreams:
+    - name: api-backend
+      servers:
+        - host: 10.0.1.10:8000
+          weight: 2
+        - host: 10.0.1.11:8000
+          weight: 1
+      balancer: weighted
+      health_check:
+        path: /health
+        interval: 10s
+        timeout: 2s
+      connection_pool:
+        size: 100
+        idle_timeout: 60s
+
+    - name: honeypot
+      servers:
+        - host: localhost:9999
+
+  routes:
+    - host: api.example.com
+      paths:
+        - path: /api/v1
+          upstream: api-backend
+          rate_limit:
+            strategy: adaptive
+            base_rate: 100/minute
+          waf:
+            enabled: true
+            rules: [sql-injection, xss, path-traversal]
+          cache:
+            enabled: true
+            ttl: 60s
+
+  security:
+    waf:
+      enabled: true
+      custom_rules: /etc/Ᾰenebris/waf-rules.yaml
+
+    bot_detection:
+      enabled: true
+      ml_model: /var/lib/Ᾰenebris/models/bot-detector.onnx
+      threshold: 0.7
+      action: honeypot
+
+    ddos:
+      max_connections_per_ip: 100
+      syn_flood_protection: true
+      rate_limit:
+        global: 10000/second
+        per_ip: 100/second
+
+    ip_reputation:
+      providers:
+        - abuseipdb:
+            api_key: ${ABUSEIPDB_API_KEY}
+        - ipqualityscore:
+            api_key: ${IPQS_API_KEY}
+      cache_ttl: 3600
+
+  observability:
+    access_log: /var/log/Ᾰenebris/access.log
+    error_log: /var/log/Ᾰenebris/error.log
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics
+
+  8.3 Migration from Nginx
+
+  Migration Tool:
+  Ᾰenebris migrate --from nginx --config /etc/nginx/nginx.conf --out
+  Ᾰenebris-config.yaml
+
+  Converts nginx config to Ᾰenebris config (best-effort).
+
+  Migration Guide:
+  1. Install Ᾰenebris alongside nginx
+  2. Convert config with migration tool
+  3. Test Ᾰenebris with subset of traffic
+  4. Gradually shift traffic (DNS, load balancer)
+  5. Monitor metrics, compare performance
+  6. Full cutover once confident
+
+  ---
+  9. Long-Term Roadmap
+
+  Year 1: Core Features & Adoption
+
+  Q1 2025 (Months 1-3):
+  - Phase 1: Core proxy functionality
+  - Phase 2: Security features (WAF, ML, rate limiting)
+  - First production deployment (your website)
+
+  Q2 2025 (Months 4-6):
+  - Phase 3: Performance optimization (HTTP/2, HTTP/3, caching)
+  - Phase 4: Observability (metrics, logging, hot reload)
+  - Phase 5: Packaging & distribution
+  - Public beta release
+  - First 100 GitHub stars
+
+  Q3 2025 (Months 7-9):
+  - Performance tuning based on real-world usage
+  - Bug fixes & stability improvements
+  - Community feedback integration
+  - First external production deployments
+  - 1,000 GitHub stars
+  - Featured on Hacker News
+
+  Q4 2025 (Months 10-12):
+  - v1.0 stable release
+  - Security audit (external firm)
+  - Performance benchmarks published
+  - Case studies from early adopters
+  - 5,000 GitHub stars
+  - First paid support contracts
+
+  ---
+  Year 2: Enterprise Features
+
+  Q1 2026:
+  - Multi-tenancy support
+  - Advanced analytics dashboard (web UI)
+  - Rate limiting marketplace (community rules)
+  - Plugin system (extend with Haskell modules)
+
+  Q2 2026:
+  - Clustering & high availability
+  - Distributed caching (beyond Redis)
+  - Geographic load balancing
+  - Edge computing support
+
+  Q3 2026:
+  - gRPC proxying
+  - Service mesh integration (Istio, Linkerd)
+  - Advanced observability (distributed tracing)
+  - Chaos engineering tools
+
+  Q4 2026:
+  - Enterprise SLA & support
+  - Cloud marketplace listings (AWS, GCP, Azure)
+  - Certification program
+  - Annual conference (ᾸenebrisCon?)
+
+  ---
+  Year 3+: Ecosystem & Innovation
+
+  Long-Term Vision:
+  - De facto standard for security-first proxying
+  - Larger community than Caddy
+  - Competitive with nginx in market share
+  - Research papers on ML-based threat detection
+  - University curriculum adoption
+  - Funding (VC or grants) for full-time development
+  - Commercial entity (dual-license: OSS + enterprise)
+
+  Moonshot Features:
+  - Quantum-resistant TLS (post-quantum crypto)
+  - Zero-knowledge proof authentication
+  - Fully homomorphic encryption proxying
+  - AI-powered auto-tuning (self-optimizing)
+  - Blockchain-based threat intel sharing
+  - Formal verification of security properties
+
+  ---
+  10. Competitive Analysis
+
+  10.1 Ᾰenebris vs. Nginx
+
+  | Feature               | Nginx                      | Ᾰenebris
+           |
+  |-----------------------|----------------------------|---------------------
+  ---------|
+  | Language              | C                          | Haskell
+           |
+  | Type Safety           | Manual memory management | Compile-time
+  guarantees    |
+  | Config Syntax         | Custom DSL (complex)       | YAML (simple,
+  familiar)      |
+  | WebSocket + Streaming | ⚠ Conflicting settings    | Works out of the
+  box       |
+  | WAF                   | Requires ModSecurity     | Built-in
+             |
+  | ML Bot Detection      | External service needed  | Built-in
+             |
+  | Rate Limiting         | ⚠ Basic (needs modules)   | Advanced (ML,
+  adaptive)    |
+  | HTTP/3                | ⚠ Experimental            | Production-ready
+  (planned) |
+  | Hot Reload            | ⚠ Graceful restart        | Zero-downtime
+            |
+  | Performance           | ⚡ 100k+ req/s              | ⚡ 100k+ req/s
+  (target)       |
+  | Memory Safety         | C vulnerabilities        | Haskell safety
+             |
+  | Extensibility         | C modules only           | Haskell plugins
+             |
+
+  When to use Nginx:
+  - Extreme performance requirements (>500k req/s)
+  - Existing nginx expertise
+  - Specific modules not in Ᾰenebris yet
+
+  When to use Ᾰenebris:
+  - Security-first requirements
+  - Modern protocols (HTTP/3, WebSocket)
+  - Clean configuration
+  - ML-based threat detection
+  - Self-hosting with strong privacy needs
+
+  ---
+  10.2 Ᾰenebris vs. Traefik
+
+  | Feature           | Traefik               | Ᾰenebris                     |
+  |-------------------|-----------------------|----------------------------|
+  | Language          | Go                    | Haskell                    |
+  | Config            | Dynamic (labels, API) | Static (YAML) + hot reload |
+  | Kubernetes Native | Ingress controller  | Helm chart
+  |
+  | Let's Encrypt     | Built-in            | Built-in
+  |
+  | WAF               | Plugin needed       | Built-in
+  |
+  | ML Features       | None                | Bot detection
+  |
+  | Performance       | ⚠ Go overhead        | Haskell optimized        |
+  | Memory Usage      | ⚠ High (Go runtime)  | Lower                    |
+
+  When to use Traefik:
+  - Heavy Kubernetes usage
+  - Need dynamic config via API
+  - Go ecosystem familiarity
+
+  When to use Ᾰenebris:
+  - Better performance
+  - Advanced security (WAF, ML)
+  - Lower resource usage
+
+  ---
+  10.3 Ᾰenebris vs. Caddy
+
+  | Feature           | Caddy              | Ᾰenebris                |
+  |-------------------|--------------------|-----------------------|
+  | Language          | Go                 | Haskell               |
+  | Ease of Use       | Extremely simple | Simple but powerful |
+  | Auto HTTPS        | Best-in-class    | Built-in            |
+  | Security Features | ⚠ Basic           | Advanced (WAF, ML)  |
+  | Performance       | ⚠ Good            | Better              |
+  | Extensibility     | Go plugins       | Haskell plugins     |
+
+  When to use Caddy:
+  - Simplicity is priority #1
+  - Quick prototyping
+
+  When to use Ᾰenebris:
+  - Production security requirements
+  - Performance-critical applications
+  - Advanced threat detection
+
+  ---
+  10.4 Ᾰenebris vs. Cloudflare
+
+  | Feature         | Cloudflare              | Ᾰenebris          |
+  |-----------------|-------------------------|-----------------|
+  | Deployment      | Cloud (SaaS)            | Self-hosted     |
+  | Privacy         | Traffic via CF        | Full control  |
+  | DDoS Protection | Best (global network) | ⚠ Good (local) |
+  | WAF             | Extensive rules       | Built-in      |
+  | Bot Detection   | ML-based              | ML-based      |
+  | Cost            | $$$ at scale            | Free (OSS)    |
+  | On-Premise      | Not available         | Yes           |
+
+  When to use Cloudflare:
+  - Need global CDN
+  - Massive DDoS attacks (Tbps)
+  - No ops team
+
+  When to use Ᾰenebris:
+  - Privacy/compliance requirements
+  - Self-hosting preference
+  - Cost optimization
+  - Custom logic needed
+
+  ---
+  11. Success Metrics
+
+  Technical Metrics
+
+  - 100k+ req/s sustained throughput
+  - <1ms p99 latency
+  - 99.99% uptime in production
+  - Zero CVEs in first year
+  - Pass security audit
+
+  Adoption Metrics
+
+  - 1,000 GitHub stars (Month 6)
+  - 5,000 GitHub stars (Month 12)
+  - 10,000 GitHub stars (Month 18)
+  - 100 production deployments (Month 12)
+  - 10 enterprise users (Month 18)
+
+  Community Metrics
+
+  - 50+ contributors (Month 12)
+  - 100+ issues/PRs (Month 12)
+  - Active Discord/Slack community
+  - Monthly blog posts
+  - Conference talks (3+ in Year 1)
+
+  Financial Metrics (Optional)
+
+  - Paid support contracts (5+ by Month 18)
+  - Sponsorships (GitHub Sponsors, Patreon)
+  - Grant funding (Mozilla MOSS, NLNet)
+  - Break-even on hosting/infra costs
+
+  ---
+  12. Risk Analysis & Mitigation
+
+  Technical Risks
+
+  Risk: Performance doesn't match nginx
+  - Mitigation: Benchmark early and often, optimize hot paths, use profiling
+  tools
+  - Fallback: Focus on "good enough" performance + superior features
+
+  Risk: Haskell learning curve too steep
+  - Mitigation: Detailed documentation, example code, community support
+  - Fallback: Add maintainers with Haskell expertise
+
+  Risk: ML models have high false positive rate
+  - Mitigation: Extensive training data, human-in-the-loop validation,
+  adjustable thresholds
+  - Fallback: Make ML optional, fall back to heuristics
+
+  Risk: Memory leaks in long-running process
+  - Mitigation: Strict evaluation, profiling, extensive testing
+  - Fallback: Automatic restart on memory threshold
+
+  Adoption Risks
+
+  Risk: "Yet another reverse proxy" fatigue
+  - Mitigation: Clear differentiation (security, ML, Haskell), compelling
+  demos
+  - Fallback: Target niche (security-conscious devs) first
+
+  Risk: Lack of community contributions
+  - Mitigation: Good-first-issue labels, responsive maintainers, contributor
+  guide
+  - Fallback: Solo development sustainable with clear roadmap
+
+  Risk: Enterprise users need support
+  - Mitigation: Paid support offering, SLA guarantees
+  - Fallback: Community support + consulting services
+
+  Operational Risks
+
+  Risk: Security vulnerability discovered
+  - Mitigation: Security audits, bug bounty, rapid patch releases
+  - Fallback: Transparent disclosure, immediate fixes
+
+  Risk: Funding for full-time development
+  - Mitigation: Sponsorships, grants, paid support
+  - Fallback: Nights-and-weekends development sustainable
+
+  ---
+  13. Open Questions & Research
+
+  Questions to Answer During Development
+
+  1. ML Model Deployment:
+    - Python microservice vs. Haskell FFI vs. ONNX runtime?
+    - How to update models without downtime?
+  2. Configuration Language:
+    - YAML vs. Dhall vs. custom DSL?
+    - How much validation at parse time vs. runtime?
+  3. Plugin Architecture:
+    - Dynamic loading or compile-time plugins?
+    - How to ensure type safety with plugins?
+  4. Observability:
+    - OpenTelemetry vs. custom tracing?
+    - Push vs. pull metrics?
+  5. High Availability:
+    - Active-active vs. active-passive clustering?
+    - Shared state via Redis or consensus (Raft)?
+
+  Areas for Research
+
+  - Formal Verification: Prove security properties using Liquid Haskell or
+  Coq
+  - Zero-Copy Proxy: eBPF or io_uring for kernel-bypass networking
+  - Post-Quantum TLS: Integrate NIST PQC standards as they finalize
+  - Edge Computing: Deploy Ᾰenebris on edge nodes (Cloudflare Workers model)
+  - AI Security: Use LLMs to generate WAF rules or analyze attack patterns
+
+  ---
+  14. Project Name & Branding
+
+  Name: Ᾰenebris
+  - Velocity-Optimized Routing & Threat EXtermination
+  - Implies: Fast, powerful, pulls everything in (like a Ᾰenebris)
+  - Short, memorable, domain available
+
+  Tagline Options:
+  1. "The secure, intelligent reverse proxy"
+  2. "Where speed meets security"
+  3. "Next-gen proxy, built in Haskell"
+  4. "nginx, but with a brain"
+
+  Logo Ideas:
+  - Stylized Ᾰenebris/spiral (purple/blue gradient)
+  - Shield + lightning bolt (security + speed)
+  - Geometric pattern (type safety, mathematical)
+
+  Domain: Ᾰenebris.sh or Ᾰenebrisproxy.io
+
+  ---
+  15. Call to Action
+
+  Next Steps (You)
+
+  1. Set up dev environment (Day 1)
+    - Install Stack
+    - Clone starter template
+    - Run "Hello World" Warp server
+  2. Learn Haskell basics (Days 2-3)
+    - Read LYAH chapters 1-8
+    - Complete 10 small exercises
+    - Understand monads (IO, Maybe, Either)
+  3. Build Phase 1 Milestone 1 (Days 4-7)
+    - Basic HTTP proxy
+    - Forward request to localhost:8000
+    - Log request/response
+  4. Weekly check-ins
+    - Review progress
+    - Adjust roadmap
+    - Pair program on hard parts
+
+  Next Steps (AI Agents)
+
+  - Agent 1: Documentation & examples
+  - Agent 2: Testing & benchmarking
+  - Agent 3: ML model training
+  - Agent 4: Packaging & distribution
+
+  All agents can read this white paper to stay aligned.
+
+  ---
+  16. Conclusion
+
+  Ᾰenebris is an ambitious project to build a production-grade reverse proxy
+  that rivals nginx in performance while surpassing it in security,
+  intelligence, and developer experience. By leveraging Haskell's type
+  safety, STM concurrency, and the Warp web server, combined with ML-based
+  threat detection and modern protocol support, Ᾰenebris aims to become the
+  go-to choice for security-conscious developers and enterprises.
+
+  The journey:
+  - Weeks 1-2: Basic proxy (replace nginx in dev)
+  - Weeks 3-6: Security features (WAF, ML, DDoS)
+  - Weeks 7-10: Performance (HTTP/2, HTTP/3, caching)
+  - Weeks 11-14: Operations (metrics, packaging, docs)
+  - Month 4+: Production hardening, community growth
+
+  The vision:
+  - Year 1: Stable v1.0, first 1000 users
+  - Year 2: Enterprise features, major adoption
+  - Year 3+: Industry standard, self-sustaining ecosystem
+
+  Let's build the future of reverse proxies. Let's build Ᾰenebris. 🚀
+
+  ---
+  Document Version: 0.1.0Last Updated: 2025-11-12Author: Carter Perez (+
+  Claude AI)License: MIT (code) / CC BY-SA 4.0 (this document)Status: Living
+  document (will evolve as project progresses)
+
+  ---
+  Appendix A: Reference Architecture Diagram
+
+                                      ┌─────────────────────────────────────┐
+                                      │         Internet / Clients          │
+                                      └─────────────────────────────────────┘
+                                                      │
+                                                      │ HTTP/HTTPS/HTTP3/WS
+                                                      ▼
+
+  ┌───────────────────────────────────────────────────────────┐
+                      │                      Ᾰenebris PROXY
+       │
+                      │
+       │
+                      │
+  ┌─────────────────────────────────────────────────────┐ │
+                      │  │              Ingress Manager
+    │ │
+                      │  │  • TLS Termination (Let's Encrypt)
+    │ │
+                      │  │  • Protocol Detection (HTTP/1.1, HTTP/2, HTTP/3)
+    │ │
+                      │  │  • Connection Limiting
+    │ │
+                      │
+  └─────────────────────────────────────────────────────┘ │
+                      │                           │
+       │
+                      │                           ▼
+       │
+                      │
+  ┌─────────────────────────────────────────────────────┐ │
+                      │  │              Security Layer
+    │ │
+                      │  │  ┌────────────┐ ┌────────────┐ ┌─────────────┐
+  │ │
+                      │  │  │    WAF     │ │ ML Bot Det │ │ Rate Limiter│
+  │ │
+                      │  │  └────────────┘ └────────────┘ └─────────────┘
+  │ │
+                      │  │         │              │              │
+    │ │
+                      │  │         └──────────────┴──────────────┘
+    │ │
+                      │  │                       │
+     │ │
+                      │  │              Clean ───┴─── Malicious
+    │ │
+                      │  │                 │            │
+     │ │
+                      │
+  └─────────────────┼────────────┼───────────────────── │ │
+                      │                    │            │
+      │
+                      │                    ▼            ▼
+      │
+                      │  ┌─────────────────────────┐ ┌──────────────────────┐
+    │
+                      │  │   Routing Engine        │ │   Honeypot           │
+    │
+                      │  │  • Load Balancing       │ │  • Tarpit            │
+    │
+                      │  │  • Health Checks        │ │  • Data Collection   │
+    │
+                      │  │  • A/B Testing          │ │                      │
+    │
+                      │  └─────────────────────────┘ └──────────────────────┘
+    │
+                      │                │                         │
+      │
+                      │                ▼                         │
+      │
+                      │  ┌─────────────────────────────────────┐│
+     │
+                      │  │    Connection Pool Manager          ││
+     │
+                      │  │  • Per-backend pools                ││
+     │
+                      │  │  • Connection reuse                 ││
+     │
+                      │  └─────────────────────────────────────┘│
+     │
+                      │                │                         │
+      │
+
+  └────────────────┼─────────────────────────┼───────────────┘
+                                       │                         │
+                                       ▼                         ▼
+              ┌──────────────────────────────────────┐  ┌─────────────────┐
+              │         Backend Services             │  │  Fake Backend   │
+              │                                      │  │  (Honeypot)     │
+              │  ┌─────────┐  ┌─────────┐           │  └─────────────────┘
+              │  │ API 1   │  │ API 2   │  ...      │
+              │  └─────────┘  └─────────┘           │
+              └──────────────────────────────────────┘
+
+                           Observability Stack
+              ┌──────────────────────────────────────────────┐
+              │  Prometheus  │  Grafana  │  Logs  │  Traces │
+              └──────────────────────────────────────────────┘
+
+  ---
+  Appendix B: Technology Stack Summary
+
+  | Layer         | Technology                     | Purpose
+                  |
+  |---------------|--------------------------------|-------------------------
+  ----------------|
+  | Core Language | Haskell (GHC 9.6+)             | Type-safe, concurrent,
+  high-performance |
+  | Web Server    | Warp                           | HTTP server (fastest in
+  Haskell)        |
+  | Concurrency   | STM, Async                     | Lock-free state,
+  parallel tasks         |
+  | TLS           | tls library                    | TLS 1.2/1.3 termination
+                  |
+  | HTTP/2        | http2 library                  | Protocol support
+                  |
+  | HTTP/3        | quic library                   | QUIC implementation
+                  |
+  | WebSocket     | websockets library             | WebSocket protocol
+                  |
+  | Config        | YAML / Dhall                   | Human-readable
+  configuration            |
+  | Logging       | fast-logger                    | High-performance
+  structured logs        |
+  | Metrics       | prometheus-client              | Prometheus-compatible
+  metrics           |
+  | ML            | Python (scikit-learn, PyTorch) | Bot detection models
+                  |
+  | ML Inference  | ONNX Runtime or HTTP API       | Model serving
+                  |
+  | Caching       | Redis                          | Distributed cache & rate
+   limiting       |
+  | Database      | PostgreSQL / SQLite            | Metrics, request logs
+                  |
+  | Packaging     | Stack / Cabal                  | Build system
+                  |
+  | Containers    | Docker, Kubernetes             | Deployment
+                  |
+  | CI/CD         | GitHub Actions                 | Automated testing &
+  releases            |
+
+  ---
+  Appendix C: Glossary
+
+  Terms:
+
+  - Reverse Proxy: Server that forwards client requests to backend servers
+  - Load Balancer: Distributes traffic across multiple backend servers
+  - WAF: Web Application Firewall - filters malicious HTTP traffic
+  - DDoS: Distributed Denial of Service - attack that overwhelms server
+  - Rate Limiting: Restricts number of requests per time period
+  - Honeypot: Fake server to lure and study attackers
+  - STM: Software Transactional Memory - lock-free concurrency primitive
+  - Zero-Copy: Technique to avoid copying data between buffers
+  - TLS Termination: Decrypting HTTPS at proxy, forwarding HTTP to backend
+  - Connection Pooling: Reusing TCP connections to backend servers
+  - HTTP/2: Binary HTTP protocol with multiplexing
+  - HTTP/3: HTTP over QUIC (UDP-based, faster than TCP)
+  - WebSocket: Protocol for bidirectional communication over single TCP
+  connection
+  - SNI: Server Name Indication - TLS extension for virtual hosting
+  - ACME: Automated Certificate Management Environment (Let's Encrypt
+  protocol)
+
+  ---
+  END OF WHITE PAPER
+```
