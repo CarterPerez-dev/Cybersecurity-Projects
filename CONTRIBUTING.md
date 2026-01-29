@@ -21,7 +21,7 @@ cd Cybersecurity-Projects
 
 ### 2. Create Your Project Directory
 
-Create a new directory in `/PROJECTS` with a descriptive, lowercase, hyphenated name.
+Create a new directory in `/PROJECTS/{difficulty}` where difficulty is `beginner`, `intermediate`, or `advanced`. Use a descriptive, lowercase, hyphenated name for your project.
 
 **Naming Convention:**
 - ✅ `reverse-shell-handler`
@@ -33,14 +33,19 @@ Create a new directory in `/PROJECTS` with a descriptive, lowercase, hyphenated 
 - ❌ `ReverseShellHandler` (no PascalCase)
 - ❌ `Reverse-Shell-Handler` (no capital letters)
 
+**Difficulty Levels:**
+- **Beginner:** Basic tools, single-file scripts, foundational concepts
+- **Intermediate:** Multi-component systems, API integrations, moderate complexity
+- **Advanced:** Full-stack applications, distributed systems, complex architectures
+
 **Examples:**
 
-| Project Name | Directory Name |
-|-------------|----------------|
-| Reverse Shell Handler | `reverse-shell-handler` |
-| SIEM Dashboard | `siem-dashboard` |
-| OAuth Token Analyzer | `oauth-token-analyzer` |
-| AI Threat Detection | `ai-threat-detection` |
+| Project Name | Difficulty | Directory Path |
+|-------------|------------|----------------|
+| Simple Port Scanner | Beginner | `PROJECTS/beginner/simple-port-scanner` |
+| OAuth Token Analyzer | Intermediate | `PROJECTS/intermediate/oauth-token-analyzer` |
+| Bug Bounty Platform | Advanced | `PROJECTS/advanced/bug-bounty-platform` |
+| API Security Scanner | Intermediate | `PROJECTS/intermediate/api-security-scanner` |
 
 ### 3. Project Structure
 
@@ -62,17 +67,29 @@ Ensure your project structure is coherent and uses **intuitive, idiomatic naming
 **Example Structure:**
 ```
 PROJECTS/
-└── your-project-name/
-    ├── README.md
-    ├── .env.example
-    ├── requirements.txt
-    ├── docker-compose.yml
-    ├── src/
-    │   ├── __init__.py
-    │   ├── main.py
-    │   └── utils/
-    ├── tests/
-    └── examples/
+├── beginner/
+│   └── simple-port-scanner/
+│       ├── README.md
+│       └── src/
+├── intermediate/
+│   └── oauth-token-analyzer/
+│       ├── README.md
+│       ├── .env.example
+│       ├── requirements.txt
+│       ├── src/
+│       │   ├── __init__.py
+│       │   ├── main.py
+│       │   └── utils/
+│       └── tests/
+└── advanced/
+    └── bug-bounty-platform/
+        ├── README.md
+        ├── .env.example
+        ├── docker-compose.yml
+        ├── backend/
+        ├── frontend/
+        ├── tests/
+        └── examples/
 ```
 
 ### 4. Package Managers if using Python and or Node (Doesn't matter what you use for any other framework/libary/language though)
@@ -133,7 +150,7 @@ Format your code using the repository's custom YAPF configuration. Copy the [.st
 yapf -i -r -vv your_project/
 ```
 
-Don't have YAPF installed? 
+Don't have YAPF installed?
 ```bash
 # With uv (you're using uv, right?)
 uv pip install yapf
@@ -154,9 +171,9 @@ More info: [YAPF Documentation](https://github.com/google/yapf)
 
 ### 7. Full-Stack Projects
 
-Building a full-stack application? Consider using this template as a starting point:
+Building a full-stack application? Use the included template as a starting point:
 
-**[Fullstack Template](https://github.com/CarterPerez-dev/fullstack-template)** - A production-ready template with FastAPI, React, Docker, and more.
+**[Fullstack Template](./TEMPLATES/fullstack-template)** - A production-ready template with FastAPI, React, Docker, and more. Check the [GitHub repository](https://github.com/CarterPerez-dev/fullstack-template) for the latest updates.
 
 ### 8. Submit a Pull Request
 

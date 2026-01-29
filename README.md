@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-10/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-11/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -42,12 +42,6 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 
 ---
 
-Big thanks to the current contributors!
-- [@deniskhud](https://github.com/deniskhud): [Simple Port Scanner](./PROJECTS/beginner/simple-port-scanner)
-- [@Heritage-XioN](https://github.com/Heritage-XioN): [Metadata Scrubber Tool](./PROJECTS/beginner/metadata-scrubber-tool)
-
----
-
 # Projects
 
 ### Beginner Projects
@@ -56,7 +50,7 @@ Big thanks to the current contributors!
 - **[Keylogger](./PROJECTS/beginner/keylogger)** - Capture keyboard events with timestamps using Python pynput
 - **[Caesar Cipher](./PROJECTS/beginner/caesar-cipher)** - CLI encryption/decryption tool with brute-force capabilities
 - **[DNS Lookup CLI Tool](./PROJECTS/beginner/dns-lookup)** - Query DNS records with WHOIS and reverse lookup
-- **[Simple Vulnerability Scanner](./SYNOPSES/beginner/Simple.Vulnerability.Scanner.md)** - Check software versions against CVE databases
+- **[Simple Vulnerability Scanner](./PROJECTS/beginner/simple-vulnerability-scanner)** - Check software versions against CVE databases
 - **[Metadata Scrubber Tool](./PROJECTS/beginner/metadata-scrubber-tool)** - Remove EXIF and privacy-sensitive metadata from files
 - **[Network Traffic Analyzer](./SYNOPSES/beginner/Network.Traffic.Analyzer.md)** - Capture and analyze network packets with scapy
 - **[Hash Cracker](./SYNOPSES/beginner/Hash.Cracker.md)** - Dictionary and brute-force hash cracking tool
