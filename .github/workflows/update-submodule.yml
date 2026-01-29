@@ -23,7 +23,7 @@ jobs:
 
       - name: Update submodule to latest
         run: |
-          git submodule update --remote templates/fullstack-template
+          git submodule update --remote TEMPLATES/fullstack-template
 
       - name: Check for changes
         id: changes
