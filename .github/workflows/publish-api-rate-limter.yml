@@ -39,10 +39,10 @@ jobs:
           pip install build
 
       - name: Build package
-        working-directory: PROJECTS/fastapi-420
+        working-directory: PROJECTS/advanced/api-rate-limiter
         run: python -m build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: PROJECTS/fastapi-420/dist/
+          packages-dir: PROJECTS/advanced/api-rate-limiter/dist/
