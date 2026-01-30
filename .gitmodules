@@ -1,3 +1,3 @@
-[submodule "templates/fullstack-template"]
-	path = templates/fullstack-template
+[submodule "TEMPLATES/fullstack-template"]
+	path = TEMPLATES/fullstack-template
 	url = https://github.com/CarterPerez-dev/fullstack-template
