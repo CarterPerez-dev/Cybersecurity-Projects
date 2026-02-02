@@ -1,6 +1,7 @@
 """
-CarterPerez-dev | 2025
+ⒸAngelaMos | 2026
 resolver.py
+
 Async DNS resolution with record type support
 """
 
@@ -10,7 +11,7 @@ import asyncio
 import time
 from dataclasses import (
     dataclass,
-    field,
+    field
 )
 from enum import StrEnum
 from typing import Any

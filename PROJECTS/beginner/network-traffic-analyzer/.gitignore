@@ -1,0 +1,25 @@
+# 2026 | ©AngelaMos LLC
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+*.venv
+.coverage
+htmlcov/
+.tox/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+

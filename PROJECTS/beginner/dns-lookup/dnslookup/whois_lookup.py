@@ -1,6 +1,7 @@
 """
-CarterPerez-dev | 2025
+ⒸAngelaMos | 2026
 whois_lookup.py
+
 WHOIS domain information lookup and display
 """
 

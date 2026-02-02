@@ -23,7 +23,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-11/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-12/60-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 

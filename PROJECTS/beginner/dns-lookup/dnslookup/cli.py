@@ -1,6 +1,7 @@
 """
-CarterPerez-dev | 2025
+ⒸAngelaMos | 2026
 cli.py
+
 Typer CLI application for DNS lookups
 """
 

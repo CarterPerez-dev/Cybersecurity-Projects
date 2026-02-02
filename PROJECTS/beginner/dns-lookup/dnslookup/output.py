@@ -1,6 +1,7 @@
 """
-CarterPerez-dev | 2025
+ⒸAngelaMos | 2026
 output.py
+
 Rich terminal output formatting for DNS results
 """
 

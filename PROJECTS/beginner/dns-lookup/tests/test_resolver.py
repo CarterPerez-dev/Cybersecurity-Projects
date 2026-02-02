@@ -1,10 +1,9 @@
 """
-CarterPerez-dev | 2025
+ⒸAngelaMos | 2026
 test_resolver.py
+
 Tests for DNS resolver functionality
 """
-
-from __future__ import annotations
 
 import pytest
 
