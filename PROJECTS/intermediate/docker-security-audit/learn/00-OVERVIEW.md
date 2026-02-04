@@ -10,6 +10,7 @@ internal/
   analyzer/           Security checks for different target types
   benchmark/          CIS Docker Benchmark control definitions
   config/             Runtime configuration and constants# Docker Security Audit Tool (docksec)
+```
 
 ## What This Is
 
