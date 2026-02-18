@@ -2,17 +2,17 @@
  * 8-bit styled button component
  */
 
-import { Show, splitProps } from "solid-js"
-import type { JSX } from "solid-js"
-import type { ButtonProps, Size, ButtonVariant } from "../../types"
-import { Spinner } from "./Spinner"
+import type { JSX } from 'solid-js'
+import { Show, splitProps } from 'solid-js'
+import type { ButtonProps, ButtonVariant, Size } from '../../types'
+import { Spinner } from './Spinner'
 
 const SIZE_CLASSES: Record<Size, string> = {
-  xs: "px-2 py-1 text-[8px]",
-  sm: "px-3 py-1.5 text-[10px]",
-  md: "px-4 py-2 text-xs",
-  lg: "px-6 py-3 text-sm",
-  xl: "px-8 py-4 text-base",
+  xs: 'px-2 py-1 text-[8px]',
+  sm: 'px-3 py-1.5 text-[10px]',
+  md: 'px-4 py-2 text-xs',
+  lg: 'px-6 py-3 text-sm',
+  xl: 'px-8 py-4 text-base',
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
@@ -49,21 +49,21 @@ const DISABLED_CLASSES = `
 
 export function Button(props: ButtonProps): JSX.Element {
   const [local, rest] = splitProps(props, [
-    "variant",
-    "size",
-    "fullWidth",
-    "disabled",
-    "loading",
-    "leftIcon",
-    "rightIcon",
-    "type",
-    "onClick",
-    "class",
-    "children",
+    'variant',
+    'size',
+    'fullWidth',
+    'disabled',
+    'loading',
+    'leftIcon',
+    'rightIcon',
+    'type',
+    'onClick',
+    'class',
+    'children',
   ])
 
-  const variant = (): ButtonVariant => local.variant ?? "primary"
-  const size = (): Size => local.size ?? "md"
+  const variant = (): ButtonVariant => local.variant ?? 'primary'
+  const size = (): Size => local.size ?? 'md'
   const isDisabled = (): boolean => local.disabled ?? false
   const isLoading = (): boolean => local.loading ?? false
 
@@ -75,7 +75,7 @@ export function Button(props: ButtonProps): JSX.Element {
 
   return (
     <button
-      type={local.type ?? "button"}
+      type={local.type ?? 'button'}
       disabled={isDisabled() || isLoading()}
       onClick={handleClick}
       class={`
@@ -84,22 +84,18 @@ export function Button(props: ButtonProps): JSX.Element {
         focus:outline-none focus:ring-2 focus:ring-orange focus:ring-offset-2 focus:ring-offset-black
         ${SIZE_CLASSES[size()]}
         ${VARIANT_CLASSES[variant()]}
-        ${(isDisabled() || isLoading()) ? DISABLED_CLASSES : ""}
-        ${local.fullWidth === true ? "w-full" : ""}
-        ${local.class ?? ""}
+        ${isDisabled() || isLoading() ? DISABLED_CLASSES : ''}
+        ${local.fullWidth === true ? 'w-full' : ''}
+        ${local.class ?? ''}
       `}
       {...rest}
     >
       <Show when={isLoading()}>
         <Spinner size="xs" />
       </Show>
-      <Show when={!isLoading() && local.leftIcon}>
-        {local.leftIcon}
-      </Show>
+      <Show when={!isLoading() && local.leftIcon}>{local.leftIcon}</Show>
       <span>{local.children}</span>
-      <Show when={!isLoading() && local.rightIcon}>
-        {local.rightIcon}
-      </Show>
+      <Show when={!isLoading() && local.rightIcon}>{local.rightIcon}</Show>
     </button>
   )
 }

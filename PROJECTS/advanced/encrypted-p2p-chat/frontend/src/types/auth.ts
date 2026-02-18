@@ -41,13 +41,15 @@ export interface AuthenticationCompleteRequest {
 }
 
 export interface WebAuthnOptions {
-  publicKey: PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions
+  publicKey:
+    | PublicKeyCredentialCreationOptions
+    | PublicKeyCredentialRequestOptions
 }
 
 export interface PublicKeyCredentialJSON {
   id: string
   rawId: string
-  type: "public-key"
+  type: 'public-key'
   response: {
     clientDataJSON: string
     attestationObject?: string
@@ -55,7 +57,7 @@ export interface PublicKeyCredentialJSON {
     signature?: string
     userHandle?: string
   }
-  authenticatorAttachment?: "platform" | "cross-platform"
+  authenticatorAttachment?: 'platform' | 'cross-platform'
   clientExtensionResults: Record<string, unknown>
 }
 

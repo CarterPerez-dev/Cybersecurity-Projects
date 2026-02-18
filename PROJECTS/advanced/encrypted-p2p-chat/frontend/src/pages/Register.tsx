@@ -3,9 +3,9 @@
 // Registration page with WebAuthn passkey creation
 // ===================
 
-import type { JSX } from "solid-js"
-import { AuthForm } from "../components/Auth"
-import { GuestRoute } from "../components/Layout"
+import type { JSX } from 'solid-js'
+import { AuthForm } from '../components/Auth'
+import { GuestRoute } from '../components/Layout'
 
 export default function Register(): JSX.Element {
   return (

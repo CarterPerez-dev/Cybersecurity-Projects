@@ -3,23 +3,23 @@
 // primitives.ts
 // ===================
 import {
-  X25519_KEY_SIZE,
   AES_GCM_KEY_SIZE,
   AES_GCM_NONCE_SIZE,
   HKDF_OUTPUT_SIZE,
-} from "../types"
+  X25519_KEY_SIZE,
+} from '../types'
 
 const crypto = globalThis.crypto
 const subtle = crypto.subtle
 
 export async function generateX25519KeyPair(): Promise<CryptoKeyPair> {
-  const keyPair = await subtle.generateKey(
+  const keyPair = (await subtle.generateKey(
     {
-      name: "X25519",
+      name: 'X25519',
     },
     true,
-    ["deriveBits"]
-  ) as CryptoKeyPair
+    ['deriveBits']
+  )) as CryptoKeyPair
   return keyPair
 }
 
@@ -29,7 +29,7 @@ export async function x25519DeriveSharedSecret(
 ): Promise<Uint8Array> {
   const sharedBits = await subtle.deriveBits(
     {
-      name: "X25519",
+      name: 'X25519',
       public: publicKey,
     },
     privateKey,
@@ -38,61 +38,65 @@ export async function x25519DeriveSharedSecret(
   return new Uint8Array(sharedBits)
 }
 
-export async function importX25519PublicKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+export async function importX25519PublicKey(
+  keyBytes: Uint8Array
+): Promise<CryptoKey> {
   if (keyBytes.length === 32) {
     return await subtle.importKey(
-      "raw",
+      'raw',
       keyBytes.buffer as ArrayBuffer,
-      { name: "X25519" },
+      { name: 'X25519' },
       true,
       []
     )
   }
   return await subtle.importKey(
-    "spki",
+    'spki',
     keyBytes.buffer as ArrayBuffer,
-    { name: "X25519" },
+    { name: 'X25519' },
     true,
     []
   )
 }
 
-export async function importX25519PrivateKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+export async function importX25519PrivateKey(
+  keyBytes: Uint8Array
+): Promise<CryptoKey> {
   if (keyBytes.length === 32) {
     return await subtle.importKey(
-      "raw",
+      'raw',
       keyBytes.buffer as ArrayBuffer,
-      { name: "X25519" },
+      { name: 'X25519' },
       true,
-      ["deriveBits"]
+      ['deriveBits']
     )
   }
   return await subtle.importKey(
-    "pkcs8",
+    'pkcs8',
     keyBytes.buffer as ArrayBuffer,
-    { name: "X25519" },
+    { name: 'X25519' },
     true,
-    ["deriveBits"]
+    ['deriveBits']
   )
 }
 
 export async function exportPublicKey(key: CryptoKey): Promise<Uint8Array> {
-  const exported = await subtle.exportKey("spki", key)
+  const exported = await subtle.exportKey('spki', key)
   return new Uint8Array(exported)
 }
 
 export async function exportPrivateKey(key: CryptoKey): Promise<Uint8Array> {
-  const exported = await subtle.exportKey("pkcs8", key)
+  const exported = await subtle.exportKey('pkcs8', key)
   return new Uint8Array(exported)
 }
 
 export async function generateEd25519KeyPair(): Promise<CryptoKeyPair> {
   return await subtle.generateKey(
     {
-      name: "Ed25519",
+      name: 'Ed25519',
     },
     true,
-    ["sign", "verify"]
+    ['sign', 'verify']
   )
 }
 
@@ -102,7 +106,7 @@ export async function ed25519Sign(
 ): Promise<Uint8Array> {
   const signature = await subtle.sign(
     {
-      name: "Ed25519",
+      name: 'Ed25519',
     },
     privateKey,
     data.buffer as ArrayBuffer
@@ -117,7 +121,7 @@ export async function ed25519Verify(
 ): Promise<boolean> {
   return await subtle.verify(
     {
-      name: "Ed25519",
+      name: 'Ed25519',
     },
     publicKey,
     signature.buffer as ArrayBuffer,
@@ -125,41 +129,45 @@ export async function ed25519Verify(
   )
 }
 
-export async function importEd25519PublicKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+export async function importEd25519PublicKey(
+  keyBytes: Uint8Array
+): Promise<CryptoKey> {
   if (keyBytes.length === 32) {
     return await subtle.importKey(
-      "raw",
+      'raw',
       keyBytes.buffer as ArrayBuffer,
-      { name: "Ed25519" },
+      { name: 'Ed25519' },
       true,
-      ["verify"]
+      ['verify']
     )
   }
   return await subtle.importKey(
-    "spki",
+    'spki',
     keyBytes.buffer as ArrayBuffer,
-    { name: "Ed25519" },
+    { name: 'Ed25519' },
     true,
-    ["verify"]
+    ['verify']
   )
 }
 
-export async function importEd25519PrivateKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+export async function importEd25519PrivateKey(
+  keyBytes: Uint8Array
+): Promise<CryptoKey> {
   if (keyBytes.length === 32) {
     return await subtle.importKey(
-      "raw",
+      'raw',
       keyBytes.buffer as ArrayBuffer,
-      { name: "Ed25519" },
+      { name: 'Ed25519' },
       true,
-      ["sign"]
+      ['sign']
     )
   }
   return await subtle.importKey(
-    "pkcs8",
+    'pkcs8',
     keyBytes.buffer as ArrayBuffer,
-    { name: "Ed25519" },
+    { name: 'Ed25519' },
     true,
-    ["sign"]
+    ['sign']
   )
 }
 
@@ -170,17 +178,17 @@ export async function hkdfDerive(
   outputLength: number = HKDF_OUTPUT_SIZE
 ): Promise<Uint8Array> {
   const baseKey = await subtle.importKey(
-    "raw",
+    'raw',
     inputKeyMaterial.buffer as ArrayBuffer,
-    { name: "HKDF" },
+    { name: 'HKDF' },
     false,
-    ["deriveBits"]
+    ['deriveBits']
   )
 
   const derivedBits = await subtle.deriveBits(
     {
-      name: "HKDF",
-      hash: "SHA-256",
+      name: 'HKDF',
+      hash: 'SHA-256',
       salt: salt.buffer as ArrayBuffer,
       info: info.buffer as ArrayBuffer,
     },
@@ -197,27 +205,27 @@ export async function hkdfDeriveKey(
   info: Uint8Array
 ): Promise<CryptoKey> {
   const keyMaterial = await subtle.importKey(
-    "raw",
+    'raw',
     inputKeyMaterial.buffer as ArrayBuffer,
-    { name: "HKDF" },
+    { name: 'HKDF' },
     false,
-    ["deriveKey"]
+    ['deriveKey']
   )
 
   return await subtle.deriveKey(
     {
-      name: "HKDF",
-      hash: "SHA-256",
+      name: 'HKDF',
+      hash: 'SHA-256',
       salt: salt.buffer as ArrayBuffer,
       info: info.buffer as ArrayBuffer,
     },
     keyMaterial,
     {
-      name: "AES-GCM",
+      name: 'AES-GCM',
       length: AES_GCM_KEY_SIZE * 8,
     },
     true,
-    ["encrypt", "decrypt"]
+    ['encrypt', 'decrypt']
   )
 }
 
@@ -230,11 +238,11 @@ export async function aesGcmEncrypt(
 
   if (key instanceof Uint8Array) {
     cryptoKey = await subtle.importKey(
-      "raw",
+      'raw',
       key.buffer as ArrayBuffer,
-      { name: "AES-GCM", length: AES_GCM_KEY_SIZE * 8 },
+      { name: 'AES-GCM', length: AES_GCM_KEY_SIZE * 8 },
       false,
-      ["encrypt"]
+      ['encrypt']
     )
   } else {
     cryptoKey = key
@@ -244,7 +252,7 @@ export async function aesGcmEncrypt(
 
   const ciphertext = await subtle.encrypt(
     {
-      name: "AES-GCM",
+      name: 'AES-GCM',
       iv: nonce.buffer as ArrayBuffer,
       additionalData: associatedData?.buffer as ArrayBuffer | undefined,
     },
@@ -268,11 +276,11 @@ export async function aesGcmDecrypt(
 
   if (key instanceof Uint8Array) {
     cryptoKey = await subtle.importKey(
-      "raw",
+      'raw',
       key.buffer as ArrayBuffer,
-      { name: "AES-GCM", length: AES_GCM_KEY_SIZE * 8 },
+      { name: 'AES-GCM', length: AES_GCM_KEY_SIZE * 8 },
       false,
-      ["decrypt"]
+      ['decrypt']
     )
   } else {
     cryptoKey = key
@@ -280,7 +288,7 @@ export async function aesGcmDecrypt(
 
   const plaintext = await subtle.decrypt(
     {
-      name: "AES-GCM",
+      name: 'AES-GCM',
       iv: nonce.buffer as ArrayBuffer,
       additionalData: associatedData?.buffer as ArrayBuffer | undefined,
     },
@@ -298,12 +306,12 @@ export function generateRandomBytes(length: number): Uint8Array {
 }
 
 export async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  const hash = await subtle.digest("SHA-256", data.buffer as ArrayBuffer)
+  const hash = await subtle.digest('SHA-256', data.buffer as ArrayBuffer)
   return new Uint8Array(hash)
 }
 
 export async function sha512(data: Uint8Array): Promise<Uint8Array> {
-  const hash = await subtle.digest("SHA-512", data.buffer as ArrayBuffer)
+  const hash = await subtle.digest('SHA-512', data.buffer as ArrayBuffer)
   return new Uint8Array(hash)
 }
 
@@ -312,17 +320,21 @@ export async function hmacSha256(
   data: Uint8Array
 ): Promise<Uint8Array> {
   const cryptoKey = await subtle.importKey(
-    "raw",
+    'raw',
     key.buffer as ArrayBuffer,
     {
-      name: "HMAC",
-      hash: "SHA-256",
+      name: 'HMAC',
+      hash: 'SHA-256',
     },
     false,
-    ["sign"]
+    ['sign']
   )
 
-  const signature = await subtle.sign("HMAC", cryptoKey, data.buffer as ArrayBuffer)
+  const signature = await subtle.sign(
+    'HMAC',
+    cryptoKey,
+    data.buffer as ArrayBuffer
+  )
   return new Uint8Array(signature)
 }
 
@@ -332,17 +344,22 @@ export async function hmacSha256Verify(
   data: Uint8Array
 ): Promise<boolean> {
   const cryptoKey = await subtle.importKey(
-    "raw",
+    'raw',
     key.buffer as ArrayBuffer,
     {
-      name: "HMAC",
-      hash: "SHA-256",
+      name: 'HMAC',
+      hash: 'SHA-256',
     },
     false,
-    ["verify"]
+    ['verify']
   )
 
-  return await subtle.verify("HMAC", cryptoKey, signature.buffer as ArrayBuffer, data.buffer as ArrayBuffer)
+  return await subtle.verify(
+    'HMAC',
+    cryptoKey,
+    signature.buffer as ArrayBuffer,
+    data.buffer as ArrayBuffer
+  )
 }
 
 export function concatBytes(...arrays: Uint8Array[]): Uint8Array {
@@ -373,8 +390,8 @@ export function base64ToBytes(base64: string): Uint8Array {
 
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 export function hexToBytes(hex: string): Uint8Array {

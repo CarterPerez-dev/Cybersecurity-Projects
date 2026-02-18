@@ -2,13 +2,14 @@
 // © AngelaMos | 2025
 // ChatHeader.tsx
 // ===================
-import { Show } from "solid-js"
-import type { JSX } from "solid-js"
-import type { Room, Participant } from "../../types"
-import { OnlineStatus } from "./OnlineStatus"
-import { EncryptionBadge } from "./EncryptionBadge"
-import { getUserStatus } from "../../stores"
-import { IconButton } from "../UI/IconButton"
+
+import type { JSX } from 'solid-js'
+import { Show } from 'solid-js'
+import { getUserStatus } from '../../stores'
+import type { Participant, Room } from '../../types'
+import { IconButton } from '../UI/IconButton'
+import { EncryptionBadge } from './EncryptionBadge'
+import { OnlineStatus } from './OnlineStatus'
 
 interface ChatHeaderProps {
   room: Room | null
@@ -19,16 +20,16 @@ interface ChatHeaderProps {
 
 export function ChatHeader(props: ChatHeaderProps): JSX.Element {
   const otherParticipant = (): Participant | null => {
-    if (props.room?.type !== "direct") return null
+    if (props.room?.type !== 'direct') return null
     return props.room.participants[0] ?? null
   }
 
   const displayName = (): string => {
     const room = props.room
-    if (room === null) return "CHAT"
+    if (room === null) return 'CHAT'
     if (room.name !== undefined && room.name !== null) return room.name
     const other = otherParticipant()
-    return other?.display_name ?? other?.username ?? "CHAT"
+    return other?.display_name ?? other?.username ?? 'CHAT'
   }
 
   const initials = (): string => {
@@ -37,14 +38,14 @@ export function ChatHeader(props: ChatHeaderProps): JSX.Element {
   }
 
   return (
-    <div class={`flex-shrink-0 px-4 py-3 border-b-2 border-orange ${props.class ?? ""}`}>
+    <div
+      class={`flex-shrink-0 px-4 py-3 border-b-2 border-orange ${props.class ?? ''}`}
+    >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="relative">
             <div class="w-10 h-10 bg-black border-2 border-orange flex items-center justify-center">
-              <span class="font-pixel text-[10px] text-orange">
-                {initials()}
-              </span>
+              <span class="font-pixel text-[10px] text-orange">{initials()}</span>
             </div>
             <Show when={otherParticipant()} keyed>
               {(participant) => (
@@ -59,14 +60,12 @@ export function ChatHeader(props: ChatHeaderProps): JSX.Element {
           </div>
 
           <div>
-            <h2 class="font-pixel text-xs text-white">
-              {displayName()}
-            </h2>
+            <h2 class="font-pixel text-xs text-white">{displayName()}</h2>
             <div class="flex items-center gap-2 mt-0.5">
               <Show when={props.room?.is_encrypted}>
                 <EncryptionBadge isEncrypted showLabel size="sm" />
               </Show>
-              <Show when={props.room?.type === "group"}>
+              <Show when={props.room?.type === 'group'}>
                 <span class="font-pixel text-[8px] text-gray">
                   {props.room?.participants.length ?? 0} MEMBERS
                 </span>
@@ -107,7 +106,13 @@ export function ChatHeader(props: ChatHeaderProps): JSX.Element {
 
 function InfoIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="7" y="3" width="2" height="2" />
       <rect x="7" y="7" width="2" height="6" />
     </svg>
@@ -116,7 +121,13 @@ function InfoIcon(): JSX.Element {
 
 function SettingsIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="7" y="1" width="2" height="3" />
       <rect x="7" y="12" width="2" height="3" />
       <rect x="1" y="7" width="3" height="2" />

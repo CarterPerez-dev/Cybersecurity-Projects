@@ -2,13 +2,14 @@
 // © AngelaMos | 2025
 // ConversationList.tsx
 // ===================
-import { Show, For, createMemo } from "solid-js"
-import type { JSX } from "solid-js"
-import { useStore } from "@nanostores/solid"
-import { $rooms, $activeRoomId, setActiveRoom } from "../../stores"
-import { ConversationItem } from "./ConversationItem"
-import { Spinner } from "../UI/Spinner"
-import type { Room } from "../../types"
+
+import { useStore } from '@nanostores/solid'
+import type { JSX } from 'solid-js'
+import { createMemo, For, Show } from 'solid-js'
+import { $activeRoomId, $rooms, setActiveRoom } from '../../stores'
+import type { Room } from '../../types'
+import { Spinner } from '../UI/Spinner'
+import { ConversationItem } from './ConversationItem'
 
 interface ConversationListProps {
   loading?: boolean
@@ -35,11 +36,9 @@ export function ConversationList(props: ConversationListProps): JSX.Element {
   }
 
   return (
-    <div class={`flex flex-col h-full ${props.class ?? ""}`}>
+    <div class={`flex flex-col h-full ${props.class ?? ''}`}>
       <div class="flex items-center justify-between px-4 py-3 border-b-2 border-dark-gray">
-        <h2 class="font-pixel text-[10px] text-orange">
-          CONVERSATIONS
-        </h2>
+        <h2 class="font-pixel text-[10px] text-orange">CONVERSATIONS</h2>
         <Show when={props.onNewChat}>
           <button
             type="button"
@@ -112,7 +111,13 @@ function EmptyConversations(props: EmptyConversationsProps): JSX.Element {
 
 function PlusIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="5" y="1" width="2" height="10" />
       <rect x="1" y="5" width="10" height="2" />
     </svg>
@@ -121,7 +126,14 @@ function PlusIcon(): JSX.Element {
 
 function ChatIcon(): JSX.Element {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="currentColor" class="text-dark-gray">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="currentColor"
+      class="text-dark-gray"
+      aria-hidden="true"
+    >
       <rect x="6" y="6" width="28" height="3" />
       <rect x="3" y="9" width="3" height="20" />
       <rect x="34" y="9" width="3" height="20" />

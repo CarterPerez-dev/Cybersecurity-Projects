@@ -2,30 +2,32 @@
  * 8-bit styled dropdown menu component
  */
 
-import { Show, For, createSignal, onCleanup, createEffect } from "solid-js"
-import type { JSX } from "solid-js"
-import type { DropdownProps, DropdownItem } from "../../types"
+import type { JSX } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
+import type { DropdownItem, DropdownProps } from '../../types'
 
-type DropdownAlign = "left" | "right"
+type DropdownAlign = 'left' | 'right'
 
 export function Dropdown(props: DropdownProps): JSX.Element {
   const [isOpen, setIsOpen] = createSignal(false)
   let containerRef: HTMLDivElement | undefined
 
-  const align = (): DropdownAlign => props.align ?? "left"
+  const align = (): DropdownAlign => props.align ?? 'left'
 
   const getItemClasses = (item: DropdownItem): string => {
     if (item.disabled === true) {
-      return "text-gray cursor-not-allowed"
+      return 'text-gray cursor-not-allowed'
     }
     if (item.danger === true) {
-      return "text-error hover:bg-error hover:text-white"
+      return 'text-error hover:bg-error hover:text-white'
     }
-    return "text-white hover:bg-orange hover:text-black"
+    return 'text-white hover:bg-orange hover:text-black'
   }
 
   const getItemActiveClass = (item: DropdownItem): string => {
-    return item.disabled === true ? "" : "active:translate-x-[1px] active:translate-y-[1px]"
+    return item.disabled === true
+      ? ''
+      : 'active:translate-x-[1px] active:translate-y-[1px]'
   }
 
   const handleToggle = (): void => {
@@ -45,41 +47,38 @@ export function Dropdown(props: DropdownProps): JSX.Element {
   }
 
   const handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       setIsOpen(false)
     }
   }
 
   createEffect(() => {
     if (isOpen()) {
-      document.addEventListener("click", handleClickOutside)
-      document.addEventListener("keydown", handleKeyDown)
+      document.addEventListener('click', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
     }
 
     onCleanup(() => {
-      document.removeEventListener("click", handleClickOutside)
-      document.removeEventListener("keydown", handleKeyDown)
+      document.removeEventListener('click', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
     })
   })
 
   return (
-    <div
-      ref={containerRef}
-      class={`relative inline-block ${props.class ?? ""}`}
-    >
-      <div
-        role="button"
+    <div ref={containerRef} class={`relative inline-block ${props.class ?? ''}`}>
+      <button
+        type="button"
         tabIndex={0}
         onClick={handleToggle}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             handleToggle()
           }
         }}
       >
         {props.trigger}
-      </div>
+      </button>
 
       <Show when={isOpen()}>
         <div
@@ -88,7 +87,7 @@ export function Dropdown(props: DropdownProps): JSX.Element {
             bg-black border-2 border-orange
             shadow-[4px_4px_0_var(--color-orange)]
             animate-scale-in origin-top
-            ${align() === "right" ? "right-0" : "left-0"}
+            ${align() === 'right' ? 'right-0' : 'left-0'}
           `}
           role="menu"
         >

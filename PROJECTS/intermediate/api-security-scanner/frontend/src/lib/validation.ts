@@ -3,7 +3,7 @@
 // Zod Validation Schemas
 // ===========================
 
-import { z } from 'zod';
+import { z } from 'zod'
 
 export const loginSchema = z.object({
   email: z
@@ -11,7 +11,7 @@ export const loginSchema = z.object({
     .min(1, 'Email is required')
     .max(255, 'Email too long'),
   password: z.string().min(1, 'Password is required'),
-});
+})
 
 export const registerSchema = z
   .object({
@@ -31,7 +31,7 @@ export const registerSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
-  });
+  })
 
 export const scanSchema = z.object({
   targetUrl: z
@@ -47,8 +47,8 @@ export const scanSchema = z.object({
     .int('Must be a whole number')
     .min(1, 'Must be at least 1')
     .max(50, 'Maximum 50 requests allowed'),
-});
+})
 
-export type LoginFormData = z.infer<typeof loginSchema>;
-export type RegisterFormData = z.infer<typeof registerSchema>;
-export type ScanFormData = z.infer<typeof scanSchema>;
+export type LoginFormData = z.infer<typeof loginSchema>
+export type RegisterFormData = z.infer<typeof registerSchema>
+export type ScanFormData = z.infer<typeof scanSchema>

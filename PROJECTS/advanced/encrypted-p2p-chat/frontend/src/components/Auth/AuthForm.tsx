@@ -3,41 +3,40 @@
 // AuthForm.tsx
 // ===================
 
-import { createSignal, Show } from "solid-js"
-import type { JSX } from "solid-js"
-import { A } from "@solidjs/router"
-import { Input } from "../UI/Input"
-import { PasskeyButton } from "./PasskeyButton"
-import { AuthCard } from "./AuthCard"
-import {
-  validateUsername,
-  validateDisplayName,
-} from "../../lib/validators"
-import { authService } from "../../services"
-import { showToast } from "../../stores"
-import { ApiError } from "../../types"
+import { A } from '@solidjs/router'
+import type { JSX } from 'solid-js'
+import { createSignal, Show } from 'solid-js'
+import { validateDisplayName, validateUsername } from '../../lib/validators'
+import { authService } from '../../services'
+import { showToast } from '../../stores'
+import { ApiError } from '../../types'
+import { Input } from '../UI/Input'
+import { AuthCard } from './AuthCard'
+import { PasskeyButton } from './PasskeyButton'
 
-type AuthMode = "login" | "register"
+type AuthMode = 'login' | 'register'
 
 interface AuthFormProps {
   mode: AuthMode
 }
 
 export function AuthForm(props: AuthFormProps): JSX.Element {
-  const [username, setUsername] = createSignal("")
-  const [displayName, setDisplayName] = createSignal("")
+  const [username, setUsername] = createSignal('')
+  const [displayName, setDisplayName] = createSignal('')
   const [loading, setLoading] = createSignal(false)
   const [usernameError, setUsernameError] = createSignal<string | undefined>()
-  const [displayNameError, setDisplayNameError] = createSignal<string | undefined>()
+  const [displayNameError, setDisplayNameError] = createSignal<
+    string | undefined
+  >()
 
-  const isRegister = (): boolean => props.mode === "register"
+  const isRegister = (): boolean => props.mode === 'register'
 
-  const title = (): string => isRegister() ? "CREATE ACCOUNT" : "WELCOME BACK"
+  const title = (): string => (isRegister() ? 'CREATE ACCOUNT' : 'WELCOME BACK')
 
   const subtitle = (): string =>
     isRegister()
-      ? "REGISTER WITH A PASSKEY FOR SECURE, PASSWORDLESS AUTHENTICATION"
-      : "SIGN IN WITH YOUR PASSKEY TO CONTINUE"
+      ? 'REGISTER WITH A PASSKEY FOR SECURE, PASSWORDLESS AUTHENTICATION'
+      : 'SIGN IN WITH YOUR PASSKEY TO CONTINUE'
 
   const validateForm = (): boolean => {
     let valid = true
@@ -73,29 +72,37 @@ export function AuthForm(props: AuthFormProps): JSX.Element {
     try {
       if (isRegister()) {
         await authService.register(username(), displayName())
-        showToast("success", "REGISTRATION COMPLETE", "YOUR PASSKEY HAS BEEN CREATED")
+        showToast(
+          'success',
+          'REGISTRATION COMPLETE',
+          'YOUR PASSKEY HAS BEEN CREATED'
+        )
       } else {
         const trimmedUsername = username().trim()
-        const usernameValue = trimmedUsername === "" ? undefined : trimmedUsername
+        const usernameValue = trimmedUsername === '' ? undefined : trimmedUsername
         await authService.login(usernameValue)
-        showToast("success", "LOGIN SUCCESSFUL", "WELCOME BACK")
+        showToast('success', 'LOGIN SUCCESSFUL', 'WELCOME BACK')
       }
     } catch (error) {
-      let message = "AN UNEXPECTED ERROR OCCURRED"
+      let message = 'AN UNEXPECTED ERROR OCCURRED'
 
       if (error instanceof ApiError) {
         message = error.message.toUpperCase()
       } else if (error instanceof Error) {
-        if (error.name === "NotAllowedError") {
-          message = "PASSKEY OPERATION CANCELLED"
-        } else if (error.name === "InvalidStateError") {
-          message = "PASSKEY ALREADY REGISTERED"
+        if (error.name === 'NotAllowedError') {
+          message = 'PASSKEY OPERATION CANCELLED'
+        } else if (error.name === 'InvalidStateError') {
+          message = 'PASSKEY ALREADY REGISTERED'
         } else {
           message = error.message.toUpperCase()
         }
       }
 
-      showToast("error", isRegister() ? "REGISTRATION FAILED" : "LOGIN FAILED", message)
+      showToast(
+        'error',
+        isRegister() ? 'REGISTRATION FAILED' : 'LOGIN FAILED',
+        message
+      )
     } finally {
       setLoading(false)
     }
@@ -158,14 +165,14 @@ export function AuthForm(props: AuthFormProps): JSX.Element {
             when={isRegister()}
             fallback={
               <>
-                DON'T HAVE AN ACCOUNT?{" "}
+                DON'T HAVE AN ACCOUNT?{' '}
                 <A href="/register" class="text-orange hover:underline">
                   REGISTER
                 </A>
               </>
             }
           >
-            ALREADY HAVE AN ACCOUNT?{" "}
+            ALREADY HAVE AN ACCOUNT?{' '}
             <A href="/login" class="text-orange hover:underline">
               SIGN IN
             </A>

@@ -2,17 +2,17 @@
 // © AngelaMos | 2025
 // websockets.ts
 // ===================
-import type { PresenceStatus } from "./chat"
+import type { PresenceStatus } from './chat'
 
 export type WSMessageType =
-  | "encrypted_message"
-  | "typing"
-  | "presence"
-  | "receipt"
-  | "heartbeat"
-  | "error"
-  | "room_created"
-  | "message_sent"
+  | 'encrypted_message'
+  | 'typing'
+  | 'presence'
+  | 'receipt'
+  | 'heartbeat'
+  | 'error'
+  | 'room_created'
+  | 'message_sent'
 
 export interface BaseWSMessage {
   type: WSMessageType
@@ -20,7 +20,7 @@ export interface BaseWSMessage {
 }
 
 export interface EncryptedMessageWS extends BaseWSMessage {
-  type: "encrypted_message"
+  type: 'encrypted_message'
   message_id: string
   sender_id: string
   recipient_id: string
@@ -33,7 +33,7 @@ export interface EncryptedMessageWS extends BaseWSMessage {
 }
 
 export interface TypingIndicatorWS extends BaseWSMessage {
-  type: "typing"
+  type: 'typing'
   user_id: string
   room_id: string
   is_typing: boolean
@@ -41,14 +41,14 @@ export interface TypingIndicatorWS extends BaseWSMessage {
 }
 
 export interface PresenceUpdateWS extends BaseWSMessage {
-  type: "presence"
+  type: 'presence'
   user_id: string
   status: PresenceStatus
   last_seen: string
 }
 
 export interface ReadReceiptWS extends BaseWSMessage {
-  type: "receipt"
+  type: 'receipt'
   message_id: string
   room_id: string
   user_id: string
@@ -56,18 +56,18 @@ export interface ReadReceiptWS extends BaseWSMessage {
 }
 
 export interface HeartbeatWS extends BaseWSMessage {
-  type: "heartbeat"
+  type: 'heartbeat'
 }
 
 export interface ErrorMessageWS extends BaseWSMessage {
-  type: "error"
+  type: 'error'
   error_code: string
   error_message: string
   details?: Record<string, unknown>
 }
 
 export interface RoomCreatedWS extends BaseWSMessage {
-  type: "room_created"
+  type: 'room_created'
   room_id: string
   room_type: string
   name: string | null
@@ -84,7 +84,7 @@ export interface RoomCreatedWS extends BaseWSMessage {
 }
 
 export interface MessageSentWS extends BaseWSMessage {
-  type: "message_sent"
+  type: 'message_sent'
   temp_id: string
   message_id: string
   room_id: string
@@ -103,7 +103,7 @@ export type WSMessage =
   | MessageSentWS
 
 export interface WSOutgoingEncryptedMessage {
-  type: "encrypted_message"
+  type: 'encrypted_message'
   recipient_id: string
   room_id: string
   ciphertext: string
@@ -113,24 +113,24 @@ export interface WSOutgoingEncryptedMessage {
 }
 
 export interface WSOutgoingTyping {
-  type: "typing"
+  type: 'typing'
   room_id: string
   is_typing: boolean
 }
 
 export interface WSOutgoingPresence {
-  type: "presence"
+  type: 'presence'
   status: PresenceStatus
 }
 
 export interface WSOutgoingReceipt {
-  type: "receipt"
+  type: 'receipt'
   message_id: string
   room_id: string
 }
 
 export interface WSOutgoingHeartbeat {
-  type: "heartbeat"
+  type: 'heartbeat'
   timestamp: string
 }
 

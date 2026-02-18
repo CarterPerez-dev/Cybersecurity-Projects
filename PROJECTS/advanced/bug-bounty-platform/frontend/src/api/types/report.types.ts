@@ -165,11 +165,13 @@ export const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
 }
 
 export const isOpenStatus = (status: ReportStatus): boolean => {
-  return ([
-    ReportStatus.NEW,
-    ReportStatus.TRIAGING,
-    ReportStatus.NEEDS_MORE_INFO,
-  ] as ReportStatus[]).includes(status)
+  return (
+    [
+      ReportStatus.NEW,
+      ReportStatus.TRIAGING,
+      ReportStatus.NEEDS_MORE_INFO,
+    ] as ReportStatus[]
+  ).includes(status)
 }
 
 export const isClosedStatus = (status: ReportStatus): boolean => {

@@ -2,11 +2,11 @@
 // © AngelaMos | 2025
 // chat.ts
 // ===================
-export type MessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
 
-export type PresenceStatus = "online" | "away" | "offline"
+export type PresenceStatus = 'online' | 'away' | 'offline'
 
-export type RoomType = "direct" | "group" | "ephemeral"
+export type RoomType = 'direct' | 'group' | 'ephemeral'
 
 export interface Message {
   id: string
@@ -41,7 +41,7 @@ export interface Participant {
   user_id: string
   username: string
   display_name: string
-  role: "owner" | "admin" | "member"
+  role: 'owner' | 'admin' | 'member'
   joined_at: string
 }
 

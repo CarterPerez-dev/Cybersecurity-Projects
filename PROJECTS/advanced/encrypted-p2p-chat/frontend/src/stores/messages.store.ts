@@ -3,9 +3,9 @@
  * Manages message cache per room
  */
 
-import { map, computed } from "nanostores"
-import type { Message, MessageStatus } from "../types"
-import { $activeRoomId } from "./rooms.store"
+import { computed, map } from 'nanostores'
+import type { Message, MessageStatus } from '../types'
+import { $activeRoomId } from './rooms.store'
 
 export const $messagesByRoom = map<Record<string, Message[]>>({})
 
@@ -17,12 +17,12 @@ export const $oldestMessageIdByRoom = map<Record<string, string | undefined>>({}
 
 export const $activeRoomMessages = computed(
   [$messagesByRoom, $activeRoomId],
-  (messages, roomId) => (roomId ? messages[roomId] ?? [] : [])
+  (messages, roomId) => (roomId ? (messages[roomId] ?? []) : [])
 )
 
 export const $activeRoomPendingMessages = computed(
   [$pendingMessages, $activeRoomId],
-  (pending, roomId) => (roomId ? pending[roomId] ?? [] : [])
+  (pending, roomId) => (roomId ? (pending[roomId] ?? []) : [])
 )
 
 export function addMessage(roomId: string, message: Message): void {
@@ -142,7 +142,10 @@ export function clearAllMessages(): void {
   $oldestMessageIdByRoom.set({})
 }
 
-export function getMessageById(roomId: string, messageId: string): Message | null {
+export function getMessageById(
+  roomId: string,
+  messageId: string
+): Message | null {
   const messages = $messagesByRoom.get()[roomId]
   return messages?.find((m) => m.id === messageId) ?? null
 }

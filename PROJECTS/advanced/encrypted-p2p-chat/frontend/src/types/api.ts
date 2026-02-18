@@ -9,7 +9,7 @@ export class ApiError extends Error {
     message?: string
   ) {
     super(message ?? `API Error: ${status}`)
-    this.name = "ApiError"
+    this.name = 'ApiError'
   }
 }
 

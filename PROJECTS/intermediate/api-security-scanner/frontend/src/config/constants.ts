@@ -11,7 +11,7 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_URL !== null &&
   import.meta.env.VITE_API_URL !== ''
     ? import.meta.env.VITE_API_URL
-    : '/api';
+    : '/api'
 
 /**
  * Auth API Endpoints
@@ -19,10 +19,9 @@ export const API_BASE_URL =
 export const AUTH_ENDPOINTS = {
   REGISTER: '/auth/register',
   LOGIN: '/auth/login',
-} as const;
+} as const
 
-export type AuthEndpoint =
-  (typeof AUTH_ENDPOINTS)[keyof typeof AUTH_ENDPOINTS];
+export type AuthEndpoint = (typeof AUTH_ENDPOINTS)[keyof typeof AUTH_ENDPOINTS]
 
 /**
  * Auth Error Messages
@@ -33,19 +32,19 @@ export const AUTH_ERROR_MESSAGES = {
   LOGIN_FAILED: 'Failed to login',
   REGISTER_FAILED: 'Failed to register',
   LOGOUT_FAILED: 'Failed to logout',
-} as const;
+} as const
 
 export type AuthErrorMessage =
-  (typeof AUTH_ERROR_MESSAGES)[keyof typeof AUTH_ERROR_MESSAGES];
+  (typeof AUTH_ERROR_MESSAGES)[keyof typeof AUTH_ERROR_MESSAGES]
 
 export const AUTH_ERROR_CONTEXTS = {
   LOGIN: 'auth.login',
   REGISTER: 'auth.register',
   LOGOUT: 'auth.logout',
-} as const;
+} as const
 
 export type AuthErrorContext =
-  (typeof AUTH_ERROR_CONTEXTS)[keyof typeof AUTH_ERROR_CONTEXTS];
+  (typeof AUTH_ERROR_CONTEXTS)[keyof typeof AUTH_ERROR_CONTEXTS]
 
 /**
  * LocalStorage Keys
@@ -53,13 +52,13 @@ export type AuthErrorContext =
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   USER: 'user',
-} as const;
+} as const
 
 /**
  * Application Constants
  */
-export const APP_NAME = 'API Security Scanner';
-export const APP_VERSION = '1.0.0';
+export const APP_NAME = 'API Security Scanner'
+export const APP_VERSION = '1.0.0'
 
 /**
  * Scan Test Types
@@ -69,17 +68,16 @@ export const SCAN_TEST_TYPES = {
   AUTH: 'auth',
   SQLI: 'sqli',
   IDOR: 'idor',
-} as const;
+} as const
 
-export type ScanTestType =
-  (typeof SCAN_TEST_TYPES)[keyof typeof SCAN_TEST_TYPES];
+export type ScanTestType = (typeof SCAN_TEST_TYPES)[keyof typeof SCAN_TEST_TYPES]
 
 export const TEST_TYPE_LABELS: Record<ScanTestType, string> = {
   [SCAN_TEST_TYPES.RATE_LIMIT]: 'Rate Limiting',
   [SCAN_TEST_TYPES.AUTH]: 'Authentication',
   [SCAN_TEST_TYPES.SQLI]: 'SQL Injection',
   [SCAN_TEST_TYPES.IDOR]: 'IDOR/BOLA',
-};
+}
 
 /**
  * Test Result Status
@@ -88,15 +86,15 @@ export const SCAN_STATUS = {
   VULNERABLE: 'vulnerable',
   SAFE: 'safe',
   ERROR: 'error',
-} as const;
+} as const
 
-export type ScanStatus = (typeof SCAN_STATUS)[keyof typeof SCAN_STATUS];
+export type ScanStatus = (typeof SCAN_STATUS)[keyof typeof SCAN_STATUS]
 
 export const STATUS_COLORS: Record<ScanStatus, string> = {
   [SCAN_STATUS.VULNERABLE]: '#dc2626',
   [SCAN_STATUS.SAFE]: '#16a34a',
   [SCAN_STATUS.ERROR]: '#6b7280',
-};
+}
 
 /**
  * Severity Levels
@@ -107,9 +105,9 @@ export const SEVERITY = {
   MEDIUM: 'medium',
   LOW: 'low',
   INFO: 'info',
-} as const;
+} as const
 
-export type Severity = (typeof SEVERITY)[keyof typeof SEVERITY];
+export type Severity = (typeof SEVERITY)[keyof typeof SEVERITY]
 
 export const SEVERITY_COLORS: Record<Severity, string> = {
   [SEVERITY.CRITICAL]: '#dc2626',
@@ -117,7 +115,7 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
   [SEVERITY.MEDIUM]: '#f59e0b',
   [SEVERITY.LOW]: '#3b82f6',
   [SEVERITY.INFO]: '#6b7280',
-};
+}
 
 /**
  * Scan API Endpoints
@@ -127,7 +125,7 @@ export const SCAN_ENDPOINTS = {
   LIST: '/scans/',
   GET: (id: number) => `/scans/${id.toString()}`,
   DELETE: (id: number) => `/scans/${id.toString()}`,
-} as const;
+} as const
 
 /**
  * Scan Error Messages
@@ -140,17 +138,17 @@ export const SCAN_ERROR_MESSAGES = {
   GET_SCANS_FAILED: 'Failed to fetch scans',
   GET_SCAN_FAILED: 'Failed to fetch scan details',
   DELETE_SCAN_FAILED: 'Failed to delete scan',
-} as const;
+} as const
 
 export type ScanErrorMessage =
-  (typeof SCAN_ERROR_MESSAGES)[keyof typeof SCAN_ERROR_MESSAGES];
+  (typeof SCAN_ERROR_MESSAGES)[keyof typeof SCAN_ERROR_MESSAGES]
 
 export const SCAN_ERROR_CONTEXTS = {
   CREATE_SCAN: 'scan.createScan',
   GET_SCANS: 'scan.getScans',
   GET_SCAN: 'scan.getScan',
   DELETE_SCAN: 'scan.deleteScan',
-} as const;
+} as const
 
 export type ScanErrorContext =
-  (typeof SCAN_ERROR_CONTEXTS)[keyof typeof SCAN_ERROR_CONTEXTS];
+  (typeof SCAN_ERROR_CONTEXTS)[keyof typeof SCAN_ERROR_CONTEXTS]

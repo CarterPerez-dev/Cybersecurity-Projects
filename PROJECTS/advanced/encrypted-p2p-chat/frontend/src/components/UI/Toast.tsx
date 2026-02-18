@@ -2,20 +2,20 @@
  * 8-bit styled toast notification component
  */
 
-import { For, Show } from "solid-js"
-import type { JSX } from "solid-js"
-import type { ToastProps } from "../../types"
-import { $toasts, dismissToast } from "../../stores"
-import { useStore } from "@nanostores/solid"
-import { IconButton } from "./IconButton"
+import { useStore } from '@nanostores/solid'
+import type { JSX } from 'solid-js'
+import { For, Show } from 'solid-js'
+import { $toasts, dismissToast } from '../../stores'
+import type { ToastProps } from '../../types'
+import { IconButton } from './IconButton'
 
-type ToastVariant = "info" | "success" | "warning" | "error"
+type ToastVariant = 'info' | 'success' | 'warning' | 'error'
 
 const VARIANT_CLASSES: Record<ToastVariant, string> = {
-  info: "border-info text-info",
-  success: "border-success text-success",
-  warning: "border-orange text-orange",
-  error: "border-error text-error",
+  info: 'border-info text-info',
+  success: 'border-success text-success',
+  warning: 'border-orange text-orange',
+  error: 'border-error text-error',
 }
 
 const VARIANT_ICONS: Record<ToastVariant, () => JSX.Element> = {
@@ -41,22 +41,17 @@ export function Toast(props: ToastProps): JSX.Element {
       `}
       role="alert"
     >
-      <span class="flex-shrink-0 mt-0.5">
-        {VARIANT_ICONS[props.variant]()}
-      </span>
+      <span class="flex-shrink-0 mt-0.5">{VARIANT_ICONS[props.variant]()}</span>
 
       <div class="flex-1 min-w-0">
-        <p class="font-pixel text-[10px] text-white uppercase">
-          {props.title}
-        </p>
+        <p class="font-pixel text-[10px] text-white uppercase">{props.title}</p>
         <Show when={props.description}>
-          <p class="font-pixel text-[8px] text-gray mt-1">
-            {props.description}
-          </p>
+          <p class="font-pixel text-[8px] text-gray mt-1">{props.description}</p>
         </Show>
         <Show when={props.action} keyed>
           {(action) => (
             <button
+              type="button"
               onClick={() => action.onClick()}
               class="font-pixel text-[8px] text-orange hover:underline mt-2"
             >
@@ -82,16 +77,20 @@ export function ToastContainer(): JSX.Element {
 
   return (
     <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      <For each={toasts()}>
-        {(toast) => <Toast {...toast} />}
-      </For>
+      <For each={toasts()}>{(toast) => <Toast {...toast} />}</For>
     </div>
   )
 }
 
 function InfoIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="7" y="3" width="2" height="2" />
       <rect x="7" y="7" width="2" height="6" />
     </svg>
@@ -100,7 +99,13 @@ function InfoIcon(): JSX.Element {
 
 function CheckIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="3" y="8" width="2" height="2" />
       <rect x="5" y="10" width="2" height="2" />
       <rect x="7" y="8" width="2" height="2" />
@@ -112,7 +117,13 @@ function CheckIcon(): JSX.Element {
 
 function WarningIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="7" y="2" width="2" height="8" />
       <rect x="7" y="12" width="2" height="2" />
     </svg>
@@ -121,7 +132,13 @@ function WarningIcon(): JSX.Element {
 
 function ErrorIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="3" y="3" width="2" height="2" />
       <rect x="5" y="5" width="2" height="2" />
       <rect x="7" y="7" width="2" height="2" />
@@ -137,7 +154,13 @@ function ErrorIcon(): JSX.Element {
 
 function CloseIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="2" y="2" width="2" height="2" />
       <rect x="4" y="4" width="2" height="2" />
       <rect x="6" y="4" width="2" height="2" />

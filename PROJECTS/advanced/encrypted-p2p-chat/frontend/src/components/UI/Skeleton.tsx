@@ -2,25 +2,24 @@
  * 8-bit styled skeleton loading component
  */
 
-import { For } from "solid-js"
-import type { JSX } from "solid-js"
-import type { SkeletonProps } from "../../types"
+import type { JSX } from 'solid-js'
+import { For } from 'solid-js'
+import type { SkeletonProps } from '../../types'
 
-type SkeletonVariant = "text" | "circular" | "rectangular"
+type SkeletonVariant = 'text' | 'circular' | 'rectangular'
 
 export function Skeleton(props: SkeletonProps): JSX.Element {
-  const variant = (): SkeletonVariant => props.variant ?? "text"
+  const variant = (): SkeletonVariant => props.variant ?? 'text'
   const lines = (): number => props.lines ?? 1
 
   const getVariantClasses = (): string => {
     switch (variant()) {
-      case "circular":
-        return "rounded-none aspect-square"
-      case "rectangular":
-        return ""
-      case "text":
+      case 'circular':
+        return 'rounded-none aspect-square'
+      case 'rectangular':
+        return ''
       default:
-        return "h-4"
+        return 'h-4'
     }
   }
 
@@ -39,7 +38,7 @@ export function Skeleton(props: SkeletonProps): JSX.Element {
   }
 
   return (
-    <div class={`flex flex-col gap-2 ${props.class ?? ""}`}>
+    <div class={`flex flex-col gap-2 ${props.class ?? ''}`}>
       <For each={Array(lines()).fill(0)}>
         {(_, index) => (
           <div
@@ -47,7 +46,7 @@ export function Skeleton(props: SkeletonProps): JSX.Element {
               bg-dark-gray
               animate-pixel-pulse
               ${getVariantClasses()}
-              ${index() === lines() - 1 && variant() === "text" ? "w-3/4" : "w-full"}
+              ${index() === lines() - 1 && variant() === 'text' ? 'w-3/4' : 'w-full'}
             `}
             style={getStyle()}
           />

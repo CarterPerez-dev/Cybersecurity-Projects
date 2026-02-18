@@ -2,12 +2,12 @@
  * Main application shell layout
  */
 
-import type { ParentProps, JSX } from "solid-js"
-import { Show } from "solid-js"
-import { useStore } from "@nanostores/solid"
-import { $sidebarOpen, $isMobile } from "../../stores"
-import { Sidebar } from "./Sidebar"
-import { Header } from "./Header"
+import { useStore } from '@nanostores/solid'
+import type { JSX, ParentProps } from 'solid-js'
+import { Show } from 'solid-js'
+import { $isMobile, $sidebarOpen } from '../../stores'
+import { Header } from './Header'
+import { Sidebar } from './Sidebar'
 
 interface AppShellProps extends ParentProps {
   showSidebar?: boolean
@@ -34,15 +34,19 @@ export function AppShell(props: AppShellProps): JSX.Element {
           </div>
         </Show>
 
-        <main class="flex-1 overflow-hidden bg-black">
-          {props.children}
-        </main>
+        <main class="flex-1 overflow-hidden bg-black">{props.children}</main>
       </div>
 
       <Show when={isMobile() && sidebarOpen()}>
-        <div
-          class="fixed inset-0 z-30 bg-black/80"
+        <button
+          type="button"
+          class="fixed inset-0 z-30 bg-black/80 w-full h-full border-0 cursor-default appearance-none"
+          tabIndex={-1}
+          aria-label="Close sidebar"
           onClick={() => $sidebarOpen.set(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') $sidebarOpen.set(false)
+          }}
         />
       </Show>
     </div>

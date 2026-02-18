@@ -3,17 +3,17 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
+import { Navigate } from 'react-router-dom'
+import { useAuthStore } from '@/store/authStore'
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 export const ProtectedRoute = ({
   children,
 }: ProtectedRouteProps): React.ReactElement => {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore()
 
   if (isLoading) {
     return (
@@ -29,17 +29,12 @@ export const ProtectedRoute = ({
       >
         <p>Loading...</p>
       </div>
-    );
+    )
   }
 
   if (!isAuthenticated) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
+    return <Navigate to="/login" replace />
   }
 
-  return children as React.ReactElement;
-};
+  return children as React.ReactElement
+}

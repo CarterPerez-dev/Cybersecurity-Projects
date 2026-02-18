@@ -2,20 +2,20 @@
  * 8-bit styled header/navbar component
  */
 
-import type { JSX } from "solid-js"
-import { Show } from "solid-js"
-import { A, useLocation } from "@solidjs/router"
-import { useStore } from "@nanostores/solid"
+import { useStore } from '@nanostores/solid'
+import { A, useLocation } from '@solidjs/router'
+import type { JSX } from 'solid-js'
+import { Show } from 'solid-js'
 import {
+  $currentUser,
   $isAuthenticated,
   $sidebarOpen,
-  $currentUser,
-  toggleSidebar,
   openModal,
-} from "../../stores"
-import { IconButton } from "../UI/IconButton"
-import { Badge } from "../UI/Badge"
-import { Avatar } from "../UI/Avatar"
+  toggleSidebar,
+} from '../../stores'
+import { Avatar } from '../UI/Avatar'
+import { Badge } from '../UI/Badge'
+import { IconButton } from '../UI/IconButton'
 
 export function Header(): JSX.Element {
   const isAuthenticated = useStore($isAuthenticated)
@@ -30,7 +30,7 @@ export function Header(): JSX.Element {
           <Show when={isAuthenticated()}>
             <IconButton
               icon={sidebarOpen() ? <CloseMenuIcon /> : <MenuIcon />}
-              ariaLabel={sidebarOpen() ? "Close menu" : "Open menu"}
+              ariaLabel={sidebarOpen() ? 'Close menu' : 'Open menu'}
               onClick={toggleSidebar}
               size="sm"
             />
@@ -75,20 +75,26 @@ export function Header(): JSX.Element {
               icon={<SearchIcon />}
               ariaLabel="Search"
               size="sm"
-              onClick={() => openModal("new-conversation")}
+              onClick={() => openModal('new-conversation')}
             />
             <Show when={currentUser()} keyed>
               {(user) => (
                 <A
                   href="/settings"
                   class={`flex items-center gap-2 px-2 py-1 border-2 ${
-                    location.pathname === "/settings"
-                      ? "border-orange bg-orange text-black"
-                      : "border-transparent text-white hover:text-orange"
+                    location.pathname === '/settings'
+                      ? 'border-orange bg-orange text-black'
+                      : 'border-transparent text-white hover:text-orange'
                   }`}
                 >
-                  <Avatar alt={user.display_name} size="xs" fallback={user.display_name.slice(0, 2)} />
-                  <span class="font-pixel text-[10px] hidden sm:block">{user.display_name}</span>
+                  <Avatar
+                    alt={user.display_name}
+                    size="xs"
+                    fallback={user.display_name.slice(0, 2)}
+                  />
+                  <span class="font-pixel text-[10px] hidden sm:block">
+                    {user.display_name}
+                  </span>
                 </A>
               )}
             </Show>
@@ -101,7 +107,13 @@ export function Header(): JSX.Element {
 
 function MenuIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="2" y="3" width="12" height="2" />
       <rect x="2" y="7" width="12" height="2" />
       <rect x="2" y="11" width="12" height="2" />
@@ -111,7 +123,13 @@ function MenuIcon(): JSX.Element {
 
 function CloseMenuIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="3" y="3" width="2" height="2" />
       <rect x="5" y="5" width="2" height="2" />
       <rect x="7" y="7" width="2" height="2" />
@@ -127,20 +145,74 @@ function CloseMenuIcon(): JSX.Element {
 
 function LockIcon(): JSX.Element {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="6" y="3" width="8" height="2" fill="currentColor" class="text-orange" />
-      <rect x="4" y="5" width="2" height="4" fill="currentColor" class="text-orange" />
-      <rect x="14" y="5" width="2" height="4" fill="currentColor" class="text-orange" />
-      <rect x="3" y="9" width="14" height="2" fill="currentColor" class="text-orange" />
-      <rect x="3" y="11" width="14" height="6" fill="currentColor" class="text-orange" />
-      <rect x="9" y="12" width="2" height="4" fill="currentColor" class="text-black" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="6"
+        y="3"
+        width="8"
+        height="2"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="4"
+        y="5"
+        width="2"
+        height="4"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="14"
+        y="5"
+        width="2"
+        height="4"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="3"
+        y="9"
+        width="14"
+        height="2"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="3"
+        y="11"
+        width="14"
+        height="6"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="9"
+        y="12"
+        width="2"
+        height="4"
+        fill="currentColor"
+        class="text-black"
+      />
     </svg>
   )
 }
 
 function SearchIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="4" y="2" width="6" height="2" />
       <rect x="2" y="4" width="2" height="6" />
       <rect x="10" y="4" width="2" height="6" />

@@ -3,20 +3,20 @@
  * Manages sidebar, modals, and other UI state
  */
 
-import { atom, computed } from "nanostores"
+import { atom, computed } from 'nanostores'
 
 type ModalType =
-  | "new-conversation"
-  | "user-search"
-  | "settings"
-  | "profile"
-  | "encryption-info"
-  | "confirm-logout"
+  | 'new-conversation'
+  | 'user-search'
+  | 'settings'
+  | 'profile'
+  | 'encryption-info'
+  | 'confirm-logout'
   | null
 
 interface ToastNotification {
   id: string
-  variant: "info" | "success" | "warning" | "error"
+  variant: 'info' | 'success' | 'warning' | 'error'
   title: string
   description?: string
   duration?: number
@@ -34,16 +34,13 @@ export const $toasts = atom<ToastNotification[]>([])
 
 export const $isLoading = atom<boolean>(false)
 
-export const $loadingMessage = atom<string>("")
+export const $loadingMessage = atom<string>('')
 
 export const $isMobile = atom<boolean>(false)
 
-export const $searchQuery = atom<string>("")
+export const $searchQuery = atom<string>('')
 
-export const $hasActiveModal = computed(
-  $activeModal,
-  (modal) => modal !== null
-)
+export const $hasActiveModal = computed($activeModal, (modal) => modal !== null)
 
 let toastIdCounter = 0
 
@@ -74,14 +71,15 @@ export function closeModal(): void {
 }
 
 export function showToast(
-  variant: ToastNotification["variant"],
+  variant: ToastNotification['variant'],
   title: string,
   description?: string,
   duration?: number
 ): string {
   const existingToasts = $toasts.get()
   const duplicate = existingToasts.find(
-    (t) => t.title === title && t.description === description && t.variant === variant
+    (t) =>
+      t.title === title && t.description === description && t.variant === variant
   )
 
   if (duplicate !== undefined) {
@@ -119,7 +117,7 @@ export function clearAllToasts(): void {
 
 export function setLoading(loading: boolean, message?: string): void {
   $isLoading.set(loading)
-  $loadingMessage.set(message ?? "")
+  $loadingMessage.set(message ?? '')
 }
 
 export function setIsMobile(isMobile: boolean): void {
@@ -131,7 +129,7 @@ export function setSearchQuery(query: string): void {
 }
 
 export function clearSearchQuery(): void {
-  $searchQuery.set("")
+  $searchQuery.set('')
 }
 
 export type { ModalType, ToastNotification }

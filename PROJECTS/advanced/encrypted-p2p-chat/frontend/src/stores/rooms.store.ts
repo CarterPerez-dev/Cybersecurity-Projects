@@ -3,16 +3,15 @@
  * Manages chat rooms and active conversation state
  */
 
-import { atom, computed, map } from "nanostores"
-import type { Room } from "../types"
+import { atom, computed, map } from 'nanostores'
+import type { Room } from '../types'
 
 export const $rooms = map<Record<string, Room>>({})
 
 export const $activeRoomId = atom<string | null>(null)
 
-export const $activeRoom = computed(
-  [$rooms, $activeRoomId],
-  (rooms, activeId) => (activeId ? rooms[activeId] ?? null : null)
+export const $activeRoom = computed([$rooms, $activeRoomId], (rooms, activeId) =>
+  activeId ? (rooms[activeId] ?? null) : null
 )
 
 export const $roomList = computed($rooms, (rooms) =>

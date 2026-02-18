@@ -2,15 +2,19 @@
 // © AngelaMos | 2025
 // MessageList.tsx
 // ===================
-import { Show, For, createEffect, createSignal, onMount } from "solid-js"
-import type { JSX } from "solid-js"
-import { useStore } from "@nanostores/solid"
-import { $activeRoomMessages, $activeRoomPendingMessages } from "../../stores"
-import { $userId } from "../../stores"
-import { MessageBubble } from "./MessageBubble"
-import { TypingIndicator } from "./TypingIndicator"
-import { Spinner } from "../UI/Spinner"
-import type { Message } from "../../types"
+
+import { useStore } from '@nanostores/solid'
+import type { JSX } from 'solid-js'
+import { createEffect, createSignal, For, onMount, Show } from 'solid-js'
+import {
+  $activeRoomMessages,
+  $activeRoomPendingMessages,
+  $userId,
+} from '../../stores'
+import type { Message } from '../../types'
+import { Spinner } from '../UI/Spinner'
+import { MessageBubble } from './MessageBubble'
+import { TypingIndicator } from './TypingIndicator'
 
 interface MessageListProps {
   roomId: string
@@ -39,7 +43,12 @@ export function MessageList(props: MessageListProps): JSX.Element {
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
     setAutoScroll(isAtBottom)
 
-    if (scrollTop < 100 && props.hasMore === true && props.loading !== true && props.onLoadMore !== undefined) {
+    if (
+      scrollTop < 100 &&
+      props.hasMore === true &&
+      props.loading !== true &&
+      props.onLoadMore !== undefined
+    ) {
       props.onLoadMore()
     }
   }
@@ -61,10 +70,10 @@ export function MessageList(props: MessageListProps): JSX.Element {
     const groups = new Map<string, Message[]>()
 
     for (const msg of msgs) {
-      const date = new Date(msg.created_at).toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
+      const date = new Date(msg.created_at).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
       })
 
       const existing = groups.get(date) ?? []
@@ -77,7 +86,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
   return (
     <div
       ref={containerRef}
-      class={`flex-1 overflow-y-auto scrollbar-pixel p-4 ${props.class ?? ""}`}
+      class={`flex-1 overflow-y-auto scrollbar-pixel p-4 ${props.class ?? ''}`}
       onScroll={handleScroll}
     >
       <Show when={props.loading}>
@@ -86,10 +95,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
         </div>
       </Show>
 
-      <Show
-        when={allMessages().length > 0}
-        fallback={<EmptyMessages />}
-      >
+      <Show when={allMessages().length > 0} fallback={<EmptyMessages />}>
         <For each={Array.from(groupMessagesByDate(allMessages()).entries())}>
           {([date, dateMessages]) => (
             <div class="mb-6">
@@ -101,7 +107,9 @@ export function MessageList(props: MessageListProps): JSX.Element {
                       index() > 0 ? dateMessages[index() - 1] : undefined
                     const showSender = (): boolean => {
                       const prev = prevMessage()
-                      return prev === undefined || prev.sender_id !== message.sender_id
+                      return (
+                        prev === undefined || prev.sender_id !== message.sender_id
+                      )
                     }
 
                     return (
@@ -130,12 +138,8 @@ function EmptyMessages(): JSX.Element {
   return (
     <div class="h-full flex flex-col items-center justify-center py-12">
       <MessageIcon />
-      <p class="font-pixel text-[10px] text-gray mt-4">
-        NO MESSAGES YET
-      </p>
-      <p class="font-pixel text-[8px] text-gray mt-1">
-        START THE CONVERSATION
-      </p>
+      <p class="font-pixel text-[10px] text-gray mt-4">NO MESSAGES YET</p>
+      <p class="font-pixel text-[8px] text-gray mt-1">START THE CONVERSATION</p>
     </div>
   )
 }
@@ -148,9 +152,7 @@ function DateSeparator(props: DateSeparatorProps): JSX.Element {
   return (
     <div class="flex items-center gap-4 my-4">
       <div class="flex-1 h-px bg-dark-gray" />
-      <span class="font-pixel text-[8px] text-gray uppercase">
-        {props.date}
-      </span>
+      <span class="font-pixel text-[8px] text-gray uppercase">{props.date}</span>
       <div class="flex-1 h-px bg-dark-gray" />
     </div>
   )
@@ -158,7 +160,14 @@ function DateSeparator(props: DateSeparatorProps): JSX.Element {
 
 function MessageIcon(): JSX.Element {
   return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor" class="text-dark-gray">
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="currentColor"
+      class="text-dark-gray"
+      aria-hidden="true"
+    >
       <rect x="8" y="8" width="32" height="4" />
       <rect x="4" y="12" width="4" height="24" />
       <rect x="40" y="12" width="4" height="24" />

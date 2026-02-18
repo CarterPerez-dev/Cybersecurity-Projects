@@ -2,11 +2,12 @@
 // © AngelaMos | 2025
 // ChatInput.tsx
 // ===================
-import { createSignal, Show, onCleanup } from "solid-js"
-import type { JSX } from "solid-js"
-import { Button } from "../UI/Button"
-import { wsManager } from "../../websocket"
-import { MESSAGE_MAX_LENGTH } from "../../types"
+
+import type { JSX } from 'solid-js'
+import { createSignal, onCleanup, Show } from 'solid-js'
+import { MESSAGE_MAX_LENGTH } from '../../types'
+import { wsManager } from '../../websocket'
+import { Button } from '../UI/Button'
 
 interface ChatInputProps {
   roomId: string
@@ -17,14 +18,15 @@ interface ChatInputProps {
 }
 
 export function ChatInput(props: ChatInputProps): JSX.Element {
-  const [message, setMessage] = createSignal("")
+  const [message, setMessage] = createSignal('')
   const [isTyping, setIsTyping] = createSignal(false)
   let typingTimeout: ReturnType<typeof setTimeout> | undefined
   let inputRef: HTMLInputElement | undefined
 
   const charCount = (): number => message().length
   const isOverLimit = (): boolean => charCount() > MESSAGE_MAX_LENGTH
-  const canSend = (): boolean => message().trim().length > 0 && !isOverLimit() && (props.disabled !== true)
+  const canSend = (): boolean =>
+    message().trim().length > 0 && !isOverLimit() && props.disabled !== true
 
   const handleInput = (e: Event): void => {
     const target = e.target as HTMLInputElement
@@ -50,7 +52,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
 
     const content = message().trim()
     props.onSend?.(content)
-    setMessage("")
+    setMessage('')
 
     if (isTyping()) {
       setIsTyping(false)
@@ -61,7 +63,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
   }
 
   const handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
@@ -77,10 +79,14 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
   })
 
   return (
-    <div class={`flex-shrink-0 p-4 border-t-2 border-orange ${props.class ?? ""}`}>
+    <div
+      class={`flex-shrink-0 p-4 border-t-2 border-orange ${props.class ?? ''}`}
+    >
       <div class="flex gap-2">
         <div class="flex-1 flex items-center bg-black border-2 border-orange">
-          <span class="font-pixel text-[10px] text-orange px-2">&gt;&gt;&gt;</span>
+          <span class="font-pixel text-[10px] text-orange px-2">
+            &gt;&gt;&gt;
+          </span>
           <input
             ref={inputRef}
             type="text"
@@ -106,11 +112,11 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
 
       <div class="flex items-center justify-between mt-2">
         <Show when={isOverLimit()}>
-          <span class="font-pixel text-[8px] text-error">
-            MESSAGE TOO LONG
-          </span>
+          <span class="font-pixel text-[8px] text-error">MESSAGE TOO LONG</span>
         </Show>
-        <span class={`font-pixel text-[8px] ml-auto ${isOverLimit() ? "text-error" : "text-gray"}`}>
+        <span
+          class={`font-pixel text-[8px] ml-auto ${isOverLimit() ? 'text-error' : 'text-gray'}`}
+        >
           {charCount()}/{MESSAGE_MAX_LENGTH}
         </span>
       </div>
@@ -120,7 +126,13 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
 
 function SendIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="0" y="5" width="8" height="2" />
       <rect x="6" y="3" width="2" height="2" />
       <rect x="6" y="7" width="2" height="2" />

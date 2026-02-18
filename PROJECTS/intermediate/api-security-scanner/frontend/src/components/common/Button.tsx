@@ -3,14 +3,14 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { type ButtonHTMLAttributes } from 'react';
-import './Button.css';
+import type { ButtonHTMLAttributes } from 'react'
+import './Button.css'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  isLoading?: boolean;
-  children: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  isLoading?: boolean
+  children: React.ReactNode
 }
 
 export const Button = ({
@@ -30,5 +30,5 @@ export const Button = ({
     >
       {isLoading ? 'Loading...' : children}
     </button>
-  );
-};
+  )
+}

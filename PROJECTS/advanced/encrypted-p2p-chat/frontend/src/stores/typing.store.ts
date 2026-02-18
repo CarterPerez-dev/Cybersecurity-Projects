@@ -3,9 +3,9 @@
  * Manages typing status per room
  */
 
-import { map, computed } from "nanostores"
-import type { TypingState } from "../types"
-import { $activeRoomId } from "./rooms.store"
+import { computed, map } from 'nanostores'
+import type { TypingState } from '../types'
+import { $activeRoomId } from './rooms.store'
 
 const TYPING_TIMEOUT_MS = 5000
 
@@ -15,7 +15,7 @@ const typingTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 export const $activeRoomTyping = computed(
   [$typingByRoom, $activeRoomId],
-  (typing, roomId) => (roomId ? typing[roomId] ?? [] : [])
+  (typing, roomId) => (roomId ? (typing[roomId] ?? []) : [])
 )
 
 export const $activeRoomTypingUsernames = computed(

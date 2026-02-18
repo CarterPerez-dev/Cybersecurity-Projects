@@ -2,53 +2,54 @@
 // © AngelaMos | 2025
 // crypto-service.ts
 // ===================
+
+import { api } from '../lib/api-client'
 import type {
-  IdentityKeyPair,
-  SignedPreKey,
-  OneTimePreKey,
   DoubleRatchetState,
   EncryptedMessage,
-  X3DHHeader,
   FullMessageHeader,
+  IdentityKeyPair,
   MessageHeader,
-} from "../types"
-import { DEFAULT_ONE_TIME_PREKEY_COUNT } from "../types"
+  OneTimePreKey,
+  SignedPreKey,
+  X3DHHeader,
+} from '../types'
+import { DEFAULT_ONE_TIME_PREKEY_COUNT } from '../types'
 import {
-  generateIdentityKeyPair,
-  generateSignedPreKey,
-  generateOneTimePreKeys,
-  initiateX3DH,
-  receiveX3DH,
-} from "./x3dh"
-import {
-  initializeRatchetSender,
-  initializeRatchetReceiver,
-  encryptMessage,
   decryptMessage,
-  serializeRatchetState,
   deserializeRatchetState,
-} from "./double-ratchet"
+  encryptMessage,
+  initializeRatchetReceiver,
+  initializeRatchetSender,
+  serializeRatchetState,
+} from './double-ratchet'
 import {
-  saveIdentityKey,
-  getIdentityKey,
-  saveSignedPreKey,
-  getLatestSignedPreKey,
-  saveOneTimePreKeys,
-  getUnusedOneTimePreKeys,
-  getOneTimePreKeyByPublicKey,
-  markOneTimePreKeyUsed,
-  saveRatchetState,
-  getRatchetState,
-  deleteRatchetState,
   clearAllKeys,
-} from "./key-store"
-import { api } from "../lib/api-client"
+  deleteRatchetState,
+  getIdentityKey,
+  getLatestSignedPreKey,
+  getOneTimePreKeyByPublicKey,
+  getRatchetState,
+  getUnusedOneTimePreKeys,
+  markOneTimePreKeyUsed,
+  saveIdentityKey,
+  saveOneTimePreKeys,
+  saveRatchetState,
+  saveSignedPreKey,
+} from './key-store'
 import {
   base64ToBytes,
   bytesToBase64,
   importX25519PrivateKey,
   importX25519PublicKey,
-} from "./primitives"
+} from './primitives'
+import {
+  generateIdentityKeyPair,
+  generateOneTimePreKeys,
+  generateSignedPreKey,
+  initiateX3DH,
+  receiveX3DH,
+} from './x3dh'
 
 class CryptoService {
   private userId: string | null = null
@@ -72,7 +73,10 @@ class CryptoService {
 
     this.signedPreKey = await getLatestSignedPreKey(userId)
 
-    if (this.signedPreKey === null || this.isSignedPreKeyExpired(this.signedPreKey)) {
+    if (
+      this.signedPreKey === null ||
+      this.isSignedPreKeyExpired(this.signedPreKey)
+    ) {
       await this.rotateSignedPreKey()
     }
 
@@ -89,40 +93,49 @@ class CryptoService {
   }
 
   private async generateAndStoreKeys(): Promise<void> {
-    if (!this.userId) throw new Error("User ID not set")
+    if (!this.userId) throw new Error('User ID not set')
 
     this.identityKeyPair = await generateIdentityKeyPair()
     await saveIdentityKey(this.userId, this.identityKeyPair)
 
-    this.signedPreKey = await generateSignedPreKey(this.identityKeyPair.ed25519_private)
+    this.signedPreKey = await generateSignedPreKey(
+      this.identityKeyPair.ed25519_private
+    )
     await saveSignedPreKey(this.userId, this.signedPreKey)
 
-    const oneTimePreKeys = await generateOneTimePreKeys(DEFAULT_ONE_TIME_PREKEY_COUNT)
+    const oneTimePreKeys = await generateOneTimePreKeys(
+      DEFAULT_ONE_TIME_PREKEY_COUNT
+    )
     await saveOneTimePreKeys(this.userId, oneTimePreKeys)
 
     await this.uploadPublicKeys(oneTimePreKeys)
   }
 
   private async rotateSignedPreKey(): Promise<void> {
-    if (this.userId === null || this.identityKeyPair === null) throw new Error("Not initialized")
+    if (this.userId === null || this.identityKeyPair === null)
+      throw new Error('Not initialized')
 
-    this.signedPreKey = await generateSignedPreKey(this.identityKeyPair.ed25519_private)
+    this.signedPreKey = await generateSignedPreKey(
+      this.identityKeyPair.ed25519_private
+    )
     await saveSignedPreKey(this.userId, this.signedPreKey)
 
     await api.encryption.rotateSignedPrekey(this.userId)
   }
 
   private async replenishOneTimePreKeys(): Promise<void> {
-    if (!this.userId) throw new Error("User ID not set")
+    if (!this.userId) throw new Error('User ID not set')
 
-    const newPreKeys = await generateOneTimePreKeys(DEFAULT_ONE_TIME_PREKEY_COUNT / 2)
+    const newPreKeys = await generateOneTimePreKeys(
+      DEFAULT_ONE_TIME_PREKEY_COUNT / 2
+    )
     await saveOneTimePreKeys(this.userId, newPreKeys)
   }
 
   private async uploadPublicKeys(oneTimePreKeys: OneTimePreKey[]): Promise<void> {
-    if (!this.userId) throw new Error("User ID not set")
+    if (!this.userId) throw new Error('User ID not set')
     if (!this.identityKeyPair || !this.signedPreKey) {
-      throw new Error("Keys not generated")
+      throw new Error('Keys not generated')
     }
 
     await api.encryption.uploadKeys(this.userId, {
@@ -135,7 +148,8 @@ class CryptoService {
   }
 
   async establishSession(peerId: string): Promise<void> {
-    if (this.identityKeyPair === null) throw new Error("Identity keys not initialized")
+    if (this.identityKeyPair === null)
+      throw new Error('Identity keys not initialized')
 
     const existingState = await this.getRatchetState(peerId)
     if (existingState !== null) return
@@ -157,7 +171,9 @@ class CryptoService {
     const x3dhHeader: X3DHHeader = {
       identity_key: this.identityKeyPair.x25519_public,
       ephemeral_key: x3dhResult.ephemeral_public_key,
-      one_time_prekey_id: x3dhResult.used_one_time_prekey ? peerBundle.one_time_prekey : null,
+      one_time_prekey_id: x3dhResult.used_one_time_prekey
+        ? peerBundle.one_time_prekey
+        : null,
     }
     this.pendingX3DHHeaders.set(peerId, x3dhHeader)
 
@@ -172,7 +188,7 @@ class CryptoService {
     oneTimePreKeyPublic: string | null
   ): Promise<void> {
     if (this.identityKeyPair === null || this.signedPreKey === null) {
-      throw new Error("Keys not initialized")
+      throw new Error('Keys not initialized')
     }
 
     let oneTimePreKey: OneTimePreKey | null = null
@@ -214,7 +230,10 @@ class CryptoService {
     await saveRatchetState(serialized)
   }
 
-  async encrypt(peerId: string, plaintext: string): Promise<{
+  async encrypt(
+    peerId: string,
+    plaintext: string
+  ): Promise<{
     ciphertext: string
     nonce: string
     header: string
@@ -261,7 +280,7 @@ class CryptoService {
     let ratchetHeader: MessageHeader
     let x3dhHeader: X3DHHeader | undefined
 
-    if ("ratchet" in parsedHeader) {
+    if ('ratchet' in parsedHeader) {
       ratchetHeader = parsedHeader.ratchet
       x3dhHeader = parsedHeader.x3dh
     } else {
@@ -276,7 +295,7 @@ class CryptoService {
 
     if (state === null) {
       if (!x3dhHeader) {
-        throw new Error("Cannot establish session: missing X3DH header")
+        throw new Error('Cannot establish session: missing X3DH header')
       }
 
       await this.handleIncomingSession(
@@ -289,7 +308,7 @@ class CryptoService {
     }
 
     if (state === null) {
-      throw new Error("Failed to establish session")
+      throw new Error('Failed to establish session')
     }
 
     const plaintextBytes = await decryptMessage(state, encryptedMessage)
@@ -300,7 +319,9 @@ class CryptoService {
     return new TextDecoder().decode(plaintextBytes)
   }
 
-  private async getRatchetState(peerId: string): Promise<DoubleRatchetState | null> {
+  private async getRatchetState(
+    peerId: string
+  ): Promise<DoubleRatchetState | null> {
     let state = this.ratchetStates.get(peerId)
 
     if (state === undefined) {
@@ -337,18 +358,19 @@ class CryptoService {
     this.ratchetStates.clear()
     this.pendingX3DHHeaders.clear()
 
-    const database = indexedDB.open("encrypted-chat-keys", 1)
+    const database = indexedDB.open('encrypted-chat-keys', 1)
     database.onsuccess = () => {
       const db = database.result
-      const tx = db.transaction("ratchet_states", "readwrite")
-      tx.objectStore("ratchet_states").clear()
+      const tx = db.transaction('ratchet_states', 'readwrite')
+      tx.objectStore('ratchet_states').clear()
     }
   }
 }
 
 export const cryptoService = new CryptoService()
 
-if (typeof window !== "undefined") {
-  (window as unknown as { resetCryptoSessions: () => Promise<void> }).resetCryptoSessions =
-    () => cryptoService.resetAllSessions()
+if (typeof window !== 'undefined') {
+  ;(
+    window as unknown as { resetCryptoSessions: () => Promise<void> }
+  ).resetCryptoSessions = () => cryptoService.resetAllSessions()
 }

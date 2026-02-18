@@ -2,12 +2,12 @@
  * Protected route wrapper that redirects unauthenticated users
  */
 
-import type { ParentProps, JSX } from "solid-js"
-import { Show, createEffect } from "solid-js"
-import { useNavigate, useLocation } from "@solidjs/router"
-import { useStore } from "@nanostores/solid"
-import { $isAuthenticated } from "../../stores"
-import { Spinner } from "../UI/Spinner"
+import { useStore } from '@nanostores/solid'
+import { useLocation, useNavigate } from '@solidjs/router'
+import type { JSX, ParentProps } from 'solid-js'
+import { createEffect, Show } from 'solid-js'
+import { $isAuthenticated } from '../../stores'
+import { Spinner } from '../UI/Spinner'
 
 interface ProtectedRouteProps extends ParentProps {
   redirectTo?: string
@@ -18,14 +18,15 @@ export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
   const location = useLocation()
   const isAuthenticated = useStore($isAuthenticated)
 
-  const redirectPath = (): string => props.redirectTo ?? "/login"
+  const redirectPath = (): string => props.redirectTo ?? '/login'
 
   createEffect(() => {
     if (!isAuthenticated()) {
       const currentPath = location.pathname
-      const redirectUrl = currentPath !== "/"
-        ? `${redirectPath()}?redirect=${encodeURIComponent(currentPath)}`
-        : redirectPath()
+      const redirectUrl =
+        currentPath !== '/'
+          ? `${redirectPath()}?redirect=${encodeURIComponent(currentPath)}`
+          : redirectPath()
 
       navigate(redirectUrl, { replace: true })
     }
@@ -58,7 +59,7 @@ export function GuestRoute(props: ParentProps): JSX.Element {
   createEffect(() => {
     if (isAuthenticated()) {
       const params = new URLSearchParams(location.search)
-      const redirectPath = params.get("redirect") ?? "/chat"
+      const redirectPath = params.get('redirect') ?? '/chat'
       navigate(redirectPath, { replace: true })
     }
   })
@@ -70,9 +71,7 @@ export function GuestRoute(props: ParentProps): JSX.Element {
         <div class="h-full flex items-center justify-center bg-black">
           <div class="flex flex-col items-center gap-4">
             <Spinner size="lg" />
-            <span class="font-pixel text-[10px] text-orange">
-              REDIRECTING...
-            </span>
+            <span class="font-pixel text-[10px] text-orange">REDIRECTING...</span>
           </div>
         </div>
       }

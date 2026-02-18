@@ -3,34 +3,34 @@
 // x3dh.ts
 // ===================
 import type {
-  PreKeyBundle,
-  X3DHResult,
-  X3DHHeader,
   IdentityKeyPair,
-  SignedPreKey,
   OneTimePreKey,
-} from "../types"
+  PreKeyBundle,
+  SignedPreKey,
+  X3DHHeader,
+  X3DHResult,
+} from '../types'
+import { DEFAULT_ONE_TIME_PREKEY_COUNT, HKDF_OUTPUT_SIZE } from '../types'
 import {
-  generateX25519KeyPair,
-  x25519DeriveSharedSecret,
-  importX25519PublicKey,
-  importX25519PrivateKey,
-  exportPublicKey,
-  exportPrivateKey,
-  generateEd25519KeyPair,
+  base64ToBytes,
+  bytesToBase64,
+  concatBytes,
   ed25519Sign,
   ed25519Verify,
-  importEd25519PublicKey,
-  importEd25519PrivateKey,
-  hkdfDerive,
-  concatBytes,
-  bytesToBase64,
-  base64ToBytes,
+  exportPrivateKey,
+  exportPublicKey,
+  generateEd25519KeyPair,
   generateRandomBytes,
-} from "./primitives"
-import { HKDF_OUTPUT_SIZE, DEFAULT_ONE_TIME_PREKEY_COUNT } from "../types"
+  generateX25519KeyPair,
+  hkdfDerive,
+  importEd25519PrivateKey,
+  importEd25519PublicKey,
+  importX25519PrivateKey,
+  importX25519PublicKey,
+  x25519DeriveSharedSecret,
+} from './primitives'
 
-const X3DH_INFO = new TextEncoder().encode("X3DH")
+const X3DH_INFO = new TextEncoder().encode('X3DH')
 const EMPTY_SALT = new Uint8Array(HKDF_OUTPUT_SIZE)
 
 export async function generateIdentityKeyPair(): Promise<IdentityKeyPair> {
@@ -57,7 +57,9 @@ export async function generateSignedPreKey(
   const publicKey = await exportPublicKey(keyPair.publicKey)
   const privateKey = await exportPrivateKey(keyPair.privateKey)
 
-  const signingKey = await importEd25519PrivateKey(base64ToBytes(identityPrivateKey))
+  const signingKey = await importEd25519PrivateKey(
+    base64ToBytes(identityPrivateKey)
+  )
   const signature = await ed25519Sign(signingKey, publicKey)
 
   const id = bytesToBase64(generateRandomBytes(16))
@@ -102,7 +104,9 @@ export async function verifySignedPreKey(
   signature: string
 ): Promise<boolean> {
   try {
-    const verifyKey = await importEd25519PublicKey(base64ToBytes(identityPublicKey))
+    const verifyKey = await importEd25519PublicKey(
+      base64ToBytes(identityPublicKey)
+    )
     const publicKeyBytes = base64ToBytes(signedPreKeyPublic)
     const signatureBytes = base64ToBytes(signature)
 
@@ -123,7 +127,7 @@ export async function initiateX3DH(
   )
 
   if (!signatureValid) {
-    throw new Error("Invalid signed prekey signature")
+    throw new Error('Invalid signed prekey signature')
   }
 
   const ephemeralKeyPair = await generateX25519KeyPair()
@@ -139,9 +143,18 @@ export async function initiateX3DH(
     base64ToBytes(recipientBundle.signed_prekey)
   )
 
-  const dh1 = await x25519DeriveSharedSecret(senderIdentityPrivate, recipientSignedPreKeyPublic)
-  const dh2 = await x25519DeriveSharedSecret(ephemeralKeyPair.privateKey, recipientIdentityPublic)
-  const dh3 = await x25519DeriveSharedSecret(ephemeralKeyPair.privateKey, recipientSignedPreKeyPublic)
+  const dh1 = await x25519DeriveSharedSecret(
+    senderIdentityPrivate,
+    recipientSignedPreKeyPublic
+  )
+  const dh2 = await x25519DeriveSharedSecret(
+    ephemeralKeyPair.privateKey,
+    recipientIdentityPublic
+  )
+  const dh3 = await x25519DeriveSharedSecret(
+    ephemeralKeyPair.privateKey,
+    recipientSignedPreKeyPublic
+  )
 
   let dhResults: Uint8Array[]
   let usedOneTimePreKey = false
@@ -150,7 +163,10 @@ export async function initiateX3DH(
     const recipientOneTimePreKeyPublic = await importX25519PublicKey(
       base64ToBytes(recipientBundle.one_time_prekey)
     )
-    const dh4 = await x25519DeriveSharedSecret(ephemeralKeyPair.privateKey, recipientOneTimePreKeyPublic)
+    const dh4 = await x25519DeriveSharedSecret(
+      ephemeralKeyPair.privateKey,
+      recipientOneTimePreKeyPublic
+    )
     dhResults = [dh1, dh2, dh3, dh4]
     usedOneTimePreKey = true
   } else {
@@ -192,9 +208,18 @@ export async function receiveX3DH(
     base64ToBytes(senderEphemeralKey)
   )
 
-  const dh1 = await x25519DeriveSharedSecret(recipientSignedPreKeyPrivate, senderIdentityPublic)
-  const dh2 = await x25519DeriveSharedSecret(recipientIdentityPrivate, senderEphemeralPublic)
-  const dh3 = await x25519DeriveSharedSecret(recipientSignedPreKeyPrivate, senderEphemeralPublic)
+  const dh1 = await x25519DeriveSharedSecret(
+    recipientSignedPreKeyPrivate,
+    senderIdentityPublic
+  )
+  const dh2 = await x25519DeriveSharedSecret(
+    recipientIdentityPrivate,
+    senderEphemeralPublic
+  )
+  const dh3 = await x25519DeriveSharedSecret(
+    recipientSignedPreKeyPrivate,
+    senderEphemeralPublic
+  )
 
   let dhResults: Uint8Array[]
 
@@ -202,7 +227,10 @@ export async function receiveX3DH(
     const recipientOneTimePreKeyPrivate = await importX25519PrivateKey(
       base64ToBytes(oneTimePreKey.private_key)
     )
-    const dh4 = await x25519DeriveSharedSecret(recipientOneTimePreKeyPrivate, senderEphemeralPublic)
+    const dh4 = await x25519DeriveSharedSecret(
+      recipientOneTimePreKeyPrivate,
+      senderEphemeralPublic
+    )
     dhResults = [dh1, dh2, dh3, dh4]
   } else {
     dhResults = [dh1, dh2, dh3]

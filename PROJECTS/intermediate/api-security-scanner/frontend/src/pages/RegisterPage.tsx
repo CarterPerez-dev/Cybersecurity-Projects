@@ -3,8 +3,8 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { RegisterForm } from '@/components/auth/RegisterForm';
-import './AuthPage.css';
+import { RegisterForm } from '@/components/auth/RegisterForm'
+import './AuthPage.css'
 
 export const RegisterPage = (): React.ReactElement => {
   return (
@@ -13,5 +13,5 @@ export const RegisterPage = (): React.ReactElement => {
         <RegisterForm />
       </div>
     </div>
-  );
-};
+  )
+}

@@ -2,47 +2,44 @@
 // © AngelaMos | 2025
 // message-handlers.ts
 // ===================
-import type {
-  WSMessage,
-  EncryptedMessageWS,
-  TypingIndicatorWS,
-  PresenceUpdateWS,
-  ReadReceiptWS,
-  ErrorMessageWS,
-  RoomCreatedWS,
-  MessageSentWS,
-  Message,
-  Room,
-} from "../types"
-import {
-  isEncryptedMessageWS,
-  isTypingIndicatorWS,
-  isPresenceUpdateWS,
-  isReadReceiptWS,
-  isErrorMessageWS,
-  isRoomCreatedWS,
-  isMessageSentWS,
-} from "../types/guards"
+
+import { cryptoService, saveDecryptedMessage, updateMessageId } from '../crypto'
 import {
   addMessage,
-  updateMessageStatus,
   confirmPendingMessage,
-} from "../stores/messages.store"
+  updateMessageStatus,
+} from '../stores/messages.store'
+import { setUserPresence } from '../stores/presence.store'
+import { addRoom } from '../stores/rooms.store'
+import { setUserTyping } from '../stores/typing.store'
+import { showToast } from '../stores/ui.store'
+import type {
+  EncryptedMessageWS,
+  ErrorMessageWS,
+  Message,
+  MessageSentWS,
+  PresenceUpdateWS,
+  ReadReceiptWS,
+  Room,
+  RoomCreatedWS,
+  TypingIndicatorWS,
+  WSMessage,
+} from '../types'
 import {
-  addRoom,
-} from "../stores/rooms.store"
-import {
-  setUserPresence,
-} from "../stores/presence.store"
-import {
-  setUserTyping,
-} from "../stores/typing.store"
-import { showToast } from "../stores/ui.store"
-import { cryptoService, saveDecryptedMessage, updateMessageId } from "../crypto"
+  isEncryptedMessageWS,
+  isErrorMessageWS,
+  isMessageSentWS,
+  isPresenceUpdateWS,
+  isReadReceiptWS,
+  isRoomCreatedWS,
+  isTypingIndicatorWS,
+} from '../types/guards'
 
 type MessageHandler<T extends WSMessage> = (message: T) => void
 
-async function encryptedMessageHandler(message: EncryptedMessageWS): Promise<void> {
+async function encryptedMessageHandler(
+  message: EncryptedMessageWS
+): Promise<void> {
   let decryptedContent: string
 
   try {
@@ -53,7 +50,7 @@ async function encryptedMessageHandler(message: EncryptedMessageWS): Promise<voi
       message.header
     )
   } catch {
-    decryptedContent = "[Encrypted message - decryption failed]"
+    decryptedContent = '[Encrypted message - decryption failed]'
   }
 
   const chatMessage: Message = {
@@ -62,7 +59,7 @@ async function encryptedMessageHandler(message: EncryptedMessageWS): Promise<voi
     sender_id: message.sender_id,
     sender_username: message.sender_username,
     content: decryptedContent,
-    status: "delivered",
+    status: 'delivered',
     is_encrypted: true,
     encrypted_content: message.ciphertext,
     nonce: message.nonce,
@@ -85,25 +82,21 @@ const typingIndicatorHandler: MessageHandler<TypingIndicatorWS> = (message) => {
 }
 
 const presenceUpdateHandler: MessageHandler<PresenceUpdateWS> = (message) => {
-  setUserPresence(
-    message.user_id,
-    message.status,
-    message.last_seen
-  )
+  setUserPresence(message.user_id, message.status, message.last_seen)
 }
 
 const readReceiptHandler: MessageHandler<ReadReceiptWS> = (message) => {
-  updateMessageStatus(message.room_id, message.message_id, "read")
+  updateMessageStatus(message.room_id, message.message_id, 'read')
 }
 
 const errorMessageHandler: MessageHandler<ErrorMessageWS> = (message) => {
-  showToast("error", "CONNECTION ERROR", message.error_message.toUpperCase())
+  showToast('error', 'CONNECTION ERROR', message.error_message.toUpperCase())
 }
 
 const roomCreatedHandler: MessageHandler<RoomCreatedWS> = (message) => {
   const room: Room = {
     id: message.room_id,
-    type: message.room_type as "direct" | "group" | "ephemeral",
+    type: message.room_type as 'direct' | 'group' | 'ephemeral',
     name: message.name,
     participants: message.participants,
     unread_count: 0,
@@ -113,17 +106,17 @@ const roomCreatedHandler: MessageHandler<RoomCreatedWS> = (message) => {
   }
 
   addRoom(room)
-  showToast("info", "NEW CHAT", `NEW CONVERSATION STARTED`)
+  showToast('info', 'NEW CHAT', `NEW CONVERSATION STARTED`)
 }
 
 const messageSentHandler: MessageHandler<MessageSentWS> = (message) => {
   const confirmedMessage: Message = {
     id: message.message_id,
     room_id: message.room_id,
-    sender_id: "",
-    sender_username: "",
-    content: "",
-    status: "sent",
+    sender_id: '',
+    sender_username: '',
+    content: '',
+    status: 'sent',
     is_encrypted: true,
     created_at: message.created_at,
     updated_at: message.created_at,
@@ -151,7 +144,9 @@ export function handleWSMessage(message: WSMessage): void {
   }
 }
 
-export async function handleEncryptedMessage(message: EncryptedMessageWS): Promise<void> {
+export async function handleEncryptedMessage(
+  message: EncryptedMessageWS
+): Promise<void> {
   await encryptedMessageHandler(message)
 }
 

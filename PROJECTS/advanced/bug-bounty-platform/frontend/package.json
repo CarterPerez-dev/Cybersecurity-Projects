@@ -10,7 +10,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b",
     "lint:scss": "stylelint '**/*.scss'",
     "lint:scss:fix": "stylelint '**/*.scss' --fix"
   },
@@ -28,7 +28,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.8",
+    "@biomejs/biome": "^2.4.2",
     "@tanstack/react-query-devtools": "^5.91.1",
     "@types/node": "^24.10.2",
     "@types/react": "^19.2.7",

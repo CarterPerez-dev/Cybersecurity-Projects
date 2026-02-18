@@ -1,8 +1,5 @@
 {
-  "extends": [
-    "stylelint-config-standard-scss",
-    "stylelint-config-prettier-scss"
-  ],
+  "extends": ["stylelint-config-standard-scss", "stylelint-config-prettier-scss"],
   "rules": {
     "scss/at-rule-no-unknown": null,
     "selector-class-pattern": null

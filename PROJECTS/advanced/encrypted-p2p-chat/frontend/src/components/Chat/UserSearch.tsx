@@ -2,13 +2,14 @@
 // © AngelaMos | 2025
 // UserSearch.tsx
 // ===================
-import { createSignal, Show, For, onCleanup } from "solid-js"
-import type { JSX } from "solid-js"
-import { Input } from "../UI/Input"
-import { Spinner } from "../UI/Spinner"
-import { api } from "../../lib/api-client"
-import { USER_SEARCH_MIN_LENGTH, USER_SEARCH_DEFAULT_LIMIT } from "../../config"
-import type { User } from "../../types"
+
+import type { JSX } from 'solid-js'
+import { createSignal, For, onCleanup, Show } from 'solid-js'
+import { USER_SEARCH_DEFAULT_LIMIT, USER_SEARCH_MIN_LENGTH } from '../../config'
+import { api } from '../../lib/api-client'
+import type { User } from '../../types'
+import { Input } from '../UI/Input'
+import { Spinner } from '../UI/Spinner'
 
 interface UserSearchProps {
   onSelect: (user: User) => void
@@ -24,7 +25,7 @@ interface SearchResult {
 }
 
 export function UserSearch(props: UserSearchProps): JSX.Element {
-  const [query, setQuery] = createSignal("")
+  const [query, setQuery] = createSignal('')
   const [result, setResult] = createSignal<SearchResult>({
     users: [],
     loading: false,
@@ -61,14 +62,15 @@ export function UserSearch(props: UserSearchProps): JSX.Element {
       })
       setResult({ users: response.users, loading: false, error: null })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Search failed"
+      const errorMessage =
+        error instanceof Error ? error.message : 'Search failed'
       setResult({ users: [], loading: false, error: errorMessage })
     }
   }
 
   const handleSelect = (user: User): void => {
     props.onSelect(user)
-    setQuery("")
+    setQuery('')
     setResult({ users: [], loading: false, error: null })
     setIsFocused(false)
   }
@@ -79,7 +81,10 @@ export function UserSearch(props: UserSearchProps): JSX.Element {
   }
 
   const showResults = (): boolean => {
-    return isFocused() && (result().loading || filteredUsers().length > 0 || result().error !== null)
+    return (
+      isFocused() &&
+      (result().loading || filteredUsers().length > 0 || result().error !== null)
+    )
   }
 
   onCleanup(() => {
@@ -89,10 +94,10 @@ export function UserSearch(props: UserSearchProps): JSX.Element {
   })
 
   return (
-    <div class={`relative ${props.class ?? ""}`}>
+    <div class={`relative ${props.class ?? ''}`}>
       <Input
         name="user-search"
-        placeholder={props.placeholder ?? "SEARCH USERS..."}
+        placeholder={props.placeholder ?? 'SEARCH USERS...'}
         value={query()}
         onInput={handleInput}
         onFocus={() => setIsFocused(true)}
@@ -143,11 +148,16 @@ export function UserSearch(props: UserSearchProps): JSX.Element {
             </For>
           </Show>
 
-          <Show when={!result().loading && !result().error && filteredUsers().length === 0 && query().length >= USER_SEARCH_MIN_LENGTH}>
+          <Show
+            when={
+              !result().loading &&
+              !result().error &&
+              filteredUsers().length === 0 &&
+              query().length >= USER_SEARCH_MIN_LENGTH
+            }
+          >
             <div class="p-3">
-              <span class="font-pixel text-[10px] text-gray">
-                NO USERS FOUND
-              </span>
+              <span class="font-pixel text-[10px] text-gray">NO USERS FOUND</span>
             </div>
           </Show>
         </div>
@@ -158,7 +168,14 @@ export function UserSearch(props: UserSearchProps): JSX.Element {
 
 function SearchIcon(): JSX.Element {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" class="text-gray">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="currentColor"
+      class="text-gray"
+      aria-hidden="true"
+    >
       <rect x="4" y="1" width="4" height="1" />
       <rect x="2" y="2" width="2" height="1" />
       <rect x="8" y="2" width="2" height="1" />

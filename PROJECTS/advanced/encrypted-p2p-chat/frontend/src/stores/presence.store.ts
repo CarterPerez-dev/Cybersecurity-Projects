@@ -3,8 +3,8 @@
  * Manages user online/offline status
  */
 
-import { map } from "nanostores"
-import type { PresenceStatus, UserPresence } from "../types"
+import { map } from 'nanostores'
+import type { PresenceStatus, UserPresence } from '../types'
 
 export const $presenceByUser = map<Record<string, UserPresence>>({})
 
@@ -38,18 +38,18 @@ export function getUserPresence(userId: string): UserPresence | null {
 }
 
 export function getUserStatus(userId: string): PresenceStatus {
-  return $presenceByUser.get()[userId]?.status ?? "offline"
+  return $presenceByUser.get()[userId]?.status ?? 'offline'
 }
 
 export function isUserOnline(userId: string): boolean {
   const status = getUserStatus(userId)
-  return status === "online"
+  return status === 'online'
 }
 
 export function getOnlineUserIds(): string[] {
   const presences = $presenceByUser.get()
   return Object.entries(presences)
-    .filter(([_, p]) => p.status === "online")
+    .filter(([_, p]) => p.status === 'online')
     .map(([id]) => id)
 }
 

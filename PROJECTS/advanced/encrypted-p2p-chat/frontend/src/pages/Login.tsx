@@ -2,9 +2,9 @@
  * Login page with WebAuthn passkey authentication
  */
 
-import type { JSX } from "solid-js"
-import { AuthForm } from "../components/Auth"
-import { GuestRoute } from "../components/Layout"
+import type { JSX } from 'solid-js'
+import { AuthForm } from '../components/Auth'
+import { GuestRoute } from '../components/Layout'
 
 export default function Login(): JSX.Element {
   return (

@@ -23,19 +23,34 @@ jobs:
         include:
           - name: api-rate-limiter
             type: python
-            path: PROJECTS/api-rate-limiter
+            path: PROJECTS/advanced/api-rate-limiter
           - name: dns-lookup
             type: python
-            path: PROJECTS/dns-lookup
+            path: PROJECTS/beginner/dns-lookup
           - name: keylogger
             type: python
-            path: PROJECTS/keylogger
-          - name: api-security-scanner
-            type: typescript
-            path: PROJECTS/api-security-scanner/frontend
+            path: PROJECTS/beginner/keylogger
           - name: docker-security-audit
             type: go
-            path: PROJECTS/docker-security-audit
+            path: PROJECTS/beginner/docker-security-audit
+          - name: bug-bounty-platform-frontend
+            type: biome
+            path: PROJECTS/advanced/bug-bounty-platform/frontend
+          - name: c2-beacon-frontend
+            type: biome
+            path: PROJECTS/beginner/c2-beacon/frontend
+          - name: api-security-scanner-frontend
+            type: biome
+            path: PROJECTS/intermediate/api-security-scanner/frontend
+          - name: siem-dashboard-frontend
+            type: biome
+            path: PROJECTS/intermediate/siem-dashboard/frontend
+          - name: encrypted-p2p-chat-frontend
+            type: biome
+            path: PROJECTS/advanced/encrypted-p2p-chat/frontend
+          - name: fullstack-template-frontend
+            type: biome
+            path: TEMPLATES/fullstack-template/frontend
 
     defaults:
       run:
@@ -68,18 +83,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
 
-    # TypeScript Setup
+    # Biome Setup
     - name: Setup Node.js
-      if: matrix.type == 'typescript'
+      if: matrix.type == 'biome'
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: ${{ matrix.path }}/package-lock.json
 
-    - name: Install TypeScript dependencies
-      if: matrix.type == 'typescript'
-      run: npm install
+    - name: Setup pnpm
+      if: matrix.type == 'biome'
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+
+    - name: Cache pnpm store
+      if: matrix.type == 'biome'
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/pnpm/store/v10
+        key: ${{ runner.os }}-pnpm-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.path)) }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-${{ matrix.name }}-
+          ${{ runner.os }}-pnpm-
+
+    - name: Install frontend dependencies
+      if: matrix.type == 'biome'
+      run: pnpm install --frozen-lockfile
 
     # Go Setup
     - name: Setup Go
@@ -135,35 +164,20 @@ jobs:
         cat mypy-output.txt
       continue-on-error: true
 
-    # TypeScript Linting
-    - name: Run ESLint
-      if: matrix.type == 'typescript'
-      id: eslint
+    # Biome Linting
+    - name: Run Biome
+      if: matrix.type == 'biome'
+      id: biome
       run: |
-        echo "Running ESLint..."
-        if npm run lint:eslint > eslint-output.txt 2>&1; then
-          echo "ESLINT_PASSED=true" >> $GITHUB_ENV
-          echo "No ESLint errors found!"
+        echo "Running Biome check..."
+        if npx @biomejs/biome check . > biome-output.txt 2>&1; then
+          echo "BIOME_PASSED=true" >> $GITHUB_ENV
+          echo "No Biome errors found!"
         else
-          echo "ESLINT_PASSED=false" >> $GITHUB_ENV
-          echo "ESLint found issues!"
+          echo "BIOME_PASSED=false" >> $GITHUB_ENV
+          echo "Biome found issues!"
         fi
-        cat eslint-output.txt
-      continue-on-error: true
-
-    - name: Run TypeScript Check
-      if: matrix.type == 'typescript'
-      id: tsc
-      run: |
-        echo "Running TypeScript type checking..."
-        if npx tsc --noEmit > tsc-output.txt 2>&1; then
-          echo "TSC_PASSED=true" >> $GITHUB_ENV
-          echo "No TypeScript errors found!"
-        else
-          echo "TSC_PASSED=false" >> $GITHUB_ENV
-          echo "TypeScript found issues!"
-        fi
-        cat tsc-output.txt
+        cat biome-output.txt
       continue-on-error: true
 
     # Go Linting
@@ -247,46 +261,31 @@ jobs:
           echo "<!-- lint-check-${{ matrix.name }}-marker -->"
         } > lint-report.md
 
-    # Create Summary for TypeScript
-    - name: Create TypeScript Lint Summary
-      if: matrix.type == 'typescript' && github.event_name == 'pull_request'
+    # Create Summary for Biome
+    - name: Create Biome Lint Summary
+      if: matrix.type == 'biome' && github.event_name == 'pull_request'
       run: |
         {
           echo "## Lint Results: ${{ matrix.name }}"
           echo ''
 
-          # ESLint Status
-          if [[ "${{ env.ESLINT_PASSED }}" == "true" ]]; then
-            echo '### ESLint: **Passed**'
-            echo 'No ESLint issues found.'
+          # Biome Status
+          if [[ "${{ env.BIOME_PASSED }}" == "true" ]]; then
+            echo '### Biome: **Passed**'
+            echo 'No Biome issues found.'
           else
-            echo '### ESLint: **Issues Found**'
-            echo '<details><summary>View ESLint output</summary>'
+            echo '### Biome: **Issues Found**'
+            echo '<details><summary>View Biome output</summary>'
             echo ''
             echo '```'
-            head -100 eslint-output.txt
-            echo '```'
-            echo '</details>'
-          fi
-          echo ''
-
-          # TypeScript Status
-          if [[ "${{ env.TSC_PASSED }}" == "true" ]]; then
-            echo '### TypeScript: **Passed**'
-            echo 'No type errors found.'
-          else
-            echo '### TypeScript: **Issues Found**'
-            echo '<details><summary>View TypeScript output</summary>'
-            echo ''
-            echo '```'
-            head -100 tsc-output.txt
+            head -100 biome-output.txt
             echo '```'
             echo '</details>'
           fi
           echo ''
 
           # Overall Summary
-          if [[ "${{ env.ESLINT_PASSED }}" == "true" ]] && [[ "${{ env.TSC_PASSED }}" == "true" ]]; then
+          if [[ "${{ env.BIOME_PASSED }}" == "true" ]]; then
             echo '---'
             echo '### All checks passed!'
           else
@@ -350,9 +349,9 @@ jobs:
             echo "Python lint checks failed"
             exit 1
           fi
-        elif [[ "${{ matrix.type }}" == "typescript" ]]; then
-          if [[ "${{ env.ESLINT_PASSED }}" == "false" ]] || [[ "${{ env.TSC_PASSED }}" == "false" ]]; then
-            echo "TypeScript lint checks failed"
+        elif [[ "${{ matrix.type }}" == "biome" ]]; then
+          if [[ "${{ env.BIOME_PASSED }}" == "false" ]]; then
+            echo "Biome lint checks failed"
             exit 1
           fi
         elif [[ "${{ matrix.type }}" == "go" ]]; then

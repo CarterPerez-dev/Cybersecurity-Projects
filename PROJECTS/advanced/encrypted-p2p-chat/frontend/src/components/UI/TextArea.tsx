@@ -2,23 +2,23 @@
  * 8-bit styled textarea component
  */
 
-import { Show, splitProps, createSignal, createEffect, onMount } from "solid-js"
-import type { JSX } from "solid-js"
-import type { TextAreaProps } from "../../types"
+import type { JSX } from 'solid-js'
+import { createEffect, createSignal, onMount, Show, splitProps } from 'solid-js'
+import type { TextAreaProps } from '../../types'
 
 export function TextArea(props: TextAreaProps): JSX.Element {
   const [local, rest] = splitProps(props, [
-    "name",
-    "placeholder",
-    "value",
-    "onInput",
-    "disabled",
-    "error",
-    "label",
-    "rows",
-    "maxLength",
-    "autoResize",
-    "class",
+    'name',
+    'placeholder',
+    'value',
+    'onInput',
+    'disabled',
+    'error',
+    'label',
+    'rows',
+    'maxLength',
+    'autoResize',
+    'class',
   ])
 
   const [focused, setFocused] = createSignal(false)
@@ -36,7 +36,7 @@ export function TextArea(props: TextAreaProps): JSX.Element {
 
   const adjustHeight = (): void => {
     if (textareaRef !== undefined) {
-      textareaRef.style.height = "auto"
+      textareaRef.style.height = 'auto'
       textareaRef.style.height = `${textareaRef.scrollHeight}px`
     }
   }
@@ -48,14 +48,18 @@ export function TextArea(props: TextAreaProps): JSX.Element {
   })
 
   createEffect(() => {
-    if (local.autoResize === true && local.value !== undefined && textareaRef !== undefined) {
+    if (
+      local.autoResize === true &&
+      local.value !== undefined &&
+      textareaRef !== undefined
+    ) {
       adjustHeight()
     }
   })
 
   const hasError = (): boolean => Boolean(local.error)
   const isDisabled = (): boolean => local.disabled ?? false
-  const currentLength = (): number => (local.value ?? "").length
+  const currentLength = (): number => (local.value ?? '').length
 
   return (
     <div class="flex flex-col gap-1 w-full">
@@ -73,9 +77,9 @@ export function TextArea(props: TextAreaProps): JSX.Element {
           relative
           bg-black border-2
           transition-all duration-100
-          ${focused() ? "border-orange shadow-[0_0_0_2px_var(--color-orange)]" : "border-dark-gray"}
-          ${hasError() ? "border-error shadow-[0_0_0_2px_var(--color-error)]" : ""}
-          ${isDisabled() ? "opacity-50 cursor-not-allowed" : ""}
+          ${focused() ? 'border-orange shadow-[0_0_0_2px_var(--color-orange)]' : 'border-dark-gray'}
+          ${hasError() ? 'border-error shadow-[0_0_0_2px_var(--color-error)]' : ''}
+          ${isDisabled() ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
         <textarea
@@ -83,7 +87,7 @@ export function TextArea(props: TextAreaProps): JSX.Element {
           name={local.name}
           id={local.name}
           placeholder={local.placeholder}
-          value={local.value ?? ""}
+          value={local.value ?? ''}
           disabled={isDisabled()}
           rows={local.rows ?? 3}
           maxLength={local.maxLength}
@@ -97,8 +101,8 @@ export function TextArea(props: TextAreaProps): JSX.Element {
             focus:outline-none
             disabled:cursor-not-allowed
             resize-none
-            ${local.autoResize === true ? "overflow-hidden" : ""}
-            ${local.class ?? ""}
+            ${local.autoResize === true ? 'overflow-hidden' : ''}
+            ${local.class ?? ''}
           `}
           {...rest}
         />
@@ -116,8 +120,8 @@ export function TextArea(props: TextAreaProps): JSX.Element {
           <span
             class={`font-pixel text-[8px] ${
               currentLength() > (local.maxLength ?? 0) * 0.9
-                ? "text-error"
-                : "text-gray"
+                ? 'text-error'
+                : 'text-gray'
             }`}
           >
             {currentLength()}/{local.maxLength}

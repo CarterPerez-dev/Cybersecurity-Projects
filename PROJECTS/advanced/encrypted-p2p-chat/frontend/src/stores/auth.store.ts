@@ -3,18 +3,18 @@
  * Manages current user and authentication status
  */
 
-import { atom, computed } from "nanostores"
-import { persistentAtom } from "@nanostores/persistent"
-import type { User, Session } from "../types"
+import { persistentAtom } from '@nanostores/persistent'
+import { atom, computed } from 'nanostores'
+import type { Session, User } from '../types'
 
 export const $currentUser = atom<User | null>(null)
 
-const $userIdRaw = persistentAtom<string>("chat:user_id", "", {
+const $userIdRaw = persistentAtom<string>('chat:user_id', '', {
   encode: (value: string) => value,
   decode: (value: string) => value,
 })
 
-export const $userId = computed($userIdRaw, (id) => id !== "" ? id : null)
+export const $userId = computed($userIdRaw, (id) => (id !== '' ? id : null))
 
 export const $isAuthenticated = computed($userId, (id) => id !== null)
 
@@ -22,7 +22,7 @@ export const $session = atom<Session | null>(null)
 
 export function setCurrentUser(user: User | null): void {
   $currentUser.set(user)
-  $userIdRaw.set(user?.id ?? "")
+  $userIdRaw.set(user?.id ?? '')
 
   if (user !== null) {
     $session.set({
@@ -39,7 +39,7 @@ export function setCurrentUser(user: User | null): void {
 
 export function logout(): void {
   $currentUser.set(null)
-  $userIdRaw.set("")
+  $userIdRaw.set('')
   $session.set(null)
 }
 

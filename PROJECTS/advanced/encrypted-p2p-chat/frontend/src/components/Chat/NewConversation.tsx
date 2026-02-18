@@ -2,13 +2,14 @@
 // © AngelaMos | 2025
 // NewConversation.tsx
 // ===================
-import { createSignal, Show } from "solid-js"
-import type { JSX } from "solid-js"
-import { Modal } from "../UI/Modal"
-import { Button } from "../UI/Button"
-import { UserSearch } from "./UserSearch"
-import type { User } from "../../types"
-import { showToast } from "../../stores"
+
+import type { JSX } from 'solid-js'
+import { createSignal, Show } from 'solid-js'
+import { showToast } from '../../stores'
+import type { User } from '../../types'
+import { Button } from '../UI/Button'
+import { Modal } from '../UI/Modal'
+import { UserSearch } from './UserSearch'
 
 interface NewConversationProps {
   isOpen: boolean
@@ -32,10 +33,14 @@ export function NewConversation(props: NewConversationProps): JSX.Element {
 
     try {
       await props.onCreateRoom(user.id)
-      showToast("success", "CHAT CREATED", `STARTED CONVERSATION WITH ${user.display_name.toUpperCase()}`)
+      showToast(
+        'success',
+        'CHAT CREATED',
+        `STARTED CONVERSATION WITH ${user.display_name.toUpperCase()}`
+      )
       handleClose()
     } catch (_error: unknown) {
-      showToast("error", "FAILED TO CREATE CHAT", "PLEASE TRY AGAIN")
+      showToast('error', 'FAILED TO CREATE CHAT', 'PLEASE TRY AGAIN')
     } finally {
       setLoading(false)
     }
@@ -56,9 +61,9 @@ export function NewConversation(props: NewConversationProps): JSX.Element {
     >
       <div class="space-y-4">
         <div>
-          <label class="font-pixel text-[10px] text-gray block mb-2">
+          <span class="font-pixel text-[10px] text-gray block mb-2">
             SEARCH FOR A USER
-          </label>
+          </span>
           <UserSearch
             onSelect={handleUserSelect}
             placeholder="ENTER USERNAME..."
@@ -97,12 +102,7 @@ export function NewConversation(props: NewConversationProps): JSX.Element {
         </Show>
 
         <div class="flex items-center gap-3 pt-4 border-t-2 border-dark-gray">
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={handleClose}
-            fullWidth
-          >
+          <Button variant="secondary" size="md" onClick={handleClose} fullWidth>
             CANCEL
           </Button>
           <Button
@@ -123,7 +123,13 @@ export function NewConversation(props: NewConversationProps): JSX.Element {
 
 function CloseIcon(): JSX.Element {
   return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="1" y="2" width="2" height="2" />
       <rect x="2" y="3" width="2" height="2" />
       <rect x="3" y="4" width="2" height="2" />

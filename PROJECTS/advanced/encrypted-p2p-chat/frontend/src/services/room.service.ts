@@ -3,21 +3,21 @@
  * room.service.ts
  */
 
-import { api } from "../lib/api-client"
-import type { Message, Room } from "../types"
 import {
-  setRooms,
-  addRoom,
-  setRoomMessages,
-  setHasMore,
-  $userId,
-} from "../stores"
-import {
-  getDecryptedMessages,
-  getDecryptedMessage,
-  saveDecryptedMessage,
   cryptoService,
-} from "../crypto"
+  getDecryptedMessage,
+  getDecryptedMessages,
+  saveDecryptedMessage,
+} from '../crypto'
+import { api } from '../lib/api-client'
+import {
+  $userId,
+  addRoom,
+  setHasMore,
+  setRoomMessages,
+  setRooms,
+} from '../stores'
+import type { Message, Room } from '../types'
 
 export async function loadRooms(userId: string): Promise<Room[]> {
   try {
@@ -32,7 +32,7 @@ export async function loadRooms(userId: string): Promise<Room[]> {
 export async function createRoom(
   creatorId: string,
   participantId: string,
-  roomType: "direct" | "group" | "ephemeral" = "direct"
+  roomType: 'direct' | 'group' | 'ephemeral' = 'direct'
 ): Promise<Room | null> {
   try {
     const room = await api.rooms.create({
@@ -42,8 +42,7 @@ export async function createRoom(
     })
     addRoom(room)
     return room
-  } catch (err) {
-    console.error("[RoomService] Failed to create room:", err)
+  } catch (_err) {
     return null
   }
 }
@@ -73,7 +72,7 @@ export async function loadMessages(
         continue
       }
 
-      let content = "[Encrypted - from another session]"
+      let content = '[Encrypted - from another session]'
       const isOwnMessage = msg.sender_id === currentUserId
 
       if (isOwnMessage) {
@@ -81,7 +80,7 @@ export async function loadMessages(
         if (localCopy) {
           content = localCopy.content
         } else {
-          content = "[Your message - not stored locally]"
+          content = '[Your message - not stored locally]'
         }
       } else {
         try {
@@ -92,7 +91,7 @@ export async function loadMessages(
             msg.header
           )
         } catch {
-          content = "[Encrypted - from another session]"
+          content = '[Encrypted - from another session]'
         }
       }
 
@@ -102,7 +101,7 @@ export async function loadMessages(
         sender_id: msg.sender_id,
         sender_username: msg.sender_username,
         content,
-        status: "delivered" as const,
+        status: 'delivered' as const,
         is_encrypted: true,
         encrypted_content: msg.ciphertext,
         nonce: msg.nonce,
@@ -111,7 +110,10 @@ export async function loadMessages(
         updated_at: msg.created_at,
       }
 
-      if (!content.startsWith("[Encrypted") && !content.startsWith("[Your message")) {
+      if (
+        !content.startsWith('[Encrypted') &&
+        !content.startsWith('[Your message')
+      ) {
         void saveDecryptedMessage(decryptedMessage)
       }
 
@@ -121,13 +123,15 @@ export async function loadMessages(
     const allMessages = [...localMessages, ...newMessages]
     const uniqueMessages = Array.from(
       new Map(allMessages.map((m) => [m.id, m])).values()
-    ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    ).sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
 
     setRoomMessages(roomId, uniqueMessages)
     setHasMore(roomId, response.has_more)
     return uniqueMessages
-  } catch (err) {
-    console.error("[RoomService] Failed to load messages:", err)
+  } catch (_err) {
     const localMessages = await getDecryptedMessages(roomId, limit)
     if (localMessages.length > 0) {
       setRoomMessages(roomId, localMessages)

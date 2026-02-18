@@ -3,29 +3,29 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { useUIStore } from '@/store/uiStore';
-import type { TestResult } from '@/types/scan.types';
 import {
-  TEST_TYPE_LABELS,
   SEVERITY_COLORS,
   STATUS_COLORS,
-} from '@/config/constants';
-import './TestResultCard.css';
+  TEST_TYPE_LABELS,
+} from '@/config/constants'
+import { useUIStore } from '@/store/uiStore'
+import type { TestResult } from '@/types/scan.types'
+import './TestResultCard.css'
 
 interface TestResultCardProps {
-  result: TestResult;
+  result: TestResult
 }
 
 export const TestResultCard = ({
   result,
 }: TestResultCardProps): React.ReactElement => {
   const showEvidence = useUIStore(
-    (state) => state.testResults.expandedTests[result.id] ?? false,
-  );
-  const toggleTestExpanded = useUIStore((state) => state.toggleTestExpanded);
+    (state) => state.testResults.expandedTests[result.id] ?? false
+  )
+  const toggleTestExpanded = useUIStore((state) => state.toggleTestExpanded)
 
-  const statusColor = STATUS_COLORS[result.status];
-  const severityColor = SEVERITY_COLORS[result.severity];
+  const statusColor = STATUS_COLORS[result.status]
+  const severityColor = SEVERITY_COLORS[result.severity]
 
   return (
     <div className="test-result-card">
@@ -59,9 +59,7 @@ export const TestResultCard = ({
 
         {result.recommendations_json.length > 0 ? (
           <div className="test-result-card__section">
-            <h4 className="test-result-card__section-title">
-              Recommendations
-            </h4>
+            <h4 className="test-result-card__section-title">Recommendations</h4>
             <ul className="test-result-card__recommendations">
               {result.recommendations_json.map((rec) => (
                 <li
@@ -94,5 +92,5 @@ export const TestResultCard = ({
         ) : null}
       </div>
     </div>
-  );
-};
+  )
+}

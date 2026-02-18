@@ -2,32 +2,32 @@
  * 8-bit styled input component
  */
 
-import { Show, splitProps, createSignal } from "solid-js"
-import type { JSX } from "solid-js"
-import type { InputProps } from "../../types"
+import type { JSX } from 'solid-js'
+import { createSignal, Show, splitProps } from 'solid-js'
+import type { InputProps } from '../../types'
 
 export function Input(props: InputProps): JSX.Element {
   const [local, rest] = splitProps(props, [
-    "type",
-    "name",
-    "placeholder",
-    "value",
-    "onInput",
-    "onChange",
-    "onFocus",
-    "onBlur",
-    "disabled",
-    "error",
-    "label",
-    "hint",
-    "leftIcon",
-    "rightIcon",
-    "fullWidth",
-    "maxLength",
-    "minLength",
-    "required",
-    "autofocus",
-    "class",
+    'type',
+    'name',
+    'placeholder',
+    'value',
+    'onInput',
+    'onChange',
+    'onFocus',
+    'onBlur',
+    'disabled',
+    'error',
+    'label',
+    'hint',
+    'leftIcon',
+    'rightIcon',
+    'fullWidth',
+    'maxLength',
+    'minLength',
+    'required',
+    'autofocus',
+    'class',
   ])
 
   const [focused, setFocused] = createSignal(false)
@@ -48,7 +48,9 @@ export function Input(props: InputProps): JSX.Element {
   const isDisabled = (): boolean => local.disabled ?? false
 
   return (
-    <div class={`flex flex-col gap-1 ${local.fullWidth === true ? "w-full" : ""}`}>
+    <div
+      class={`flex flex-col gap-1 ${local.fullWidth === true ? 'w-full' : ''}`}
+    >
       <Show when={local.label}>
         <label
           class="font-pixel text-[10px] text-orange uppercase tracking-wider"
@@ -66,9 +68,9 @@ export function Input(props: InputProps): JSX.Element {
           relative flex items-center
           bg-black border-2
           transition-all duration-100
-          ${focused() ? "border-orange shadow-[0_0_0_2px_var(--color-orange)]" : "border-dark-gray"}
-          ${hasError() ? "border-error shadow-[0_0_0_2px_var(--color-error)]" : ""}
-          ${isDisabled() ? "opacity-50 cursor-not-allowed" : ""}
+          ${focused() ? 'border-orange shadow-[0_0_0_2px_var(--color-orange)]' : 'border-dark-gray'}
+          ${hasError() ? 'border-error shadow-[0_0_0_2px_var(--color-error)]' : ''}
+          ${isDisabled() ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
         <Show when={local.leftIcon}>
@@ -76,11 +78,11 @@ export function Input(props: InputProps): JSX.Element {
         </Show>
 
         <input
-          type={local.type ?? "text"}
+          type={local.type ?? 'text'}
           name={local.name}
           id={local.name}
           placeholder={local.placeholder}
-          value={local.value ?? ""}
+          value={local.value ?? ''}
           disabled={isDisabled()}
           maxLength={local.maxLength}
           minLength={local.minLength}
@@ -102,9 +104,9 @@ export function Input(props: InputProps): JSX.Element {
             placeholder:font-placeholder placeholder:text-[16px] placeholder:text-gray
             focus:outline-none
             disabled:cursor-not-allowed
-            ${local.leftIcon !== undefined ? "pl-1" : ""}
-            ${local.rightIcon !== undefined ? "pr-1" : ""}
-            ${local.class ?? ""}
+            ${local.leftIcon !== undefined ? 'pl-1' : ''}
+            ${local.rightIcon !== undefined ? 'pr-1' : ''}
+            ${local.class ?? ''}
           `}
           {...rest}
         />

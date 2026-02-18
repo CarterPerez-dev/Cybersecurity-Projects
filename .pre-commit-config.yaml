@@ -16,8 +16,50 @@ repos:
       # TODO: add golangci checks for GO projects
 
 
-      # TODO: replace eslint in any full-stack (React) projects with biome then add biome checks
+  # Biome Frontend Checks
+  - repo: local
+    hooks:
+      - id: biome-bug-bounty-platform
+        name: biome check (bug-bounty-platform frontend)
+        entry: bash -c 'cd PROJECTS/advanced/bug-bounty-platform/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^PROJECTS/advanced/bug-bounty-platform/frontend/src/
+        pass_filenames: false
 
+      - id: biome-c2-beacon
+        name: biome check (c2-beacon frontend)
+        entry: bash -c 'cd PROJECTS/beginner/c2-beacon/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^PROJECTS/beginner/c2-beacon/frontend/src/
+        pass_filenames: false
+
+      - id: biome-api-security-scanner
+        name: biome check (api-security-scanner frontend)
+        entry: bash -c 'cd PROJECTS/intermediate/api-security-scanner/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^PROJECTS/intermediate/api-security-scanner/frontend/src/
+        pass_filenames: false
+
+      - id: biome-siem-dashboard
+        name: biome check (siem-dashboard frontend)
+        entry: bash -c 'cd PROJECTS/intermediate/siem-dashboard/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^PROJECTS/intermediate/siem-dashboard/frontend/src/
+        pass_filenames: false
+
+      - id: biome-encrypted-p2p-chat
+        name: biome check (encrypted-p2p-chat frontend)
+        entry: bash -c 'cd PROJECTS/advanced/encrypted-p2p-chat/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^PROJECTS/advanced/encrypted-p2p-chat/frontend/src/
+        pass_filenames: false
+
+      - id: biome-fullstack-template
+        name: biome check (fullstack-template frontend)
+        entry: bash -c 'cd TEMPLATES/fullstack-template/frontend && npx @biomejs/biome check .'
+        language: system
+        files: ^TEMPLATES/fullstack-template/frontend/src/
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

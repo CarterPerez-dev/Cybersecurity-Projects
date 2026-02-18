@@ -3,22 +3,22 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { useNavigate } from 'react-router-dom';
-import { NewScanForm } from '@/components/scan/NewScanForm';
-import { ScansList } from '@/components/scan/ScansList';
-import { Button } from '@/components/common/Button';
-import { useAuthStore } from '@/store/authStore';
-import './DashboardPage.css';
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/common/Button'
+import { NewScanForm } from '@/components/scan/NewScanForm'
+import { ScansList } from '@/components/scan/ScansList'
+import { useAuthStore } from '@/store/authStore'
+import './DashboardPage.css'
 
 export const DashboardPage = (): React.ReactElement => {
-  const navigate = useNavigate();
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate()
+  const clearAuth = useAuthStore((state) => state.clearAuth)
+  const user = useAuthStore((state) => state.user)
 
   const handleLogout = (): void => {
-    clearAuth();
-    void navigate('/login');
-  };
+    clearAuth()
+    void navigate('/login')
+  }
 
   return (
     <div className="dashboard">
@@ -33,10 +33,7 @@ export const DashboardPage = (): React.ReactElement => {
             </div>
             <div className="dashboard__header-actions">
               <span className="dashboard__user-email">{user?.email}</span>
-              <Button
-                onClick={handleLogout}
-                variant="secondary"
-              >
+              <Button onClick={handleLogout} variant="secondary">
                 Logout
               </Button>
             </div>
@@ -56,5 +53,5 @@ export const DashboardPage = (): React.ReactElement => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

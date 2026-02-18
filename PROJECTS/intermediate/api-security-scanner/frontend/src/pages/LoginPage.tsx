@@ -3,8 +3,8 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { LoginForm } from '@/components/auth/LoginForm';
-import './AuthPage.css';
+import { LoginForm } from '@/components/auth/LoginForm'
+import './AuthPage.css'
 
 export const LoginPage = (): React.ReactElement => {
   return (
@@ -13,5 +13,5 @@ export const LoginPage = (): React.ReactElement => {
         <LoginForm />
       </div>
     </div>
-  );
-};
+  )
+}

@@ -89,6 +89,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/components/UI/Tooltip.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noStaticElementInteractions": "off"
+          }
+        }
+      }
     }
   ]
 }

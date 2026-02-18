@@ -3,7 +3,7 @@
  * Stores authentication tokens in localStorage
  */
 
-import { persistentMap, persistentAtom } from "@nanostores/persistent"
+import { persistentAtom, persistentMap } from '@nanostores/persistent'
 
 interface SessionTokens {
   accessToken: string
@@ -12,13 +12,13 @@ interface SessionTokens {
 }
 
 const DEFAULT_TOKENS: SessionTokens = {
-  accessToken: "",
-  refreshToken: "",
+  accessToken: '',
+  refreshToken: '',
   expiresAt: 0,
 }
 
 export const $sessionTokens = persistentMap<SessionTokens>(
-  "chat:session:",
+  'chat:session:',
   DEFAULT_TOKENS,
   {
     encode: JSON.stringify,
@@ -26,14 +26,10 @@ export const $sessionTokens = persistentMap<SessionTokens>(
   }
 )
 
-export const $lastActivity = persistentAtom<string>(
-  "chat:last_activity",
-  "",
-  {
-    encode: String,
-    decode: String,
-  }
-)
+export const $lastActivity = persistentAtom<string>('chat:last_activity', '', {
+  encode: String,
+  decode: String,
+})
 
 export function setSessionTokens(
   accessToken: string,
@@ -55,7 +51,7 @@ export function clearSessionTokens(): void {
 
 export function isSessionValid(): boolean {
   const tokens = $sessionTokens.get()
-  if (tokens.accessToken === "") {
+  if (tokens.accessToken === '') {
     return false
   }
   return tokens.expiresAt > Date.now()
@@ -70,7 +66,7 @@ export function getAccessToken(): string | null {
 
 export function getRefreshToken(): string | null {
   const tokens = $sessionTokens.get()
-  return tokens.refreshToken !== "" ? tokens.refreshToken : null
+  return tokens.refreshToken !== '' ? tokens.refreshToken : null
 }
 
 export function updateLastActivity(): void {
@@ -79,5 +75,5 @@ export function updateLastActivity(): void {
 
 export function getLastActivity(): Date | null {
   const activity = $lastActivity.get()
-  return activity !== "" ? new Date(activity) : null
+  return activity !== '' ? new Date(activity) : null
 }

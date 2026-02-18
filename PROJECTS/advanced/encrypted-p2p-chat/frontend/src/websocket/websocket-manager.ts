@@ -2,49 +2,54 @@
 // ©AngelaMos | 2025
 // websocket-manager.ts
 // ===================
-import { atom, computed } from "nanostores"
-import {
-  WS_URL,
-  WS_HEARTBEAT_INTERVAL,
-  WS_RECONNECT_DELAY,
-} from "../config"
-import { $userId } from "../stores"
+import { atom, computed } from 'nanostores'
+import { WS_HEARTBEAT_INTERVAL, WS_RECONNECT_DELAY, WS_URL } from '../config'
+import { $userId } from '../stores'
 import type {
   WSMessage,
-  WSOutgoingMessage,
+  WSOutgoingEncryptedMessage,
   WSOutgoingHeartbeat,
-  WSOutgoingTyping,
+  WSOutgoingMessage,
   WSOutgoingPresence,
   WSOutgoingReceipt,
-  WSOutgoingEncryptedMessage,
-} from "../types"
-import { handleWSMessage } from "./message-handlers"
+  WSOutgoingTyping,
+} from '../types'
 import {
-  isWSMessage,
   isEncryptedMessageWS,
-  isTypingIndicatorWS,
+  isErrorMessageWS,
+  isHeartbeatWS,
+  isMessageSentWS,
   isPresenceUpdateWS,
   isReadReceiptWS,
-  isHeartbeatWS,
-  isErrorMessageWS,
   isRoomCreatedWS,
-  isMessageSentWS,
-} from "../types/guards"
+  isTypingIndicatorWS,
+  isWSMessage,
+} from '../types/guards'
+import { handleWSMessage } from './message-handlers'
 
-export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting"
+export type ConnectionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
 
-export const $connectionStatus = atom<ConnectionStatus>("disconnected")
+export const $connectionStatus = atom<ConnectionStatus>('disconnected')
 export const $reconnectAttempts = atom<number>(0)
 export const $lastError = atom<string | null>(null)
 
 export const $isConnected = computed(
   $connectionStatus,
-  (status) => status === "connected"
+  (status) => status === 'connected'
 )
 
 const MAX_RECONNECT_ATTEMPTS = 10
 const MAX_RECONNECT_DELAY = 30000
-const FATAL_ERROR_CODES = ["max_connections", "unauthorized", "invalid_user", "database_error"]
+const FATAL_ERROR_CODES = [
+  'max_connections',
+  'unauthorized',
+  'invalid_user',
+  'database_error',
+]
 
 class WebSocketManager {
   private ws: WebSocket | null = null
@@ -57,7 +62,7 @@ class WebSocketManager {
   connect(): void {
     const userId = $userId.get()
     if (!userId) {
-      $lastError.set("Cannot connect: User not authenticated")
+      $lastError.set('Cannot connect: User not authenticated')
       return
     }
 
@@ -70,7 +75,7 @@ class WebSocketManager {
     }
 
     this.intentionalClose = false
-    $connectionStatus.set("connecting")
+    $connectionStatus.set('connecting')
     $lastError.set(null)
 
     const wsUrl = `${WS_URL}/ws?user_id=${userId}`
@@ -86,7 +91,7 @@ class WebSocketManager {
     this.intentionalClose = true
     this.fatalError = false
     this.cleanup()
-    $connectionStatus.set("disconnected")
+    $connectionStatus.set('disconnected')
     $reconnectAttempts.set(0)
   }
 
@@ -112,7 +117,7 @@ class WebSocketManager {
     tempId: string
   ): boolean {
     const message: WSOutgoingEncryptedMessage = {
-      type: "encrypted_message",
+      type: 'encrypted_message',
       recipient_id: recipientId,
       room_id: roomId,
       ciphertext: encrypted.ciphertext,
@@ -125,16 +130,16 @@ class WebSocketManager {
 
   sendTypingIndicator(roomId: string, isTyping: boolean): boolean {
     const message: WSOutgoingTyping = {
-      type: "typing",
+      type: 'typing',
       room_id: roomId,
       is_typing: isTyping,
     }
     return this.send(message)
   }
 
-  sendPresenceUpdate(status: "online" | "away" | "offline"): boolean {
+  sendPresenceUpdate(status: 'online' | 'away' | 'offline'): boolean {
     const message: WSOutgoingPresence = {
-      type: "presence",
+      type: 'presence',
       status,
     }
     return this.send(message)
@@ -142,7 +147,7 @@ class WebSocketManager {
 
   sendReadReceipt(messageId: string, roomId: string): boolean {
     const message: WSOutgoingReceipt = {
-      type: "receipt",
+      type: 'receipt',
       message_id: messageId,
       room_id: roomId,
     }
@@ -154,12 +159,12 @@ class WebSocketManager {
   }
 
   private handleOpen(): void {
-    $connectionStatus.set("connected")
+    $connectionStatus.set('connected')
     $reconnectAttempts.set(0)
     $lastError.set(null)
 
     this.startHeartbeat()
-    this.sendPresenceUpdate("online")
+    this.sendPresenceUpdate('online')
     this.flushMessageQueue()
   }
 
@@ -205,21 +210,23 @@ class WebSocketManager {
     this.cleanup()
 
     if (this.intentionalClose) {
-      $connectionStatus.set("disconnected")
+      $connectionStatus.set('disconnected')
       return
     }
 
     if (this.fatalError) {
-      $connectionStatus.set("disconnected")
+      $connectionStatus.set('disconnected')
       return
     }
 
     const attempts = $reconnectAttempts.get()
 
     if (attempts >= MAX_RECONNECT_ATTEMPTS) {
-      $connectionStatus.set("disconnected")
-      const reason = event.reason !== "" ? event.reason : "Unknown reason"
-      $lastError.set(`Connection failed after maximum retry attempts (code: ${event.code}, reason: ${reason})`)
+      $connectionStatus.set('disconnected')
+      const reason = event.reason !== '' ? event.reason : 'Unknown reason'
+      $lastError.set(
+        `Connection failed after maximum retry attempts (code: ${event.code}, reason: ${reason})`
+      )
       return
     }
 
@@ -227,11 +234,11 @@ class WebSocketManager {
       $lastError.set(`Connection closed unexpectedly (code: ${event.code})`)
     }
 
-    $connectionStatus.set("reconnecting")
+    $connectionStatus.set('reconnecting')
     $reconnectAttempts.set(attempts + 1)
 
     const delay = Math.min(
-      WS_RECONNECT_DELAY * Math.pow(2, attempts),
+      WS_RECONNECT_DELAY * 2 ** attempts,
       MAX_RECONNECT_DELAY
     )
 
@@ -241,7 +248,7 @@ class WebSocketManager {
   }
 
   private handleError(_event: Event): void {
-    $lastError.set("WebSocket connection error")
+    $lastError.set('WebSocket connection error')
   }
 
   private startHeartbeat(): void {
@@ -250,7 +257,7 @@ class WebSocketManager {
     this.heartbeatInterval = setInterval(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
         const heartbeat: WSOutgoingHeartbeat = {
-          type: "heartbeat",
+          type: 'heartbeat',
           timestamp: new Date().toISOString(),
         }
         this.ws.send(JSON.stringify(heartbeat))
@@ -266,7 +273,10 @@ class WebSocketManager {
   }
 
   private flushMessageQueue(): void {
-    while (this.messageQueue.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
+    while (
+      this.messageQueue.length > 0 &&
+      this.ws?.readyState === WebSocket.OPEN
+    ) {
       const message = this.messageQueue.shift()
       if (message !== undefined) {
         try {
@@ -293,7 +303,10 @@ class WebSocketManager {
       this.ws.onclose = null
       this.ws.onerror = null
 
-      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+      if (
+        this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING
+      ) {
         this.ws.close()
       }
       this.ws = null

@@ -3,20 +3,16 @@
 // PasskeyButton.tsx
 // ===================
 
+import type { JSX } from 'solid-js'
+import { createSignal, onMount, Show } from 'solid-js'
 import {
-  Show,
-  createSignal,
-  onMount,
-} from "solid-js"
-import type { JSX } from "solid-js"
-import { Button } from "../UI/Button"
-import {
-  isWebAuthnSupported,
   isPlatformAuthenticatorAvailable,
-} from "../../services"
+  isWebAuthnSupported,
+} from '../../services'
+import { Button } from '../UI/Button'
 
 interface PasskeyButtonProps {
-  mode: "register" | "login"
+  mode: 'register' | 'login'
   onClick: () => void | Promise<void>
   loading?: boolean
   disabled?: boolean
@@ -40,9 +36,11 @@ export function PasskeyButton(props: PasskeyButtonProps): JSX.Element {
 
   const buttonText = (): string => {
     if (!webAuthnSupported()) {
-      return "WEBAUTHN NOT SUPPORTED"
+      return 'WEBAUTHN NOT SUPPORTED'
     }
-    return props.mode === "register" ? "REGISTER WITH PASSKEY" : "LOGIN WITH PASSKEY"
+    return props.mode === 'register'
+      ? 'REGISTER WITH PASSKEY'
+      : 'LOGIN WITH PASSKEY'
   }
 
   const isDisabled = (): boolean => {
@@ -50,7 +48,7 @@ export function PasskeyButton(props: PasskeyButtonProps): JSX.Element {
   }
 
   return (
-    <div class={`flex flex-col gap-2 ${props.class ?? ""}`}>
+    <div class={`flex flex-col gap-2 ${props.class ?? ''}`}>
       <Button
         variant="primary"
         size="lg"
@@ -80,7 +78,13 @@ export function PasskeyButton(props: PasskeyButtonProps): JSX.Element {
 
 function PasskeyIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="2" y="6" width="2" height="6" />
       <rect x="4" y="4" width="2" height="2" />
       <rect x="6" y="2" width="4" height="2" />

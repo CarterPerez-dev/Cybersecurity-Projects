@@ -3,8 +3,8 @@
 // ©AngelaMos | 2025
 // ===========================
 
-import { isAxiosError } from 'axios';
-import { toast } from 'sonner';
+import { isAxiosError } from 'axios'
+import { toast } from 'sonner'
 
 export const createApiErrorHandler = (context: string) => {
   return (error: unknown): void => {
@@ -13,7 +13,7 @@ export const createApiErrorHandler = (context: string) => {
       error.response?.data !== null &&
       error.response?.data !== undefined
     ) {
-      const errorData: unknown = error.response.data;
+      const errorData: unknown = error.response.data
 
       if (
         typeof errorData === 'object' &&
@@ -22,15 +22,13 @@ export const createApiErrorHandler = (context: string) => {
         typeof errorData.detail === 'string' &&
         errorData.detail.length > 0
       ) {
-        toast.error(errorData.detail);
-        return;
+        toast.error(errorData.detail)
+        return
       }
     }
 
     const fallbackMessage =
-      error instanceof Error
-        ? error.message
-        : `Operation failed: ${context}`;
-    toast.error(fallbackMessage);
-  };
-};
+      error instanceof Error ? error.message : `Operation failed: ${context}`
+    toast.error(fallbackMessage)
+  }
+}

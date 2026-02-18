@@ -2,36 +2,33 @@
 // © AngelaMos | 2025
 // Chat.tsx
 // ===================
-import { Show, onMount, onCleanup, createEffect } from "solid-js"
-import type { JSX } from "solid-js"
-import type { Participant } from "../types"
-import { useStore } from "@nanostores/solid"
-import { AppShell, ProtectedRoute } from "../components/Layout"
+
+import { useStore } from '@nanostores/solid'
+import type { JSX } from 'solid-js'
+import { createEffect, onCleanup, onMount, Show } from 'solid-js'
 import {
-  MessageList,
   ChatHeader,
   ChatInput,
+  MessageList,
   NewConversation,
-} from "../components/Chat"
+} from '../components/Chat'
+import { AppShell, ProtectedRoute } from '../components/Layout'
+import { cryptoService, saveDecryptedMessage } from '../crypto'
+import { roomService } from '../services'
 import {
+  $activeModal,
   $activeRoom,
   $activeRoomId,
-  $activeModal,
-  $userId,
   $currentUser,
-  showToast,
-  setActiveRoom,
-  openModal,
-  closeModal,
+  $userId,
   addMessage,
-} from "../stores"
-import {
-  connectWebSocket,
-  disconnectWebSocket,
-  wsManager,
-} from "../websocket"
-import { roomService } from "../services"
-import { cryptoService, saveDecryptedMessage } from "../crypto"
+  closeModal,
+  openModal,
+  setActiveRoom,
+  showToast,
+} from '../stores'
+import type { Participant } from '../types'
+import { connectWebSocket, disconnectWebSocket, wsManager } from '../websocket'
 
 export default function Chat(): JSX.Element {
   const activeRoom = useStore($activeRoom)
@@ -51,8 +48,7 @@ export default function Chat(): JSX.Element {
     if (currentUserId) {
       try {
         await cryptoService.initialize(currentUserId)
-      } catch {
-      }
+      } catch {}
       connectWebSocket()
       await roomService.loadRooms(currentUserId)
     }
@@ -69,19 +65,21 @@ export default function Chat(): JSX.Element {
     const user = $currentUser.get()
 
     if (roomId === null || room === null) {
-      showToast("error", "SEND FAILED", "NO ACTIVE ROOM")
+      showToast('error', 'SEND FAILED', 'NO ACTIVE ROOM')
       return
     }
 
     if (currentUserId === null) {
-      showToast("error", "SEND FAILED", "NOT AUTHENTICATED")
+      showToast('error', 'SEND FAILED', 'NOT AUTHENTICATED')
       return
     }
 
-    const recipientId = room.participants.find((p: Participant) => p.user_id !== currentUserId)?.user_id
+    const recipientId = room.participants.find(
+      (p: Participant) => p.user_id !== currentUserId
+    )?.user_id
 
     if (recipientId === undefined) {
-      showToast("error", "SEND FAILED", "NO RECIPIENT FOUND")
+      showToast('error', 'SEND FAILED', 'NO RECIPIENT FOUND')
       return
     }
 
@@ -92,9 +90,9 @@ export default function Chat(): JSX.Element {
       id: tempId,
       room_id: roomId,
       sender_id: currentUserId,
-      sender_username: user?.username ?? "me",
+      sender_username: user?.username ?? 'me',
       content,
-      status: "sending" as const,
+      status: 'sending' as const,
       is_encrypted: true,
       created_at: now,
       updated_at: now,
@@ -114,11 +112,10 @@ export default function Chat(): JSX.Element {
       if (sent) {
         void saveDecryptedMessage(messageToSend)
       } else {
-        showToast("error", "SEND FAILED", "NOT CONNECTED")
+        showToast('error', 'SEND FAILED', 'NOT CONNECTED')
       }
-    } catch (error) {
-      console.error("[Chat] Encryption failed:", error)
-      showToast("error", "SEND FAILED", "ENCRYPTION ERROR")
+    } catch (_error) {
+      showToast('error', 'SEND FAILED', 'ENCRYPTION ERROR')
     }
   }
 
@@ -126,7 +123,7 @@ export default function Chat(): JSX.Element {
     const currentUserId = userId()
 
     if (currentUserId === null) {
-      showToast("error", "FAILED", "NOT AUTHENTICATED")
+      showToast('error', 'FAILED', 'NOT AUTHENTICATED')
       return
     }
 
@@ -136,12 +133,12 @@ export default function Chat(): JSX.Element {
       setActiveRoom(room.id)
       closeModal()
     } else {
-      showToast("error", "FAILED", "COULD NOT CREATE CONVERSATION")
+      showToast('error', 'FAILED', 'COULD NOT CREATE CONVERSATION')
     }
   }
 
   const handleNewChat = (): void => {
-    openModal("new-conversation")
+    openModal('new-conversation')
   }
 
   return (
@@ -155,15 +152,15 @@ export default function Chat(): JSX.Element {
           >
             {(roomId) => (
               <>
-                <ChatHeader
-                  room={activeRoom()}
-                />
-                <MessageList
-                  roomId={roomId}
-                />
+                <ChatHeader room={activeRoom()} />
+                <MessageList roomId={roomId} />
                 <ChatInput
                   roomId={roomId}
-                  recipientId={activeRoom()?.participants.find((p: Participant) => p.user_id !== userId())?.user_id ?? ""}
+                  recipientId={
+                    activeRoom()?.participants.find(
+                      (p: Participant) => p.user_id !== userId()
+                    )?.user_id ?? ''
+                  }
                   onSend={handleSendMessage}
                 />
               </>
@@ -172,7 +169,7 @@ export default function Chat(): JSX.Element {
         </div>
 
         <NewConversation
-          isOpen={activeModal() === "new-conversation"}
+          isOpen={activeModal() === 'new-conversation'}
           onClose={closeModal}
           onCreateRoom={handleCreateRoom}
         />
@@ -210,7 +207,14 @@ function EmptyState(props: EmptyStateProps): JSX.Element {
 
 function ChatIcon(): JSX.Element {
   return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor" class="text-orange mx-auto">
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="currentColor"
+      class="text-orange mx-auto"
+      aria-hidden="true"
+    >
       <rect x="8" y="8" width="32" height="4" />
       <rect x="4" y="12" width="4" height="24" />
       <rect x="40" y="12" width="4" height="24" />

@@ -2,14 +2,14 @@
 // © AngelaMos | 2025
 // eslint.config.js
 // ===================
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import react from 'eslint-plugin-react';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
-import prettierConfig from 'eslint-config-prettier';
-import globals from 'globals';
+import js from '@eslint/js'
+import prettierConfig from 'eslint-config-prettier'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
@@ -47,15 +47,28 @@ export default tseslint.config(
       },
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
-      '@typescript-eslint/explicit-function-return-type': ['error', {
-        allowExpressions: true,
-        allowTypedFunctionExpressions: true,
-        allowHigherOrderFunctions: true,
-        allowDirectConstAssertionInArrowFunctions: true,
-        allowedNames: ['Component']
-      }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowDirectConstAssertionInArrowFunctions: true,
+          allowedNames: ['Component'],
+        },
+      ],
       '@typescript-eslint/naming-convention': 'off',
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/array-type': ['error', { default: 'array' }],
@@ -63,13 +76,16 @@ export default tseslint.config(
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/strict-boolean-expressions': ['error', {
-        allowString: false,
-        allowNumber: false,
-        allowNullableObject: false,
-        allowNullableString: true,
-        allowAny: true
-      }],
+      '@typescript-eslint/strict-boolean-expressions': [
+        'error',
+        {
+          allowString: false,
+          allowNumber: false,
+          allowNullableObject: false,
+          allowNullableString: true,
+          allowAny: true,
+        },
+      ],
 
       '@typescript-eslint/prefer-as-const': 'error',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
@@ -78,7 +94,14 @@ export default tseslint.config(
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/jsx-no-leaked-render': ['error', { validStrategies: ['ternary'] }],
-      'react/jsx-key': ['error', { checkFragmentShorthand: true, checkKeyMustBeforeSpread: true, warnOnDuplicates: true }],
+      'react/jsx-key': [
+        'error',
+        {
+          checkFragmentShorthand: true,
+          checkKeyMustBeforeSpread: true,
+          warnOnDuplicates: true,
+        },
+      ],
       'react/jsx-no-useless-fragment': ['error', { allowExpressions: false }],
       'react/jsx-pascal-case': ['error', { allowAllCaps: false }],
       'react/no-array-index-key': 'warn',
@@ -106,8 +129,11 @@ export default tseslint.config(
       'object-shorthand': 'error',
       'no-nested-ternary': 'error',
       'max-depth': ['error', 6],
-      'max-lines': ['error', { max: 2000, skipBlankLines: true, skipComments: true }],
-      'complexity': ['error', 55],
+      'max-lines': [
+        'error',
+        { max: 2000, skipBlankLines: true, skipComments: true },
+      ],
+      complexity: ['error', 55],
     },
   },
 
@@ -118,5 +144,5 @@ export default tseslint.config(
     },
   },
 
-  prettierConfig,
-);
+  prettierConfig
+)

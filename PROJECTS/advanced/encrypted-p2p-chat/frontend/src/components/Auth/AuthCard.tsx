@@ -2,8 +2,8 @@
  * 8-bit styled auth card container
  */
 
-import type { ParentProps, JSX } from "solid-js"
-import { Show } from "solid-js"
+import type { JSX, ParentProps } from 'solid-js'
+import { Show } from 'solid-js'
 
 interface AuthCardProps extends ParentProps {
   title: string
@@ -39,9 +39,7 @@ export function AuthCard(props: AuthCardProps): JSX.Element {
       </div>
 
       <div class="mt-4 flex justify-center">
-        <span class="font-pixel text-[8px] text-gray">
-          END-TO-END ENCRYPTED
-        </span>
+        <span class="font-pixel text-[8px] text-gray">END-TO-END ENCRYPTED</span>
       </div>
     </div>
   )
@@ -49,13 +47,61 @@ export function AuthCard(props: AuthCardProps): JSX.Element {
 
 function LockIcon(): JSX.Element {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="7" y="4" width="10" height="2" fill="currentColor" class="text-orange" />
-      <rect x="5" y="6" width="2" height="5" fill="currentColor" class="text-orange" />
-      <rect x="17" y="6" width="2" height="5" fill="currentColor" class="text-orange" />
-      <rect x="4" y="11" width="16" height="2" fill="currentColor" class="text-orange" />
-      <rect x="4" y="13" width="16" height="8" fill="currentColor" class="text-orange" />
-      <rect x="11" y="15" width="2" height="4" fill="currentColor" class="text-black" />
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="7"
+        y="4"
+        width="10"
+        height="2"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="5"
+        y="6"
+        width="2"
+        height="5"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="17"
+        y="6"
+        width="2"
+        height="5"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="4"
+        y="11"
+        width="16"
+        height="2"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="4"
+        y="13"
+        width="16"
+        height="8"
+        fill="currentColor"
+        class="text-orange"
+      />
+      <rect
+        x="11"
+        y="15"
+        width="2"
+        height="4"
+        fill="currentColor"
+        class="text-black"
+      />
     </svg>
   )
 }

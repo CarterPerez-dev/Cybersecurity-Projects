@@ -2,11 +2,12 @@
 // © AngelaMos | 2025
 // MessageBubble.tsx
 // ===================
-import { Show, Switch, Match } from "solid-js"
-import type { JSX } from "solid-js"
-import type { Message, MessageStatus } from "../../types"
-import { EncryptionBadge } from "./EncryptionBadge"
-import { formatTime } from "../../lib/date"
+
+import type { JSX } from 'solid-js'
+import { Match, Show, Switch } from 'solid-js'
+import { formatTime } from '../../lib/date'
+import type { Message, MessageStatus } from '../../types'
+import { EncryptionBadge } from './EncryptionBadge'
 
 interface MessageBubbleProps {
   message: Message
@@ -17,7 +18,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble(props: MessageBubbleProps): JSX.Element {
   const bubbleClasses = (): string => {
-    const base = "max-w-[70%] p-4"
+    const base = 'max-w-[70%] p-4'
     if (props.isOwnMessage) {
       return `${base} bg-orange text-black`
     }
@@ -25,7 +26,9 @@ export function MessageBubble(props: MessageBubbleProps): JSX.Element {
   }
 
   return (
-    <div class={`flex px-4 ${props.isOwnMessage ? "justify-end" : "justify-start"} ${props.class ?? ""}`}>
+    <div
+      class={`flex px-4 ${props.isOwnMessage ? 'justify-end' : 'justify-start'} ${props.class ?? ''}`}
+    >
       <div class={bubbleClasses()}>
         <Show when={props.showSender === true && !props.isOwnMessage}>
           <div class="font-pixel text-[10px] text-orange mb-2">
@@ -33,7 +36,10 @@ export function MessageBubble(props: MessageBubbleProps): JSX.Element {
           </div>
         </Show>
 
-        <div class="font-placeholder break-words whitespace-pre-wrap" style="font-size: 32px; line-height: 1.4;">
+        <div
+          class="font-placeholder break-words whitespace-pre-wrap"
+          style="font-size: 32px; line-height: 1.4;"
+        >
           {props.message.content}
         </div>
 
@@ -41,7 +47,9 @@ export function MessageBubble(props: MessageBubbleProps): JSX.Element {
           <Show when={props.message.is_encrypted}>
             <EncryptionBadge isEncrypted size="sm" />
           </Show>
-          <span class={`font-pixel text-[8px] ${props.isOwnMessage ? "text-black/60" : "text-gray"}`}>
+          <span
+            class={`font-pixel text-[8px] ${props.isOwnMessage ? 'text-black/60' : 'text-gray'}`}
+          >
             {formatTime(props.message.created_at)}
           </span>
           <Show when={props.isOwnMessage}>
@@ -59,20 +67,20 @@ interface MessageStatusIconProps {
 
 function MessageStatusIcon(props: MessageStatusIconProps): JSX.Element {
   return (
-    <Switch fallback={<></>}>
-      <Match when={props.status === "sending"}>
+    <Switch fallback={null}>
+      <Match when={props.status === 'sending'}>
         <ClockIcon class="w-3 h-3 text-black/40" />
       </Match>
-      <Match when={props.status === "sent"}>
+      <Match when={props.status === 'sent'}>
         <CheckIcon class="w-3 h-3 text-black/60" />
       </Match>
-      <Match when={props.status === "delivered"}>
+      <Match when={props.status === 'delivered'}>
         <DoubleCheckIcon class="w-3 h-3 text-black/60" />
       </Match>
-      <Match when={props.status === "read"}>
+      <Match when={props.status === 'read'}>
         <DoubleCheckIcon class="w-3 h-3 text-success" />
       </Match>
-      <Match when={props.status === "failed"}>
+      <Match when={props.status === 'failed'}>
         <ErrorIcon class="w-3 h-3 text-error" />
       </Match>
     </Switch>
@@ -85,7 +93,12 @@ interface IconProps {
 
 function ClockIcon(props: IconProps): JSX.Element {
   return (
-    <svg viewBox="0 0 12 12" fill="currentColor" class={props.class}>
+    <svg
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      class={props.class}
+      aria-hidden="true"
+    >
       <rect x="5" y="1" width="2" height="1" />
       <rect x="3" y="2" width="2" height="1" />
       <rect x="7" y="2" width="2" height="1" />
@@ -106,7 +119,12 @@ function ClockIcon(props: IconProps): JSX.Element {
 
 function CheckIcon(props: IconProps): JSX.Element {
   return (
-    <svg viewBox="0 0 12 12" fill="currentColor" class={props.class}>
+    <svg
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      class={props.class}
+      aria-hidden="true"
+    >
       <rect x="2" y="6" width="2" height="2" />
       <rect x="4" y="8" width="2" height="2" />
       <rect x="6" y="6" width="2" height="2" />
@@ -118,7 +136,12 @@ function CheckIcon(props: IconProps): JSX.Element {
 
 function DoubleCheckIcon(props: IconProps): JSX.Element {
   return (
-    <svg viewBox="0 0 16 12" fill="currentColor" class={props.class}>
+    <svg
+      viewBox="0 0 16 12"
+      fill="currentColor"
+      class={props.class}
+      aria-hidden="true"
+    >
       <rect x="0" y="6" width="2" height="2" />
       <rect x="2" y="8" width="2" height="2" />
       <rect x="4" y="6" width="2" height="2" />
@@ -135,7 +158,12 @@ function DoubleCheckIcon(props: IconProps): JSX.Element {
 
 function ErrorIcon(props: IconProps): JSX.Element {
   return (
-    <svg viewBox="0 0 12 12" fill="currentColor" class={props.class}>
+    <svg
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      class={props.class}
+      aria-hidden="true"
+    >
       <rect x="5" y="1" width="2" height="1" />
       <rect x="3" y="2" width="2" height="1" />
       <rect x="7" y="2" width="2" height="1" />

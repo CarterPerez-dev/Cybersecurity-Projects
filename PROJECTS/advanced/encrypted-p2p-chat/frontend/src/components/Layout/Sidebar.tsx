@@ -2,21 +2,21 @@
  * Sidebar - Room list only
  */
 
-import type { JSX } from "solid-js"
-import { Show, Index, createMemo } from "solid-js"
-import type { Participant } from "../../types"
-import { useStore } from "@nanostores/solid"
+import { useStore } from '@nanostores/solid'
+import type { JSX } from 'solid-js'
+import { createMemo, Index, Show } from 'solid-js'
 import {
+  $activeRoomId,
   $currentUser,
   $rooms,
-  $activeRoomId,
   $totalUnreadCount,
-  setActiveRoom,
   openModal,
-} from "../../stores"
-import { Avatar } from "../UI/Avatar"
-import { Badge } from "../UI/Badge"
-import { IconButton } from "../UI/IconButton"
+  setActiveRoom,
+} from '../../stores'
+import type { Participant } from '../../types'
+import { Avatar } from '../UI/Avatar'
+import { Badge } from '../UI/Badge'
+import { IconButton } from '../UI/IconButton'
 
 export function Sidebar(): JSX.Element {
   const currentUser = useStore($currentUser)
@@ -39,7 +39,9 @@ export function Sidebar(): JSX.Element {
         <div class="flex items-center justify-between">
           <h2 class="font-pixel text-[10px] text-orange uppercase">Messages</h2>
           <Show when={totalUnread() > 0}>
-            <Badge variant="primary" size="xs">{totalUnread()}</Badge>
+            <Badge variant="primary" size="xs">
+              {totalUnread()}
+            </Badge>
           </Show>
         </div>
       </div>
@@ -51,16 +53,22 @@ export function Sidebar(): JSX.Element {
           variant="subtle"
           size="sm"
           class="w-full justify-start gap-2 px-3"
-          onClick={() => openModal("new-conversation")}
+          onClick={() => openModal('new-conversation')}
         />
       </div>
 
       <div class="flex-1 overflow-y-auto p-2">
         <Index each={sortedRooms()}>
-          {(room, idx) => {
+          {(room, _idx) => {
             const isActive = createMemo(() => activeRoomId() === room().id)
-            const other = createMemo(() => room().participants?.find((p: Participant) => p.user_id !== currentUser()?.id))
-            const displayName = createMemo(() => room().name ?? other()?.display_name ?? "Chat")
+            const other = createMemo(() =>
+              room().participants?.find(
+                (p: Participant) => p.user_id !== currentUser()?.id
+              )
+            )
+            const displayName = createMemo(
+              () => room().name ?? other()?.display_name ?? 'Chat'
+            )
 
             return (
               <button
@@ -69,17 +77,19 @@ export function Sidebar(): JSX.Element {
                 data-active={isActive()}
                 onClick={() => setActiveRoom(room().id)}
                 style={{
-                  width: "100%",
-                  display: "flex",
-                  "align-items": "center",
-                  gap: "12px",
-                  padding: "12px",
-                  "margin-bottom": "4px",
-                  border: isActive() ? "2px solid #FF5300" : "2px solid transparent",
-                  background: isActive() ? "#FF5300" : "black",
-                  color: isActive() ? "black" : "white",
-                  cursor: "pointer",
-                  "text-align": "left",
+                  width: '100%',
+                  display: 'flex',
+                  'align-items': 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  'margin-bottom': '4px',
+                  border: isActive()
+                    ? '2px solid #FF5300'
+                    : '2px solid transparent',
+                  background: isActive() ? '#FF5300' : 'black',
+                  color: isActive() ? 'black' : 'white',
+                  cursor: 'pointer',
+                  'text-align': 'left',
                 }}
               >
                 <Avatar
@@ -87,14 +97,14 @@ export function Sidebar(): JSX.Element {
                   size="sm"
                   fallback={displayName().slice(0, 2)}
                 />
-                <div style={{ flex: 1, "min-width": 0 }}>
+                <div style={{ flex: 1, 'min-width': 0 }}>
                   <span class="font-pixel text-[10px] truncate block">
                     {displayName()}
                   </span>
                   <Show when={room().last_message}>
                     <p
                       class="font-pixel text-[8px] truncate mt-0.5"
-                      style={{ color: isActive() ? "rgba(0,0,0,0.7)" : "#888" }}
+                      style={{ color: isActive() ? 'rgba(0,0,0,0.7)' : '#888' }}
                     >
                       {room().last_message?.content}
                     </p>
@@ -116,7 +126,13 @@ export function Sidebar(): JSX.Element {
 
 function PlusIcon(): JSX.Element {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <rect x="7" y="2" width="2" height="12" />
       <rect x="2" y="7" width="12" height="2" />
     </svg>

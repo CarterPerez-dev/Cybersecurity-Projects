@@ -3,12 +3,12 @@
  * Application routing configuration
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { LoginPage } from '@/pages/LoginPage';
-import { RegisterPage } from '@/pages/RegisterPage';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { ScanResultsPage } from '@/pages/ScanResultsPage';
-import { ProtectedRoute } from '@/components/common/ProtectedRoute';
+import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { ProtectedRoute } from '@/components/common/ProtectedRoute'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { LoginPage } from '@/pages/LoginPage'
+import { RegisterPage } from '@/pages/RegisterPage'
+import { ScanResultsPage } from '@/pages/ScanResultsPage'
 
 export const router = createBrowserRouter([
   {
@@ -37,11 +37,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: (
-      <Navigate
-        to="/"
-        replace
-      />
-    ),
+    element: <Navigate to="/" replace />,
   },
-]);
+])
