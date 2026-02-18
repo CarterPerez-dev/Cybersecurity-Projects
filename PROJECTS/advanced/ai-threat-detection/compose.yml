@@ -1,0 +1,110 @@
+# ©AngelaMos | 2026
+# Production Docker Compose
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: vigil-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-angelusvigil}
+      POSTGRES_USER: ${POSTGRES_USER:-vigil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vigil_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vigil} -d ${POSTGRES_DB:-angelusvigil}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: vigil-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - redis_data:/data
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - vigil_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/fastapi.prod
+    container_name: vigil-backend
+    environment:
+      ENV: ${ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_KEY: ${API_KEY:?API_KEY required}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vigil}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-angelusvigil}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      NGINX_LOG_PATH: /var/log/nginx/access.log
+      GEOIP_DB_PATH: /usr/share/GeoIP/GeoLite2-City.mmdb
+    volumes:
+      - nginx_logs:/var/log/nginx:ro
+      - geoip_data:/usr/share/GeoIP:ro
+      - model_data:/app/data/models
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vigil_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  geoip-updater:
+    image: maxmindinc/geoipupdate:latest
+    container_name: vigil-geoip
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${GEOIP_ACCOUNT_ID:?GEOIP_ACCOUNT_ID required}
+      GEOIPUPDATE_LICENSE_KEY: ${GEOIP_LICENSE_KEY:?GEOIP_LICENSE_KEY required}
+      GEOIPUPDATE_EDITION_IDS: "GeoLite2-City"
+      GEOIPUPDATE_FREQUENCY: "168"
+    volumes:
+      - geoip_data:/usr/share/GeoIP
+    networks:
+      - vigil_network
+    restart: always
+
+networks:
+  vigil_network:
+    driver: bridge
+    name: vigil_network
+  certgames_net:
+    external: true
+    name: certgames_default
+
+volumes:
+  postgres_data:
+    name: vigil_postgres_data
+  redis_data:
+    name: vigil_redis_data
+  geoip_data:
+    name: vigil_geoip_data
+  model_data:
+    name: vigil_model_data
+  nginx_logs:
+    external: true
+    name: certgames_nginx_logs

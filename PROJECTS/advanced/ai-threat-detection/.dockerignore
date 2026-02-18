@@ -1,0 +1,27 @@
+# ©AngelaMos | 2026
+# .dockerignore
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+.angelusvigil/
+docs/
+
+backend/.venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/htmlcov/
+backend/.coverage
+backend/*.egg-info/
+
+*.log
+*.swp
+*.swo
+*~
+.DS_Store

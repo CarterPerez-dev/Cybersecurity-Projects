@@ -1,0 +1,216 @@
+# ©AngelaMos | 2026
+# pyproject.toml
+
+[project]
+name = "angelusvigil"
+version = "0.1.0"
+description = "AI-powered threat detection engine for web server access logs"
+requires-python = ">=3.14"
+authors = [
+    {name = "Carter", email = "carter@certgames.com"}
+]
+
+dependencies = [
+    "fastapi>=0.128.8",
+    "uvicorn[standard]>=0.40.0",
+    "redis[hiredis]>=7.1.1",
+    "sqlalchemy>=2.0.46",
+    "sqlmodel>=0.0.33",
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "watchdog>=6.0.0",
+    "geoip2>=5.2.0",
+    "typer>=0.23.0",
+    "orjson>=3.11.7",
+    "httpx>=0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "aiosqlite>=0.22.1",
+    "ruff>=0.15.0",
+    "mypy>=1.19.1",
+    "pylint>=4.0.4",
+    "pylint-pydantic>=0.4.1",
+    "types-redis>=4.6.0.20241004",
+    "coverage>=7.13.4",
+    "fakeredis>=2.26.0",
+]
+
+ml = [
+    "torch>=2.10.0",
+    "scikit-learn>=1.8.0",
+    "onnxruntime>=1.24.1",
+    "skl2onnx>=1.20.0",
+    "mlflow>=3.9.0",
+    "numpy>=2.4.2",
+    "pandas>=2.2.0,<3",
+    "imbalanced-learn>=0.14.1",
+]
+
+[project.scripts]
+vigil = "cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "cli", "ml"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 95
+indent-width = 4
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "_build",
+    "build",
+    "dist",
+    "site-packages",
+    "venv",
+    "alembic",
+]
+
+[tool.ruff.format]
+line-ending = "auto"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = [
+    "E1",
+    "E4",
+    "E7",
+    "F",
+    "W292",
+    "W605",
+    "B",
+    "C4",
+    "UP",
+    "ARG",
+    "SIM",
+    "I",
+    "F401",
+    "F811",
+    "F821",
+]
+
+ignore = [
+    "E501",
+    "W291",
+    "W293",
+    "I001",
+    "RUF001",
+    "RUF002",
+    "B008",
+    "ARG001",
+    "E712",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["ARG002"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.models.*"
+disable_error_code = ["call-arg", "misc"]
+
+[tool.pylint.main]
+py-version = "3.12"
+jobs = 4
+load-plugins = [
+    "pylint_pydantic",
+]
+persistent = true
+ignore = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".git",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "alembic",
+]
+ignore-paths = [
+    "^venv/.*",
+    "^.venv/.*",
+    "^build/.*",
+    "^dist/.*",
+]
+
+[tool.pylint.messages_control]
+disable = [
+    "C0111",
+    "C0103",
+    "R0903",
+    "W0511",
+    "W0622",
+    "W0612",
+    "W0613",
+    "C0301",
+    "C0302",
+    "C0411",
+    "C0305",
+    "C0303",
+    "C0304",
+    "R0801",
+    "E0401",
+    "C0412",
+    "W0718",
+    "E0611",
+    "E1101",
+    "C0415",
+    "E1102",
+    "R1732",
+]
+
+[tool.pylint.design]
+max-args = 12
+max-attributes = 10
+max-locals = 35
+max-positional-arguments = 12
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

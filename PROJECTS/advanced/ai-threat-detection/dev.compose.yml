@@ -1,0 +1,81 @@
+# ©AngelaMos | 2026
+# dev.compose.yml
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: vigil-postgres-dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-angelusvigil}
+      POSTGRES_USER: ${POSTGRES_USER:-vigil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+    ports:
+      - "${POSTGRES_HOST_PORT:-16969}:5432"
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+    networks:
+      - vigil_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vigil} -d ${POSTGRES_DB:-angelusvigil}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: vigil-redis-dev
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_HOST_PORT:-26969}:6379"
+    volumes:
+      - redis_dev:/data
+    networks:
+      - vigil_dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/fastapi.prod
+    container_name: vigil-backend-dev
+    environment:
+      ENV: development
+      DEBUG: "true"
+      LOG_LEVEL: INFO
+      API_KEY: ${API_KEY:-dev-test-key}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vigil}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-angelusvigil}
+      REDIS_URL: redis://redis:6379
+      NGINX_LOG_PATH: /var/log/nginx/access.log
+      GEOIP_DB_PATH: /usr/share/GeoIP/GeoLite2-City.mmdb
+    ports:
+      - "${BACKEND_HOST_PORT:-36969}:8000"
+    volumes:
+      - nginx_logs_dev:/var/log/nginx
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vigil_dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  vigil_dev:
+    driver: bridge
+
+volumes:
+  postgres_dev:
+  redis_dev:
+  nginx_logs_dev:
