@@ -84,13 +84,6 @@ repos:
         files: ^PROJECTS/advanced/ai-threat-detection/backend/
         exclude: (\.venv|__pycache__|\.pytest_cache)/
 
-      # Templates
-      - id: ruff
-        name: ruff check (fullstack-template backend)
-        args: [--fix, --exit-non-zero-on-fix]
-        files: ^TEMPLATES/fullstack-template/backend/
-        exclude: (\.venv|__pycache__|\.pytest_cache)/
-
 
   # Go golangci-lint Checks
   - repo: local
@@ -147,13 +140,6 @@ repos:
         entry: bash -c 'cd PROJECTS/advanced/encrypted-p2p-chat/frontend && npx @biomejs/biome check .'
         language: system
         files: ^PROJECTS/advanced/encrypted-p2p-chat/frontend/src/
-        pass_filenames: false
-
-      - id: biome-fullstack-template
-        name: biome check (fullstack-template frontend)
-        entry: bash -c 'cd TEMPLATES/fullstack-template/frontend && npx @biomejs/biome check .'
-        language: system
-        files: ^TEMPLATES/fullstack-template/frontend/src/
         pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

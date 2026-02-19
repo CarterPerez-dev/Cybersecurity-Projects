@@ -63,10 +63,6 @@ jobs:
           - name: ai-threat-detection-backend
             type: ruff
             path: PROJECTS/advanced/ai-threat-detection/backend
-          # Python (ruff) - Templates
-          - name: fullstack-template-backend
-            type: ruff
-            path: TEMPLATES/fullstack-template/backend
           # Biome (frontend)
           - name: bug-bounty-platform-frontend
             type: biome
@@ -83,9 +79,6 @@ jobs:
           - name: encrypted-p2p-chat-frontend
             type: biome
             path: PROJECTS/advanced/encrypted-p2p-chat/frontend
-          - name: fullstack-template-frontend
-            type: biome
-            path: TEMPLATES/fullstack-template/frontend
           # Go
           - name: simple-vulnerability-scanner
             type: go

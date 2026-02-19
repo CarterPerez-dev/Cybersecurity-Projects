@@ -2,10 +2,10 @@
 Enum definitions for the application for type safety
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ScanStatus(str, Enum):
+class ScanStatus(StrEnum):
     """
     Enum for scan result status
     """
@@ -15,7 +15,7 @@ class ScanStatus(str, Enum):
     ERROR = "error"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """
     Enum for vulnerability severity levels
     """
@@ -27,7 +27,7 @@ class Severity(str, Enum):
     INFO = "info"
 
 
-class TestType(str, Enum):
+class TestType(StrEnum):
     """
     Enum for available security test types
     """

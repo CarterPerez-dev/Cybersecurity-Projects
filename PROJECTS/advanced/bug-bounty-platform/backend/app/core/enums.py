@@ -3,7 +3,7 @@
 enums.py
 """
 
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 import sqlalchemy as sa
@@ -46,7 +46,7 @@ class SafeEnum(sa.Enum):
             raise
 
 
-class Environment(str, Enum):
+class Environment(StrEnum):
     """
     Application environment.
     """
@@ -55,7 +55,7 @@ class Environment(str, Enum):
     PRODUCTION = "production"
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """
     User roles for authorization.
     """
@@ -65,7 +65,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
-class TokenType(str, Enum):
+class TokenType(StrEnum):
     """
     JWT token types.
     """
@@ -73,7 +73,7 @@ class TokenType(str, Enum):
     REFRESH = "refresh"
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """
     Health check status values.
     """
@@ -82,7 +82,7 @@ class HealthStatus(str, Enum):
     DEGRADED = "degraded"
 
 
-class ProgramStatus(str, Enum):
+class ProgramStatus(StrEnum):
     """
     Bug bounty program lifecycle status.
     """
@@ -92,7 +92,7 @@ class ProgramStatus(str, Enum):
     CLOSED = "closed"
 
 
-class ProgramVisibility(str, Enum):
+class ProgramVisibility(StrEnum):
     """
     Bug bounty program visibility level.
     """
@@ -101,7 +101,7 @@ class ProgramVisibility(str, Enum):
     INVITE_ONLY = "invite_only"
 
 
-class AssetType(str, Enum):
+class AssetType(StrEnum):
     """
     Type of asset in a bug bounty program scope.
     """
@@ -113,7 +113,7 @@ class AssetType(str, Enum):
     OTHER = "other"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """
     Vulnerability severity levels aligned with CVSS.
     """
@@ -124,7 +124,7 @@ class Severity(str, Enum):
     INFORMATIONAL = "informational"
 
 
-class ReportStatus(str, Enum):
+class ReportStatus(StrEnum):
     """
     Vulnerability report lifecycle status.
     """

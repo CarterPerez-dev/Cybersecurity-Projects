@@ -632,8 +632,11 @@ func TestComposeAnalyzer_AllFiles(t *testing.T) {
 					"Should have CRITICAL findings",
 				)
 			} else {
-				assert.False(t, findings.HasSeverityAtOrAbove(finding.SeverityCritical),
-					"Should NOT have CRITICAL findings")
+				assert.False(
+					t,
+					findings.HasSeverityAtOrAbove(finding.SeverityCritical),
+					"Should NOT have CRITICAL findings",
+				)
 			}
 
 			if tc.wantHigh {

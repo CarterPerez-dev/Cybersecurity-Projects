@@ -448,7 +448,10 @@ func (a *ComposeAnalyzer) checkEnvironment(
 
 			if rules.IsSensitiveEnvName(varName) && varValue != "" {
 				if !isVariableReference(varValue) {
-					loc := &finding.Location{Path: a.path, Line: itemNode.Line}
+					loc := &finding.Location{
+						Path: a.path,
+						Line: itemNode.Line,
+					}
 					f := finding.New("CIS-4.10", "Service '"+serviceName+"' has sensitive variable '"+varName+"' with hardcoded value", finding.SeverityHigh, target).
 						WithDescription("Hardcoding secrets in compose files exposes them in version control.").
 						WithCategory(string(CategoryCompose)).

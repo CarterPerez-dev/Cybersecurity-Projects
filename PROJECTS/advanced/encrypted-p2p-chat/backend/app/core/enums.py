@@ -3,10 +3,10 @@
 Application enums for type safety
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class MessageStatus(str, Enum):
+class MessageStatus(StrEnum):
     """
     Message delivery status
     """
@@ -17,7 +17,7 @@ class MessageStatus(str, Enum):
     FAILED = "failed"
 
 
-class PresenceStatus(str, Enum):
+class PresenceStatus(StrEnum):
     """
     User presence status
     """
@@ -26,7 +26,7 @@ class PresenceStatus(str, Enum):
     OFFLINE = "offline"
 
 
-class RoomType(str, Enum):
+class RoomType(StrEnum):
     """
     Chat room types
     """
