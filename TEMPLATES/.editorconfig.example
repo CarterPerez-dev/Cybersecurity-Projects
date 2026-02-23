@@ -1,0 +1,119 @@
+# ©AngelaMos | 2026
+# .editorconfig.example
+#
+# Annotated EditorConfig template for Cybersecurity-Projects.
+# Copy into your project ROOT, rename to `.editorconfig`.
+# No plugins needed — VS Code, JetBrains, Neovim, and Zed support it natively.
+#
+# EditorConfig enforces consistent whitespace and encoding across every editor
+# and developer machine. It is NOT a replacement for formatters (ruff, biome,
+# gofmt) — it's the baseline that ensures files are sane before formatters run.
+#
+# Docs: https://editorconfig.org
+# Spec: https://spec.editorconfig.org
+
+
+# ── Root Marker ───────────────────────────────────────────────────────────────
+# `root = true` stops EditorConfig from searching parent directories.
+# Always set this in the project root so configs don't leak between repos.
+
+root = true
+
+
+# ── Global Defaults ───────────────────────────────────────────────────────────
+# These apply to EVERY file unless overridden by a more specific section below.
+#
+# end_of_line = lf
+#   Use LF everywhere (even on Windows). Git handles CRLF conversion via
+#   .gitattributes — the working tree should always be LF.
+#
+# insert_final_newline = true
+#   POSIX standard. Prevents "No newline at end of file" diffs.
+#
+# trim_trailing_whitespace = true
+#   Removes invisible trailing spaces that cause noisy diffs.
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+
+# ── Python ────────────────────────────────────────────────────────────────────
+# PEP 8: 4-space indentation.
+
+[*.py]
+indent_size = 4
+
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+# gofmt enforces tabs. This is non-negotiable in Go.
+
+[*.go]
+indent_style = tab
+indent_size = 4
+
+
+# ── Makefile ──────────────────────────────────────────────────────────────────
+# Make REQUIRES hard tabs. Spaces will silently break your recipes.
+
+[Makefile]
+indent_style = tab
+
+[*.mk]
+indent_style = tab
+
+
+# ── YAML ──────────────────────────────────────────────────────────────────────
+# YAML is always 2-space. Tabs are illegal in YAML.
+
+[*.{yml,yaml}]
+indent_size = 2
+
+
+# ── JavaScript / TypeScript ──────────────────────────────────────────────────
+# 2-space is the ecosystem standard (Node, React, Vite, Biome defaults).
+
+[*.{js,jsx,ts,tsx,mjs,cjs}]
+indent_size = 2
+
+
+# ── JSON / TOML / Config Files ──────────────────────────────────────────────
+
+[*.{json,jsonc,toml}]
+indent_size = 2
+
+
+# ── Markdown ──────────────────────────────────────────────────────────────────
+# Markdown uses trailing spaces for line breaks (<br>).
+# Do NOT trim them or you'll break intentional formatting.
+
+[*.md]
+trim_trailing_whitespace = false
+
+
+# ── Dockerfiles ──────────────────────────────────────────────────────────────
+
+[Dockerfile*]
+indent_size = 4
+
+
+# ── Shell Scripts ────────────────────────────────────────────────────────────
+
+[*.{sh,bash,zsh}]
+indent_size = 4
+
+
+# ── C / C++ / Rust ──────────────────────────────────────────────────────────
+
+[*.{c,h,cpp,hpp,rs}]
+indent_size = 4
+
+
+# ── Haskell ──────────────────────────────────────────────────────────────────
+
+[*.hs]
+indent_size = 2

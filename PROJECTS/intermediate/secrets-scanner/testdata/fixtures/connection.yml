@@ -1,0 +1,2 @@
+database:
+  url: "postgres://dbuser:s3cRetP4ssw0rd@rds.acmecorp.io:5432/appdata"

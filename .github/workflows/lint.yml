@@ -86,6 +86,9 @@ jobs:
           - name: docker-security-audit
             type: go
             path: PROJECTS/intermediate/docker-security-audit
+          - name: secrets-scanner
+            type: go
+            path: PROJECTS/intermediate/secrets-scanner
 
     defaults:
       run:

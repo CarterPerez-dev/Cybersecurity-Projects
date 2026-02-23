@@ -1,0 +1,73 @@
+{
+  "//": [
+    "©AngelaMos | 2026",
+    "tsconfig.app.json.example",
+    "",
+    "TypeScript config for BROWSER code (everything in src/).",
+    "This is where React components, hooks, and pages live.",
+    "",
+    "Docs: https://www.typescriptlang.org/tsconfig/"
+  ],
+
+  "compilerOptions": {
+    "// tsBuildInfoFile": "Cache for incremental builds — speeds up `tsc -b` significantly.",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    "// target": "ES2022 is safe for all modern browsers. Gives you top-level await, class fields, etc.",
+    "target": "ES2022",
+
+    "useDefineForClassFields": true,
+
+    "// lib": "ES2022 for JS features, DOM + DOM.Iterable for browser APIs (document, fetch, etc.).",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    "// module": "ESNext tells TS to output modern import/export. Vite handles bundling from there.",
+    "module": "ESNext",
+
+    "// types": "Only include Vite's client types (import.meta.env, asset imports, etc.).",
+    "types": ["vite/client"],
+
+    "skipLibCheck": true,
+
+    "// moduleResolution": [
+      "'bundler' is the modern setting for Vite/webpack/esbuild projects.",
+      "It understands package.json 'exports' and doesn't require file extensions.",
+      "Do NOT use 'node' or 'node16' — those are for Node.js, not bundlers."
+    ],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+
+    "// verbatimModuleSyntax": "Forces `import type { Foo }` syntax. Helps bundlers tree-shake better.",
+    "verbatimModuleSyntax": true,
+
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "// jsx": "'react-jsx' uses the automatic JSX transform (React 17+). No need to import React.",
+    "jsx": "react-jsx",
+
+    "// strict options": [
+      "strict: true enables ALL strict checks as a baseline.",
+      "The individual flags below go BEYOND strict for maximum safety.",
+      "noUncheckedSideEffectImports catches `import './styles.css'` typos."
+    ],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    "// paths": [
+      "Path aliases so you write `import { Button } from '@/components/Button'`",
+      "instead of `import { Button } from '../../../components/Button'`.",
+      "Requires vite-tsconfig-paths plugin in vite.config.ts to work at runtime."
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+
+  "include": ["src"]
+}

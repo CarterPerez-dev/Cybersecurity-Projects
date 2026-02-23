@@ -1,0 +1,15 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+.venv
+venv/
+__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+dist
+*.egg-info
+.hypothesis

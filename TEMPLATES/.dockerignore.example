@@ -1,0 +1,140 @@
+# ©AngelaMos | 2026
+# .dockerignore.example
+#
+# Annotated .dockerignore template for Cybersecurity-Projects.
+# Copy into the same directory as your Dockerfile (usually project root
+# or backend/), rename to `.dockerignore`.
+#
+# Every file NOT listed here gets sent to the Docker daemon as build context.
+# A bloated context means slower builds and larger images. A missing
+# .dockerignore can accidentally bake secrets (.env) or gigabytes of
+# node_modules into your image.
+#
+# Syntax is identical to .gitignore (globs, negation with !).
+# Docs: https://docs.docker.com/build/concepts/context/#dockerignore-files
+
+
+# ── Virtual Environments ──────────────────────────────────────────────────────
+# These are host-specific. The container installs its own deps.
+
+.venv/
+venv/
+
+
+# ── Python Caches ────────────────────────────────────────────────────────────
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+
+# ── Linter / Type Checker Caches ────────────────────────────────────────────
+
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ty_cache/
+
+
+# ── Test & Coverage Artifacts ────────────────────────────────────────────────
+# Tests run on the host or in a separate CI container, not in prod.
+
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+tests/
+conftest.py
+
+
+# ── Build Artifacts ──────────────────────────────────────────────────────────
+
+dist/
+build/
+*.egg-info/
+*.egg
+
+
+# ── Node Modules ─────────────────────────────────────────────────────────────
+# Frontend builds in its own stage. Never copy host node_modules.
+
+node_modules/
+.pnpm-store/
+
+
+# ── Secrets & Environment ────────────────────────────────────────────────────
+# NEVER bake secrets into an image. Pass them at runtime via env vars or
+# Docker secrets. The .env.example is fine to include for documentation.
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+
+# ── Git ──────────────────────────────────────────────────────────────────────
+# Git history has no business in a container image.
+
+.git/
+.gitignore
+.gitattributes
+
+
+# ── Docker Files ─────────────────────────────────────────────────────────────
+# The Dockerfile itself and compose files aren't needed inside the image.
+
+Dockerfile*
+docker-compose*
+compose*.yml
+dev.compose.yml
+.dockerignore
+
+
+# ── IDE / Editor ─────────────────────────────────────────────────────────────
+
+.idea/
+.vscode/
+.zed/
+*.swp
+*.swo
+*~
+
+
+# ── Documentation ────────────────────────────────────────────────────────────
+# Docs are for humans, not containers.
+
+docs/
+learn/
+*.md
+*.rst
+LICENSE
+CONTRIBUTING*
+
+
+# ── CI / Config ──────────────────────────────────────────────────────────────
+
+.github/
+.pre-commit-config.yaml
+.editorconfig
+justfile
+Justfile
+Makefile
+
+
+# ── Logs & Databases ────────────────────────────────────────────────────────
+
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+
+# ── OS Junk ──────────────────────────────────────────────────────────────────
+
+.DS_Store
+Thumbs.db
+*.bak

@@ -104,6 +104,14 @@ repos:
         types: [go]
         pass_filenames: false
 
+      - id: golangci-lint-secrets-scanner
+        name: golangci-lint (secrets-scanner)
+        entry: bash -c 'cd PROJECTS/intermediate/secrets-scanner && golangci-lint run --fix'
+        language: system
+        files: ^PROJECTS/intermediate/secrets-scanner/
+        types: [go]
+        pass_filenames: false
+
   # Biome Frontend Checks
   - repo: local
     hooks:
