@@ -1,0 +1,151 @@
+# ©AngelaMos | 2026
+# .pre-commit-config.yaml.example
+#
+# Annotated pre-commit configuration for Cybersecurity-Projects.
+# Copy into your project root, rename to `.pre-commit-config.yaml`.
+# Delete hooks that don't apply to your project's stack.
+#
+# pre-commit runs checks automatically on `git commit`. If any hook fails,
+# the commit is blocked until you fix the issue — catching problems before
+# they hit CI saves everyone time.
+#
+# Install:
+#   uv tool install pre-commit     (recommended — global, no venv pollution)
+#   pipx install pre-commit         (alternative)
+#
+# Setup (run once per clone):
+#   pre-commit install               hooks into .git/hooks/pre-commit
+#   pre-commit install --hook-type commit-msg   (optional: commit msg hooks)
+#
+# Usage:
+#   git commit                       hooks run automatically on staged files
+#   pre-commit run --all-files       run all hooks on every file (CI style)
+#   pre-commit autoupdate            bump hook versions to latest tags
+#
+# Docs: https://pre-commit.com
+# Hook search: https://pre-commit.com/hooks.html
+
+
+# ── General File Hygiene ──────────────────────────────────────────────────────
+# These lightweight hooks catch common mistakes. They run in milliseconds.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Fails if a file has syntax-invalid TOML (catches pyproject.toml typos).
+      - id: check-toml
+
+      # Fails if any YAML file has syntax errors.
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+
+      # Fails if any JSON file has syntax errors.
+      - id: check-json
+
+      # Catches leftover `breakpoint()`, `pdb.set_trace()`, `debugger` statements.
+      - id: debug-statements
+
+      # Ensures every file ends with exactly one newline (POSIX standard).
+      - id: end-of-file-fixer
+
+      # Strips trailing whitespace from lines.
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      # Prevents accidentally committing large files (default 500KB).
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+      # Prevents accidentally committing private keys.
+      - id: detect-private-key
+
+      # Fails if files would conflict on case-insensitive filesystems (macOS/Windows).
+      - id: check-case-conflict
+
+      # Prevents committing directly to main/master.
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+
+
+  # ── Python: Ruff (linter) ──────────────────────────────────────────────────
+  # Runs ruff check on staged Python files. Fast (Rust-based), replaces
+  # flake8 + isort + pyupgrade + dozens of plugins in a single tool.
+  #
+  # Change the `args` path to match your project layout:
+  #   Python-only:  args: ["src/", "tests/"]
+  #   Fullstack:    args: ["backend/"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      - id: ruff
+        args: ["<src>/"]
+        always_run: true
+
+
+  # ── Python: Local Hooks ─────────────────────────────────────────────────────
+  # `repo: local` hooks run tools installed in your project's venv.
+  # This means they use the EXACT versions pinned in pyproject.toml.
+  #
+  # `pass_filenames: false` + `always_run: true` = runs on the full project
+  # every time, not just on staged files. Slower but catches cross-file issues.
+  #
+  # Adjust `entry` paths to match your layout.
+
+  - repo: local
+    hooks:
+      - id: mypy-check
+        name: mypy type checking
+        entry: bash -c 'cd <src-root> && mypy .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: pylint-check
+        name: pylint code quality
+        entry: bash -c 'cd <src-root> && pylint .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+
+  # ── Frontend: Biome (uncomment for fullstack projects) ──────────────────────
+  # Biome handles JS/TS linting + formatting in one pass.
+  # Requires Biome installed in frontend/node_modules.
+  #
+  # - repo: local
+  #   hooks:
+  #     - id: biome-check
+  #       name: biome lint + format check
+  #       entry: bash -c 'cd frontend && pnpm biome check .'
+  #       language: system
+  #       types_or: [javascript, jsx, ts, tsx, json]
+  #       pass_filenames: false
+  #       always_run: true
+  #
+  #     - id: tsc-check
+  #       name: typescript type check
+  #       entry: bash -c 'cd frontend && pnpm tsc --noEmit'
+  #       language: system
+  #       types_or: [ts, tsx]
+  #       pass_filenames: false
+  #       always_run: true
+
+
+  # ── Go (uncomment for Go projects) ─────────────────────────────────────────
+  # - repo: https://github.com/golangci/golangci-lint
+  #   rev: v2.1.0
+  #   hooks:
+  #     - id: golangci-lint
+  #
+  # - repo: local
+  #   hooks:
+  #     - id: go-vet
+  #       name: go vet
+  #       entry: go vet ./...
+  #       language: system
+  #       types: [go]
+  #       pass_filenames: false

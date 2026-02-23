@@ -1,0 +1,7 @@
+# ©AngelaMos | 2026
+# .gitguardian.yml
+
+version: 2
+
+ignore-paths:
+  - PROJECTS/intermediate/secrets-scanner/

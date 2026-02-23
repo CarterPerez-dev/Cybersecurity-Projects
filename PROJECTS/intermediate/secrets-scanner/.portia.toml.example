@@ -1,0 +1,24 @@
+# ©AngelaMos | 2026
+# .portia.toml
+
+[rules]
+# disable = ["generic-password"]
+
+[scan]
+max_file_size = 1048576
+# excludes = ["*.test.js", "fixtures/"]
+# depth = 0
+# since = ""
+
+[output]
+format = "terminal"
+verbose = false
+no_color = false
+
+[hibp]
+enabled = false
+
+[allowlist]
+# paths = ["test/fixtures/"]
+# values = ["my_test_value"]
+# stopwords = ["mycompany"]

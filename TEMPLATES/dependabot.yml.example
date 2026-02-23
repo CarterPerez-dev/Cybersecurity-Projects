@@ -1,0 +1,115 @@
+# ©AngelaMos | 2026
+# dependabot.yml.example
+#
+# Annotated Dependabot configuration for Cybersecurity-Projects.
+# Copy to `.github/dependabot.yml` in your repository.
+#
+# Dependabot automatically opens PRs to update outdated dependencies.
+# It's GitHub-native, free, and requires zero infrastructure.
+#
+# For a security-focused repo, keeping deps patched is non-negotiable.
+# Most CVEs are in transitive dependencies you never directly imported.
+#
+# Docs:   https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+# Config: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+
+version: 2
+
+updates:
+
+  # ── Python (pip ecosystem) ────────────────────────────────────────────────
+  # Covers pyproject.toml, requirements.txt, setup.py.
+  # Use "pip" even if you use uv — Dependabot reads the manifest format,
+  # not the package manager binary.
+  #
+  # directory: path to the manifest file relative to repo root.
+  #   Root-level project:  "/"
+  #   Fullstack project:   "/backend"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Groups batch related updates into fewer PRs.
+    # Without groups, each dep gets its own PR — noisy for active projects.
+    groups:
+      python-deps:
+        patterns: ["*"]
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+
+
+  # ── npm / pnpm ────────────────────────────────────────────────────────────
+  # Covers package.json. Works with pnpm lockfiles.
+  # Delete this section for Python-only projects.
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      # Split prod and dev deps so you can prioritize runtime updates.
+      npm-prod:
+        dependency-type: "production"
+        patterns: ["*"]
+      npm-dev:
+        dependency-type: "development"
+        patterns: ["*"]
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(deps)"
+
+
+  # ── Docker ────────────────────────────────────────────────────────────────
+  # Updates base image tags in Dockerfiles (e.g., python:3.13-slim).
+  # Delete this section if your project has no Dockerfiles.
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────
+  # Updates action versions in .github/workflows/*.yml.
+  # Pinned actions (e.g., actions/checkout@v4) can fall behind on patches.
+  # This keeps them current.
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+
+
+  # ── Go (uncomment for Go projects) ────────────────────────────────────────
+  # Updates go.mod dependencies.
+  #
+  # - package-ecosystem: "gomod"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   groups:
+  #     go-deps:
+  #       patterns: ["*"]
+  #   labels:
+  #     - "dependencies"
+  #     - "go"
+  #   commit-message:
+  #     prefix: "chore(deps)"

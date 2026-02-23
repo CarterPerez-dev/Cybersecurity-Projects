@@ -1,0 +1,150 @@
+# ©AngelaMos | 2026
+# .gitignore.example
+#
+# Annotated .gitignore template for Cybersecurity-Projects.
+# Copy into your project root and rename to .gitignore.
+# Delete any sections that don't apply to your project's stack.
+#
+# Pattern syntax:
+#   file.txt      exact filename anywhere in the repo
+#   *.log         glob — all .log files
+#   /build        leading slash — only match at repo root
+#   build/        trailing slash — only match directories
+#   !important    negate — re-include something a prior rule excluded
+#   **/cache      match in any subdirectory
+#
+# Docs: https://git-scm.com/docs/gitignore
+# Generator: https://www.toptal.com/developers/gitignore
+
+
+# ── Secrets & Environment ─────────────────────────────────────────────────────
+# MOST IMPORTANT SECTION. Leaked secrets are the #1 gitignore failure mode.
+# If you accidentally commit a secret, rotating the credential is the only
+# safe fix — removing it from history alone is not enough.
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+
+# ── Python ────────────────────────────────────────────────────────────────────
+
+# Bytecode / compiled
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+
+# Build & distribution (uv build / hatch build output)
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Type checker / linter caches
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.prof
+
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+
+# Compiled binary (Go produces a single binary, name varies per project)
+# /bin/
+# /<your-binary-name>
+
+# Debug binary from dlv
+__debug_bin*
+
+# Profiling
+*.prof
+*.test
+trace.out
+coverage.out
+
+
+# ── Node / JavaScript ────────────────────────────────────────────────────────
+
+node_modules/
+
+# pnpm
+.pnpm-store/
+
+# Build output (Vite, Next.js, etc.)
+.next/
+.nuxt/
+.output/
+
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+
+# Override files are machine-specific and should not be shared
+docker-compose.override.yml
+docker-compose.override.yaml
+
+
+# ── Databases (local dev only) ────────────────────────────────────────────────
+
+*.db
+*.sqlite
+*.sqlite3
+dump.rdb
+
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+
+# VS Code (settings.json and extensions.json are sometimes committed — your call)
+.vscode/
+
+# JetBrains (IntelliJ, GoLand, PyCharm, WebStorm)
+.idea/
+
+# Vim / Neovim swap & backup
+*.swp
+*.swo
+*~
+
+# Zed
+.zed/
+
+
+# ── OS Junk ───────────────────────────────────────────────────────────────────
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Linux (some file managers)
+.Trash-*
+
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+
+*.log
+logs/
+
+
+# ── Binaries & Compiled Output ────────────────────────────────────────────────
+
+*.exe
+*.dll
+*.dylib

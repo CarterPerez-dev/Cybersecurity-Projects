@@ -1,0 +1,29 @@
+{
+  "//": [
+    "©AngelaMos | 2026",
+    "tsconfig.json.example",
+    "",
+    "Annotated TypeScript configuration for Cybersecurity-Projects frontends.",
+    "This is a 3-file setup used by Vite + React projects:",
+    "",
+    "  tsconfig.json       Root — references the other two (this file)",
+    "  tsconfig.app.json   Browser code (src/) — React, DOM APIs",
+    "  tsconfig.node.json  Node code (vite.config.ts) — Node APIs",
+    "",
+    "Why split? Browser code and Node code have different globals (window vs",
+    "process), different module systems, and different type libraries. Splitting",
+    "prevents accidental use of Node APIs in browser code and vice versa.",
+    "",
+    "Copy all three files into your frontend/ directory, remove the .example",
+    "suffix from this file, and use the other two as-is.",
+    "",
+    "Docs: https://www.typescriptlang.org/tsconfig/"
+  ],
+
+  "// files": "Empty array means this file compiles nothing directly — it only references sub-configs.",
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

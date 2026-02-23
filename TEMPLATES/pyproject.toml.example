@@ -1,0 +1,246 @@
+# ©AngelaMos | 2026
+# pyproject.toml.example
+#
+# Annotated pyproject.toml template for Cybersecurity-Projects.
+# Copy this file into your project root, rename to pyproject.toml,
+# and replace every <PLACEHOLDER> with your actual values.
+#
+# Official guide: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+# Full spec:      https://packaging.python.org/en/latest/specifications/pyproject-toml/
+
+
+# ── Build System ──────────────────────────────────────────────────────────────
+# Declares HOW your project is built. This must appear for the project
+# to be installable via `uv pip install .` or any PEP 517 frontend.
+# Hatchling is a lightweight, modern build backend.
+# Alternatives: setuptools, flit-core, pdm-backend, maturin (Rust extensions)
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+# ── Project Metadata ──────────────────────────────────────────────────────────
+# Core metadata that identifies your package.
+# Spec: https://packaging.python.org/en/latest/specifications/core-metadata/
+
+[project]
+name = "<project-name>"
+version = "<x.x.x>"
+description = "<One-line description of what this project does>"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.13"
+
+# Keywords help with discoverability on PyPI.
+# Pick 3-6 terms someone would search for.
+keywords = ["security", "<keyword>", "<keyword>"]
+
+# Classifiers are a fixed vocabulary — pick from:
+# https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+# Runtime dependencies installed whenever your package is installed.
+#
+# Version pinning cheat-sheet:
+#   "pkg>=1.2"          1.2 or newer (most common)
+#   "pkg>=1.2,<2"       1.2+ but not 2.0 (pin major version)
+#   "pkg~=1.2"          same as >=1.2,<2.0 (compatible release)
+#   "pkg==1.2.3"        exact pin (only for reproducible builds, avoid in libs)
+#
+# Only list what you actually import. Transitive deps are pulled automatically.
+
+dependencies = []
+
+# ── Optional Dependency Groups ────────────────────────────────────────────────
+# Install with: uv pip install ".[dev]"  or  uv pip install ".[dev,docs]"
+# Keep groups focused — one concern per group.
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.1",
+]
+
+# ── URLs ──────────────────────────────────────────────────────────────────────
+# Shown on PyPI sidebar and by `uv pip show`.
+
+[project.urls]
+Homepage    = "https://github.com/<user>/<repo>"
+Repository  = "https://github.com/<user>/<repo>"
+Issues      = "https://github.com/<user>/<repo>/issues"
+
+# ── Entry Points (uncomment if needed) ────────────────────────────────────────
+# CLI commands:
+#   [project.scripts]
+#   mycli = "<package>.cli:main"
+#
+# Plugin hooks (e.g. pytest plugins):
+#   [project.entry-points."pytest11"]
+#   myplugin = "<package>.pytest_plugin"
+
+
+# ── Hatch Build ───────────────────────────────────────────────────────────────
+# Tells hatchling where your importable code lives.
+# Adjust the path to match your project layout.
+#
+#   src layout  → packages = ["src/<package>"]
+#   flat layout → packages = ["<package>"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/<package>"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TOOL CONFIGURATION
+# Everything below configures dev tools. None of it affects the built package.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Ruff (linter + formatter) ─────────────────────────────────────────────────
+# Docs: https://docs.astral.sh/ruff/configuration/
+# Rules: https://docs.astral.sh/ruff/rules/
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # ruff-specific rules
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+    "N",      # pep8-naming
+]
+
+# Add project-specific ignores here. Some common ones:
+#   "E501"   — line too long (let the formatter handle it)
+#   "B008"   — function call in default arg (FastAPI Depends pattern)
+#   "S101"   — assert usage (needed in tests)
+#   "ARG001" — unused function arg (common in FastAPI deps / callbacks)
+ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Example: allow asserts in tests, ignore security warnings in test fixtures
+# "tests/**" = ["S101", "S106", "ARG001"]
+
+
+# ── mypy (static type checker) ────────────────────────────────────────────────
+# Docs: https://mypy.readthedocs.io/en/stable/config_file.html
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+exclude = [".venv", "venv"]
+
+# Per-module overrides for third-party libs that lack type stubs:
+# [[tool.mypy.overrides]]
+# module = ["some_untyped_lib", "another_lib.*"]
+# ignore_missing_imports = true
+
+
+# ── pylint ────────────────────────────────────────────────────────────────────
+# Docs: https://pylint.readthedocs.io/en/stable/user_guide/configuration/index.html
+
+[tool.pylint.main]
+py-version = "3.13"
+jobs = 4
+persistent = true
+ignore = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".git",
+]
+
+[tool.pylint.messages_control]
+# Start minimal — only disable what your project actually hits.
+# Run `pylint src/` and decide per-code whether to fix or disable.
+disable = [
+    "C0301",  # line-too-long (ruff formatter handles this)
+]
+
+[tool.pylint.format]
+max-line-length = 95
+
+[tool.pylint.design]
+max-args = 10
+max-attributes = 10
+
+
+# ── pytest ────────────────────────────────────────────────────────────────────
+# Docs: https://docs.pytest.org/en/stable/reference/customize.html
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# For async tests (uncomment if using pytest-asyncio):
+# asyncio_mode = "auto"
+# asyncio_default_fixture_loop_scope = "function"
+
+
+# ── coverage ──────────────────────────────────────────────────────────────────
+# Docs: https://coverage.readthedocs.io/en/latest/config.html
+# Run:  pytest --cov=src --cov-report=term-missing
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+
+# ── ty (red-knot type checker, experimental) ──────────────────────────────────
+# Docs: https://docs.astral.sh/ty/configuration/
+# Uncomment if your project uses ty.
+#
+# [tool.ty.src]
+# include = ["src", "tests"]
+# exclude = [".venv/**"]
+#
+# [tool.ty.environment]
+# python-version = "3.13"
+# root = ["./src"]
+# python = "./.venv"
+#
+# [tool.ty.rules]
+# possibly-missing-attribute = "error"
+# possibly-missing-import = "error"

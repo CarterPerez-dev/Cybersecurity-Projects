@@ -43,8 +43,5 @@ build/
 .coverage
 htmlcov/
 
-# Docker
-.dockerignore
-
 # OS
 Thumbs.db

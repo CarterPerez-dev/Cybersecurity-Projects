@@ -1,0 +1,43 @@
+{
+  "//": [
+    "©AngelaMos | 2026",
+    "tsconfig.node.json.example",
+    "",
+    "TypeScript config for NODE code (vite.config.ts and other build scripts).",
+    "This runs in Node.js during build, NOT in the browser.",
+    "",
+    "Docs: https://www.typescriptlang.org/tsconfig/"
+  ],
+
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+
+    "// target": "ES2023 — Node 20+ supports everything in ES2023.",
+    "target": "ES2023",
+
+    "// lib": "ES2023 only — no DOM here since this runs in Node, not a browser.",
+    "lib": ["ES2023"],
+
+    "module": "ESNext",
+
+    "// types": "Only Node types — gives you process, __dirname, Buffer, etc.",
+    "types": ["node"],
+
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+
+  "// include": "Only the Vite config. Add other Node-side files here if needed (e.g., scripts/).",
+  "include": ["vite.config.ts"]
+}

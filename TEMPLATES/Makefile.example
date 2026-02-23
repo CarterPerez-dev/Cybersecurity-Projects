@@ -1,0 +1,251 @@
+# ©AngelaMos | 2026
+# Makefile.example
+#
+# Annotated Makefile template for Cybersecurity-Projects.
+# Copy into your project root, rename to `Makefile`, and replace
+# every <PLACEHOLDER> with your actual values. Delete sections
+# that don't apply to your project's stack.
+#
+# Make is pre-installed on virtually every Unix system — no extra tooling.
+# Use this when you want zero dependencies for task running.
+#
+# Docs: https://www.gnu.org/software/make/manual/make.html
+#
+# Usage:
+#   make              show available targets (self-documenting help)
+#   make <target>     run a target
+#   make -n <target>  dry-run (print commands without executing)
+#   make -j4 <target> run up to 4 jobs in parallel
+#
+# IMPORTANT: Makefiles require TABS for indentation, not spaces.
+# If your editor converts tabs to spaces, this file will break.
+
+
+# ── Variables ─────────────────────────────────────────────────────────────────
+# Change these to match your project layout.
+# ?= means "set only if not already defined" — overridable from the CLI:
+#   make lint SRC_DIR=app/
+
+PROJECT_NAME  ?= <project-name>
+SRC_DIR       ?= <src>
+TEST_DIR      ?= <tests>
+PACKAGE       ?= <package-name>
+PYTHON        ?= python3
+DOCKER_COMP   ?= docker compose
+DEV_COMPOSE   ?= docker compose -f dev.compose.yml
+
+
+# ── Self-Documenting Help ─────────────────────────────────────────────────────
+# Any line with `## comment` after a target becomes part of `make help`.
+# This is the standard pattern for self-documenting Makefiles.
+# `make` with no args runs the first target, which is `help`.
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+
+# ── Linting and Formatting ───────────────────────────────────────────────────
+
+.PHONY: ruff ruff-fix ruff-format pylint lint
+
+ruff: ## Run ruff linter
+	ruff check $(SRC_DIR)/ $(TEST_DIR)/
+
+ruff-fix: ## Run ruff with auto-fix + format
+	ruff check $(SRC_DIR)/ $(TEST_DIR)/ --fix
+	ruff format $(SRC_DIR)/ $(TEST_DIR)/
+
+ruff-format: ## Format code with ruff
+	ruff format $(SRC_DIR)/ $(TEST_DIR)/
+
+pylint: ## Run pylint
+	pylint $(SRC_DIR)/$(PACKAGE)
+
+lint: ruff pylint ## Run all Python linters
+
+
+# ── Frontend Linting  (delete for Python-only projects) ──────────────────────
+
+.PHONY: biome biome-fix stylelint stylelint-fix tsc
+
+biome: ## Run Biome linter on frontend
+	cd frontend && pnpm biome check .
+
+biome-fix: ## Run Biome with auto-fix
+	cd frontend && pnpm biome check --write .
+
+stylelint: ## Lint SCSS files
+	cd frontend && pnpm stylelint '**/*.scss'
+
+stylelint-fix: ## Fix SCSS lint issues
+	cd frontend && pnpm stylelint '**/*.scss' --fix
+
+tsc: ## TypeScript type check (no emit)
+	cd frontend && pnpm tsc --noEmit
+
+
+# ── Type Checking ────────────────────────────────────────────────────────────
+
+.PHONY: mypy typecheck
+
+mypy: ## Run mypy type checker
+	mypy $(SRC_DIR)/
+
+typecheck: mypy ## Alias for mypy
+
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+
+.PHONY: test test-cov
+
+test: ## Run tests
+	pytest $(TEST_DIR)/
+
+test-cov: ## Run tests with coverage report
+	pytest $(TEST_DIR)/ --cov=$(SRC_DIR)/$(PACKAGE) --cov-report=term-missing --cov-report=html
+
+
+# ── CI / Quality ─────────────────────────────────────────────────────────────
+# Composite targets that chain multiple checks.
+
+.PHONY: ci check
+
+ci: lint typecheck test ## Full CI pipeline (lint + types + tests)
+
+check: ruff mypy ## Fast check (lint + types, no tests)
+
+
+# ── Docker Compose — Production  (delete if no Docker) ───────────────────────
+
+.PHONY: up start down stop build rebuild logs ps shell
+
+up: ## Start services (foreground)
+	$(DOCKER_COMP) up
+
+start: ## Start services (detached)
+	$(DOCKER_COMP) up -d
+
+down: ## Stop and remove containers
+	$(DOCKER_COMP) down
+
+stop: ## Stop containers (keep state)
+	$(DOCKER_COMP) stop
+
+build: ## Build container images
+	$(DOCKER_COMP) build
+
+rebuild: ## Rebuild without cache
+	$(DOCKER_COMP) build --no-cache
+
+logs: ## Tail service logs
+	$(DOCKER_COMP) logs -f
+
+ps: ## List running containers
+	$(DOCKER_COMP) ps
+
+shell: ## Shell into backend container
+	$(DOCKER_COMP) exec -it backend /bin/bash
+
+
+# ── Docker Compose — Dev  (delete if no Docker) ─────────────────────────────
+
+.PHONY: dev-up dev-start dev-down dev-stop dev-build dev-rebuild dev-logs dev-ps dev-shell
+
+dev-up: ## Start dev services (foreground)
+	$(DEV_COMPOSE) up
+
+dev-start: ## Start dev services (detached)
+	$(DEV_COMPOSE) up -d
+
+dev-down: ## Stop dev containers
+	$(DEV_COMPOSE) down
+
+dev-stop: ## Stop dev containers (keep state)
+	$(DEV_COMPOSE) stop
+
+dev-build: ## Build dev images
+	$(DEV_COMPOSE) build
+
+dev-rebuild: ## Rebuild dev images without cache
+	$(DEV_COMPOSE) build --no-cache
+
+dev-logs: ## Tail dev logs
+	$(DEV_COMPOSE) logs -f
+
+dev-ps: ## List dev containers
+	$(DEV_COMPOSE) ps
+
+dev-shell: ## Shell into dev backend
+	$(DEV_COMPOSE) exec -it backend /bin/bash
+
+
+# ── Database  (delete if no database) ────────────────────────────────────────
+
+.PHONY: migrate migration rollback db-history db-current
+
+migrate: ## Run database migrations (Docker)
+	$(DOCKER_COMP) exec backend alembic upgrade head
+
+migration: ## Create new migration (usage: make migration MSG="add users table")
+	$(DOCKER_COMP) exec backend alembic revision --autogenerate -m "$(MSG)"
+
+rollback: ## Rollback last migration
+	$(DOCKER_COMP) exec backend alembic downgrade -1
+
+db-history: ## Show migration history
+	$(DOCKER_COMP) exec backend alembic history --verbose
+
+db-current: ## Show current migration
+	$(DOCKER_COMP) exec backend alembic current
+
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+
+.PHONY: setup setup-backend setup-frontend env
+
+setup: ## First-time project setup
+	@echo "Setting up development environment..."
+	uv sync --all-extras
+	@echo "Setup complete!"
+
+# Fullstack alternative (uncomment and replace the simple setup above):
+# setup: setup-backend setup-frontend env ## First-time project setup
+# 	@echo "Setup complete!"
+#
+# setup-backend:
+# 	@echo "Setting up backend..."
+# 	cd backend && uv sync
+#
+# setup-frontend:
+# 	@echo "Setting up frontend..."
+# 	cd frontend && pnpm install
+#
+# env:
+# 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
+# 	@echo ".env ready — update with your values."
+
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+
+.PHONY: info clean nuke
+
+info: ## Show project info
+	@echo "Project: $(PROJECT_NAME)"
+	@echo "Python:  $(shell $(PYTHON) --version 2>/dev/null || echo 'not found')"
+	@echo "OS:      $(shell uname -s) ($(shell uname -m))"
+
+clean: ## Remove caches and build artifacts
+	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov dist build
+	rm -f .coverage
+	@echo "Cache directories cleaned"
+
+nuke: ## Remove everything including venv (prompts for confirmation)
+	@echo "This will remove .venv, all caches, and build artifacts."
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov dist build .venv
+	rm -f .coverage
+	@echo "Nuke complete!"

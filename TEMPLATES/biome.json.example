@@ -1,0 +1,157 @@
+{
+  "//": [
+    "©AngelaMos | 2026",
+    "biome.json.example",
+    "",
+    "Annotated Biome configuration for Cybersecurity-Projects frontends.",
+    "Copy into your frontend/ directory, rename to biome.json.",
+    "",
+    "Biome is an all-in-one linter + formatter for JS/TS/JSON/CSS.",
+    "It replaces ESLint + Prettier in a single Rust-based binary.",
+    "",
+    "Docs:  https://biomejs.dev/reference/configuration/",
+    "Rules: https://biomejs.dev/linter/rules/"
+  ],
+
+  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+
+  "// vcs": "Integrates with Git so Biome respects your .gitignore automatically.",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+
+  "// files": "Only process source files. Biome auto-skips lock files and node_modules.",
+  "files": {
+    "includes": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json"]
+  },
+
+  "// formatter": [
+    "Global formatting rules. These apply to all languages.",
+    "indentWidth 2 and lineWidth 82 match the repo standard.",
+    "lineEnding 'lf' enforces Unix-style line endings everywhere."
+  ],
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 82,
+    "lineEnding": "lf"
+  },
+
+  "// javascript": [
+    "JS/TS-specific formatter settings.",
+    "quoteStyle 'single' for JS, 'double' for JSX (React convention).",
+    "semicolons 'asNeeded' = no semis except where ASI would be ambiguous.",
+    "trailingCommas 'es5' = trailing commas in arrays/objects but not function params."
+  ],
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "es5",
+      "arrowParentheses": "always"
+    }
+  },
+
+  "// linter": [
+    "Start with 'recommended' (curated safe defaults), then tune per-domain.",
+    "Do NOT use 'all' — it enables 300+ conflicting rules."
+  ],
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+
+      "// complexity": "Keeps code readable. noForEach off because .forEach is fine for side effects.",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 25 }
+        },
+        "noForEach": "off",
+        "useLiteralKeys": "off"
+      },
+
+      "// correctness": "Catches real bugs. These should almost always be errors.",
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error",
+        "noUndeclaredVariables": "error"
+      },
+
+      "// style": [
+        "Enforces consistent patterns across the codebase.",
+        "useImportType separates type imports (tree-shaking friendly).",
+        "noNonNullAssertion bans `!` postfix (override in main.tsx via overrides).",
+        "useNamingConvention is off — too noisy with API response shapes."
+      ],
+      "style": {
+        "useImportType": "error",
+        "useConst": "error",
+        "useTemplate": "error",
+        "useSelfClosingElements": "error",
+        "useFragmentSyntax": "error",
+        "noNonNullAssertion": "error",
+        "useConsistentArrayType": {
+          "level": "error",
+          "options": { "syntax": "shorthand" }
+        },
+        "useNamingConvention": "off"
+      },
+
+      "// suspicious": [
+        "Catches code that is almost certainly a mistake.",
+        "noExplicitAny = error forces proper typing (the whole point of TS).",
+        "noConsole = warn because console.log is fine in dev but should be flagged."
+      ],
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noDebugger": "error",
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn",
+        "noAssignInExpressions": "error",
+        "noDoubleEquals": "error",
+        "noRedeclare": "error",
+        "noVar": "error"
+      },
+
+      "// security": "Prevents XSS vectors in React components.",
+      "security": {
+        "noDangerouslySetInnerHtml": "error"
+      },
+
+      "// a11y": "Accessibility rules. Non-negotiable for production UIs.",
+      "a11y": {
+        "useAltText": "error",
+        "useAnchorContent": "error",
+        "useKeyWithClickEvents": "error",
+        "noStaticElementInteractions": "error",
+        "useButtonType": "error",
+        "useValidAnchor": "error"
+      }
+    }
+  },
+
+  "// overrides": [
+    "Per-file rule overrides.",
+    "main.tsx needs `document.getElementById('root')!` — the non-null assertion",
+    "is safe here because the HTML template guarantees the element exists."
+  ],
+  "overrides": [
+    {
+      "includes": ["src/main.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    }
+  ]
+}

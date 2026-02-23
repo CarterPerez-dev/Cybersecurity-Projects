@@ -2,7 +2,7 @@
 # AngelaMos | 2026
 # Justfile
 # =============================================================================
-# angela — Python dependency updater and vulnerability scanner
+# portia — Secrets scanner for codebases and git repositories
 # =============================================================================
 
 set export
@@ -58,6 +58,12 @@ test-v *ARGS:
 cover:
     go test -race -cover ./...
 
+[group('test')]
+cover-html:
+    go test -race -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report: coverage.html"
+
 # =============================================================================
 # CI / Quality
 # =============================================================================
@@ -75,23 +81,27 @@ check: lint vet
 
 [group('dev')]
 run *ARGS:
-    go run ./cmd/angela {{ARGS}}
-
-[group('dev')]
-dev-check:
-    go run ./cmd/angela check --file testdata/pyproject.toml
-
-[group('dev')]
-dev-update:
-    go run ./cmd/angela update --file testdata/pyproject.toml
+    go run ./cmd/portia {{ARGS}}
 
 [group('dev')]
 dev-scan:
-    go run ./cmd/angela scan --file testdata/pyproject.toml
+    go run ./cmd/portia scan testdata/
 
 [group('dev')]
-dev-full:
-    go run ./cmd/angela update --vulns --file testdata/pyproject.toml
+dev-git:
+    go run ./cmd/portia git .
+
+[group('dev')]
+dev-json:
+    go run ./cmd/portia scan --format json testdata/
+
+[group('dev')]
+dev-sarif:
+    go run ./cmd/portia scan --format sarif testdata/
+
+[group('dev')]
+dev-rules:
+    go run ./cmd/portia config rules
 
 # =============================================================================
 # Build (Production)
@@ -99,16 +109,16 @@ dev-full:
 
 [group('prod')]
 build:
-    go build -ldflags="-s -w" -o bin/angela ./cmd/angela
-    @echo "Built: bin/angela ($(du -h bin/angela | cut -f1))"
+    go build -ldflags="-s -w" -o bin/portia ./cmd/portia
+    @echo "Built: bin/portia ($(du -h bin/portia | cut -f1))"
 
 [group('prod')]
 build-debug:
-    go build -o bin/angela ./cmd/angela
+    go build -o bin/portia ./cmd/portia
 
 [group('prod')]
 install:
-    go install ./cmd/angela
+    go install ./cmd/portia
 
 # =============================================================================
 # Utilities
@@ -123,11 +133,11 @@ info:
     @echo "Module:   $(head -1 go.mod | cut -d' ' -f2)"
 
 [group('util')]
-clean:
-    -rm -rf bin/
-    @echo "Cleaned build artifacts."
+update:
+    go get -u ./...
+    go mod tidy
 
 [group('util')]
-reset-cache:
-    rm -rf ~/.angela/cache/
-    @echo "Cache cleared."
+clean:
+    -rm -rf bin/ coverage.out coverage.html
+    @echo "Cleaned build artifacts."

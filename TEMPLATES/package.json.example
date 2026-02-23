@@ -1,0 +1,106 @@
+{
+  "//": [
+    "©AngelaMos | 2026",
+    "package.json.example",
+    "",
+    "Annotated package.json template for Cybersecurity-Projects frontends.",
+    "Copy into your frontend/ directory, rename to package.json, and replace",
+    "every <PLACEHOLDER> with your actual values.",
+    "",
+    "JSON has no comment syntax, so '//' keys are the standard convention",
+    "for documentation in package.json. They are ignored by pnpm/npm.",
+    "",
+    "Docs: https://docs.npmjs.com/cli/v10/configuring-npm/package-json",
+    "pnpm: https://pnpm.io/package_json"
+  ],
+
+  "name": "<project-name>",
+  "private": true,
+  "version": "1.0.0",
+  "description": "<One-line description of the frontend>",
+  "type": "module",
+
+  "// scripts": [
+    "Scripts run via `pnpm <script>` (no `run` needed for lifecycle scripts).",
+    "Keep names consistent across all projects so the root justfile works.",
+    "",
+    "Naming convention:",
+    "  verb            dev, build, preview, test",
+    "  verb:qualifier  lint:fix, lint:scss, format:check",
+    "",
+    "pnpm scripts docs: https://docs.npmjs.com/cli/v10/using-npm/scripts"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+
+    "typecheck": "tsc -b",
+
+    "lint:scss": "stylelint '**/*.scss'",
+    "lint:scss:fix": "stylelint '**/*.scss' --fix"
+  },
+
+  "// dependencies": [
+    "Runtime deps — these ship in the production bundle.",
+    "Only add what you actually import. Transitive deps are pulled automatically."
+  ],
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.12",
+    "axios": "^1.13.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.0",
+    "react-error-boundary": "^6.0.0",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.1.1",
+    "sonner": "^2.0.7",
+    "zod": "^4.1.13",
+    "zustand": "^5.0.9"
+  },
+
+  "// devDependencies": [
+    "Dev deps — only used during development/build, not shipped to users.",
+    "Linters, type checkers, build tools, test frameworks go here."
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.2",
+    "@tanstack/react-query-devtools": "^5.91.1",
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "sass": "^1.95.0",
+    "stylelint": "^16.26.1",
+    "stylelint-config-prettier-scss": "^1.0.0",
+    "stylelint-config-standard-scss": "^16.0.0",
+    "typescript": "~5.9.3",
+    "vite": "npm:rolldown-vite@7.2.5",
+    "vite-tsconfig-paths": "^5.1.0"
+  },
+
+  "// pnpm": [
+    "pnpm-specific configuration.",
+    "",
+    "overrides: Force a specific version of a transitive dependency.",
+    "Use this when a dep pulls in a version you don't want.",
+    "Example: pin vite to rolldown-vite for faster builds.",
+    "",
+    "peerDependencyRules.allowAny: Suppress peer dep warnings for",
+    "packages that haven't updated their peerDeps to React 19 yet."
+  ],
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@7.2.5"
+    },
+    "peerDependencyRules": {
+      "allowAny": [
+        "react",
+        "react-dom"
+      ]
+    }
+  }
+}
