@@ -64,8 +64,13 @@ def prepare_training_data(
 
     class_counts = np.bincount(y_train)
     minority_count = class_counts.min()
+    majority_count = class_counts.max()
+    current_ratio = minority_count / majority_count
 
-    if minority_count >= smote_k + 1:
+    if (
+        minority_count >= smote_k + 1
+        and current_ratio < smote_strategy
+    ):
         sampler = SMOTE(
             sampling_strategy=smote_strategy,
             k_neighbors=smote_k,
