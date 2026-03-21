@@ -1,0 +1,19 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+docs/
+build/
+*.o
+*.a
+*.so
+*.out
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

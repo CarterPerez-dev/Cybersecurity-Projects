@@ -1,0 +1,15 @@
+# ©AngelaMos | 2026
+# .clang-tidy
+
+Checks: >
+  bugprone-*, cert-*, clang-analyzer-*, cppcoreguidelines-*, performance-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-type-union-access,
+  -cert-err33-c,
+  -bugprone-easily-swappable-parameters
+
+WarningsAsErrors: "*"
