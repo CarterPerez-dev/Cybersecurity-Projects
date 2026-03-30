@@ -1,0 +1,6 @@
+# ©AngelaMos | 2026
+# fstab
+/dev/sda1  /        ext4   defaults                    0 1
+tmpfs      /tmp     tmpfs  defaults,noexec,nosuid,nodev 0 0
+/dev/sda2  /var     ext4   defaults                    0 2
+/dev/sda3  /var/log ext4   defaults                    0 2

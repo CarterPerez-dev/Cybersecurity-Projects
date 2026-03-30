@@ -1,0 +1,84 @@
+# ©AngelaMos | 2026
+# Justfile
+
+set shell := ["bash", "-uc"]
+
+project := "cisaudit"
+src     := "src"
+tests   := "tests"
+
+default:
+    @just --list --unsorted
+
+[group('run')]
+audit *ARGS:
+    sudo ./{{src}}/cisaudit.sh {{ARGS}}
+
+[group('run')]
+audit-json:
+    sudo ./{{src}}/cisaudit.sh -f json
+
+[group('run')]
+audit-html file="/tmp/cis-report.html":
+    sudo ./{{src}}/cisaudit.sh -f html -o {{file}} && echo "Report: {{file}}"
+
+[group('run')]
+audit-level level:
+    sudo ./{{src}}/cisaudit.sh -l {{level}}
+
+[group('run')]
+audit-category cats:
+    sudo ./{{src}}/cisaudit.sh -c {{cats}}
+
+[group('run')]
+list-controls:
+    ./{{src}}/cisaudit.sh --list-controls
+
+[group('test')]
+test:
+    bash {{tests}}/test_runner.sh
+
+[group('test')]
+test-verbose:
+    bash {{tests}}/test_runner.sh 2>&1
+
+[group('test')]
+test-file file:
+    bash {{tests}}/test_runner.sh {{file}}
+
+[group('lint')]
+shellcheck:
+    shellcheck -x {{src}}/cisaudit.sh {{src}}/lib/*.sh {{src}}/checks/*.sh {{src}}/controls/*.sh
+
+[group('util')]
+install:
+    bash install.sh
+
+[group('util')]
+clean:
+    rm -rf reports/ baselines/ /tmp/cis-report.html /tmp/cis_baseline*.json
+
+[group('util')]
+info:
+    @echo "Project: {{project}}"
+    @./{{src}}/cisaudit.sh --version
+    @echo "Bash: $(bash --version | head -1)"
+    @echo "Controls: $(./{{src}}/cisaudit.sh --list-controls 2>/dev/null | tail -1)"
+
+[group('util')]
+smoke:
+    ./{{src}}/cisaudit.sh --version
+    ./{{src}}/cisaudit.sh --help > /dev/null
+    ./{{src}}/cisaudit.sh --list-controls > /dev/null
+    ./{{src}}/cisaudit.sh -t testdata/fixtures -f json 2>/dev/null | python3 -m json.tool > /dev/null
+    ./{{src}}/cisaudit.sh -t testdata/fixtures -f terminal > /dev/null 2>&1
+    @echo "Smoke tests passed"
+
+[group('baseline')]
+save-baseline file="baselines/latest.json":
+    mkdir -p baselines
+    sudo ./{{src}}/cisaudit.sh -f json -s {{file}} > /dev/null
+
+[group('baseline')]
+diff-baseline file:
+    sudo ./{{src}}/cisaudit.sh -f terminal -b {{file}}

@@ -1,0 +1,14 @@
+# ©AngelaMos | 2026
+# sshd_config
+PermitRootLogin no
+PermitEmptyPasswords no
+X11Forwarding no
+MaxAuthTries 4
+IgnoreRhosts yes
+PermitUserEnvironment no
+LogLevel INFO
+LoginGraceTime 60
+Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+AllowUsers admin

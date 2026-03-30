@@ -1,0 +1,4 @@
+# ©AngelaMos | 2026
+# crontab
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin

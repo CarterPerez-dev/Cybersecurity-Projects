@@ -1,0 +1,1 @@
+install cramfs /bin/true

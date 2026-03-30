@@ -1,0 +1,5 @@
+# ©AngelaMos | 2026
+# login.defs
+PASS_MAX_DAYS 365
+PASS_MIN_DAYS 1
+PASS_WARN_AGE 7

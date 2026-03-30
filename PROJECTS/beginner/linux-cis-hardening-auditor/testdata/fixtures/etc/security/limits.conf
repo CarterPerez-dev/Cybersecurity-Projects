@@ -1,0 +1,1 @@
+* hard core 0

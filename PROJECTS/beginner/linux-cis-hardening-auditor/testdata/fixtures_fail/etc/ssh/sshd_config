@@ -1,0 +1,11 @@
+PermitRootLogin yes
+PermitEmptyPasswords yes
+X11Forwarding yes
+MaxAuthTries 10
+IgnoreRhosts no
+PermitUserEnvironment yes
+LogLevel QUIET
+LoginGraceTime 300
+Ciphers aes256-gcm@openssh.com,aes256-cbc,3des-cbc
+MACs hmac-sha2-512-etm@openssh.com,hmac-md5
+KexAlgorithms curve25519-sha256,diffie-hellman-group1-sha1

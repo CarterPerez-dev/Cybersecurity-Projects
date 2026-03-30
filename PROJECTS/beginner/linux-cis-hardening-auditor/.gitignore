@@ -1,0 +1,15 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+*.tmp
+*.bak
+*.swp
+*~
+
+reports/
+baselines/
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

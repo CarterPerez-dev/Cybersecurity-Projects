@@ -1,0 +1,3 @@
+# ©AngelaMos | 2026
+# common-auth
+auth [success=1 default=ignore] pam_unix.so nullok_secure

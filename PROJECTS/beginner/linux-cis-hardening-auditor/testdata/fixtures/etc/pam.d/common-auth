@@ -1,0 +1,5 @@
+# ©AngelaMos | 2026
+# common-auth
+auth required pam_faillock.so preauth
+auth [success=1 default=ignore] pam_unix.so nullok_secure
+auth required pam_faillock.so authfail

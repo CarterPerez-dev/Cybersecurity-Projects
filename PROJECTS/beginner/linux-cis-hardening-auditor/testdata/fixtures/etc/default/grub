@@ -1,0 +1,4 @@
+# ©AngelaMos | 2026
+# grub
+GRUB_CMDLINE_LINUX="audit=1 audit_backlog_limit=8192"
+GRUB_TIMEOUT=5
