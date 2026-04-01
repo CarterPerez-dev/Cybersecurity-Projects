@@ -78,6 +78,33 @@ export function Component(): React.ReactElement {
 
   return (
     <div className={styles.page}>
+      <div className={styles.grain} aria-hidden="true">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="none"
+        >
+          <filter id="grain-bat">
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="1.16"
+              numOctaves="1"
+              seed="2"
+              stitchTiles="stitch"
+            >
+              <animate
+                attributeName="seed"
+                from="0"
+                to="100"
+                dur="2.67s"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+          </filter>
+          <rect width="100%" height="100%" filter="url(#grain-bat)" />
+        </svg>
+      </div>
       <div className={styles.hexMargin} aria-hidden="true">
         {HEX_OFFSETS.map((offset) => (
           <span key={offset}>{offset}</span>
@@ -92,7 +119,7 @@ export function Component(): React.ReactElement {
       <header className={styles.metaStrip}>
         <span>AXM-001</span>
         <span className={styles.metaCenter}>STATIC ANALYSIS SUITE</span>
-        <span>v0.1.0</span>
+        <span>v0.1.1</span>
       </header>
 
       <div className={styles.rule} />
@@ -102,9 +129,9 @@ export function Component(): React.ReactElement {
         <p className={styles.subtitle}>BINARY DISSECTION ENGINE</p>
         <p className={styles.formats}>
           <span>ELF</span>
-          <span className={styles.formatDivider}>/</span>
+          <span className={styles.formatDivider}>&middot;</span>
           <span>PE</span>
-          <span className={styles.formatDivider}>/</span>
+          <span className={styles.formatDivider}>&middot;</span>
           <span>MACH-O</span>
         </p>
       </section>
@@ -196,6 +223,7 @@ export function Component(): React.ReactElement {
 
       <footer className={styles.footer}>
         <span>&copy; ANGELAMOS 2026</span>
+        <span className={styles.footerDesignation}>SYS AXM-BDE // UNIT-001</span>
         <span>AXUMORTEM</span>
       </footer>
     </div>

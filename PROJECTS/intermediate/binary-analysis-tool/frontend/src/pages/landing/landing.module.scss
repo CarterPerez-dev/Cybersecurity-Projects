@@ -28,6 +28,23 @@ $content-max: 860px;
   }
 }
 
+.grain {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: $z-max;
+  mix-blend-mode: multiply;
+  opacity: 1;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+
 .hexMargin {
   display: none;
   position: fixed;
@@ -201,17 +218,23 @@ $content-max: 860px;
 }
 
 .title {
+  font-family: $font-display;
   font-size: $font-size-6xl;
-  font-weight: $font-weight-black;
-  letter-spacing: 0.06em;
+  font-weight: $font-weight-medium;
+  letter-spacing: 0.04em;
   line-height: $line-height-none;
   color: $text-default;
+  text-transform: uppercase;
 
   @include breakpoint-up('sm') {
-    font-size: $font-size-7xl;
+    font-size: $font-size-5xl;
   }
 
   @include breakpoint-up('md') {
+    font-size: $font-size-7xl;
+  }
+
+  @include breakpoint-up('lg') {
     font-size: $font-size-8xl;
   }
 }
@@ -277,27 +300,78 @@ $content-max: 860px;
   }
 }
 
+$bracket-size: 14px;
+$bracket-weight: 1px;
+$bracket-inset: $space-3;
+
 .dropZone {
-  border: 1px solid $border-default;
+  position: relative;
+  border: 1px dashed $border-strong;
   padding: $space-10 $space-6;
   cursor: pointer;
-  transition-property: border-color, background-color;
+  transition-property: border-color, background-color, border-style;
   transition-duration: $duration-fast;
   transition-timing-function: $ease-out;
 
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: $bracket-size;
+    height: $bracket-size;
+    pointer-events: none;
+    transition: border-color $duration-fast $ease-out;
+  }
+
+  &::before {
+    top: $bracket-inset;
+    left: $bracket-inset;
+    border-top: $bracket-weight solid $border-stronger;
+    border-left: $bracket-weight solid $border-stronger;
+  }
+
+  &::after {
+    top: $bracket-inset;
+    right: $bracket-inset;
+    border-top: $bracket-weight solid $border-stronger;
+    border-right: $bracket-weight solid $border-stronger;
+  }
+
   @include hover {
-    border-color: $border-strong;
+    border-color: $border-stronger;
+
+    &::before,
+    &::after,
+    .dropPrompt::before,
+    .dropPrompt::after {
+      border-color: $accent;
+    }
   }
 
   &.dragActive {
+    border-style: solid;
     border-color: $accent;
     background: $accent-dim;
+
+    &::before,
+    &::after,
+    .dropPrompt::before,
+    .dropPrompt::after {
+      border-color: $accent;
+    }
   }
 
   &.hasFile {
+    border-style: solid;
+    border-color: $border-default;
     cursor: default;
     background: $bg-surface-75;
     padding: $space-6;
+
+    &::before,
+    &::after {
+      display: none;
+    }
   }
 }
 
@@ -307,6 +381,30 @@ $content-max: 860px;
   align-items: center;
   gap: $space-3;
   text-align: center;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: $bracket-size;
+    height: $bracket-size;
+    pointer-events: none;
+    transition: border-color $duration-fast $ease-out;
+  }
+
+  &::before {
+    bottom: $bracket-inset;
+    left: $bracket-inset;
+    border-bottom: $bracket-weight solid $border-stronger;
+    border-left: $bracket-weight solid $border-stronger;
+  }
+
+  &::after {
+    bottom: $bracket-inset;
+    right: $bracket-inset;
+    border-bottom: $bracket-weight solid $border-stronger;
+    border-right: $bracket-weight solid $border-stronger;
+  }
 }
 
 .dropStatus {
@@ -410,6 +508,8 @@ $content-max: 860px;
   display: flex;
   align-items: center;
   gap: $space-3;
+  padding-left: $space-3;
+  border-left: 2px solid $accent;
 }
 
 .passNumber {
@@ -435,9 +535,18 @@ $content-max: 860px;
   align-items: center;
   padding: $space-6 0 $space-4;
   font-family: $font-mono;
-  font-size: $font-size-3xs;
+  font-size: $font-size-2xs;
   text-transform: uppercase;
   letter-spacing: $tracking-widest;
   color: $text-muted;
   margin-top: auto;
+}
+
+.footerDesignation {
+  display: none;
+  color: $border-strong;
+
+  @include breakpoint-up('sm') {
+    display: inline;
+  }
 }

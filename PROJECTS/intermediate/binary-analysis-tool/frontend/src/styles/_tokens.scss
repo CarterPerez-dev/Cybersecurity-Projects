@@ -34,9 +34,9 @@ $space-32: 8rem;
 // ============================================================================
 // TYPOGRAPHY SCALE
 // ============================================================================
-$font-size-3xs: 0.625rem;
-$font-size-2xs: 0.6875rem;
-$font-size-xs: 0.75rem;
+$font-size-3xs: 0.65rem;
+$font-size-2xs: 0.695rem;
+$font-size-xs: 0.765rem;
 $font-size-sm: 0.875rem;
 $font-size-base: 1rem;
 $font-size-lg: 1.125rem;
@@ -80,43 +80,41 @@ $tracking-widest: 0.1em;
 // ============================================================================
 // COLORS
 // ============================================================================
-$white: hsl(0, 0%, 100%);
-$black: hsl(0, 0%, 0%);
+$white: hsl(220, 15%, 97%);
+$black: hsl(227, 21%, 4%);
 
-// Auth
-$bg-page: hsl(0, 0%, 10.5%);
-$bg-card: hsl(0, 0%, 6.2%);
+$bg-page: hsl(260, 16%, 10%);
+$bg-card: hsl(260, 18%, 6%);
 
-// Home/landing
-$bg-landing: hsl(0, 0%, 10.8%);
+$bg-landing: hsl(260, 16%, 10%);
 
-$bg-default: hsl(0, 0%, 7.1%);
-$bg-alternative: hsl(0, 0%, 5.9%);
-$bg-surface-75: hsl(0, 0%, 9%);
-$bg-surface-100: hsl(0, 0%, 12.2%);
-$bg-surface-200: hsl(0, 0%, 14.1%);
-$bg-surface-300: hsl(0, 0%, 16.1%);
-$bg-control: hsl(0, 0%, 10%);
-$bg-selection: hsl(0, 0%, 19.2%);
-$bg-overlay: hsl(0, 0%, 14.1%);
-$bg-overlay-hover: hsl(0, 0%, 18%);
+$bg-default: hsl(260, 18%, 7%);
+$bg-alternative: hsl(260, 18%, 5.5%);
+$bg-surface-75: hsl(260, 15%, 9.5%);
+$bg-surface-100: hsl(260, 13%, 12.5%);
+$bg-surface-200: hsl(260, 11%, 14.5%);
+$bg-surface-300: hsl(260, 9%, 16.5%);
+$bg-control: hsl(260, 15%, 10%);
+$bg-selection: hsl(260, 9%, 19.5%);
+$bg-overlay: hsl(260, 11%, 14.5%);
+$bg-overlay-hover: hsl(260, 9%, 18.5%);
 
-$border-muted: hsl(0, 0%, 11.1%);
-$border-default: hsl(0, 0%, 18%);
-$border-strong: hsl(0, 0%, 22.4%);
-$border-stronger: hsl(0, 0%, 27.1%);
-$border-control: hsl(0, 0%, 22.4%);
+$border-muted: hsl(260, 12%, 21.5%);
+$border-default: hsl(260, 9%, 28.5%);
+$border-strong: hsl(260, 7%, 33.5%);
+$border-stronger: hsl(260, 5%, 37.5%);
+$border-control: hsl(260, 7%, 33.5%);
 
-$text-default: hsl(0, 0%, 98%);
-$text-light: hsl(0, 0%, 70.6%);
-$text-lighter: hsl(0, 0%, 53.7%);
-$text-muted: hsl(0, 0%, 30.2%);
+$text-default: hsl(255, 14%, 98%);
+$text-light: hsl(258, 9%, 87%);
+$text-lighter: hsl(258, 7%, 80%);
+$text-muted: hsl(260, 9%, 50%);
 
 $error-default: hsl(0, 72%, 51%);
 $error-light: hsl(0, 72%, 65%);
 
-$accent: hsl(25, 85%, 55%);
-$accent-dim: hsl(25, 35%, 14%);
+$accent: hsl(160, 85%, 50%);
+$accent-dim: hsl(160, 35%, 12%);
 
 // ============================================================================
 // BORDER RADIUS

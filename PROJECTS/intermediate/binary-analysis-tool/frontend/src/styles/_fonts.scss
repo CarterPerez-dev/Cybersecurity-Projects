@@ -5,8 +5,9 @@
 
 @use 'tokens' as *;
 
-$font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto,
-  'Helvetica Neue', Arial, sans-serif;
+$font-display: 'Montserrat', sans-serif;
 
-$font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
-  'Liberation Mono', monospace;
+$font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+$font-mono: 'Epilogue', -apple-system, BlinkMacSystemFont, sans-serif;
