@@ -24,7 +24,7 @@ dependencies = [
     # HTTP client for scanners
     "requests==2.32.5",
     "httpx==0.28.1",
-    "aiohttp==3.13.3",
+    "aiohttp==3.13.4",
     # Settings management
     "pydantic==2.12.5",
     "pydantic-settings==2.12.0",
