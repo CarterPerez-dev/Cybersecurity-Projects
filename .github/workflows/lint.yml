@@ -88,6 +88,10 @@ jobs:
           - name: secrets-scanner
             type: go
             path: PROJECTS/intermediate/secrets-scanner
+          # Nim
+          - name: credential-enumeration
+            type: nim
+            path: PROJECTS/intermediate/credential-enumeration
 
     defaults:
       run:
@@ -147,6 +151,17 @@ jobs:
       if: matrix.type == 'go'
       run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
+    # Nim Setup
+    - name: Setup Nim
+      if: matrix.type == 'nim'
+      uses: jiro4989/setup-nim-action@v2
+      with:
+        nim-version: '2.2.x'
+
+    - name: Install nph
+      if: matrix.type == 'nim'
+      run: nimble install -y nph
+
     # Ruff Linting
     - name: Run ruff
       if: matrix.type == 'ruff'
@@ -193,6 +208,37 @@ jobs:
           echo "golangci-lint found issues!"
         fi
         cat golangci-output.txt
+      continue-on-error: true
+
+    # Nim Linting
+    - name: Run nph and nim check
+      if: matrix.type == 'nim'
+      id: nim
+      run: |
+        echo "Running nph format check..."
+        NPH_OK=true
+        NIM_OK=true
+        if nph --check src/ > nim-output.txt 2>&1; then
+          echo "nph: no formatting issues"
+        else
+          NPH_OK=false
+          echo "nph: formatting issues found"
+        fi
+        echo "Running nim check..."
+        if nim check src/harvester.nim >> nim-output.txt 2>&1; then
+          echo "nim check: passed"
+        else
+          NIM_OK=false
+          echo "nim check: failed"
+        fi
+        if [[ "$NPH_OK" == "true" && "$NIM_OK" == "true" ]]; then
+          echo "NIM_PASSED=true" >> $GITHUB_ENV
+          echo "All Nim checks passed!"
+        else
+          echo "NIM_PASSED=false" >> $GITHUB_ENV
+          echo "Nim checks found issues"
+        fi
+        cat nim-output.txt
       continue-on-error: true
 
     # Create Summary for Ruff
@@ -288,6 +334,37 @@ jobs:
           fi
         } >> $GITHUB_STEP_SUMMARY
 
+    # Create Summary for Nim
+    - name: Create Nim Lint Summary
+      if: matrix.type == 'nim'
+      run: |
+        {
+          echo "## Lint Results: ${{ matrix.name }}"
+          echo ''
+
+          if [[ "${{ env.NIM_PASSED }}" == "true" ]]; then
+            echo '### nph + nim check: **Passed**'
+            echo 'No Nim issues found.'
+          else
+            echo '### nph + nim check: **Issues Found**'
+            echo '<details><summary>View Nim output</summary>'
+            echo ''
+            echo '```'
+            head -100 nim-output.txt
+            echo '```'
+            echo '</details>'
+          fi
+          echo ''
+
+          if [[ "${{ env.NIM_PASSED }}" == "true" ]]; then
+            echo '---'
+            echo '### All checks passed!'
+          else
+            echo '---'
+            echo '### Review the issues above'
+          fi
+        } >> $GITHUB_STEP_SUMMARY
+
     # Exit with proper status
     - name: Check lint status
       run: |
@@ -304,6 +381,11 @@ jobs:
         elif [[ "${{ matrix.type }}" == "go" ]]; then
           if [[ "${{ env.GOLANGCI_PASSED }}" == "false" ]]; then
             echo "Go lint checks failed"
+            exit 1
+          fi
+        elif [[ "${{ matrix.type }}" == "nim" ]]; then
+          if [[ "${{ env.NIM_PASSED }}" == "false" ]]; then
+            echo "Nim lint checks failed"
             exit 1
           fi
         fi

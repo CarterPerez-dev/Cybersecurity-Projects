@@ -150,6 +150,16 @@ repos:
         files: ^PROJECTS/advanced/encrypted-p2p-chat/frontend/src/
         pass_filenames: false
 
+  # Nim nph Checks
+  - repo: local
+    hooks:
+      - id: nph-credential-enumeration
+        name: nph check (credential-enumeration)
+        entry: bash -c 'cd PROJECTS/intermediate/credential-enumeration && nph --check src/'
+        language: system
+        files: ^PROJECTS/intermediate/credential-enumeration/src/
+        pass_filenames: false
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

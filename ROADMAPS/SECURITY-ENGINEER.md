@@ -8,6 +8,10 @@ Security Engineers build and maintain the technical security infrastructure that
 
 ---
 
+> **Want 1-on-1 guidance through this path?** I offer a mentorship program where I personally help you get certified, build real projects for your GitHub, rewrite your resume, and land your first cybersecurity role. **[Learn more](https://certgames.com/mentorship)**
+
+---
+
 ## Certification Path
 
 | Level | Certification | Organization | Link |
@@ -173,6 +177,10 @@ Build security engineering skills with these projects:
 - [Web Application Firewall](../SYNOPSES/intermediate/Web.Application.Firewall.md)
 - [Container Security Scanner](../SYNOPSES/intermediate/Container.Security.Scanner.md)
 - [Cloud Security Posture Management](../SYNOPSES/advanced/Cloud.Security.Posture.Management.md)
+
+---
+
+> **This is a lot to tackle alone.** If you want someone guiding you through the certifications, building your projects, and getting your resume right — my 1-on-1 mentorship covers the full process for 90 days. **[certgames.com/mentorship](https://certgames.com/mentorship)**
 
 ---
 
