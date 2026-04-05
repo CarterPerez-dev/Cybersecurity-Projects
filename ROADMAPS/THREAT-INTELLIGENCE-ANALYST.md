@@ -8,6 +8,10 @@ Threat Intelligence Analysts research adversaries, analyze attack patterns, and 
 
 ---
 
+> **Want 1-on-1 guidance through this path?** I offer a mentorship program where I personally help you get certified, build real projects for your GitHub, rewrite your resume, and land your first cybersecurity role. **[Learn more](https://certgames.com/mentorship)**
+
+---
+
 ## Certification Path
 
 | Level | Certification | Organization | Link |
@@ -256,6 +260,10 @@ Build threat intelligence skills with these projects:
 - [OSINT Reconnaissance Framework](../SYNOPSES/intermediate/OSINT.Reconnaissance.Framework.md)
 - [Security News Scraper](../SYNOPSES/beginner/Security.News.Scraper.md)
 - [Phishing URL Detector](../SYNOPSES/beginner/Phishing.URL.Detector.md)
+
+---
+
+> **This is a lot to tackle alone.** If you want someone guiding you through the certifications, building your projects, and getting your resume right — my 1-on-1 mentorship covers the full process for 90 days. **[certgames.com/mentorship](https://certgames.com/mentorship)**
 
 ---
 
