@@ -1,5 +1,31 @@
-// ©AngelaMos | 2026
-// conflict.v
+/*
+©AngelaMos | 2026
+conflict.v
+
+Conflict detection engine for firewall rulesets
+
+Walks every chain pairwise comparing rules to find four classes of
+problems: shadowed rules (a broader rule with a different action appears
+earlier, making the narrower rule unreachable), contradictions (two
+rules overlap in traffic but have opposing accept/deny actions),
+duplicates (identical criteria and action), and redundant rules (a
+strict subset of another rule with the same action). The comparison
+logic uses match_is_superset for subset testing and matches_overlap for
+partial intersection, both of which recurse through protocol, source
+address, destination address, ports, interfaces, and conntrack states.
+CIDR containment delegates to models.cidr_contains for the actual
+prefix arithmetic.
+
+Key exports:
+  analyze_conflicts - Scans a Ruleset and returns all conflict Findings
+
+Connects to:
+  models/models.v        - imports Rule, Ruleset, MatchCriteria, Finding, Action,
+                            NetworkAddr, PortSpec, cidr_contains, port_range_contains
+  analyzer/optimizer.v   - sibling module, both called from main.v cmd_analyze
+  main.v                 - called from cmd_analyze
+  display/display.v      - Findings are rendered by print_findings
+*/
 
 module analyzer
 

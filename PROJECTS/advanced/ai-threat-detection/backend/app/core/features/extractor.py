@@ -1,6 +1,31 @@
 """
 ©AngelaMos | 2026
 extractor.py
+
+Stateless per-request feature extraction producing 23
+features from a parsed log entry
+
+extract_request_features computes: http_method, path_depth,
+path_entropy (Shannon), path_length, query_string_length,
+query_param_count, has_encoded_chars, has_double_encoding,
+status_code, status_class (Nxx), response_size, hour_of_
+day, day_of_week, is_weekend, ua_length, ua_entropy,
+is_known_bot, is_known_scanner, has_attack_pattern,
+special_char_ratio, file_extension, country_code, and
+is_private_ip. Pattern detection uses compiled regexes
+from patterns module, bot/scanner detection uses signature
+sets
+
+Connects to:
+  core/features/
+    patterns         - ATTACK_COMBINED, DOUBLE_ENCODED,
+                        ENCODED_CHARS
+  core/features/
+    signatures       - BOT_USER_AGENTS, SCANNER_USER_AGENTS
+  core/ingestion/
+    parsers          - ParsedLogEntry input
+  core/ingestion/
+    pipeline         - called in feature_worker stage
 """
 
 import ipaddress

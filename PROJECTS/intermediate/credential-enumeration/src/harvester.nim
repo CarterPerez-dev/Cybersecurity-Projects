@@ -1,5 +1,23 @@
 # ©AngelaMos | 2026
 # harvester.nim
+#
+# CLI entry point and argument parser
+#
+# Parses command-line flags via std/parseopt (--target, --modules,
+# --exclude, --format, --output, --dry-run, --quiet, --verbose,
+# --help, --version) into a HarvestConfig. Dispatches to renderDryRun
+# for --dry-run preview, otherwise calls runCollectors to execute all
+# enabled modules, stamps the report with a UTC ISO 8601 timestamp,
+# and routes output to renderTerminal, renderJson, or both. Exits
+# with code 1 if any critical or high severity findings are detected,
+# 0 otherwise.
+#
+# Connects to:
+#   config.nim          - defaultConfig, AppVersion, ModuleNames/Descriptions
+#   types.nim           - HarvestConfig, OutputFormat, Severity, Report
+#   runner.nim          - runCollectors orchestrates module execution
+#   output/terminal.nim - renderTerminal for ANSI output
+#   output/json.nim     - renderJson for structured output
 
 {.push raises: [].}
 
@@ -21,7 +39,10 @@ proc printHelp() =
     stdout.writeLine ""
     stdout.writeLine ColorBold & "FLAGS:" & ColorReset
     stdout.writeLine "  --target <path>       Target home directory (default: current user)"
-    stdout.writeLine "  --modules <list>      Comma-separated modules: " & ModuleNames[catBrowser] & "," & ModuleNames[catSsh] & "," & ModuleNames[catCloud] & "," & ModuleNames[catHistory] & "," & ModuleNames[catKeyring] & "," & ModuleNames[catGit] & "," & ModuleNames[catApptoken]
+    stdout.writeLine "  --modules <list>      Comma-separated modules: " &
+      ModuleNames[catBrowser] & "," & ModuleNames[catSsh] & "," & ModuleNames[catCloud] &
+      "," & ModuleNames[catHistory] & "," & ModuleNames[catKeyring] & "," &
+      ModuleNames[catGit] & "," & ModuleNames[catApptoken]
     stdout.writeLine "  --exclude <patterns>  Comma-separated path patterns to skip"
     stdout.writeLine "  --format <fmt>        Output format: terminal, json, both (default: terminal)"
     stdout.writeLine "  --output <path>       Write JSON output to file"
@@ -34,7 +55,8 @@ proc printHelp() =
     stdout.writeLine ColorBold & "EXAMPLES:" & ColorReset
     stdout.writeLine "  " & BinaryName & "                           Scan current user"
     stdout.writeLine "  " & BinaryName & " --format json             JSON output"
-    stdout.writeLine "  " & BinaryName & " --modules ssh,git,cloud   Scan specific modules"
+    stdout.writeLine "  " & BinaryName &
+      " --modules ssh,git,cloud   Scan specific modules"
     stdout.writeLine "  " & BinaryName & " --target /home/victim     Scan another user"
     stdout.writeLine "  " & BinaryName & " --dry-run                 Preview scan paths"
     stdout.writeLine ""
@@ -63,7 +85,7 @@ proc parseCli(): HarvestConfig =
   var parser = initOptParser(
     commandLineParams(),
     shortNoVal = {'d', 'q', 'v', 'h'},
-    longNoVal = @["dry-run", "quiet", "verbose", "help", "version"]
+    longNoVal = @["dry-run", "quiet", "verbose", "help", "version"],
   )
 
   while true:
@@ -111,7 +133,8 @@ proc renderDryRun(conf: HarvestConfig) =
     stdout.writeLine ColorBold & "Dry run — scan targets:" & ColorReset
     stdout.writeLine ""
     for cat in conf.enabledModules:
-      stdout.writeLine "  " & ColorCyan & ModuleNames[cat] & ColorReset & ": " & ModuleDescriptions[cat]
+      stdout.writeLine "  " & ColorCyan & ModuleNames[cat] & ColorReset & ": " &
+        ModuleDescriptions[cat]
     stdout.writeLine ""
     stdout.writeLine ColorDim & "  Target: " & conf.targetDir & ColorReset
     stdout.writeLine ""

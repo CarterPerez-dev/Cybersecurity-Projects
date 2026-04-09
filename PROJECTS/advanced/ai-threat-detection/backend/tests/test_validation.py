@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 test_validation.py
+
+Tests post-training ensemble validation with quality gates
+
+Uses a trained_model_dir fixture with all 3 ONNX models,
+scaler, and threshold, plus a separable_test_data fixture
+with well-separated normal/attack clusters. Validates
+ValidationResult structure, metric ranges (precision,
+recall, f1, pr_auc, roc_auc all in [0, 1]), 2x2 confusion
+matrix shape, gate_details keys (pr_auc, f1), gate pass
+with low thresholds, gate fail with high thresholds, and
+custom ensemble weight acceptance
+
+Connects to:
+  ml/validation  - validate_ensemble, ValidationResult
+  ml/export_onnx - model export for fixture setup
+  ml/scaler      - FeatureScaler for fixture setup
 """
 
 import json

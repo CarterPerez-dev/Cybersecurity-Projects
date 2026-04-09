@@ -1,5 +1,32 @@
-// ©AngelaMos | 2026
-// display.v
+/*
+©AngelaMos | 2026
+display.v
+
+Terminal output formatting for rulesets, findings, and diffs
+
+Handles all user-facing output so the rest of the codebase never calls
+println directly for structured data. print_rule_table renders a
+fixed-width ASCII table with columns for rule number, chain, protocol,
+source, destination, ports, and action. Actions are color-coded green
+for ACCEPT, red for DROP/REJECT, yellow for LOG. print_findings groups
+analyzer results by severity with colored brackets and includes the
+suggestion arrow for each finding. print_diff compares two Rulesets by
+building a set of normalized rule strings and showing only-left /
+only-right entries, similar to a unified diff.
+
+Key exports:
+  print_banner    - Renders the boxed FWRULE header with version
+  print_rule_table - Renders a tabular view of all rules in a Ruleset
+  print_summary    - Shows format, rule count, chains, and policies
+  print_findings   - Renders a list of analyzer Findings with severity counts
+  print_finding    - Renders a single Finding with colored severity tag
+  print_diff       - Side-by-side comparison of two Rulesets
+
+Connects to:
+  config/config.v - reads column widths, Unicode symbols, version
+  models/models.v - imports Rule, Ruleset, Finding, Action, Severity
+  main.v          - called from every cmd_* handler for display
+*/
 
 module display
 

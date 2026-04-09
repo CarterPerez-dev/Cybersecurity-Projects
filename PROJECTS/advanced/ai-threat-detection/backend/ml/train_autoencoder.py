@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 train_autoencoder.py
+
+PyTorch autoencoder training loop with early stopping and
+anomaly threshold calibration
+
+train_autoencoder takes normal-only traffic vectors, splits
+off a 15% validation set, fits a FeatureScaler (IQR-based)
+on training data, builds DataLoaders, and trains a
+ThreatAutoencoder (35->24->12->6->12->24->35) using MSE
+loss with AdamW optimizer (weight decay 1e-5),
+ReduceLROnPlateau scheduler (factor 0.5, patience 5),
+gradient clipping at max_norm 1.0, and early stopping
+(default patience 10). After training, computes per-sample
+reconstruction error on the validation set and sets the
+anomaly threshold at the 99.5th percentile. Returns the
+trained model, fitted scaler, calibrated threshold, and
+train/val loss history
+
+Connects to:
+  ml/autoencoder   - ThreatAutoencoder model class
+  ml/scaler        - FeatureScaler for input normalization
+  ml/orchestrator  - called during pipeline execution
 """
 
 from typing import Any

@@ -1,5 +1,45 @@
-// ©AngelaMos | 2026
-// models.v
+/*
+©AngelaMos | 2026
+models.v
+
+Domain types for firewall rule representation and matching
+
+Every rule parsed from iptables or nftables input lands in the same
+unified Rule struct so the analyzer and generator never need to know
+which format the original file used. Enums use explicit u8 backing for
+compact storage when rulesets grow large. NetworkAddr and PortSpec carry
+a negated flag so "! -s 10.0.0.0/8" round-trips cleanly through parse,
+analyze, and export. ip_to_u32 and cidr_contains power the superset and
+overlap checks in the conflict analyzer by converting dotted-quad
+addresses to a single u32 for prefix comparison.
+
+Key exports:
+  Protocol      - Network protocol enum (tcp, udp, icmp, icmpv6, all, sctp, gre)
+  Action        - Firewall target action (accept, drop, reject, log, NAT variants)
+  Table         - Netfilter table (filter, nat, mangle, raw, security)
+  ChainType     - Built-in chain identifiers plus custom
+  RuleSource    - Discriminates iptables from nftables origin
+  Severity      - Finding severity for analyzer output (info, warning, critical)
+  ConnState     - Bitflag set for conntrack states (new, established, related, invalid)
+  NetworkAddr   - IP address with CIDR prefix length and negation
+  PortSpec      - Single port or port range with negation
+  MatchCriteria - Full match tuple: protocol, addresses, ports, interfaces, conntrack
+  Rule          - One firewall rule: table, chain, action, criteria, line number, raw text
+  Finding       - Analyzer result: severity, title, description, affected rules, suggestion
+  Ruleset       - Collection of rules with chain default policies
+  ip_to_u32     - Converts dotted-quad IPv4 string to a 32-bit integer
+  cidr_contains - Tests whether one CIDR prefix fully contains another
+  port_range_contains - Tests whether one port range fully contains another
+
+Connects to:
+  parser/common.v   - imports all enums and structs for parsing
+  parser/iptables.v - imports Rule, Ruleset, MatchCriteria, NetworkAddr, Action, Table
+  parser/nftables.v - imports Rule, Ruleset, MatchCriteria, NetworkAddr, Action, Table
+  analyzer/conflict.v  - imports Rule, Ruleset, MatchCriteria, Finding, Action, NetworkAddr, PortSpec
+  analyzer/optimizer.v - imports Rule, Ruleset, Finding
+  generator/generator.v - imports Rule, Ruleset, RuleSource
+  display/display.v     - imports Rule, Ruleset, Finding, Action, Severity
+*/
 
 module models
 

@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 03_network.sh
+#
+# CIS Section 3 checks: Network Configuration
+#
+# Implements controls 3.1.1-3.4.5 auditing kernel network parameters,
+# host firewall policy, and uncommon protocol modules. Sysctl checks
+# cover IP forwarding, ICMP send_redirects, source routing acceptance,
+# ICMP redirect acceptance, martian packet logging, broadcast ICMP
+# ignore, bogus ICMP response ignore, reverse path filtering, TCP
+# SYN cookies, and IPv6 router advertisement acceptance. Firewall
+# checks verify iptables installation, default deny policies on
+# INPUT/FORWARD/OUTPUT chains (from live iptables or rules.v4 file),
+# and open-port-to-rule coverage via ss. Validates wireless interface
+# disabling through rfkill and checks modprobe.d for four uncommon
+# protocol modules: DCCP, SCTP, RDS, and TIPC.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - get_sysctl, package_is_installed, file_exists, run_cmd
 
 check_3_1_1() {
     local id="3.1.1"

@@ -1,5 +1,31 @@
 // ©AngelaMos | 2026
 // mod.rs
+//
+// Binary format parsing dispatcher and shared format types
+//
+// Dispatches binary data to the appropriate format parser
+// (ELF, PE, or Mach-O) via goblin::Object::parse and
+// returns a unified FormatResult. Defines all shared format
+// types: SectionInfo and SegmentInfo with permissions and
+// SHA-256 hashes, FormatAnomaly enum (entry point outside
+// text, RWX sections, suspicious section names, empty names,
+// virtual/raw size mismatches, overlay data, TLS callbacks,
+// missing import tables, suspicious timestamps),
+// format-specific info structs (PeInfo with DLL
+// characteristics, ElfInfo with RELRO/BIND_NOW/stack
+// executable flags, MachOInfo with code signature and dylib
+// list). SUSPICIOUS_SECTION_NAMES maps 15 packer section
+// names to their tool names. detect_common_anomalies runs
+// cross-format structural checks on entry point placement,
+// RWX permissions, section naming, and size ratios.
+//
+// Connects to:
+//   formats/elf.rs   - parse_elf
+//   formats/pe.rs    - parse_pe
+//   formats/macho.rs - parse_macho
+//   types.rs         - Architecture, BinaryFormat, Endianness,
+//                       SectionPermissions
+//   error.rs         - EngineError
 
 mod elf;
 mod macho;

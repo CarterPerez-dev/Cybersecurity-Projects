@@ -1,6 +1,14 @@
 // ===================
 // © AngelaMos | 2026
 // method-badge.module.scss
+//
+// CSS module for the HTTP method badge component
+//
+// Styles a monospace semibold 2xs text badge with wide
+// letter spacing and a default $text-lighter color. Seven
+// method variant classes (.get through .options) apply
+// $method-* token colors. Connects to
+// components/method-badge, styles/_tokens
 // ===================
 
 @use '@/styles/tokens' as *;

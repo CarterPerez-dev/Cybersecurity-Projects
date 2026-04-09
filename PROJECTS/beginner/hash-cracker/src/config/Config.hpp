@@ -1,5 +1,34 @@
-// ©AngelaMos | 2026
-// Config.hpp
+/*
+©AngelaMos | 2026
+Config.hpp
+
+Application-wide constants and configuration structs
+
+Defines every constant the tool references: character sets for brute-
+force, hex digest lengths for hash detection, ANSI color codes for
+terminal output, Unicode box-drawing and symbol characters for the
+progress display, and numeric defaults (thread count, max brute-force
+length, progress update interval). CrackConfig carries all user-facing
+options from the CLI into the Engine. CrackResult holds the output of
+a successful crack including plaintext, timing, and throughput stats.
+
+Key exports:
+  config::VERSION, APP_NAME      - Binary identity
+  config::CHARSET_*              - Character sets for brute-force generation
+  config::MD5_HEX_LENGTH et al.  - Expected hex digest lengths per algorithm
+  config::color::*               - ANSI escape sequences
+  config::box::*                 - Box-drawing Unicode characters
+  config::symbol::*              - Status symbols (check, cross, arrow, etc.)
+  CrackConfig                    - All runtime options for a crack session
+  CrackResult                    - Output struct with plaintext and performance metrics
+
+Connects to:
+  main.cpp              - CrackConfig populated from CLI args, CrackResult written to JSON
+  core/Engine.hpp       - reads CrackConfig, produces CrackResult
+  hash/HashDetector.cpp - reads hex length constants for detection
+  display/Progress.cpp  - reads color, box, symbol constants for rendering
+  rules/RuleSet.cpp     - reads MAX_APPEND_DIGIT, MAX_PREPEND_DIGIT
+*/
 
 #pragma once
 

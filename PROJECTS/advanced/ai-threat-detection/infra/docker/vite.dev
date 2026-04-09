@@ -1,6 +1,14 @@
 # ©AngelaMos | 2026
-# Development Vite Dockerfile
-# Hot reload with volume mounts for source code
+# vite.dev
+#
+# Development Dockerfile for the Vite frontend with hot
+# reload
+#
+# Based on node:24-alpine with corepack-activated pnpm.
+# Copies package.json, runs pnpm install, copies the
+# frontend source, and starts the Vite dev server on port
+# 5173. Source code is bind-mounted from the host in
+# dev.compose.yml for HMR. Connects to dev.compose.yml
 
 FROM node:24-alpine
 

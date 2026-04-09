@@ -1,6 +1,31 @@
 """
 ©AngelaMos | 2026
 synthetic.py
+
+Synthetic HTTP traffic generator for ML training and
+testing with realistic attack payloads
+
+Provides per-category generators for 6 attack types:
+generate_sqli_requests (22 SQL injection payloads),
+generate_xss_requests (21 XSS vectors), generate_
+traversal_requests (15 path traversal payloads),
+generate_log4shell_requests (10 JNDI lookup variants),
+generate_ssrf_requests (11 cloud metadata and internal
+service targets), and generate_scanner_requests (11
+vulnerability scanner user-agents). generate_normal_
+requests produces benign traffic across 31 realistic
+paths. generate_mixed_dataset orchestrates all generators,
+converts ParsedLogEntry objects to 35-dim feature vectors
+via extract_request_features and encode_for_inference with
+zeroed windowed features, and returns (X, y) numpy arrays
+
+Connects to:
+  core/features/extractor - extract_request_features
+  core/features/encoder   - encode_for_inference
+  core/features/mappings  - WINDOWED_FEATURE_NAMES
+  core/ingestion/parsers  - ParsedLogEntry
+  cli/main                - used when no CSIC dataset is
+                            available
 """
 
 import logging

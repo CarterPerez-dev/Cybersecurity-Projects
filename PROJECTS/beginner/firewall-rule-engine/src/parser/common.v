@@ -1,5 +1,34 @@
-// ©AngelaMos | 2026
-// common.v
+/*
+©AngelaMos | 2026
+common.v
+
+Shared parsing primitives and format auto-detection
+
+Provides the low-level converters that both iptables.v and nftables.v
+call: network addresses with optional CIDR and negation, single ports
+and port lists, protocol names and numbers, actions, tables, chain
+types, and conntrack state flags. detect_format examines the first
+non-blank, non-comment line of a ruleset file to choose between the
+iptables and nftables parsers. Protocol parsing accepts both names
+("tcp") and IANA numbers ("6") so either style works in rule files.
+
+Key exports:
+  parse_network_addr - Parses "!10.0.0.0/8" into a NetworkAddr with negation and CIDR
+  parse_port_spec    - Parses "!1024:65535" into a PortSpec with range and negation
+  parse_port_list    - Splits "80,443,8080" into a []PortSpec
+  parse_protocol     - Converts name or IANA number to Protocol enum
+  parse_action       - Converts target string to Action enum
+  parse_table        - Converts table name to Table enum
+  parse_chain_type   - Maps chain name to ChainType, defaults to .custom
+  parse_conn_states  - Splits "ESTABLISHED,RELATED" into a ConnState bitflag set
+  detect_format      - Auto-detects whether input is iptables or nftables
+
+Connects to:
+  models/models.v     - imports all enum and struct types
+  parser/iptables.v   - calls every function here during rule parsing
+  parser/nftables.v   - calls parse_network_addr, parse_port_spec, parse_protocol, parse_action, parse_table, parse_chain_type, parse_conn_states
+  main.v              - calls detect_format for auto-detection
+*/
 
 module parser
 

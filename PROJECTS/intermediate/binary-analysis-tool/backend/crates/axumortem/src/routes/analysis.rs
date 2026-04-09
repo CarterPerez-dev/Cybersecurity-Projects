@@ -1,5 +1,19 @@
 // ©AngelaMos | 2026
 // analysis.rs
+//
+// Analysis result retrieval endpoint
+//
+// get_by_slug extracts the slug path parameter, queries
+// the analysis row by slug, fetches all associated pass
+// result rows, and assembles an AnalysisResponse with
+// metadata fields and a passes HashMap mapping pass names
+// to their JSON result blobs. Returns 404 via
+// ApiError::NotFound if the slug does not exist.
+//
+// Connects to:
+//   state.rs      - AppState
+//   db/queries.rs - find_by_slug, find_pass_results
+//   error.rs      - ApiError
 
 use std::collections::HashMap;
 

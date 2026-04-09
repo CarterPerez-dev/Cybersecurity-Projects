@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // dashboard.module.scss
+//
+// CSS module for the dashboard page layout
+//
+// Styles a padded column flex page with a 4-column
+// responsive stat row (collapsing to 2 then 1 at lg/sm
+// breakpoints), a severity section with a proportional
+// colored bar (high/medium/low segments with animated
+// widths) and dot legend, a 2-column bottom row
+// (collapsing to 1 at lg) for the alert feed and ranked
+// lists with monospace labels and tabular-nums counts, and
+// a severity-high-themed WebSocket error banner. Connects
+// to pages/dashboard, styles/_index
 // ===================
 
 @use '@/styles' as *;

@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 threats.py
+
+Pydantic response models for the /threats endpoints
+
+GeoInfo holds optional country, city, lat, lon from GeoIP
+lookups. ThreatEventResponse is the full event schema with
+UUID id, timestamps, request details, threat_score,
+severity (Literal HIGH/MEDIUM/LOW), component_scores,
+geo info, matched_rules, model_version, and review status
+(from_attributes enabled for ORM conversion). Threat
+ListResponse wraps paginated items with total/limit/offset
+
+Connects to:
+  api/threats              - response_model for list and
+                              detail endpoints
+  services/threat_service  - _to_response builds these
 """
 
 import uuid

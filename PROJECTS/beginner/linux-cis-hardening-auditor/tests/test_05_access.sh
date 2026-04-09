@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_05_access.sh
+#
+# Tests for CIS Section 5 (Access) SSH hardening checks
+#
+# Uses pass and fail fixture directories to verify sshd_config
+# parsing for LogLevel (5.2.4), MaxAuthTries (5.2.6), X11Forwarding
+# (5.2.5), IgnoreRhosts (5.2.7), PermitRootLogin (5.2.8),
+# PermitEmptyPasswords (5.2.9), and weak cipher rejection (5.2.11).
+# Each test asserts the expected status and evidence substrings
+# against fixture sshd_config files containing compliant and
+# non-compliant directive values.
+#
+# Connects to:
+#   checks/05_access.sh  - check functions under test
+#   tests/test_helpers.sh - setup_test, assert_status,
+#                            assert_evidence_contains
 
 test_5_2_4_pass() {
     CURRENT_TEST="test_5_2_4_pass"

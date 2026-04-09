@@ -1,6 +1,25 @@
 """
 ©AngelaMos | 2026
 mappings.py
+
+Feature encoding mappings, canonical feature order, and
+classification constants for the 35-feature ML input spec
+
+Defines METHOD_MAP (7 HTTP verbs), STATUS_CLASS_MAP (5
+response classes), EXTENSION_MAP (25 file extensions),
+FEATURE_ORDER (35-element canonical list: 23 per-request
++ 12 windowed), CATEGORICAL_ENCODERS routing http_method/
+status_class/file_extension to their ordinal maps,
+WINDOWED_FEATURE_NAMES (last 12 features), and BOOLEAN_
+FEATURES (7 binary flags). These mappings ensure training
+and inference use identical encoding
+
+Connects to:
+  core/features/
+    encoder          - FEATURE_ORDER, BOOLEAN_FEATURES,
+                        CATEGORICAL_ENCODERS
+  ml/data_loader     - FEATURE_ORDER for column alignment
+  ml/synthetic       - FEATURE_ORDER for sample generation
 """
 
 METHOD_MAP: dict[str, int] = {

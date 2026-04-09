@@ -1,5 +1,34 @@
-// ©AngelaMos | 2026
-// EVPHasher.hpp
+/*
+©AngelaMos | 2026
+EVPHasher.hpp
+
+OpenSSL EVP-based hash implementation with tag dispatch and compile-time hex table
+
+Uses the EVP high-level API so the same code path handles MD5, SHA-1,
+SHA-256, and SHA-512 without per-algorithm boilerplate. Each algorithm is
+identified by a tag struct (MD5Tag, SHA1Tag, SHA256Tag, SHA512Tag) that
+provides the EVP_MD factory pointer, display name, and expected hex
+length. EVPHasher<Tag> satisfies the Hasher concept from Concepts.hpp.
+The HEX_TABLE constexpr lookup array converts raw digest bytes to hex
+characters in a single indexed load per byte, avoiding the overhead of
+std::format or snprintf in the hot path.
+
+Key exports:
+  EVPHasher<Tag>  - Template class satisfying the Hasher concept via OpenSSL EVP
+  MD5Hasher       - Type alias for EVPHasher<MD5Tag>
+  SHA1Hasher      - Type alias for EVPHasher<SHA1Tag>
+  SHA256Hasher    - Type alias for EVPHasher<SHA256Tag>
+  SHA512Hasher    - Type alias for EVPHasher<SHA512Tag>
+  HEX_TABLE       - Compile-time byte-to-hex lookup array
+
+Connects to:
+  core/Concepts.hpp      - satisfies the Hasher concept
+  core/Engine.hpp        - Engine::crack instantiates EVPHasher<Tag> per thread
+  hash/MD5Hasher.hpp     - forwarding header that includes this file
+  hash/SHA1Hasher.hpp    - forwarding header
+  hash/SHA256Hasher.hpp  - forwarding header
+  hash/SHA512Hasher.hpp  - forwarding header
+*/
 
 #pragma once
 

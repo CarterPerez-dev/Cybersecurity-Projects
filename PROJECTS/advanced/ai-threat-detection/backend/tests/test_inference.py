@@ -2,7 +2,23 @@
 ©AngelaMos | 2026
 test_inference.py
 
-Tests the InferenceEngine: model loading, predict output shapes, score ranges, and missing-model handling.
+Tests the ONNX InferenceEngine for model loading, batch
+prediction, score ranges, and error handling
+
+Uses a model_dir fixture with all 3 exported ONNX models,
+scaler.json, and threshold.json. Validates is_loaded=True
+with all models, is_loaded=False for nonexistent and
+partial directories, predict returns None when not loaded,
+predict returns ae/rf/if score dicts, AE scores are non-
+negative, RF probabilities are in [0, 1], single-sample
+prediction works, threshold loads from JSON, and partial
+model sets (AE only) report not loaded
+
+Connects to:
+  core/detection/inference - InferenceEngine
+  ml/export_onnx           - model export for fixture
+  ml/scaler                - FeatureScaler for fixture
+  ml/autoencoder           - ThreatAutoencoder for fixture
 """
 
 import json

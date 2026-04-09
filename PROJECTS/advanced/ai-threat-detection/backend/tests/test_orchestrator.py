@@ -1,6 +1,20 @@
 """
 ©AngelaMos | 2026
 test_orchestrator.py
+
+Tests the TrainingOrchestrator pipeline from data splitting
+through model export, validation, and MLflow logging
+
+Verifies all 5 output files are produced (ae.onnx, rf.onnx,
+if.onnx, scaler.json, threshold.json), TrainingResult
+dataclass structure, scaler.json keys (center, scale,
+n_features), threshold.json float value, per-model metrics
+presence (ae_threshold, rf f1, if n_samples), ensemble
+validation metrics, MLflow run ID capture (32-char hex),
+and passed_gates boolean type
+
+Connects to:
+  ml/orchestrator - TrainingOrchestrator, TrainingResult
 """
 
 import json

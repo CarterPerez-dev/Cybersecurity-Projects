@@ -1,5 +1,18 @@
-// ©AngelaMos | 2026
-// test_dictionary_attack.cpp
+/*
+©AngelaMos | 2026
+test_dictionary_attack.cpp
+
+Tests for memory-mapped wordlist reading and thread partitioning
+
+Loads tests/data/small_wordlist.txt (10 words) and verifies all words
+are read in order, first/last word content, correct total count,
+two-thread partitioning that covers all words without overlap, and
+graceful CrackError on missing files.
+
+Connects to:
+  attack/DictionaryAttack.hpp - DictionaryAttack tested
+  tests/data/small_wordlist.txt - fixture wordlist
+*/
 
 #include <gtest/gtest.h>
 #include "src/attack/DictionaryAttack.hpp"

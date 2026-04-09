@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 aggregator.py
+
+Per-IP sliding window feature aggregator backed by Redis
+sorted sets
+
+WindowAggregator.record_and_aggregate records each request
+into 7 Redis sorted sets (requests, paths, statuses, UAs,
+sizes, methods, depths) keyed by IP, trims entries older
+than KEY_TTL (900s), and computes 12 windowed features in
+a single pipelined round-trip: req_count at 1m/5m/10m
+windows, error_rate_5m (4xx/5xx ratio), unique_paths_5m,
+unique_uas_10m, method_entropy_5m (Shannon), avg_response
+_size_5m, status_diversity_5m (distinct codes), path_depth
+_variance_5m, and inter_request_time mean/std in ms.
+Members are MD5-hashed for deduplication where needed
+
+Connects to:
+  core/ingestion/
+    pipeline         - called in feature_worker stage
+  core/features/
+    mappings         - WINDOWED_FEATURE_NAMES defines the
+                        12 windowed feature keys
 """
 
 import hashlib

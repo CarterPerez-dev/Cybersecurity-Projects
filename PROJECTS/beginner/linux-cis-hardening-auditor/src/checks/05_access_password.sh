@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 05_access_password.sh
+#
+# CIS Section 5.3-5.5 checks: Password policy and account lockout
+#
+# Implements controls 5.3.1, 5.4.1-5.4.3, and 5.5.1 for password
+# strength and account security. Checks PAM password quality by
+# verifying pam_pwquality or pam_cracklib is configured in
+# /etc/pam.d/common-password. Validates /etc/login.defs parameters:
+# PASS_MAX_DAYS (<=365), PASS_MIN_DAYS (>=1), and PASS_WARN_AGE (>=7)
+# using the _check_login_defs_value helper with configurable comparison
+# direction. Verifies account lockout is configured via pam_faillock
+# or pam_tally2 in /etc/pam.d/common-auth.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - file_exists (SYSROOT-aware path resolution)
 
 check_5_3_1() {
     local id="5.3.1"

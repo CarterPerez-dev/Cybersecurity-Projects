@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 config.py
+
+Pydantic-settings application configuration loaded from
+environment variables and .env file
+
+Defines the Settings model with defaults for: server
+(host 0.0.0.0, port 8000, debug, log_level), database
+(postgresql+asyncpg URL), Redis URL, GeoIP MaxMind
+database path, nginx log path, pipeline queue sizes
+(raw 1000, parsed 500, feature 200, alert 100), batch
+settings (size 32, timeout 50ms), and ML configuration
+(model_dir, detection_mode, ensemble weights for
+autoencoder/random-forest/isolation-forest at 0.40/0.40
+/0.20, ae_threshold_percentile 99.5, MLflow tracking
+URI). Exports a module-level singleton settings instance
+
+Connects to:
+  factory.py        - consumed in lifespan and create_app
+  __main__.py       - server host/port/reload
+  core/ingestion/   - queue sizes, log path
+  core/detection/   - model_dir, ensemble weights
+  core/enrichment/  - geoip_db_path
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

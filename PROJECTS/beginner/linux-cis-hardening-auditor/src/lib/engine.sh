@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # engine.sh
+#
+# Score computation engine for CIS audit results
+#
+# Iterates recorded check results to tally per-section pass/fail/warn/skip
+# counts, then computes percentage scores at three levels: per-section
+# (SCORE_BY_SECTION), per-CIS-level (SCORE_LEVEL1, SCORE_LEVEL2), and
+# overall (SCORE_OVERALL). Scores are calculated as pass/(pass+fail)*100,
+# ignoring warn and skip results. Sections with zero scored results
+# receive "N/A" instead of a numeric score.
+#
+# Connects to:
+#   lib/constants.sh  - SECTION_ORDER, STATUS_PASS/FAIL/WARN/SKIP
+#   lib/registry.sh   - RESULT_ORDER, RESULT_STATUS, CTRL_SECTION,
+#                        CTRL_LEVEL, CTRL_SCORED, TOTAL_PASS/FAIL
 
 declare -gA SCORE_BY_SECTION
 declare -gA SECTION_PASS

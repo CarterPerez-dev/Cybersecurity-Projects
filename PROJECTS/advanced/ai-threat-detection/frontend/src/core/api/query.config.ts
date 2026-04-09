@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // query.config.ts
+//
+// TanStack React Query client configuration with retry
+// logic and global error toasts
+//
+// Configures QueryClient with smart retry (skips NOT_FOUND
+// and VALIDATION_ERROR, retries up to 3 times with
+// exponential backoff capped at 30s), window focus refetch,
+// and reconnect refetch. QueryCache shows toast errors only
+// for background updates (stale data present). MutationCache
+// shows toast errors only when no per-mutation onError is
+// set. Exports QUERY_STRATEGIES (standard, frequent, static)
+// with tuned stale/gc/refetch settings
 // ===================
 
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'

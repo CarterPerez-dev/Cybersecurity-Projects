@@ -1,5 +1,32 @@
-// ©AngelaMos | 2026
-// main.v
+/*
+©AngelaMos | 2026
+main.v
+
+CLI entry point with command dispatch and ruleset loading
+
+Parses the first positional argument as a subcommand and fans out to
+the appropriate handler. load/analyze/optimize/diff read a ruleset file
+through load_ruleset, which auto-detects iptables vs nftables format
+via parser.detect_format before delegating to the correct parser.
+harden and export use V's flag module for option parsing (--services,
+--iface, --format). Every command prints through the display module so
+output formatting is consistent.
+
+Key exports:
+  main          - Entry point, dispatches to cmd_* handlers
+  load_ruleset  - Reads a file, auto-detects format, returns a Ruleset
+
+Connects to:
+  config/config.v       - exit codes, app_name, version, default_services, default_iface
+  models/models.v       - RuleSource for format selection in harden/export
+  parser/common.v       - detect_format for auto-detection
+  parser/iptables.v     - parse_iptables for iptables input
+  parser/nftables.v     - parse_nftables for nftables input
+  analyzer/conflict.v   - analyze_conflicts for the analyze command
+  analyzer/optimizer.v  - suggest_optimizations for analyze/optimize commands
+  generator/generator.v - generate_hardened, export_ruleset
+  display/display.v     - print_banner, print_summary, print_rule_table, print_findings, print_diff
+*/
 
 module main
 

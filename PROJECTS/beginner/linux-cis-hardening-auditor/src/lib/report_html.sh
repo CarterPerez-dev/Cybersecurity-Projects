@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # report_html.sh
+#
+# Standalone HTML report generator with Tokyo Night theme
+#
+# Produces a single-file HTML page via emit_html_report containing
+# embedded CSS (dark Tokyo Night palette with print-friendly overrides),
+# a responsive dashboard with score cards and level badges, a section
+# breakdown table with colored progress bars, and collapsible
+# <details> controls for each audited item showing status badges,
+# control IDs, evidence blocks, and remediation hints. Failed
+# controls auto-expand for immediate visibility. Responsive at
+# 640px breakpoint with print media query support.
+#
+# Connects to:
+#   lib/constants.sh - VERSION, CIS_BENCHMARK, STATUS_*
+#   lib/registry.sh  - RESULT_ORDER, RESULT_STATUS, RESULT_EVIDENCE,
+#                       CTRL_TITLE, CTRL_SECTION, CTRL_LEVEL
+#   lib/engine.sh    - SCORE_OVERALL, SCORE_LEVEL1, SCORE_LEVEL2,
+#                       SCORE_BY_SECTION, SECTION_PASS/FAIL/WARN/SKIP
 
 html_escape() {
     local s="$1"

@@ -1,5 +1,24 @@
 # ©AngelaMos | 2026
 # browser.nim
+#
+# Browser credential store collector
+#
+# Detects Firefox and Chromium-family browser credential databases.
+# scanFirefox parses profiles.ini to discover profile directories,
+# then checks each for logins.json (stored passwords), cookies.sqlite,
+# and key4.db (master key database). scanChromium iterates four
+# browser paths (Chrome, Chromium, Brave, Vivaldi) and their Default/
+# Profile N subdirectories looking for Login Data, Cookies, and Web
+# Data (autofill and payment methods) SQLite databases. Severity
+# escalates based on file permissions (world-readable = critical,
+# group-readable = high, owner-only = medium).
+#
+# Connects to:
+#   collectors/base.nim - expandHome, safeFileExists, safeDirExists,
+#                          isWorldReadable, isGroupReadable, makeFinding
+#   config.nim          - FirefoxDir, FirefoxProfilesIni, FirefoxLoginsFile,
+#                          FirefoxCookiesDb, FirefoxKeyDb, ChromiumDirs,
+#                          ChromiumLoginData, ChromiumCookies, ChromiumWebData
 
 {.push raises: [].}
 
@@ -35,8 +54,11 @@ proc scanFirefox(config: HarvestConfig, result: var CollectorResult) =
     profiles.add(currentPath)
 
   for profile in profiles:
-    let profileDir = if profile.startsWith("/"): profile
-                     else: firefoxPath / profile
+    let profileDir =
+      if profile.startsWith("/"):
+        profile
+      else:
+        firefoxPath / profile
 
     if not safeDirExists(profileDir):
       continue
@@ -44,15 +66,19 @@ proc scanFirefox(config: HarvestConfig, result: var CollectorResult) =
     let credFiles = [
       (FirefoxLoginsFile, "Firefox stored logins database"),
       (FirefoxCookiesDb, "Firefox cookies database"),
-      (FirefoxKeyDb, "Firefox key database")
+      (FirefoxKeyDb, "Firefox key database"),
     ]
 
     for (fileName, desc) in credFiles:
       let filePath = profileDir / fileName
       if safeFileExists(filePath):
-        let sev = if isWorldReadable(filePath): svCritical
-                  elif isGroupReadable(filePath): svHigh
-                  else: svMedium
+        let sev =
+          if isWorldReadable(filePath):
+            svCritical
+          elif isGroupReadable(filePath):
+            svHigh
+          else:
+            svMedium
 
         result.findings.add(makeFinding(filePath, desc, catBrowser, sev))
 
@@ -81,15 +107,19 @@ proc scanChromium(config: HarvestConfig, result: var CollectorResult) =
       let credFiles = [
         (ChromiumLoginData, browserName & " stored login database"),
         (ChromiumCookies, browserName & " cookies database"),
-        (ChromiumWebData, browserName & " web data (autofill, payment methods)")
+        (ChromiumWebData, browserName & " web data (autofill, payment methods)"),
       ]
 
       for (fileName, desc) in credFiles:
         let filePath = profileDir / fileName
         if safeFileExists(filePath):
-          let sev = if isWorldReadable(filePath): svCritical
-                    elif isGroupReadable(filePath): svHigh
-                    else: svMedium
+          let sev =
+            if isWorldReadable(filePath):
+              svCritical
+            elif isGroupReadable(filePath):
+              svHigh
+            else:
+              svMedium
 
           result.findings.add(makeFinding(filePath, desc, catBrowser, sev))
 

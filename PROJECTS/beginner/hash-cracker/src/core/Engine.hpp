@@ -1,5 +1,33 @@
-// ©AngelaMos | 2026
-// Engine.hpp
+/*
+©AngelaMos | 2026
+Engine.hpp
+
+Template-driven crack engine orchestrating threads, attacks, and progress
+
+Engine::crack<H, A> is the single function that runs an entire crack
+session. It creates a ThreadPool, spawns one attack instance per thread
+(each partitioned to a disjoint slice of the keyspace or wordlist), and
+runs a background jthread for progress display updates. Each worker
+thread hashes candidates through the Hasher H, prepending or appending
+salt if configured, and checks against the target hash. The first match
+sets SharedState::found atomically and stores the plaintext. Candidate
+counts are flushed from thread-local accumulators to the shared atomic
+counter every 1024 iterations to reduce contention. Returns a CrackResult
+on success or CrackError::Exhausted when all candidates are spent.
+
+Key exports:
+  Engine::crack<H, A> - Runs a full crack session for Hasher H and AttackStrategy A
+
+Connects to:
+  config/Config.hpp           - reads CrackConfig options, produces CrackResult
+  core/Concepts.hpp           - Hasher and AttackStrategy concept constraints
+  threading/ThreadPool.hpp    - ThreadPool for parallel worker dispatch
+  display/Progress.hpp        - Progress for live terminal feedback
+  attack/BruteForceAttack.hpp - instantiated when A = BruteForceAttack
+  attack/DictionaryAttack.hpp - instantiated when A = DictionaryAttack
+  attack/RuleAttack.hpp       - instantiated when A = RuleAttack
+  main.cpp                    - called from dispatch_attack
+*/
 
 #pragma once
 

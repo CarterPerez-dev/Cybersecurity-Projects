@@ -1,5 +1,21 @@
-// ©AngelaMos | 2026
-// test_rules.cpp
+/*
+©AngelaMos | 2026
+test_rules.cpp
+
+Tests for password mutation rules and rule-based attack integration
+
+Verifies each individual mutation generator: capitalize_first, uppercase_all,
+leet_speak, append_digits (1000 candidates), prepend_digits, reverse,
+toggle_case. Tests apply_all produces >2000 mutations and contains expected
+entries. Integration tests confirm RuleAttack applies mutations to every
+dictionary word and that chain_rules mode produces more candidates than
+single-pass mode.
+
+Connects to:
+  rules/RuleSet.hpp     - individual mutation functions tested
+  attack/RuleAttack.hpp - RuleAttack integration tested
+  tests/data/small_wordlist.txt - fixture wordlist
+*/
 
 #include <gtest/gtest.h>
 #include "src/attack/RuleAttack.hpp"

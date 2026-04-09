@@ -1,6 +1,28 @@
 // ===================
 // © AngelaMos | 2026
 // index.ts
+//
+// TanStack React Query hooks for binary upload and
+// analysis retrieval
+//
+// useUpload returns a mutation that POSTs a File as
+// multipart/form-data to API_ENDPOINTS.UPLOAD with
+// UPLOAD_TIMEOUT_MS (120s), Zod-validates the response
+// through UploadResponseSchema, and transforms Axios
+// errors via transformAxiosError. useAnalysis returns a
+// query keyed by QUERY_KEYS.ANALYSIS.BY_SLUG(slug)
+// that GETs the full analysis result, Zod-validates
+// through AnalysisResponseSchema, and is configured
+// with staleTime: Infinity and no window-focus refetch
+// since analysis results are immutable once computed
+//
+// Connects to:
+//   config.ts           - API_ENDPOINTS, QUERY_KEYS,
+//                          UPLOAD_TIMEOUT_MS
+//   core/api/api.config - apiClient instance
+//   core/api/errors     - transformAxiosError
+//   api/schemas         - parse() validation
+//   api/types           - UploadResponse, ApiErrorBody
 // ===================
 
 import { useMutation, useQuery } from '@tanstack/react-query'

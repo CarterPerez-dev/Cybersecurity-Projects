@@ -1,0 +1,13 @@
+[project]
+name = "test-project"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "requests>=2.31.0",
+    "pydantic>=2.5.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]

@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // useModels.ts
+//
+// TanStack Query hooks for model status and retraining
+//
+// useModelStatus fetches API_ENDPOINTS.MODELS.STATUS and
+// validates the response through ModelStatusSchema, using
+// the standard query strategy. useRetrain posts to
+// API_ENDPOINTS.MODELS.RETRAIN, validates through
+// RetrainResponseSchema, shows a Sonner success toast, and
+// invalidates all QUERY_KEYS.MODELS queries to refresh the
+// status display. Connects to api/types/models.types,
+// core/api, config, pages/models
 // ===================
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'

@@ -1,6 +1,19 @@
 """
 ©AngelaMos | 2026
 stats.py
+
+Threat statistics endpoint returning aggregated metrics
+for a configurable time window
+
+GET /stats accepts a range query parameter (default
+"24h") and delegates to stats_service.get_stats for
+database aggregation, returning a StatsResponse
+
+Connects to:
+  deps.py             - get_session dependency
+  schemas/stats       - StatsResponse model
+  services/stats_
+    service           - get_stats business logic
 """
 
 from fastapi import APIRouter, Depends, Query

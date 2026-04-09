@@ -2,7 +2,21 @@
 ©AngelaMos | 2026
 test_pipeline.py
 
-Tests the async ingestion pipeline: parsing, feature extraction, rule scoring, and shutdown.
+Tests the async ingestion pipeline across all 4 stages:
+parsing, feature extraction, rule scoring, and dispatch
+
+Uses a fakeredis-backed Pipeline with a results collector
+callback. Validates that valid log lines flow end-to-end
+producing a ScoredRequest with correct IP, method, 35-dim
+feature vector, and LOW severity. Confirms malformed lines
+are dropped without crashing, backpressure works with
+maxsize=1 queues, stop() drains remaining items with all
+tasks completing cleanly, and SQLi payloads score HIGH with
+SQL_INJECTION rule match
+
+Connects to:
+  core/ingestion/pipeline - Pipeline, ScoredRequest
+  core/detection/rules    - RuleEngine
 """
 
 import fakeredis.aioredis

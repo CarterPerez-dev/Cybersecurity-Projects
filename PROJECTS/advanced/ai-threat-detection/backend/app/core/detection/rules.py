@@ -1,6 +1,32 @@
 """
 ©AngelaMos | 2026
 rules.py
+
+Cold-start rule-based detection engine inspired by
+ModSecurity Core Rule Set
+
+RuleEngine.score_request evaluates requests against 7
+regex-based _PatternRules (LOG4SHELL 0.95, COMMAND_
+INJECTION 0.90, SQL_INJECTION 0.85, XSS 0.80, FILE_
+INCLUSION 0.75, SSRF 0.70, PATH_TRAVERSAL 0.60),
+double-encoding detection (0.40), scanner user-agent
+signature matching (0.35), and 2 _ThresholdRules
+(RATE_ANOMALY >100 req/min 0.30, HIGH_ERROR_RATE >50%
+0.25). Final score takes the highest match plus 0.05
+boost per additional rule, capped at 1.0. Returns a
+RuleResult with threat_score, severity, matched_rules,
+and component_scores
+
+Connects to:
+  core/features/
+    patterns       - compiled regex patterns (SQLI,
+                      XSS, LOG4SHELL, etc.)
+  core/features/
+    signatures     - SCANNER_USER_AGENTS list
+  core/detection/
+    ensemble       - classify_severity
+  core/ingestion/
+    parsers        - ParsedLogEntry
 """
 
 import re

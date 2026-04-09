@@ -1,5 +1,19 @@
 # ©AngelaMos | 2026
 # pyproject.toml
+#
+# Python project metadata, dependencies, and tool
+# configuration for AngelusVigil
+#
+# Declares the angelusvigil package (Python 3.14+) with
+# core dependencies (FastAPI, uvicorn, SQLAlchemy, asyncpg,
+# Redis, Pydantic, watchdog, geoip2, typer), dev extras
+# (pytest, ruff, mypy, pylint, coverage, fakeredis), and ml
+# extras (torch, scikit-learn, onnxruntime, mlflow, pandas,
+# imbalanced-learn). Uses hatchling as the build backend
+# with app, cli, and ml packages. Configures ruff (line 95,
+# Python 3.14 target), mypy (strict mode), pylint (4 jobs
+# with pydantic plugin), and pytest (asyncio auto mode).
+# Connects to all backend source modules
 
 [project]
 name = "angelusvigil"

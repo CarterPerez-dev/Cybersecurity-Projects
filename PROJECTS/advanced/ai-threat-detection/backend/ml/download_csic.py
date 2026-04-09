@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 download_csic.py
+
+CSIC 2010 dataset downloader with progress display and
+integrity checking
+
+download_csic fetches normalTrafficTraining.txt, normal
+TrafficTest.txt, and anomalousTrafficTest.txt from the
+Universidad de la Republica GitLab mirror via httpx
+streaming, writing to data/datasets/csic2010/. Skips
+files that already exist above MIN_FILE_BYTES (1MB).
+Shows download progress (percentage or MB), computes
+SHA-256 via _compute_sha256, and warns on suspiciously
+small downloads
+
+Connects to:
+  ml/data_loader  - downloaded files consumed by
+                     parse_csic_file
 """
 
 import hashlib

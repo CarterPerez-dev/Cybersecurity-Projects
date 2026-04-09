@@ -1,6 +1,29 @@
 // ===================
 // © AngelaMos | 2026
 // tab-overview.tsx
+//
+// Overview tab showing summary cards for all six
+// analysis passes, anomalies list, and MITRE ATT&CK
+// technique links
+//
+// Renders a six-card summary grid: format (type, bits,
+// section/segment counts), imports (total across
+// libraries, suspicious count), strings (total
+// extracted, suspicious count), entropy (overall value,
+// packing detection status), disassembly (function and
+// instruction totals), and YARA (rule match count with
+// summary text). Below the grid, displays format
+// anomalies as string or key-value entries, and MITRE
+// ATT&CK techniques as clickable pill links that open
+// attack.mitre.org technique pages (with sub-technique
+// slash formatting via formatMitreUrl)
+//
+// Connects to:
+//   api/types         - AnalysisResponse
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - summaryGrid, summaryCard,
+//                        anomalyList, mitrePills styles
 // ===================
 
 import type { AnalysisResponse } from '@/api'

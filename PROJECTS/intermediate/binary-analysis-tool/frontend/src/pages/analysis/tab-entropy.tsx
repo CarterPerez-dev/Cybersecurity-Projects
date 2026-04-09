@@ -1,6 +1,32 @@
 // ===================
 // © AngelaMos | 2026
 // tab-entropy.tsx
+//
+// Entropy tab with per-section entropy bars, packing
+// detection alert, and classification coloring
+//
+// Displays overall entropy as a prominent value out of
+// MAX_ENTROPY (8.0). When packing is detected, renders
+// a packing alert with packer name and indicator list
+// (type and description for each). Per-section entropy
+// is shown as horizontal bars where fill width is
+// entropy/8 percentage and color is mapped from
+// ENTROPY_CLASSIFICATION_COLORS (Plaintext green,
+// NativeCode blue, Compressed yellow, Packed orange,
+// Encrypted red). Each EntropyBar shows section name,
+// classification label, bar visualization, numeric
+// entropy value, size, virtual-to-raw ratio, and any
+// EntropyFlag badges (HighEntropy, Rwx, Packer
+// SectionName, etc.), with anomalous sections
+// highlighted
+//
+// Connects to:
+//   api/types         - AnalysisResponse, SectionEntropy
+//   config.ts         - ENTROPY_CLASSIFICATION_COLORS
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - entropyRow, entropyBarFill,
+//                        packingAlert styles
 // ===================
 
 import type { AnalysisResponse, SectionEntropy } from '@/api'

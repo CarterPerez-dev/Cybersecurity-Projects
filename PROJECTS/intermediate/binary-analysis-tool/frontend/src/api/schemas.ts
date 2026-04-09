@@ -1,6 +1,38 @@
 // ===================
 // © AngelaMos | 2026
 // schemas.ts
+//
+// Zod runtime validation schemas mirroring every Rust
+// engine result type
+//
+// Defines ~40 Zod schemas that map one-to-one with the
+// backend serde output: enum schemas for BinaryFormat,
+// Architecture, Endianness, RiskLevel, Severity,
+// StringEncoding, StringCategory (14 variants),
+// EntropyClassification (5 bands), EntropyFlag,
+// FlowControlType, and CfgEdgeType; object schemas for
+// SectionInfo, SegmentInfo, PeInfo, ElfInfo, MachOInfo
+// (format pass), ImportEntry, ExportEntry, Suspicious
+// Combination, ImportMitreMapping, ImportStatistics
+// (import pass), ExtractedString, StringStatistics
+// (string pass), SectionEntropy, PackingIndicator
+// (entropy pass), InstructionInfo, BasicBlockInfo,
+// CfgNode, CfgEdge, FunctionCfg, FunctionInfo
+// (disassembly pass), ScoringDetail, ScoringCategory,
+// ThreatMitreMapping, YaraMetadata, YaraStringMatch,
+// YaraMatch (threat pass); and top-level composite
+// schemas FormatResult, ImportResult, StringResult,
+// EntropyResult, DisassemblyResult, ThreatResult,
+// AnalysisPasses (all six optional), AnalysisResponse,
+// UploadResponse, and ApiErrorBody. Every API response
+// is parsed through these schemas before reaching
+// components
+//
+// Connects to:
+//   api/types    - z.infer exports for each schema
+//   api/hooks    - AnalysisResponseSchema, UploadResponse
+//                  Schema used in parse() calls
+//   Rust types   - mirrors types.rs serde output exactly
 // ===================
 
 import { z } from 'zod'

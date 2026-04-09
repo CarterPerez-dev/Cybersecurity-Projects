@@ -1,5 +1,28 @@
 // ©AngelaMos | 2026
 // upload.rs
+//
+// Binary upload and analysis endpoint
+//
+// handle accepts a multipart file upload, computes
+// SHA-256, and checks for a cached analysis by hash via
+// find_slug_by_sha256. On cache miss it spawns
+// AnalysisEngine::analyze on a blocking thread, builds a
+// NewAnalysis from the format and threat results, generates
+// a 12-character slug from the SHA-256 prefix, and
+// transactionally inserts the analysis row and all six
+// pass result rows. build_pass_results serializes each
+// context field (format, imports, strings, entropy,
+// disassembly, threat) to JSON with duration metadata.
+// PASS_NAME_MAP renames "disasm" to "disassembly" for the
+// API. extract_file iterates multipart fields looking for
+// the "file" field name.
+//
+// Connects to:
+//   state.rs       - AppState (engine, db, config)
+//   db/queries.rs  - find_slug_by_sha256, insert_analysis,
+//                     insert_pass_result
+//   db/models.rs   - NewAnalysis, NewPassResult
+//   error.rs       - ApiError
 
 use std::collections::HashMap;
 use std::sync::Arc;

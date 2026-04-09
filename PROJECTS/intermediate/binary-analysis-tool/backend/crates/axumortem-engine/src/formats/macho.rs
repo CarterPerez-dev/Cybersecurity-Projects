@@ -1,5 +1,30 @@
 // ©AngelaMos | 2026
 // macho.rs
+//
+// Mach-O binary format parser
+//
+// Parses Mach-O binaries via goblin::mach into a
+// FormatResult. Handles both single-architecture and
+// universal (fat) binaries by selecting the first valid
+// architecture slice. Extracts CPU type (x86/x86_64/ARM/
+// ARM64), bitness, endianness, entry point, symbol
+// presence (stripped detection), __DWARF segment (debug
+// info), and MH_PIE flag. build_sections walks segments
+// and their sections, mapping VM_PROT_* initprot flags to
+// SectionPermissions with per-section SHA-256 hashes.
+// build_macho_info scans load commands for CodeSignature,
+// FunctionStarts, VersionMinMacosx, VersionMinIphoneos,
+// BuildVersion, and dylib references. cpu_subtype_name
+// decodes x86, ARM, and ARM64 subtypes. Function hints are
+// collected from non-stab N_SECT symbols for disassembly
+// seeding.
+//
+// Connects to:
+//   formats/mod.rs - FormatResult, MachOInfo, SectionInfo,
+//                     SegmentInfo, detect_common_anomalies,
+//                     compute_section_hash
+//   types.rs       - Architecture, BinaryFormat, Endianness,
+//                     SectionPermissions
 
 use goblin::mach::cputype::{
     CPU_TYPE_ARM, CPU_TYPE_ARM64, CPU_TYPE_X86,

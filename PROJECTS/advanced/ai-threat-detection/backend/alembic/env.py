@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 env.py
+
+Alembic migration environment with async PostgreSQL engine
+support
+
+Configures SQLModel.metadata as the target for autogenerate,
+imports model registrations (ModelMetadata, ThreatEvent) to
+ensure table definitions are available. run_migrations_
+offline generates SQL scripts without a connection. run_
+migrations_online creates an async engine with NullPool and
+executes migrations via run_sync. Mode is selected based on
+context.is_offline_mode()
+
+Connects to:
+  app/config              - settings.database_url
+  app/models              - SQLModel table registrations
 """
 
 import asyncio

@@ -2,7 +2,21 @@
 ©AngelaMos | 2026
 test_autoencoder.py
 
-Tests the ThreatAutoencoder architecture: shapes, output range, reconstruction error, and training behavior.
+Tests the ThreatAutoencoder PyTorch architecture for shape
+correctness, output range, reconstruction error, and
+training behavior
+
+Validates output shape matches input (batch, 35), encoder
+bottleneck compresses to 6 dimensions, single-sample
+forward pass succeeds in eval mode, decoder output is
+unbounded (matching RobustScaler range), reconstruction
+error returns one positive scalar per sample, trained model
+reconstructs normal data better than anomalies after 50
+epochs, eval mode produces deterministic output (dropout
+off), and variable batch sizes (1, 8, 32, 128) are handled
+
+Connects to:
+  ml/autoencoder - ThreatAutoencoder
 """
 
 import pytest

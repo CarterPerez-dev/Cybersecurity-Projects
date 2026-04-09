@@ -1,5 +1,20 @@
 # ©AngelaMos | 2026
-# Production Docker Compose
+# compose.yml
+#
+# Production Docker Compose stack for AngelusVigil
+#
+# Orchestrates 5 services on the vigil_network bridge:
+# postgres (18-alpine with healthcheck and persistent
+# volume), redis (7.4-alpine with custom redis.conf),
+# backend (FastAPI with asyncpg, Redis, nginx log tail,
+# GeoIP, and model data volumes), frontend (Vite
+# production build served via nginx on the host port),
+# and geoip-updater (MaxMind weekly refresh). Joins the
+# external certgames_net network and mounts the external
+# certgames_nginx_logs volume for real-time log access.
+# Connects to infra/docker/fastapi.prod,
+# infra/docker/vite.prod, infra/redis/redis.conf,
+# infra/nginx/vigil.conf
 
 services:
   postgres:

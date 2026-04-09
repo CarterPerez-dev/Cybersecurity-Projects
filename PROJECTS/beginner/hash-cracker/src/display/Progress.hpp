@@ -1,5 +1,14 @@
-// ©AngelaMos | 2026
-// Progress.hpp
+/*
+©AngelaMos | 2026
+Progress.hpp
+
+Terminal progress display with live speed, ETA, and result rendering
+
+Connects to:
+  display/Progress.cpp  - implementation of banner, update loop, and result display
+  config/Config.hpp     - color, box, symbol constants and PROGRESS_* settings
+  core/Engine.hpp       - Engine::crack creates Progress and calls update in a jthread
+*/
 
 #pragma once
 

@@ -1,6 +1,24 @@
 """
 ©AngelaMos | 2026
 test_training_e2e.py
+
+End-to-end training integration test from synthetic data
+generation through ONNX inference and score fusion
+
+test_full_training_produces_loadable_models generates a
+500-normal/200-attack synthetic dataset, runs the full
+TrainingOrchestrator pipeline with 3 epochs, verifies all
+5 output files (ae.onnx, rf.onnx, if.onnx, scaler.json,
+threshold.json), loads models via InferenceEngine, runs
+batch prediction, normalizes and fuses per-model scores,
+blends with rule scores, and asserts all values are in
+[0, 1]. Validates passed_gates is a boolean
+
+Connects to:
+  ml/orchestrator          - TrainingOrchestrator
+  ml/synthetic             - generate_mixed_dataset
+  core/detection/ensemble  - normalize, fuse, blend
+  core/detection/inference - InferenceEngine
 """
 
 from pathlib import Path

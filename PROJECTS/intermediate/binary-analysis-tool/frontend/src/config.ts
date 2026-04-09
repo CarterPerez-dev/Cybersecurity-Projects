@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // config.ts
+//
+// Centralized application constants including API
+// endpoint paths, TanStack Query cache keys, route
+// definitions, localStorage keys, query timing
+// strategies (stale/gc/retry), HTTP status codes,
+// upload timeout (120s), and color maps for
+// RiskLevel (5 levels) and EntropyClassification
+// (5 bands)
+//
+// Connects to:
+//   api/hooks     - API_ENDPOINTS, QUERY_KEYS
+//   core/app      - ROUTES
+//   core/api      - QUERY_CONFIG
+//   pages/        - RISK_LEVEL_COLORS,
+//                   ENTROPY_CLASSIFICATION_COLORS
 // ===================
 
 export const API_ENDPOINTS = {

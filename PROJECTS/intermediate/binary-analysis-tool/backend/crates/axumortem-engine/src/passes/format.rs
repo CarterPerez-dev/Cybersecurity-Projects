@@ -1,5 +1,22 @@
 // ©AngelaMos | 2026
 // format.rs
+//
+// Format analysis pass (binary header parsing)
+//
+// FormatPass is the first pass in the pipeline with no
+// dependencies. It delegates to formats::parse_format which
+// dispatches to the ELF, PE, or Mach-O parser and stores the
+// resulting FormatResult in the context. All subsequent passes
+// depend on this pass for section layout, architecture, and
+// entry point information. Unit tests verify ELF metadata
+// extraction, section and segment presence, stripped binary
+// detection, ELF info population, section hash computation,
+// invalid binary rejection, and context population.
+//
+// Connects to:
+//   formats/mod.rs - parse_format, FormatResult
+//   pass.rs        - AnalysisPass trait, Sealed
+//   context.rs     - AnalysisContext
 
 use crate::context::AnalysisContext;
 use crate::error::EngineError;

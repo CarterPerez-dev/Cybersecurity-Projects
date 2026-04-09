@@ -1,5 +1,14 @@
-// ©AngelaMos | 2026
-// MappedFile.hpp
+/*
+©AngelaMos | 2026
+MappedFile.hpp
+
+RAII wrapper for read-only memory-mapped files
+
+Connects to:
+  io/MappedFile.cpp           - implementation using mmap/munmap
+  attack/DictionaryAttack.hpp - DictionaryAttack holds a MappedFile
+  core/Concepts.hpp           - CrackError for open failures
+*/
 
 #pragma once
 

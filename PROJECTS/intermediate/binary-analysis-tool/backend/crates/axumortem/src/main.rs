@@ -1,5 +1,24 @@
 // ©AngelaMos | 2026
 // main.rs
+//
+// Axumortem web server entry point
+//
+// Bootstraps the Axum HTTP server with clap-driven CLI
+// configuration, tracing subscriber initialization with
+// EnvFilter, PostgreSQL connection pool (max 20
+// connections) via SQLx PgPoolOptions, automatic database
+// migrations, and AnalysisEngine initialization. Assembles
+// AppState from the pool, engine, and config, then applies
+// tower layers for HTTP tracing, CORS, and body size
+// limits before binding a TCP listener. Graceful shutdown
+// is handled via ctrl_c signal.
+//
+// Connects to:
+//   config.rs     - AppConfig (clap Parser)
+//   state.rs      - AppState
+//   db/mod.rs     - run_migrations
+//   middleware/    - cors::layer
+//   routes/mod.rs - api_router
 
 mod config;
 mod db;

@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 redis_manager.py
+
+Async Redis connection lifecycle manager with module-level
+singleton
+
+RedisManager wraps redis.asyncio connection creation
+(from_url with decode_responses), graceful close, client
+property access, and PING health check. The module
+exports redis_manager as a singleton used by factory
+lifespan, alert dispatcher, and websocket endpoint
+
+Connects to:
+  config.py        - settings.redis_url
+  factory.py       - connect/disconnect in lifespan
+  api/websocket    - client for pub/sub
+  api/health       - ping() for readiness probe
 """
 
 import redis.asyncio as aioredis

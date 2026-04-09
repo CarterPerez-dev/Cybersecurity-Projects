@@ -1,6 +1,31 @@
 // ===================
 // © AngelaMos | 2026
 // tab-headers.tsx
+//
+// Headers tab displaying binary format metadata,
+// format-specific info, section and segment tables
+//
+// Renders a format info grid (format, arch, bits,
+// endianness, entry point, stripped/PIE/debug flags),
+// then conditionally shows PE info (image base,
+// subsystem, linker version, ASLR/DEP/CFG), ELF info
+// (OS ABI, type, RELRO, bind-now, NX stack, needed
+// libraries list), or Mach-O info (file type, universal,
+// code signature). Below, a sections table shows name,
+// virtual address (formatHex), virtual size, raw size,
+// and R/W/X permissions via PermsBadge (with execute
+// highlighted in a distinct style). Segments are in a
+// collapsible section toggled by showSegments state,
+// showing name, vaddr, vsize, fsize, and permissions
+//
+// Connects to:
+//   api/types         - AnalysisResponse, SectionInfo,
+//                        SegmentInfo
+//   core/lib          - formatHex
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - metaGrid, dataTable, perm
+//                        styles
 // ===================
 
 import { useState } from 'react'

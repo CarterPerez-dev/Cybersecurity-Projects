@@ -1,5 +1,14 @@
-// ©AngelaMos | 2026
-// RuleSet.hpp
+/*
+©AngelaMos | 2026
+RuleSet.hpp
+
+Password mutation rules using C++23 std::generator coroutines
+
+Connects to:
+  rules/RuleSet.cpp     - implementation of all mutation generators
+  attack/RuleAttack.cpp - calls apply_all() for each dictionary word
+  config/Config.hpp     - MAX_APPEND_DIGIT, MAX_PREPEND_DIGIT limits
+*/
 
 #pragma once
 

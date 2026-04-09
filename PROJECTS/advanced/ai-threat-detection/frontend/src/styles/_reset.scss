@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // _reset.scss
+//
+// Modern CSS reset with accessibility and scrollbar styling
+//
+// Applies universal box-sizing border-box, zeroes margins
+// and padding, sets html font-size 16px with
+// text-size-adjust, enables smooth scrolling when
+// prefers-reduced-motion allows it, configures body with
+// 100dvh min-height and optimized text rendering, resets
+// headings with balanced text-wrap, strips list styles and
+// link decorations, normalizes form elements, adds
+// focus-visible outlines with $border-strong, disables
+// animations for prefers-reduced-motion, applies safe-area
+// insets, and styles 6px scrollbar thumbs with
+// $border-default. Connects to styles/_tokens,
+// styles/_fonts, styles.scss
 // ===================
 
 @use 'tokens' as *;

@@ -1,5 +1,20 @@
 // ©AngelaMos | 2026
 // config.rs
+//
+// Application configuration via CLI arguments and
+// environment variables
+//
+// AppConfig derives clap::Parser to accept database_url,
+// host (default 0.0.0.0), port (default 3000),
+// max_upload_size (default 50 MiB), and cors_origin
+// (default wildcard). Each field maps to both a --long
+// flag and an environment variable. bind_address formats
+// the host:port string for the TCP listener.
+//
+// Connects to:
+//   main.rs          - parsed at startup
+//   state.rs         - stored as Arc<AppConfig>
+//   middleware/cors.rs - cors_origin read by layer()
 
 use clap::Parser;
 

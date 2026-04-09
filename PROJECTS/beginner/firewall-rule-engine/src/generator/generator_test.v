@@ -1,5 +1,26 @@
-// ©AngelaMos | 2026
-// generator_test.v
+/*
+©AngelaMos | 2026
+generator_test.v
+
+Tests for hardened ruleset generation and cross-format export
+
+Hardened generation tests verify both iptables and nftables output
+formats: default-deny policies, loopback acceptance, conntrack early
+in the chain, SSH rate limiting, HTTP/HTTPS service rules, RFC 1918
+anti-spoofing drops, ICMP rate limiting, LOG before final drop, COMMIT
+wrapping, DNS dual-protocol (tcp+udp), NTP udp-only, and custom
+interface names. Serialization tests cover rule_to_iptables and
+rule_to_nftables for TCP port rules, source/destination addresses with
+negation, multiport sets, interface matching, and log prefix handling.
+Export tests verify round-trip conversion of Rulesets including
+multi-table layouts with filter and nat tables, correct chain nesting
+inside their parent tables, and empty ruleset edge cases.
+
+Connects to:
+  generator/generator.v - tests generate_hardened, export_ruleset, rule_to_iptables,
+                           rule_to_nftables
+  models/models.v       - uses Rule, Ruleset, MatchCriteria, NetworkAddr, PortSpec, Action
+*/
 
 module generator
 

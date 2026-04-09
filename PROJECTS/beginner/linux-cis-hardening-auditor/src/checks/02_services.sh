@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 02_services.sh
+#
+# CIS Section 2 checks: Services
+#
+# Implements controls 2.1.1-2.2.16 verifying that unnecessary network
+# services are not installed on the system. Checks legacy super-servers
+# (xinetd, openbsd-inetd), graphical environment (X Window System),
+# and fourteen network daemons: Avahi, CUPS, ISC DHCP, OpenLDAP, NFS,
+# BIND DNS, vsftpd, Apache/nginx HTTP, Dovecot IMAP/POP3, Samba,
+# Squid proxy, SNMP, and NIS. Each check uses package_is_installed
+# with file_exists fallback for binary/config detection. The MTA
+# check (2.2.15) inspects Postfix inet_interfaces, Exim
+# dc_local_interfaces, and ss port 25 listeners to verify local-only
+# mail delivery. Also checks rsync daemon installation.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - package_is_installed, file_exists, read_file,
+#                     service_is_enabled, run_cmd
 
 check_2_1_1() {
     local id="2.1.1"

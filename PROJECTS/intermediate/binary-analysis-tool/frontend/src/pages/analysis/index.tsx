@@ -1,6 +1,41 @@
 // ===================
 // © AngelaMos | 2026
 // index.tsx
+//
+// Analysis results page with threat score card, tab
+// navigation, and six analysis tab panels
+//
+// Fetches the full analysis via useAnalysis(slug) from
+// the URL params and renders three main sections: a
+// header with file name, format/architecture/size
+// badges, SHA-256 copy-to-clipboard button, and entry
+// point hex display; a threat score card with numeric
+// score colored by RISK_LEVEL_COLORS, risk label, and
+// per-category ScoreBar components showing score/max
+// fill percentages; and a six-tab navigation bar
+// (overview, headers, imports, strings, entropy,
+// disassembly) that switches between TabOverview,
+// TabHeaders, TabImports, TabStrings, TabEntropy, and
+// TabDisassembly via renderTab dispatch. Shows loading
+// and 404 states with a back link to ROUTES.HOME.
+// Lazy-loaded via react-router with displayName
+// "Analysis"
+//
+// Connects to:
+//   api/hooks           - useAnalysis query
+//   api/types           - AnalysisResponse
+//   config.ts           - RISK_LEVEL_COLORS, ROUTES
+//   core/lib            - copyToClipboard, formatBytes,
+//                          formatHex, truncateHash
+//   tab-overview.tsx    - TabOverview component
+//   tab-headers.tsx     - TabHeaders component
+//   tab-imports.tsx     - TabImports component
+//   tab-strings.tsx     - TabStrings component
+//   tab-entropy.tsx     - TabEntropy component
+//   tab-disassembly.tsx - TabDisassembly component
+//   analysis.module
+//     .scss             - all layout styles
+//   routers.tsx         - lazy-loaded at ROUTES.ANALYSIS
 // ===================
 
 import { useState } from 'react'

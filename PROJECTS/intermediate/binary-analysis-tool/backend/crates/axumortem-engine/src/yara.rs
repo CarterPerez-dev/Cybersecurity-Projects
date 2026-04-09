@@ -1,5 +1,26 @@
 // ©AngelaMos | 2026
 // yara.rs
+//
+// YARA rule scanner with builtin detection rules
+//
+// Embeds 14 YARA rules as a compile-time constant covering
+// UPX packing, anti-debugging (Windows and Linux), process
+// injection, keylogger APIs, crypto mining, Windows and
+// Linux persistence mechanisms, network backdoors,
+// ransomware indicators, shellcode patterns (NOP sleds, egg
+// hunters), obfuscation (XOR loops, base64 alphabet), C2
+// endpoint paths, and credential file access. YaraScanner
+// wraps a compiled yara_x::Rules instance. new() compiles
+// only the builtin ruleset; with_custom_rules() also loads
+// .yar/.yara files from a directory. scan() executes against
+// binary data and returns YaraMatch structs containing rule
+// name, tags, metadata (description/category/severity), and
+// matched string identifiers with counts. Unit tests verify
+// compilation, UPX detection, process injection detection,
+// and clean-data negative cases using fixture binaries.
+//
+// Connects to:
+//   error.rs - EngineError::Yara for compilation/scan failures
 
 use std::path::Path;
 

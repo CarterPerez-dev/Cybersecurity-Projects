@@ -1,6 +1,28 @@
 """
 ©AngelaMos | 2026
 parsers.py
+
+Nginx combined-format log line parser with fast string-
+split primary and compiled regex fallback
+
+ParsedLogEntry is a frozen slotted dataclass holding ip,
+timestamp, method, path, query_string, status_code,
+response_size, referer, user_agent, and raw_line.
+parse_combined tries _parse_split first (splitting on
+quote boundaries for speed), falling back to _parse_regex
+with a compiled _COMBINED_RE pattern. Both extract the
+request line, split URI into path and query_string, parse
+timestamp via strptime with timezone, and handle dash
+placeholders for size and referer
+
+Connects to:
+  core/ingestion/
+    pipeline     - parse_combined in parse_worker stage
+  core/detection/
+    rules        - ParsedLogEntry consumed by RuleEngine
+  core/features/
+    extractor    - ParsedLogEntry consumed by feature
+                    extraction
 """
 
 import re

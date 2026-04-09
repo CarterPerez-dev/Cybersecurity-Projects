@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 metadata.py
+
+Model metadata persistence for tracking trained model
+versions and deployment status
+
+compute_model_version produces a 12-char hex version from
+the SHA-256 of an ONNX artifact file. save_model_metadata
+iterates MODEL_TYPES (ae.onnx -> autoencoder, rf.onnx ->
+random_forest, if.onnx -> isolation_forest), deactivates
+any previously active version of each type, and inserts
+new ModelMetadata rows with version, training_samples,
+metrics, artifact_path, mlflow_run_id, and threshold
+
+Connects to:
+  models/model_metadata - ModelMetadata ORM model
+  cli/main              - called from _write_metadata
+  api/models_api        - called after retrain
 """
 
 import hashlib

@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // stats.types.ts
+//
+// Zod schemas and types for dashboard statistics
+//
+// Defines SeverityBreakdownSchema with high/medium/low
+// integer counts, IPStatEntrySchema and PathStatEntrySchema
+// for ranked lists with source_ip or path plus count, and
+// StatsResponseSchema combining time_range,
+// threats_stored, threats_detected, severity_breakdown,
+// top_source_ips, and top_attacked_paths. All types are
+// inferred from their schemas via z.infer. Connects to
+// api/hooks/useStats, pages/dashboard
 // ===================
 
 import { z } from 'zod'

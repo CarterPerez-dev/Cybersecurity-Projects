@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_01_initial_setup.sh
+#
+# Tests for CIS Section 1 (Initial Setup) checks
+#
+# Uses pass and fail fixture directories to verify cramfs module
+# detection (1.1.1), /tmp separate partition (1.2.1), /tmp mount
+# options noexec/nosuid/nodev (1.2.2-1.2.4), ASLR enabled status
+# (1.5.1), and core dump restrictions (1.5.2). Each test calls the
+# corresponding check function against a fixture SYSROOT and asserts
+# both the expected status and key evidence substrings.
+#
+# Connects to:
+#   checks/01_initial_setup.sh - check functions under test
+#   tests/test_helpers.sh      - setup_test, assert_status,
+#                                 assert_evidence_contains
 
 test_1_1_1_pass() {
     CURRENT_TEST="test_1_1_1_pass"

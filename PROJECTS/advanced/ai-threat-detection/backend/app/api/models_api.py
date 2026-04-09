@@ -1,6 +1,28 @@
 """
 ©AngelaMos | 2026
 models_api.py
+
+ML model status and retraining endpoints
+
+GET /models/status returns models_loaded flag, detection
+_mode (hybrid or rules), and active model metadata from
+the database. POST /models/retrain dispatches a
+background retraining job that loads stored ThreatEvents,
+labels them using review_label or score thresholds
+(SCORE_ATTACK_THRESHOLD 0.5, SCORE_NORMAL_CEILING 0.3),
+supplements with synthetic data if below MIN_TRAINING_
+SAMPLES (200), runs TrainingOrchestrator, and writes
+model metadata. _fallback_synthetic spawns a subprocess
+CLI train command when no real events exist
+
+Connects to:
+  config.py              - settings.model_dir, ensemble
+                            weights
+  models/model_metadata  - ModelMetadata queries
+  models/threat_event    - ThreatEvent training data
+  ml/orchestrator        - TrainingOrchestrator
+  ml/synthetic           - generate_mixed_dataset
+  cli/main               - _write_metadata
 """
 
 import logging

@@ -1,6 +1,24 @@
 """
 ©AngelaMos | 2026
 test_metadata.py
+
+Tests SHA-256 model version hashing and async metadata
+persistence to the database
+
+TestComputeModelVersion verifies 12-char hex output,
+deterministic hashing (same file = same version), and
+distinct versions for different files. TestSaveModel
+Metadata uses an in-memory SQLite session and fake ONNX
+artifacts to validate 3-row creation (one per model type),
+is_active flag on new rows, correct model_type values
+(autoencoder, random_forest, isolation_forest), previous
+active row deactivation on re-save, and inactive row
+preservation (6 total rows after two saves)
+
+Connects to:
+  ml/metadata             - compute_model_version,
+                            save_model_metadata
+  models/model_metadata   - ModelMetadata ORM model
 """
 
 import json

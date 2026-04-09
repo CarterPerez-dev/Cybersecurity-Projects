@@ -1,5 +1,25 @@
 # ©AngelaMos | 2026
 # git.nim
+#
+# Git credential store and token collector
+#
+# Scans for Git-related credential exposure in three areas.
+# scanGitCredentials reads ~/.git-credentials for plaintext URL
+# entries containing embedded passwords (severity high, critical if
+# world-readable). scanGitConfig parses ~/.gitconfig and
+# ~/.config/git/config for credential helper configuration, flagging
+# the "store" helper as medium severity since it persists plaintext.
+# scanTokenPatterns searches Git config files for GitHub personal
+# access token prefixes (ghp_, gho_, ghu_, ghs_, ghr_) and GitLab
+# token prefixes (glpat-), reporting detected tokens with redacted
+# previews.
+#
+# Connects to:
+#   collectors/base.nim - expandHome, safeFileExists, readFileContent,
+#                          readFileLines, isWorldReadable, getPermsString,
+#                          makeFinding, makeFindingWithCred, redactValue
+#   config.nim          - GitCredentials, GitConfig, GitConfigLocal,
+#                          GitHubTokenPatterns, GitLabTokenPatterns
 
 {.push raises: [].}
 
@@ -28,24 +48,25 @@ proc scanGitCredentials(config: HarvestConfig, result: var CollectorResult) =
     source: credPath,
     credType: "git_plaintext_credentials",
     preview: $credCount & " stored credentials",
-    metadata: initTable[string, string]()
+    metadata: initTable[string, string](),
   )
   cred.setMeta("count", $credCount)
   cred.setMeta("permissions", getPermsString(credPath))
 
   let sev = if isWorldReadable(credPath): svCritical else: svHigh
 
-  result.findings.add(makeFindingWithCred(
-    credPath,
-    "Plaintext Git credential store with " & $credCount & " entries",
-    catGit, sev, cred
-  ))
+  result.findings.add(
+    makeFindingWithCred(
+      credPath,
+      "Plaintext Git credential store with " & $credCount & " entries",
+      catGit,
+      sev,
+      cred,
+    )
+  )
 
 proc scanGitConfig(config: HarvestConfig, result: var CollectorResult) =
-  let paths = [
-    expandHome(config, GitConfig),
-    expandHome(config, GitConfigLocal)
-  ]
+  let paths = [expandHome(config, GitConfig), expandHome(config, GitConfigLocal)]
 
   for path in paths:
     if not safeFileExists(path):
@@ -71,17 +92,14 @@ proc scanGitConfig(config: HarvestConfig, result: var CollectorResult) =
 
     if helperValue.len > 0:
       let sev = if helperValue == "store": svMedium else: svInfo
-      result.findings.add(makeFinding(
-        path,
-        "Git credential helper configured: " & helperValue,
-        catGit, sev
-      ))
+      result.findings.add(
+        makeFinding(
+          path, "Git credential helper configured: " & helperValue, catGit, sev
+        )
+      )
 
 proc scanTokenPatterns(config: HarvestConfig, result: var CollectorResult) =
-  let configPaths = [
-    expandHome(config, GitConfig),
-    expandHome(config, GitConfigLocal)
-  ]
+  let configPaths = [expandHome(config, GitConfig), expandHome(config, GitConfigLocal)]
 
   for path in configPaths:
     if not safeFileExists(path):
@@ -99,13 +117,13 @@ proc scanTokenPatterns(config: HarvestConfig, result: var CollectorResult) =
           source: path,
           credType: "github_token",
           preview: redactValue(tokenStart, 8),
-          metadata: initTable[string, string]()
+          metadata: initTable[string, string](),
         )
-        result.findings.add(makeFindingWithCred(
-          path,
-          "GitHub personal access token detected",
-          catGit, svHigh, cred
-        ))
+        result.findings.add(
+          makeFindingWithCred(
+            path, "GitHub personal access token detected", catGit, svHigh, cred
+          )
+        )
         break
 
     for pattern in GitLabTokenPatterns:
@@ -116,13 +134,13 @@ proc scanTokenPatterns(config: HarvestConfig, result: var CollectorResult) =
           source: path,
           credType: "gitlab_token",
           preview: redactValue(tokenStart, 8),
-          metadata: initTable[string, string]()
+          metadata: initTable[string, string](),
         )
-        result.findings.add(makeFindingWithCred(
-          path,
-          "GitLab personal access token detected",
-          catGit, svHigh, cred
-        ))
+        result.findings.add(
+          makeFindingWithCred(
+            path, "GitLab personal access token detected", catGit, svHigh, cred
+          )
+        )
         break
 
 proc collect*(config: HarvestConfig): CollectorResult =

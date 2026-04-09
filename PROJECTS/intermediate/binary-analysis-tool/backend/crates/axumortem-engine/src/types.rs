@@ -1,5 +1,21 @@
 // ©AngelaMos | 2026
 // types.rs
+//
+// Core enum and struct definitions shared across all passes
+//
+// Defines the type vocabulary used throughout the engine:
+// BinaryFormat (Elf/Pe/MachO), Architecture (x86 through
+// AArch64 with an Other fallback), Endianness, RiskLevel
+// (five tiers from Benign to Critical), Severity (four tiers
+// for import threat tagging), StringEncoding (Ascii/Utf8/
+// Utf16Le), StringCategory (14 classifications from Url to
+// Generic), EntropyClassification (five bands from Plaintext
+// to Encrypted), EntropyFlag (five section anomaly markers),
+// FlowControlType and CfgEdgeType for disassembly CFG
+// representation, and SectionPermissions with an is_rwx()
+// helper. All enums derive Serialize/Deserialize for JSON
+// output and implement Display where needed for human-
+// readable formatting.
 
 use serde::{Deserialize, Serialize};
 

@@ -1,6 +1,32 @@
 """
 ©AngelaMos | 2026
 patterns.py
+
+Compiled regex patterns for web attack detection covering
+7 OWASP categories plus encoding anomalies
+
+Defines case-insensitive compiled patterns for: SQLI
+(union select, sleep, benchmark, information_schema, hex
+literals, comment injection), XSS (script tags, event
+handlers, javascript/vbscript URIs, DOM sinks like
+document.cookie/write, eval/alert/prompt), PATH_TRAVERSAL
+(../ sequences, %2e encoding, sensitive file paths like
+etc/passwd, .git/config, .env), COMMAND_INJECTION
+(semicolon/pipe chaining to shell commands, $() and
+backtick substitution, ${} expansion), FILE_INCLUSION
+(php://, file://, data://, phar:// wrapper schemes), SSRF
+(cloud metadata IPs 169.254.169.254, localhost with paths,
+dict:// and gopher://), LOG4SHELL (${jndi, ${lower, ${:-
+patterns). Also provides ENCODED_CHARS, DOUBLE_ENCODED for
+evasion detection, and ATTACK_COMBINED unioning all 7
+patterns
+
+Connects to:
+  core/features/
+    extractor    - ATTACK_COMBINED, DOUBLE_ENCODED,
+                    ENCODED_CHARS
+  core/detection/
+    rules        - individual patterns for scored rules
 """
 
 import re

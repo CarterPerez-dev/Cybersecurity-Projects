@@ -1,5 +1,14 @@
-// ©AngelaMos | 2026
-// HashDetector.hpp
+/*
+©AngelaMos | 2026
+HashDetector.hpp
+
+Hash algorithm auto-detection by hex digest length
+
+Connects to:
+  hash/HashDetector.cpp - implementation of detect()
+  core/Concepts.hpp     - CrackError for invalid/unsupported hash errors
+  main.cpp              - called when --type=auto (the default)
+*/
 
 #pragma once
 

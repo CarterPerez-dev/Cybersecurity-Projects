@@ -2,7 +2,25 @@
 ©AngelaMos | 2026
 test_detection.py
 
-Tests the rule engine's threat scoring, severity classification, and attack pattern matching.
+Tests the RuleEngine threat scoring, severity
+classification, and OWASP attack pattern matching
+
+Validates normal requests score LOW below 0.5, SQL
+injection in query strings scores HIGH with SQL_INJECTION
+rule, XSS payloads trigger XSS rule, path traversal
+triggers PATH_TRAVERSAL, command injection triggers
+COMMAND_INJECTION at HIGH severity, scanner UAs fire
+SCANNER_UA, high request rates fire RATE_ANOMALY, multiple
+rules aggregate to higher scores, scores are clamped to
+[0, 1], severity thresholds align with architecture
+(LOW < 0.5, MEDIUM >= 0.5, HIGH >= 0.7), component_scores
+match matched_rules, FILE_INCLUSION detects PHP stream
+wrappers, and DOUBLE_ENCODING detects %25-prefixed
+sequences
+
+Connects to:
+  core/detection/rules  - RuleEngine
+  core/ingestion/parsers - ParsedLogEntry
 """
 
 from datetime import datetime, UTC

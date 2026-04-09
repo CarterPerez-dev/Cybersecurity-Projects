@@ -1,5 +1,42 @@
 // ©AngelaMos | 2026
 // imports.rs
+//
+// Import/export table analysis pass
+//
+// ImportPass depends on format and extracts import tables,
+// export tables, and linked library lists from ELF, PE,
+// and Mach-O binaries via goblin. SUSPICIOUS_APIS defines
+// 22 APIs tagged with MITRE ATT&CK technique IDs covering
+// injection (T1055), process hollowing (T1055.012), APC
+// injection (T1055.004), anti-debug (T1622), token
+// manipulation (T1134), persistence (T1547.001,
+// T1543.003), download (T1105), network (T1071),
+// deobfuscation (T1140), and Linux-specific APIs (ptrace,
+// mprotect, dlopen, dlsym, execve, process_vm_readv/
+// writev). SUSPICIOUS_COMBINATIONS defines 15 multi-API
+// chain detections including Process Injection Chain,
+// Process Hollowing, Credential Theft, APC/DLL Injection,
+// Download and Execute, Registry/Service Persistence, and
+// Linux-specific chains (ptrace injection, RWX memory, C2
+// connection, network listener, dynamic loading, process
+// injection). matches_api handles Windows A/W suffix
+// variants. extract_elf, extract_pe, and extract_mach
+// dispatch to format-specific importers that populate
+// ImportEntry with library, function, address, ordinal,
+// and threat tags. detect_combinations matches import
+// function names against CombinationDef patterns with
+// deduplication. collect_mitre_mappings emits per-API
+// MITRE technique mappings. Unit tests verify ELF import
+// extraction, suspicious API flagging, combination
+// detection for injection chains and A/W suffixes, false
+// positive rejection, MITRE mapping collection, and
+// context population.
+//
+// Connects to:
+//   pass.rs        - AnalysisPass trait, Sealed
+//   context.rs     - AnalysisContext
+//   types.rs       - Severity
+//   error.rs       - EngineError
 
 use std::collections::HashSet;
 

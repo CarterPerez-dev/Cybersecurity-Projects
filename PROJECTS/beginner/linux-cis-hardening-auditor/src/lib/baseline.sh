@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # baseline.sh
+#
+# Baseline persistence for audit snapshot comparison
+#
+# Enables saving current audit results as a JSON baseline via
+# save_baseline (delegates to emit_json_report), reloading a prior
+# baseline with load_baseline (regex-parses control IDs and statuses
+# from the JSON without a JSON library), and diffing current results
+# against the baseline via diff_baseline which categorizes each
+# control as improved, regressed, unchanged, new, or removed and
+# prints a colored summary with regression warnings.
+#
+# Connects to:
+#   lib/report_json.sh - emit_json_report (called by save_baseline)
+#   lib/registry.sh    - RESULT_ORDER, RESULT_STATUS, CTRL_TITLE
+#   lib/utils.sh       - warn logging function
+#   lib/constants.sh   - ANSI colors, STATUS_PASS/FAIL
 
 declare -gA BASELINE_STATUS
 

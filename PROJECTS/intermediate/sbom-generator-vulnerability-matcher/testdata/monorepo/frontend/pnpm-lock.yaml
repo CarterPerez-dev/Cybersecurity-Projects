@@ -1,0 +1,20 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+  .:
+    dependencies:
+      react:
+        specifier: 19.2.1
+        version: 19.2.1
+
+packages:
+  react@19.2.1:
+    resolution: {integrity: sha512-T0bR1fHknGmLUFZLDmAXMmkiRx5s6V+1HJfOwkaXPgo3WieNQ3vY4BmPOcAlKm0O0GsrGP0icGo0N0a/4QcKg==}
+    engines: {node: '>=0.10.0'}
+
+snapshots:
+  react@19.2.1: {}

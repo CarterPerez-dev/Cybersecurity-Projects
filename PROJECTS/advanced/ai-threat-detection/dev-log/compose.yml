@@ -1,5 +1,15 @@
 # ©AngelaMos | 2026
 # compose.yml
+#
+# Docker Compose stack for the dev-log traffic generation
+# environment
+#
+# Runs two services on a bridge network: app (FastAPI target
+# built from the local Dockerfile with a /health check) and
+# nginx (alpine image reverse-proxying port 58319 to the
+# app, writing combined-format access logs to a named volume
+# vigil_dev_nginx_logs). The nginx container clears stale
+# log files on startup for clean sessions
 
 services:
   app:

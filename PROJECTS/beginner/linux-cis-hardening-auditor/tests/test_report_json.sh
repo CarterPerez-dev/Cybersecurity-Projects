@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_report_json.sh
+#
+# Tests for JSON report output structure and validity
+#
+# Validates emit_json_report produces well-formed JSON via python3's
+# json.tool, contains required top-level fields (version, cis_benchmark,
+# summary with score_percent), a sections array with all six CIS
+# sections, and a controls array with the correct count of audited
+# items. Also verifies file-based JSON output by writing to a tmpfile
+# and validating the result.
+#
+# Connects to:
+#   lib/report_json.sh   - emit_json_report under test
+#   lib/engine.sh        - compute_scores (required before report)
+#   tests/test_helpers.sh - setup_test, assert_json_valid
 
 test_json_valid_output() {
     CURRENT_TEST="test_json_valid_output"

@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_baseline.sh
+#
+# Tests for baseline save, load, and diff operations
+#
+# Verifies the full baseline lifecycle: save_baseline produces a JSON
+# file that load_baseline can parse back into BASELINE_STATUS with
+# correct per-control statuses. Tests diff_baseline with three
+# scenarios: all controls unchanged (0 regressed), one regression
+# introduced by switching SYSROOT mid-run, and a missing baseline
+# file that produces a warning. Also validates that saved baseline
+# files are well-formed JSON via assert_json_valid.
+#
+# Connects to:
+#   lib/baseline.sh    - save_baseline, load_baseline, diff_baseline,
+#                         BASELINE_STATUS
+#   lib/engine.sh      - compute_scores (required before save)
+#   tests/test_helpers.sh - setup_test, assert_json_valid
 
 test_baseline_save_and_load() {
     CURRENT_TEST="test_baseline_save_and_load"

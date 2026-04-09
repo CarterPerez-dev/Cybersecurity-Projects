@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // models.module.scss
+//
+// CSS module for the models management page
+//
+// Styles a status banner with loaded (green) and not-loaded
+// (amber) severity-themed variants, a retrain button with
+// accent-muted background and spinning icon animation during
+// pending state, an empty-state placeholder, and a
+// responsive 3-column grid (collapsing to 2/1) of model
+// cards showing type, version, training samples, threshold,
+// and a metrics section with tabular-nums monospace values
+// separated by a muted border. Connects to pages/models,
+// styles/_index
 // ===================
 
 @use '@/styles' as *;

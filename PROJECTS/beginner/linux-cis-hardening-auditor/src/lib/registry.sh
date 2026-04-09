@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # registry.sh
+#
+# Control registration and result tracking system
+#
+# Provides the in-memory database of CIS controls and their audit
+# outcomes using bash associative arrays. register_control stores
+# each control's metadata (title, section, level, scored, description,
+# remediation) and derives the check function name (check_X_Y_Z).
+# record_result captures per-control pass/fail/warn/skip status with
+# evidence and maintains running totals. Query helpers retrieve
+# controls by section or level. reset_results clears all state for
+# test isolation.
+#
+# Connects to:
+#   lib/constants.sh         - STATUS_PASS/FAIL/WARN/SKIP
+#   controls/registry_data.sh - populates registry via register_control
+#   checks/*.sh              - check functions call record_result
+#   lib/engine.sh            - reads RESULT_ORDER, RESULT_STATUS, CTRL_*
 
 declare -gA CTRL_TITLE
 declare -gA CTRL_SECTION

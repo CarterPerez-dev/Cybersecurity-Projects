@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // threats.module.scss
+//
+// CSS module for the threats table page
+//
+// Styles a filter bar with select dropdown and text input
+// (accent-bordered on focus), a scrollable table wrapper
+// with uppercase column headers, clickable rows with hover
+// highlight, monospace and truncated cell variants for IPs
+// and paths, tabular-nums score cells, centered loading and
+// empty states, and a pagination footer with previous/next
+// buttons that dim when disabled. Connects to pages/threats,
+// styles/_index
 // ===================
 
 @use '@/styles' as *;

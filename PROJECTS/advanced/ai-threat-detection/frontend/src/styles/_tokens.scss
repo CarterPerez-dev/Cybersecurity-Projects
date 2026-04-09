@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // _tokens.scss
+//
+// Design token variables for the entire UI system
+//
+// Defines the full token set consumed by all SCSS modules:
+// 8px-base spacing scale ($space-0 through $space-32),
+// typography scale (3xs through 5xl), font weights (regular,
+// medium, semibold), line heights, letter spacing, dark
+// theme color palette (backgrounds, borders, text tiers,
+// error, severity high/medium/low with backgrounds, accent,
+// HTTP method colors GET through OPTIONS, success), border
+// radius scale, z-index layers (hide through max),
+// transition durations and easings, responsive breakpoints
+// (xs 360px through 2xl 1536px), and container width
+// constraints. Connects to styles/_index, styles/_reset,
+// styles/_fonts, styles/_mixins, all *.module.scss files
 // ===================
 
 // ============================================================================

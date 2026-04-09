@@ -1,5 +1,24 @@
 # ©AngelaMos | 2026
 # base.nim
+#
+# Shared collector utilities and Finding constructors
+#
+# Foundation layer used by all seven collector modules. Wraps POSIX
+# stat for permission inspection (getPermsString, getNumericPerms,
+# isWorldReadable, isGroupReadable), provides safe filesystem access
+# (safeFileExists, safeDirExists, readFileContent, readFileLines with
+# optional line cap), SYSROOT-aware path expansion via expandHome,
+# and exclude-pattern matching. Constructs Finding objects through
+# makeFinding and makeFindingWithCred (auto-populates permissions,
+# modification time, and file size). permissionSeverity maps file
+# modes to severity levels based on world/group read bits. Also
+# provides redactValue for credential preview masking and setMeta
+# for type-safe metadata insertion.
+#
+# Connects to:
+#   types.nim   - Finding, Credential, Severity, Category, HarvestConfig
+#   config.nim  - OwnerOnlyFilePerms, OwnerOnlyDirPerms, WorldReadBit,
+#                  GroupReadBit
 
 {.push raises: [].}
 
@@ -94,10 +113,7 @@ proc matchesExclude*(path: string, patterns: seq[string]): bool =
       return true
 
 proc makeFinding*(
-  path: string,
-  description: string,
-  category: Category,
-  severity: Severity
+    path: string, description: string, category: Category, severity: Severity
 ): Finding =
   Finding(
     path: path,
@@ -107,15 +123,15 @@ proc makeFinding*(
     credential: none(Credential),
     permissions: getPermsString(path),
     modified: getModifiedTime(path),
-    size: getFileSizeBytes(path)
+    size: getFileSizeBytes(path),
   )
 
 proc makeFindingWithCred*(
-  path: string,
-  description: string,
-  category: Category,
-  severity: Severity,
-  cred: Credential
+    path: string,
+    description: string,
+    category: Category,
+    severity: Severity,
+    cred: Credential,
 ): Finding =
   Finding(
     path: path,
@@ -125,16 +141,12 @@ proc makeFindingWithCred*(
     credential: some(cred),
     permissions: getPermsString(path),
     modified: getModifiedTime(path),
-    size: getFileSizeBytes(path)
+    size: getFileSizeBytes(path),
   )
 
 proc newCollectorResult*(name: string, category: Category): CollectorResult =
   CollectorResult(
-    name: name,
-    category: category,
-    findings: @[],
-    durationMs: 0,
-    errors: @[]
+    name: name, category: category, findings: @[], durationMs: 0, errors: @[]
   )
 
 proc permissionSeverity*(path: string, isDir: bool = false): Severity =

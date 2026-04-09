@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_03_network.sh
+#
+# Tests for CIS Section 3 (Network Configuration) checks
+#
+# Uses pass and fail fixture directories to verify IP forwarding
+# disabled (3.1.1), send_redirects disabled (3.1.2), martian packet
+# logging enabled (3.2.1), TCP SYN cookies enabled (3.2.5), IPv6
+# router advertisement rejection (3.2.6), and DCCP protocol module
+# disabling (3.4.2). Each test asserts the expected status and key
+# evidence substrings from sysctl proc tree values and modprobe.d
+# configs in the fixture filesystems.
+#
+# Connects to:
+#   checks/03_network.sh - check functions under test
+#   tests/test_helpers.sh - setup_test, assert_status,
+#                            assert_evidence_contains
 
 test_3_1_1_pass() {
     CURRENT_TEST="test_3_1_1_pass"

@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 test_ml_integration.py
+
+Tests the ML inference engine wired into the ingestion
+pipeline in hybrid detection mode
+
+Uses a trained_model_dir fixture with ONNX models to build
+a pipeline with InferenceEngine. Validates hybrid detection
+mode is set when ML models are present, final_score is in
+[0, 1], rules-only mode falls back to rule score as final
+score, attack lines score higher than benign in hybrid
+mode, and rule_result is preserved alongside ML scores
+
+Connects to:
+  core/detection/inference - InferenceEngine
+  core/detection/rules     - RuleEngine
+  core/ingestion/pipeline  - Pipeline, ScoredRequest
+  ml/export_onnx           - model export for fixture
 """
 
 import json

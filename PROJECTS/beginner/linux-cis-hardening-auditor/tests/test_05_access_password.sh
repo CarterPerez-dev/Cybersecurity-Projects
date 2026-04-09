@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_05_access_password.sh
+#
+# Tests for CIS Section 5.3-5.5 password policy and account lockout checks
+#
+# Uses pass and fail fixture directories to verify PAM password quality
+# module presence (5.3.1 pam_pwquality), login.defs PASS_MAX_DAYS
+# (5.4.1 <=365), PASS_MIN_DAYS (5.4.2 >=1), PASS_WARN_AGE (5.4.3
+# >=7), and account lockout via pam_faillock (5.5.1). Each test
+# asserts the expected status and evidence substrings against fixture
+# /etc/pam.d/common-password, /etc/login.defs, and /etc/pam.d/
+# common-auth contents.
+#
+# Connects to:
+#   checks/05_access_password.sh - check functions under test
+#   tests/test_helpers.sh        - setup_test, assert_status,
+#                                   assert_evidence_contains
 
 test_5_3_1_pass() {
     CURRENT_TEST="test_5_3_1_pass"

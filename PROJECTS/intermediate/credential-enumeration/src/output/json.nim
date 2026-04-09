@@ -1,5 +1,27 @@
 # ©AngelaMos | 2026
 # json.nim
+#
+# JSON report serializer
+#
+# Converts the Report object tree into a structured JSON document
+# using std/json's JsonNode builders. credentialToJson serializes a
+# Credential with source, type, preview, and a metadata key-value
+# map. findingToJson serializes a Finding with path, category,
+# severity, description, permissions, modified timestamp, file
+# size, and an optional nested credential object.
+# collectorResultToJson wraps a module's findings array alongside
+# its name, category, duration, and error list.  reportToJson
+# assembles the top-level structure: metadata block (timestamp,
+# target directory, version, duration, module list), a modules
+# array of collector results, and a summary object mapping each
+# Severity level to its finding count. renderJson pretty-prints the
+# JSON tree to stdout and optionally writes to a file path.
+# All builder procs use {.cast(raises: []).} to suppress exception
+# tracking within the JSON construction blocks.
+#
+# Connects to:
+#   types.nim - Credential, Finding, CollectorResult, Report,
+#                Severity, ReportMetadata
 
 {.push raises: [].}
 

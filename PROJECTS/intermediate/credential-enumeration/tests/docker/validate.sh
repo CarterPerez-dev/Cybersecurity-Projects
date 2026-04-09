@@ -1,6 +1,30 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # validate.sh
+#
+# Docker-based integration test for all 7 collector categories
+#
+# Runs the credenum binary against planted test fixtures under
+# /home/testuser and validates that every expected finding appears
+# in the output. Captures JSON-format output into OUTPUT, then
+# runs the terminal renderer for visual inspection. The check()
+# helper greps the captured output for a case-insensitive pattern
+# and tallies pass/fail counts.
+#
+# Validates 30 findings across all categories: ssh (unprotected
+# key, encrypted key, weak config, authorized keys, known hosts),
+# cloud (AWS static keys, AWS config, GCP service account,
+# Kubernetes config), browser (Firefox logins, cookies, key
+# database, Chromium login data), history (secret pattern, curl
+# auth, sshpass, environment file), keyring (GNOME Keyring,
+# KeePass database, password store), git (plaintext credentials,
+# credential helper, GitHub token), apptoken (PostgreSQL, MySQL,
+# Docker auth, netrc, npm, PyPI, GitHub CLI, Vault). Exits with
+# code 1 if any check fails.
+#
+# Connects to:
+#   credenum binary                - all 7 collector modules
+#   tests/docker/Dockerfile        - fixture layout in /home/testuser
 
 set -euo pipefail
 

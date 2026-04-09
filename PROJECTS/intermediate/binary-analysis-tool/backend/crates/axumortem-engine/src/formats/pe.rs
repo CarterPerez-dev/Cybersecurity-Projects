@@ -1,5 +1,29 @@
 // ©AngelaMos | 2026
 // pe.rs
+//
+// PE (Portable Executable) binary format parser
+//
+// Parses PE binaries via goblin::pe into a FormatResult.
+// Extracts COFF machine type (i386/AMD64/ARM/ARM64),
+// bitness, entry point, and optional header fields including
+// image base, subsystem name, linker version, and DLL
+// characteristics (ASLR, DEP, CFG, SEH, force integrity).
+// build_sections maps PE sections with IMAGE_SCN_MEM_*
+// permission flags and per-section SHA-256 hashes.
+// detect_pe_anomalies flags zeroed, pre-1990, or post-2100
+// timestamps, TLS callback presence, empty import tables,
+// and overlay data beyond the last section. detect_rich_header
+// scans for the "Rich" signature in the DOS stub. Function
+// hints are collected from PE export RVAs for disassembly
+// seeding.
+//
+// Connects to:
+//   formats/mod.rs - FormatResult, PeInfo,
+//                     PeDllCharacteristics, FormatAnomaly,
+//                     SectionInfo, detect_common_anomalies,
+//                     compute_section_hash
+//   types.rs       - Architecture, BinaryFormat, Endianness,
+//                     SectionPermissions
 
 use goblin::pe::PE;
 

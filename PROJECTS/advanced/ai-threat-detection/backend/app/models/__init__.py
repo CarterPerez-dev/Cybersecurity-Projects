@@ -1,6 +1,9 @@
 """
 ©AngelaMos | 2026
 __init__.py
+
+Models package exporting SQLModel table classes for
+ThreatEvent and ModelMetadata
 """
 
 from app.models.model_metadata import ModelMetadata

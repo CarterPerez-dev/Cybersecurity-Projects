@@ -1,5 +1,32 @@
-// ©AngelaMos | 2026
-// Progress.cpp
+/*
+©AngelaMos | 2026
+Progress.cpp
+
+ANSI terminal progress bar with speed, ETA, and result formatting
+
+print_banner draws a Unicode box with algorithm, attack mode, and thread
+count. update() runs in a background jthread and uses ANSI escape
+sequences (\033[3A) to overwrite the previous three lines with an
+updated progress bar, hash speed, elapsed time, ETA, and candidate
+count. render_bar builds a filled/empty block character bar scaled to
+terminal width (queried via ioctl TIOCGWINSZ). format_count humanizes
+large numbers (K/M/B suffixes). print_cracked clears the progress area
+and shows the cracked password with green highlight. print_exhausted
+shows the red failure state. All output is suppressed when stdout is not
+a TTY, falling back to a single-line plaintext result.
+
+Key exports:
+  Progress::print_banner    - Draw boxed header on session start
+  Progress::update          - Refresh progress bar (called from jthread loop)
+  Progress::print_cracked   - Display success result
+  Progress::print_exhausted - Display exhaustion result
+  Progress::is_tty          - Check if stdout is a terminal
+
+Connects to:
+  display/Progress.hpp - class declaration
+  config/Config.hpp    - color, box, symbol constants, PROGRESS_BAR_MIN_WIDTH
+  core/Engine.hpp      - constructs Progress, spawns update jthread, calls print_*
+*/
 
 #include "src/display/Progress.hpp"
 #include "src/config/Config.hpp"

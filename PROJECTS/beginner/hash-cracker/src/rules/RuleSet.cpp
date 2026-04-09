@@ -1,5 +1,35 @@
-// ©AngelaMos | 2026
-// RuleSet.cpp
+/*
+©AngelaMos | 2026
+RuleSet.cpp
+
+Coroutine-based password mutation generators
+
+Each static method is a C++23 generator that co_yields transformed
+candidates from a base word. capitalize_first uppercases the first
+character. uppercase_all transforms every character. leet_speak applies
+a fixed substitution map (a->@, e->3, i->1, o->0, s->$, t->7).
+append_digits and prepend_digits yield the word with every integer from
+0 to MAX_APPEND_DIGIT/MAX_PREPEND_DIGIT (999 by default, producing 1000
+candidates each). reverse yields the reversed string. toggle_case swaps
+upper to lower and vice versa. apply_all chains all generators together
+using co_yield std::ranges::elements_of, producing ~2005 mutations per
+input word.
+
+Key exports:
+  RuleSet::capitalize_first - Uppercase first letter
+  RuleSet::uppercase_all    - Uppercase all letters
+  RuleSet::leet_speak       - Common character substitutions
+  RuleSet::append_digits    - Word + 0..999
+  RuleSet::prepend_digits   - 0..999 + word
+  RuleSet::reverse          - Reversed string
+  RuleSet::toggle_case      - Swap upper/lower case
+  RuleSet::apply_all        - Chains all above generators into one stream
+
+Connects to:
+  rules/RuleSet.hpp     - class declaration
+  config/Config.hpp     - MAX_APPEND_DIGIT, MAX_PREPEND_DIGIT
+  attack/RuleAttack.cpp - calls apply_all for each word
+*/
 
 #include "src/rules/RuleSet.hpp"
 #include "src/config/Config.hpp"

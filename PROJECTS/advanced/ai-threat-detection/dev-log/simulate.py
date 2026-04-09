@@ -2,6 +2,26 @@
 """
 ©AngelaMos | 2026
 simulate.py
+
+HTTP traffic simulator for generating realistic attack and
+normal log patterns against the dev-log target application
+
+Provides 10 traffic modes via argparse: normal (benign
+browsing with GET/POST mix), sqli (12 SQL injection
+payloads), xss (10 script/event handler vectors),
+traversal (10 dot-dot-slash and encoding variants), cmdi
+(7 shell command injection payloads), log4shell (4 JNDI
+lookup variants), ssrf (5 cloud metadata and internal
+service targets), scanner (20 recon paths with 11 scanner
+user-agents), flood (rapid-fire requests), and mixed
+(50/10/40 normal/scanner/attack split). Uses urllib for
+HTTP requests with configurable count, delay, and target
+URL. Checks /health reachability before starting
+
+Connects to:
+  dev-log/app.py       - target endpoints
+  dev-log/nginx.conf   - requests proxied through nginx
+                         to generate access.log entries
 """
 
 import argparse

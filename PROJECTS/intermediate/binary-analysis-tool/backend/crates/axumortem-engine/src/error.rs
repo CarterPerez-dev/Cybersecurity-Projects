@@ -1,5 +1,17 @@
 // ©AngelaMos | 2026
 // error.rs
+//
+// Engine error type hierarchy
+//
+// EngineError is a thiserror enum covering all failure modes
+// in the analysis pipeline: InvalidBinary for unparseable
+// input, UnsupportedFormat and UnsupportedArchitecture for
+// recognized but unhandled binaries, MissingDependency when
+// a pass requires results from an earlier pass that did not
+// run, PassFailed wrapping the source error from any pass,
+// Yara for rule compilation or scan failures, and Io for
+// filesystem operations. The From<std::io::Error> impl
+// enables transparent propagation with the ? operator.
 
 #[derive(thiserror::Error, Debug)]
 pub enum EngineError {

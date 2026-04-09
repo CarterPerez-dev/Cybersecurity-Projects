@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 model_metadata.py
+
+SQLModel table tracking ML model versions, training
+metrics, and deployment status
+
+ModelMetadata stores model_type, version, training_samples,
+metrics (JSON), artifact_path, is_active flag, optional
+mlflow_run_id, threshold, and notes. A partial index on
+model_type filtered by is_active=TRUE enables fast lookup
+of the currently deployed model per type
+
+Connects to:
+  models/base        - inherits TimestampedModel
+  api/models_api     - queried for /models/status,
+                        written after retrain
+  cli/main           - _write_metadata inserts records
 """
 
 from sqlalchemy import Column, Index, JSON, text

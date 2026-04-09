@@ -1,6 +1,20 @@
 """
 ©AngelaMos | 2026
 test_splitting.py
+
+Tests stratified train/val/test splitting with SMOTE
+oversampling for imbalanced datasets
+
+Validates TrainingSplit dataclass return, 70/15/15 split
+proportions within tolerance, stratified class distribution
+preservation in val/test sets, SMOTE minority ratio near
+target strategy (0.3), val/test sizes unaffected by SMOTE,
+X_normal_train containing only class-0 rows, small dataset
+(50 samples) success, single-class ValueError, and SMOTE
+skip when minority count is below k_neighbors threshold
+
+Connects to:
+  ml/splitting - prepare_training_data, TrainingSplit
 """
 
 import numpy as np

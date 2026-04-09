@@ -2,7 +2,24 @@
 ©AngelaMos | 2026
 test_integration.py
 
-End-to-end tests covering the full path from log file write through tailer, pipeline, and database storage.
+End-to-end tests covering the full path from log file
+write through tailer, pipeline, and database storage
+
+integration_env fixture creates a temp log file, in-memory
+SQLite, fake Redis, AlertDispatcher, RuleEngine, Pipeline,
+and LogTailer wired together. Tests write nginx-format log
+lines (normal, SQLi, XSS, path traversal) to the file and
+poll the database for stored ThreatEvent rows. Validates
+that MEDIUM+ threats are persisted, LOW severity requests
+are not stored, and stored events have correct severity,
+score, matched_rules, feature_vector length, and source_ip
+
+Connects to:
+  core/ingestion/tailer    - LogTailer
+  core/ingestion/pipeline  - Pipeline
+  core/alerts/dispatcher   - AlertDispatcher
+  core/detection/rules     - RuleEngine
+  models/threat_event      - ThreatEvent
 """
 
 import asyncio

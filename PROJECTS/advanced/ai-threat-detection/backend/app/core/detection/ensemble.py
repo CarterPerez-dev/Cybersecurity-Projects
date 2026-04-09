@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 ensemble.py
+
+Score normalization, fusion, and severity classification
+utilities for the ML ensemble
+
+normalize_ae_score maps autoencoder reconstruction error
+to [0,1] using 2x threshold scaling. normalize_if_score
+inverts sklearn isolation forest scores to [0,1].
+fuse_scores computes a weighted average across available
+model scores. blend_scores combines ML ensemble and rule
+engine scores with configurable ml_weight (default 0.7).
+classify_severity maps unified score to HIGH (>=0.7),
+MEDIUM (>=0.5), or LOW
+
+Connects to:
+  core/detection/
+    inference    - raw model scores passed to normalizers
+  core/detection/
+    rules        - classify_severity used for rule results
+  core/ingestion/
+    pipeline     - fuse_scores and blend_scores in
+                    scoring stage
 """
 
 

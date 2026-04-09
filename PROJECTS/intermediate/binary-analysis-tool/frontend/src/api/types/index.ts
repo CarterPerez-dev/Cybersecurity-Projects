@@ -1,6 +1,36 @@
 // ===================
 // © AngelaMos | 2026
 // index.ts
+//
+// Inferred TypeScript types derived from Zod schemas
+// via z.infer
+//
+// Exports ~45 types covering every domain model in the
+// analysis pipeline: enums (BinaryFormat, Architecture,
+// Endianness, RiskLevel, Severity, StringEncoding,
+// StringCategory, EntropyClassification, EntropyFlag,
+// FlowControlType, CfgEdgeType), format structures
+// (SectionPermissions, SectionInfo, SegmentInfo,
+// FormatAnomaly, PeDllCharacteristics, PeInfo, ElfInfo,
+// MachOInfo, FormatResult), import structures (Import
+// Entry, ExportEntry, SuspiciousCombination, Import
+// MitreMapping, ImportStatistics, ImportResult), string
+// structures (ExtractedString, StringStatistics,
+// StringResult), entropy structures (SectionEntropy,
+// PackingIndicator, EntropyResult), disassembly
+// structures (InstructionInfo, BasicBlockInfo, CfgNode,
+// CfgEdge, FunctionCfg, FunctionInfo, Disassembly
+// Result), threat structures (ScoringDetail, Scoring
+// Category, ThreatMitreMapping, YaraMetadata, Yara
+// StringMatch, YaraMatch, ThreatResult), and top-level
+// composites (AnalysisPasses, AnalysisResponse, Upload
+// Response, ApiErrorBody)
+//
+// Connects to:
+//   api/schemas  - source schemas for z.infer
+//   api/hooks    - UploadResponse, ApiErrorBody
+//   pages/       - all analysis result types consumed
+//                  by tab components
 // ===================
 
 import type { z } from 'zod'

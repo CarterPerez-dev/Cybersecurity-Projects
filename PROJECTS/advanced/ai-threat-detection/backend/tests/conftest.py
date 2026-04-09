@@ -2,7 +2,22 @@
 ©AngelaMos | 2026
 conftest.py
 
-Shared pytest fixtures for in-memory SQLite database and HTTPX test client setup.
+Shared pytest fixtures for in-memory SQLite database and
+HTTPX async test client setup
+
+test_settings overrides Settings for the test environment
+with an in-memory SQLite URL and dummy paths. db_engine
+creates a StaticPool aiosqlite engine with all tables via
+SQLModel.metadata.create_all. db_session yields an
+AsyncSession bound to the shared engine. db_client builds
+a full HTTPX AsyncClient with ASGITransport wrapping the
+FastAPI app, overriding get_session to use the in-memory
+database with auto-commit
+
+Connects to:
+  app/config   - Settings override
+  app/factory  - create_app for ASGI transport
+  app/api/deps - get_session dependency override
 """
 
 from collections.abc import AsyncIterator

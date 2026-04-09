@@ -1,5 +1,33 @@
-// ©AngelaMos | 2026
-// config.v
+/*
+©AngelaMos | 2026
+config.v
+
+Application-wide constants for ports, limits, display, and exit codes
+
+Centralizes every magic number and string the tool uses. Well-known
+ports and service_ports drive the hardened ruleset generator so adding a
+new service is a one-line map entry. Rate-limit defaults (ssh_rate_limit,
+icmp_rate_limit) match common CIS and NIST hardening baselines.
+private_ranges lists RFC 1918 CIDR blocks used for anti-spoofing rules.
+Column widths and Unicode symbols control the terminal table layout in
+the display module.
+
+Key exports:
+  version, app_name         - Binary identity
+  exit_success .. exit_usage_error - Process exit codes
+  port_ssh .. port_ntp      - Well-known port constants
+  private_ranges            - RFC 1918 CIDR blocks for spoofing checks
+  ssh_rate_limit, icmp_rate_limit - Default rate-limit strings
+  service_ports             - Service name to port number map
+  col_num .. col_action     - Terminal table column widths
+  sym_check .. sym_bullet   - Unicode glyphs for display
+
+Connects to:
+  analyzer/optimizer.v   - reads port constants, rate-limit defaults, multiport_max
+  generator/generator.v  - reads service_ports, private_ranges, rate-limit strings
+  display/display.v      - reads column widths, Unicode symbols, version
+  main.v                 - reads app_name, version, exit codes
+*/
 
 module config
 

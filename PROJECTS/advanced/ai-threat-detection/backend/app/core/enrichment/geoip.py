@@ -1,6 +1,24 @@
 """
 ©AngelaMos | 2026
 geoip.py
+
+Async GeoIP lookup service backed by MaxMind GeoLite2-City
+database
+
+GeoIPService loads a .mmdb reader on init, returning None
+for missing databases. lookup resolves an IP to a GeoResult
+(country ISO code, city, lat, lon), skipping private/
+loopback addresses and unknown entries. swap_reader
+atomically replaces the database reader for hot-reload
+after .mmdb updates. All blocking geoip2 calls run in a
+thread via asyncio.to_thread
+
+Connects to:
+  config.py             - settings.geoip_db_path
+  factory.py            - initialized and closed in
+                           lifespan
+  core/ingestion/
+    pipeline            - lookup called in feature_worker
 """
 
 import asyncio

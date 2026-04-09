@@ -1,5 +1,40 @@
 // ©AngelaMos | 2026
 // entropy.rs
+//
+// Shannon entropy analysis and packing detection pass
+//
+// EntropyPass depends on format and computes Shannon
+// entropy for the overall binary and each section
+// individually. shannon_entropy calculates bits-per-byte
+// over a 256-bucket frequency distribution.
+// classify_entropy maps values to five bands: Plaintext
+// (<3.5), NativeCode (<6.0), Compressed (<7.0), Packed
+// (<7.2), and Encrypted (>=7.2). Per-section analysis
+// flags anomalies via EntropyFlag: HighEntropy (>7.0),
+// HighVirtualToRawRatio (>10x), EmptyRawData (raw=0 with
+// virtual>0), Rwx (read+write+execute permissions), and
+// PackerSectionName. PACKER_SECTION_NAMES maps 15 known
+// section names to packers: UPX (UPX0/1/2), Themida,
+// VMProtect (.vmp0/1/2), ASPack (.aspack/.adata),
+// PECompact (PEC2TO/PEC2/pec1), MPRESS (.MPRESS1/2),
+// and Enigma (.enigma1/2). Structural packing indicators
+// track empty-raw-with-executable-virtual sections and
+// high virtual-to-raw ratios; two or more structural
+// indicators trigger packing_detected. find_ep_section
+// locates the entry point section and checks for PUSHAD
+// (0x60) as the first byte, a classic packer stub marker.
+// Unit tests verify zero-entropy, uniform distribution
+// (~8.0 bits), empty data, classification thresholds,
+// packer section name detection, high entropy flagging,
+// UPX packer detection, ELF entropy analysis, and context
+// population.
+//
+// Connects to:
+//   pass.rs        - AnalysisPass trait, Sealed
+//   context.rs     - AnalysisContext
+//   formats/mod.rs - SectionInfo
+//   types.rs       - EntropyClassification, EntropyFlag
+//   error.rs       - EngineError
 
 use serde::{Deserialize, Serialize};
 

@@ -1,6 +1,19 @@
 // ===================
 // © AngelaMos | 2026
 // threats.types.ts
+//
+// Zod schemas and types for threat event data
+//
+// Defines GeoInfoSchema with nullable country, city, lat,
+// and lon fields. ThreatEventSchema captures the full
+// threat record: uuid id, timestamps, source_ip, HTTP
+// request details, threat_score, severity enum (HIGH,
+// MEDIUM, LOW), per-model component_scores record, geo
+// info, nullable matched_rules array, model_version,
+// reviewed flag, and review_label. ThreatListSchema wraps
+// paginated results with total, limit, offset, and items
+// array. Connects to api/hooks/useThreats, pages/threats,
+// components/threat-detail
 // ===================
 
 import { z } from 'zod'

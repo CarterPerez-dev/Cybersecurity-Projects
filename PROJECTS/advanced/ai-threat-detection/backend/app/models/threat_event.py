@@ -1,6 +1,25 @@
 """
 ©AngelaMos | 2026
 threat_event.py
+
+SQLModel table for detected threat events with full
+request context and ML metadata
+
+ThreatEvent stores source_ip, request_method, request_path,
+status_code, response_size, user_agent, threat_score,
+severity, component_scores (JSON), geo fields (country,
+city, lat, lon), feature_vector (JSON float array),
+matched_rules (JSON string array), model_version,
+reviewed flag, and review_label for analyst feedback.
+Indexed on created_at, source_ip, severity, threat_score,
+and a partial index on reviewed=FALSE for triage queries
+
+Connects to:
+  models/base             - inherits TimestampedModel
+  services/threat_service - CRUD operations
+  api/models_api          - training data source for
+                             retrain
+  core/alerts/dispatcher  - persisted on MEDIUM+ severity
 """
 
 from sqlalchemy import (

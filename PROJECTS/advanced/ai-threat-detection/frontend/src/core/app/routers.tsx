@@ -1,6 +1,14 @@
 // ===================
 // © AngelaMos | 2026
 // routers.tsx
+//
+// Browser router with lazy-loaded page routes under the
+// Shell layout
+//
+// Defines a createBrowserRouter with Shell as the root
+// layout element containing 3 lazy-loaded child routes:
+// dashboard (/), threats (/threats), and models (/models).
+// Unknown paths redirect to the dashboard via Navigate
 // ===================
 
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'

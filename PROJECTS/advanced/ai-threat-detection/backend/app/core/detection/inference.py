@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 inference.py
+
+ONNX-based inference engine for the 3-model ML ensemble
+
+InferenceEngine loads autoencoder (ae.onnx), random
+forest (rf.onnx), and isolation forest (if.onnx) sessions
+plus RobustScaler parameters (scaler.json) and anomaly
+threshold (threshold.json) from a model directory. predict
+runs all 3 models on a batch of feature vectors: applies
+_scale_for_ae to normalize autoencoder input, computes
+reconstruction MSE for ae scores, extracts attack
+probability from skl2onnx RF output format via _extract_
+rf_proba, and returns raw IF decision scores. Returns
+None when models are unavailable. Each ONNX session uses
+single-threaded execution (inter/intra_op_num_threads=1)
+
+Connects to:
+  config.py          - settings.model_dir
+  factory.py         - _load_inference_engine at startup
+  core/ingestion/
+    pipeline         - batch inference in scoring stage
+  ml/export_onnx     - produces the ONNX model files
 """
 
 import json

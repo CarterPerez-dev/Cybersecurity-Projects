@@ -1,6 +1,19 @@
 """
 ©AngelaMos | 2026
 experiment.py
+
+MLflow experiment context manager with automatic system
+metadata logging
+
+VigilExperiment wraps mlflow.start_run/end_run as a context
+manager, recording Python version, platform, and git commit
+hash on entry, and setting status/error tags on exit.
+Provides log_params, log_metrics (with optional step), and
+log_artifact convenience methods. _get_git_hash shells out
+to git rev-parse --short HEAD
+
+Connects to:
+  ml/orchestrator  - used to wrap the full training run
 """
 
 import platform

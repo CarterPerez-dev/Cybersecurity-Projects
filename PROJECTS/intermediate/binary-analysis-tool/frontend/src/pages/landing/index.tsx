@@ -1,6 +1,31 @@
 // ===================
 // © AngelaMos | 2026
 // index.tsx
+//
+// Binary upload landing page with drag-and-drop file
+// intake and analysis pipeline visualization
+//
+// Renders the Axumortem specimen intake interface: an
+// animated SVG grain background, hex offset margin
+// decoration (16 addresses), corner brackets, meta
+// strip header, and format support badges (ELF/PE/
+// Mach-O). The drop zone supports both drag-and-drop
+// and click-to-browse file selection, displaying file
+// name, size (via formatBytes), and MIME type once
+// selected. On submit, useUpload posts the binary as
+// multipart/form-data and navigates to /analysis/:slug
+// on success. A six-step pipeline visualization shows
+// the FORMAT through THREAT analysis passes. The
+// Component is lazy-loaded via react-router and
+// exported with displayName "Landing"
+//
+// Connects to:
+//   api/hooks       - useUpload mutation
+//   core/lib        - formatBytes
+//   config.ts       - implicit via useUpload endpoints
+//   landing.module
+//     .scss         - all layout and animation styles
+//   routers.tsx     - lazy-loaded at ROUTES.HOME
 // ===================
 
 import { useCallback, useRef, useState } from 'react'

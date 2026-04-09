@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 stats_service.py
+
+Threat statistics aggregation service computing time-
+windowed metrics from stored events
+
+get_stats accepts a time_range string (1h, 6h, 24h, 7d,
+30d) mapped to timedeltas via _RANGE_MAP, queries threat
+events since the cutoff, and returns a StatsResponse with
+total count, severity breakdown (HIGH/MEDIUM/LOW counts
+via GROUP BY), top 10 source IPs, and top 10 attacked
+paths ordered by frequency
+
+Connects to:
+  models/threat_event  - ThreatEvent queries
+  schemas/stats        - StatsResponse, SeverityBreakdown,
+                          IPStatEntry, PathStatEntry
+  api/stats            - called from GET /stats endpoint
 """
 
 from datetime import datetime, timedelta, UTC

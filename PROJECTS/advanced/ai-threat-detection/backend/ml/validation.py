@@ -1,6 +1,28 @@
 """
 ©AngelaMos | 2026
 validation.py
+
+Post-training ensemble validation with quality gates for
+deployment readiness
+
+validate_ensemble loads all 3 ONNX models via
+InferenceEngine, runs batch prediction on held-out test
+data, normalizes per-model raw scores (AE reconstruction
+error against threshold, IF anomaly scores), fuses them
+via weighted average (default weights: AE 0.4, RF 0.4,
+IF 0.2), applies a 0.5 binary threshold, and computes
+precision, recall, F1, PR-AUC, and ROC-AUC. Quality
+gates require PR-AUC >= 0.85 and F1 >= 0.80 for
+passed_gates to be True. Returns a ValidationResult
+dataclass with all metrics, confusion matrix, and
+per-gate pass/fail details
+
+Connects to:
+  core/detection/ensemble  - normalize_ae_score,
+                             normalize_if_score, fuse_scores
+  core/detection/inference - InferenceEngine ONNX runtime
+  ml/orchestrator          - called after training to gate
+                             deployment
 """
 
 import logging

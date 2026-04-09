@@ -1,6 +1,23 @@
 """
 ©AngelaMos | 2026
 splitting.py
+
+Stratified train/val/test splitting with SMOTE
+oversampling for imbalanced attack data
+
+prepare_training_data performs a 70/15/15 stratified split
+preserving class ratios, extracts the normal-only subset
+from training data for the autoencoder and isolation
+forest, and conditionally applies SMOTE oversampling to
+the training set when the minority class ratio falls below
+the target strategy (default 0.3). SMOTE is skipped if the
+minority class has fewer than k_neighbors+1 samples.
+Returns a TrainingSplit dataclass with X_train, y_train,
+X_val, y_val, X_test, y_test, and X_normal_train arrays
+
+Connects to:
+  ml/orchestrator - called at the start of the training
+                    pipeline
 """
 
 from dataclasses import dataclass

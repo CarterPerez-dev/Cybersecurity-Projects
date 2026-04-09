@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # utils.sh
+#
+# Shared utility functions for logging and system inspection
+#
+# Provides ANSI-colored log helpers (info, success, warn, fail) that
+# respect the QUIET flag, inline progress display with carriage-return
+# clearing, bash version enforcement, root privilege detection, and
+# OS identification from /etc/os-release. Wraps all filesystem access
+# through SYSROOT so checks work against both the live system and
+# test fixture directories: file_exists, read_file, get_sysctl (proc
+# tree then sysctl fallback), get_config_value (grep key from config),
+# run_cmd (blocks in test mode), and dpkg/systemctl wrappers.
+#
+# Connects to:
+#   lib/constants.sh - ANSI color codes, EXIT_FAIL, MIN_BASH_VERSION
+#   checks/*.sh      - check functions call file_exists, get_sysctl,
+#                       package_is_installed, service_is_enabled, etc.
 
 info()    { [[ "$QUIET" == "true" ]] || echo -e "${CYAN}[*]${RESET} $1" >&2; }
 success() { [[ "$QUIET" == "true" ]] || echo -e "${GREEN}[✔]${RESET} $1" >&2; }

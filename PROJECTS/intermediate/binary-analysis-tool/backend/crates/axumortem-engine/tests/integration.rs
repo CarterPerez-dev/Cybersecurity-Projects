@@ -1,5 +1,24 @@
 // ©AngelaMos | 2026
 // integration.rs
+//
+// Full pipeline integration tests
+//
+// Exercises the AnalysisEngine end-to-end against test
+// fixture binaries. full_pipeline_elf loads hello_elf and
+// asserts all six passes succeed, format result is ELF
+// with non-empty sections, all context slots are populated,
+// disassembly finds functions and instructions, and threat
+// score has 8 categories capped at 100.
+// full_pipeline_stripped_elf verifies stripped binary
+// detection and full pipeline completion.
+// sha256_computed_correctly asserts the context SHA-256 is
+// a valid 64-character hex string. invalid_binary_handled
+// feeds 4 bytes of garbage and asserts the format pass
+// fails while the engine does not panic.
+//
+// Connects to:
+//   lib.rs   - AnalysisEngine
+//   types.rs - BinaryFormat
 
 use axumortem_engine::types::BinaryFormat;
 use axumortem_engine::AnalysisEngine;

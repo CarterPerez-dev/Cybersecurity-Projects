@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 websocket.py
+
+WebSocket endpoint streaming real-time threat alerts via
+Redis pub/sub relay
+
+WS /ws/alerts accepts a client connection, subscribes to
+the ALERTS_CHANNEL via a per-client Redis pubsub instance,
+and runs two concurrent tasks: _relay forwards published
+messages as WebSocket text frames, _receive drains client
+messages until disconnect. asyncio.wait with FIRST_
+COMPLETED cancels the other task on disconnect, then
+unsubscribes and closes the pubsub. Per-client subscribers
+ensure correct multi-worker behavior
+
+Connects to:
+  core/alerts       - ALERTS_CHANNEL constant
+  core/redis_manager- redis_manager.client
 """
 
 import asyncio

@@ -2,7 +2,19 @@
 ©AngelaMos | 2026
 test_geoip.py
 
-Tests the GeoIP lookup service including private IP handling and missing database fallback.
+Tests the GeoIPService MaxMind lookup including private IP
+handling, error cases, and missing database fallback
+
+Validates GeoResult field storage, successful lookup
+returning country/city/lat/lon, private and loopback IPs
+returning None without hitting the reader, AddressNotFound
+Error returning None, None reader returning None, missing
+city name handled gracefully, non-existent .mmdb path sets
+reader to None, and valid .mmdb path opens the reader via
+mock
+
+Connects to:
+  core/enrichment/geoip - GeoIPService, GeoResult
 """
 
 from unittest.mock import MagicMock, patch

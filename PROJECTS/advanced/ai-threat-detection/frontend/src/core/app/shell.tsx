@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // shell.tsx
+//
+// Root application shell with sidebar navigation, header,
+// and content outlet
+//
+// Renders a collapsible sidebar with NavLink items
+// (Dashboard, Threats, Models), a mobile hamburger menu
+// toggle with overlay dismiss, a header showing the current
+// page title, and a main content area wrapped in
+// ErrorBoundary and Suspense. Sidebar collapsed state
+// persists via the Zustand UIStore. ShellErrorFallback
+// displays caught errors and ShellLoading shows a loading
+// placeholder during lazy route resolution
 // ===================
 
 import { Suspense } from 'react'

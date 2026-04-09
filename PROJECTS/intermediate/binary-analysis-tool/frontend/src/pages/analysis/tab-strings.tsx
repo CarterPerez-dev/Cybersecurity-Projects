@@ -1,6 +1,32 @@
 // ===================
 // © AngelaMos | 2026
 // tab-strings.tsx
+//
+// Strings tab with search, encoding/category filters,
+// pagination, and expandable string values
+//
+// Provides a filter bar with text search, encoding
+// dropdown (All/Ascii/Utf8/Utf16Le), category dropdown
+// (All plus 14 StringCategory values), and a suspicious
+// -only toggle. Filters apply via useMemo over the full
+// string array, with results paginated at PAGE_SIZE (50)
+// and displayed in a table showing hex offset, value
+// (truncated at 80 chars with expand toggle tracked via
+// expandedRows Set), encoding, category badge, and
+// section name. StringRow highlights suspicious entries
+// and supports click-to-expand for long values. Prev/
+// Next pagination controls appear when totalPages
+// exceeds one
+//
+// Connects to:
+//   api/types         - AnalysisResponse, Extracted
+//                        String, StringCategory,
+//                        StringEncoding
+//   core/lib          - formatHex
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - filterBar, searchInput,
+//                        pagination, dataTable styles
 // ===================
 
 import { useMemo, useState } from 'react'

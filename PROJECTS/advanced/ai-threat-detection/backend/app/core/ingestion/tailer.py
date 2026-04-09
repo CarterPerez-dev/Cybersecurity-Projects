@@ -1,6 +1,26 @@
 """
 ©AngelaMos | 2026
 tailer.py
+
+Watchdog-based nginx log file tailer with rotation
+detection pushing raw lines into an asyncio queue
+
+_LogHandler extends FileSystemEventHandler to tail a single
+target file: _open_target seeks to EOF, on_modified reads
+new lines via _read_new_lines and checks inode changes for
+rotation, on_moved handles rename-based rotation (access
+.log -> access.log.1), on_created handles new-file
+rotation. Lines are pushed via call_soon_threadsafe into
+the asyncio queue, with QueueFull drops logged. LogTailer
+wraps _LogHandler with a PollingObserver (2s interval)
+watching the target's parent directory, providing start/
+stop lifecycle and is_active property
+
+Connects to:
+  factory.py            - started/stopped in lifespan
+  core/ingestion/
+    pipeline            - feeds pipeline.raw_queue
+  config.py             - settings.nginx_log_path
 """
 
 import asyncio

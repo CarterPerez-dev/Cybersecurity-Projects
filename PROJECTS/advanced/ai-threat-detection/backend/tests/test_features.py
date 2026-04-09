@@ -2,7 +2,31 @@
 ©AngelaMos | 2026
 test_features.py
 
-Tests per-request feature extraction, Redis sliding-window aggregation, and feature encoding.
+Tests the 23 per-request feature extractor, Redis sliding-
+window aggregator (12 windowed features), and 35-dim
+feature encoder
+
+Validates all 23 feature keys are returned, path_depth
+counts segments, path_entropy distinguishes random vs
+simple paths, query param count and length, percent-
+encoding and double-encoding detection, status class
+grouping, temporal features (hour, day, weekend), bot
+and scanner UA detection, attack pattern detection (SQLi,
+XSS, traversal), special char ratio, private IP, file
+extension, and country code passthrough. WindowAggregator
+tests use fakeredis to validate single/multi-request
+counts, error rate calculation, unique paths/UAs, TTL
+setting, and window boundary exclusion. Encoder tests
+validate 35-element output, method/status ordinal mapping,
+boolean-to-float, numerical passthrough, and unknown
+categorical fallback
+
+Connects to:
+  core/features/extractor  - extract_request_features
+  core/features/aggregator - WindowAggregator
+  core/features/encoder    - encode_for_inference
+  core/features/mappings   - FEATURE_ORDER, METHOD_MAP,
+                             STATUS_CLASS_MAP
 """
 
 import time

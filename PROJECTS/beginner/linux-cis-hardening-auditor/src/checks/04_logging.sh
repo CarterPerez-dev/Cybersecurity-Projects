@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 04_logging.sh
+#
+# CIS Section 4 checks: Logging and Auditing
+#
+# Implements controls 4.1.1-4.2.4 for the audit subsystem and syslog
+# configuration. Verifies auditd is installed, enabled, and configured
+# for boot-time auditing (audit=1 in GRUB_CMDLINE_LINUX) with a
+# sufficient backlog limit (>=8192). Validates ten categories of audit
+# rules by searching /etc/audit/rules.d/ and audit.rules: time changes
+# (adjtimex, settimeofday, clock_settime), user/group modifications,
+# network environment changes (sethostname, /etc/issue, /etc/hosts),
+# MAC policy changes (SELinux/AppArmor paths), login/logout events,
+# session initiation (utmp/wtmp/btmp), DAC permission changes (chmod,
+# chown family), unauthorized access attempts (EACCES/EPERM), file
+# system mounts, and file deletions (unlink/rename). Checks rsyslog
+# installation, service status, FileCreateMode, and logging rules.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - package_is_installed, file_exists, service_is_enabled
 
 check_4_1_1() {
     local id="4.1.1"

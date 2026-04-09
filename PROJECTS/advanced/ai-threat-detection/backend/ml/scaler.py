@@ -1,6 +1,27 @@
 """
 ©AngelaMos | 2026
 scaler.py
+
+IQR-based feature scaler with JSON persistence for the
+autoencoder preprocessing stage
+
+FeatureScaler wraps sklearn RobustScaler (median/IQR
+normalization) to handle outlier-heavy HTTP traffic data.
+Provides fit, transform, fit_transform, and
+inverse_transform mirroring the sklearn API. save_json
+serializes center and scale arrays to a human-readable
+JSON file (avoiding pickle for security and portability),
+and load_json reconstructs a fitted scaler from that file.
+Only the autoencoder uses this scaler since tree-based
+models (random forest, isolation forest) are
+scale-invariant
+
+Connects to:
+  ml/train_autoencoder - fitted during AE training
+  ml/orchestrator      - scaler.json saved alongside models
+  core/detection/
+    inference          - loaded at inference time for AE
+                         input normalization
 """
 
 import json

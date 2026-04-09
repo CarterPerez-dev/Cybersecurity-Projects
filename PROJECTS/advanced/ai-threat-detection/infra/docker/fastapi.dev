@@ -1,5 +1,15 @@
 # ©AngelaMos | 2026
 # fastapi.dev
+#
+# Development Dockerfile for the FastAPI backend
+#
+# Based on python:3.14-slim with uv from the astral-sh
+# image. Installs build-essential, libpq-dev, and curl,
+# then installs the project with dev and ml extras via uv
+# pip install --system -e. Copies the backend source and
+# entrypoint script, creates the model data directory, and
+# runs uvicorn with --reload for live code changes.
+# Connects to dev.compose.yml, entrypoint.sh
 
 FROM python:3.14-slim
 

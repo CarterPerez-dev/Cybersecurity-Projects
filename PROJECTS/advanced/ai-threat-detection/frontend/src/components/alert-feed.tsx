@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // alert-feed.tsx
+//
+// Live WebSocket alert feed with auto-scroll and color-coded
+// entries
+//
+// Renders a scrollable list of WebSocketAlert items with a
+// connection status indicator dot (green connected, red
+// disconnected). Each row displays formatted timestamp,
+// source IP, HTTP method with color-coded SCSS class
+// (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS), request path,
+// SeverityBadge, and threat score. Auto-scrolls to the top
+// on new alerts via a useEffect keyed on alert count. Shows
+// an empty-state message when no alerts are present.
+// Connects to api/types/websocket.types,
+// components/severity-badge, api/hooks/useAlerts,
+// pages/dashboard
 // ===================
 
 import { useEffect, useRef } from 'react'

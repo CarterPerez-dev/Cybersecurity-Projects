@@ -1,5 +1,45 @@
 // ©AngelaMos | 2026
 // strings.rs
+//
+// String extraction and categorization pass
+//
+// StringPass depends on format and extracts printable
+// strings from raw binary data in both ASCII and UTF-16LE
+// encodings with a minimum length of 4 characters.
+// extract_ascii scans for contiguous runs of printable
+// bytes (0x20-0x7E, tab, newline, CR), while
+// extract_utf16le decodes little-endian wide character
+// sequences terminated by null pairs. Each extracted
+// string is classified into one of 14 StringCategory
+// values by a priority-ordered classifier chain: Url
+// (http/https/ftp prefixes), IpAddress (dotted quad
+// validation), RegistryKey (HKEY_/HKLM/HKCU prefixes),
+// ShellCommand (cmd.exe, powershell, /bin/sh indicators),
+// PersistencePath (Run keys, cron, systemd, LaunchAgents),
+// AntiAnalysis (VMware, VirtualBox, QEMU, debugger, Wine
+// detection), PackerSignature (UPX!, MPRESS, Themida,
+// VMProtect), SuspiciousApi (matched against the 22
+// SUSPICIOUS_APIS from imports.rs), DebugArtifact
+// (/rustc/, .pdb, _ZN, DWARF), FilePath (Windows drive
+// letters, UNC paths, Unix prefixes), CryptoWallet (BTC
+// base58check and ETH 0x-prefixed addresses), Email
+// (local@domain.tld validation), EncodedData (base64
+// character set with padding validation, minimum 20
+// chars), or Generic. Seven categories are flagged as
+// suspicious. find_section attributes each string to its
+// containing binary section by file offset. Statistics
+// track totals by encoding and category. Unit tests
+// verify minimum length filtering, UTF-16LE extraction,
+// all 14 category classifiers, suspicious flag mapping,
+// ELF string extraction, context population, and section
+// attribution.
+//
+// Connects to:
+//   pass.rs          - AnalysisPass trait, Sealed
+//   context.rs       - AnalysisContext
+//   formats/mod.rs   - SectionInfo
+//   passes/imports.rs - SUSPICIOUS_APIS
+//   types.rs         - StringCategory, StringEncoding
 
 use std::collections::HashMap;
 

@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # cisaudit.sh
+#
+# Main entry point for the CIS benchmark compliance auditor
+#
+# Parses CLI arguments (level filtering, output format, categories,
+# baseline compare/save, test-root override, threshold), sources all
+# library modules and check files, then dispatches through run_checks
+# to execute registered controls, compute_scores for scoring, and
+# generate_report for terminal/JSON/HTML output. Supports --list-controls
+# for a dry-run control inventory. Exits non-zero when the overall score
+# falls below --threshold.
+#
+# Connects to:
+#   lib/constants.sh         - version, exit codes, ANSI colors, section names
+#   lib/utils.sh             - logging, progress, environment detection helpers
+#   lib/registry.sh          - control registration and result tracking
+#   lib/engine.sh            - score computation (overall, per-section, per-level)
+#   lib/report_terminal.sh   - ANSI terminal report renderer
+#   lib/report_json.sh       - JSON report emitter
+#   lib/report_html.sh       - standalone HTML report generator
+#   lib/baseline.sh          - baseline save/load/diff
+#   controls/registry_data.sh - CIS control definitions (70+ register_control calls)
+#   checks/*.sh              - per-section check implementations
 
 set -euo pipefail
 

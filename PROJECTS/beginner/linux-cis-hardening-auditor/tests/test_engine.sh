@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_engine.sh
+#
+# Tests for the scoring engine
+#
+# Verifies compute_scores produces correct results across five
+# scenarios: overall score is non-zero when checks produce mixed
+# results from fixtures, per-section scores are populated for Initial
+# Setup and Network Configuration, all-pass checks yield exactly
+# 100.0 overall, one pass plus one fail yields exactly 50.0, and
+# reset_results clears all counters and result arrays to zero.
+#
+# Connects to:
+#   lib/engine.sh       - compute_scores, SCORE_OVERALL, SCORE_BY_SECTION
+#   lib/registry.sh     - reset_results, TOTAL_PASS/FAIL, RESULT_ORDER
+#   tests/test_helpers.sh - setup_test, TEST_TOTAL/PASS/FAIL counters
 
 test_engine_compute_scores_pass_fixtures() {
     CURRENT_TEST="test_engine_compute_scores_pass_fixtures"

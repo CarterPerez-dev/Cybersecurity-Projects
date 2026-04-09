@@ -1,6 +1,20 @@
 """
 ©AngelaMos | 2026
 deps.py
+
+FastAPI dependency injection providers for API key
+authentication and async database sessions
+
+require_api_key checks the X-API-Key header against
+settings.api_key, returning 401 if mismatched (no-op
+when api_key is unconfigured). get_session yields an
+AsyncSession from the app-level session_factory stored
+on app.state during lifespan initialization
+
+Connects to:
+  config.py  - settings.api_key
+  factory.py - app.state.session_factory
+  api/       - injected via Depends() in route handlers
 """
 
 from collections.abc import AsyncIterator

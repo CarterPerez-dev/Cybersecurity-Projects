@@ -1,5 +1,20 @@
 // ©AngelaMos | 2026
 // error.rs
+//
+// API error types and HTTP response mapping
+//
+// ApiError enumerates six error variants: NoFile (400),
+// FileTooLarge (400), InvalidBinary (400),
+// AnalysisFailed (500), NotFound (404), and Internal
+// (500). Each variant maps to a JSON response body with
+// an error code string and human-readable message via the
+// IntoResponse implementation. From impls convert
+// sqlx::Error, serde_json::Error, and
+// tokio::task::JoinError into Internal variants.
+//
+// Connects to:
+//   routes/upload.rs   - returned from upload handler
+//   routes/analysis.rs - returned from analysis lookup
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

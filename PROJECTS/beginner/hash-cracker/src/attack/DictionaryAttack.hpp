@@ -1,5 +1,16 @@
-// ©AngelaMos | 2026
-// DictionaryAttack.hpp
+/*
+©AngelaMos | 2026
+DictionaryAttack.hpp
+
+Memory-mapped wordlist attack with line-based thread partitioning
+
+Connects to:
+  attack/DictionaryAttack.cpp - implementation of create(), next()
+  io/MappedFile.hpp           - MappedFile for zero-copy file access
+  core/Concepts.hpp           - satisfies AttackStrategy concept
+  core/Engine.hpp             - default attack when no flags set
+  attack/RuleAttack.hpp       - RuleAttack wraps DictionaryAttack internally
+*/
 
 #pragma once
 

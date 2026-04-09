@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // threat-detail.module.scss
+//
+// CSS module for the threat detail slide-in panel
+//
+// Styles a full-height modal overlay (60% opacity black,
+// z-modal) with a right-aligned 520px max-width panel.
+// Contains a sticky header with close button, sectioned
+// body with 2-column grids for overview and request fields,
+// a component scores section with labeled progress bars
+// ($accent fill on $bg-surface-300 track), and a matched
+// rules section with monospace accent-tinted tags. Connects
+// to components/threat-detail, styles/_tokens
 // ===================
 
 @use '@/styles/tokens' as *;

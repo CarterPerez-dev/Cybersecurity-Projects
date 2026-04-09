@@ -1,6 +1,16 @@
 // ===================
 // © AngelaMos | 2026
 // severity-badge.module.scss
+//
+// CSS module for the severity badge component
+//
+// Styles a compact inline-flex pill badge with full border
+// radius, 2xs semibold uppercase text, and wider letter
+// spacing. Three severity variants map to token pairs:
+// .high ($severity-high text on $severity-high-bg), .medium
+// ($severity-medium on $severity-medium-bg), and .low
+// ($severity-low on $severity-low-bg). Connects to
+// components/severity-badge, styles/_tokens
 // ===================
 
 @use '@/styles/tokens' as *;

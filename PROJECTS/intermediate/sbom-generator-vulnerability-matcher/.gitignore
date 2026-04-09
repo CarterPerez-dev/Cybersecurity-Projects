@@ -1,0 +1,7 @@
+bin/
+coverage.out
+coverage.html
+*.db
+.bomber/
+dist/
+docs/

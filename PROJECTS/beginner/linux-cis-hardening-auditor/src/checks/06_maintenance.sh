@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 06_maintenance.sh
+#
+# CIS Section 6 checks: System Maintenance
+#
+# Implements controls 6.1.1-6.2.5 for critical file integrity and
+# account hygiene. Verifies permissions and ownership on five sensitive
+# files (/etc/passwd 644 root:root, /etc/shadow 640 root:shadow,
+# /etc/group 644 root:root, /etc/gshadow 640 root:shadow, /etc/passwd-
+# 600 root:root) via the _check_file_permissions helper using octal
+# comparison. Detects duplicate UIDs, duplicate GIDs, and duplicate
+# usernames in /etc/passwd and /etc/group using awk/sort/uniq. Enforces
+# that only root has UID 0 and detects legacy NIS '+' entries in
+# passwd, shadow, and group files.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - run_cmd (stat wrapper)
 
 _check_file_permissions() {
     local id="$1"

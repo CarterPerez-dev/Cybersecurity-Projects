@@ -2,7 +2,23 @@
 ©AngelaMos | 2026
 test_ensemble.py
 
-Tests ensemble score normalization, weighted fusion, ML/rule blending, and severity classification.
+Tests ensemble score normalization, weighted fusion, ML/rule
+blending, and severity classification functions
+
+TestScoreNormalization validates AE error below threshold
+maps below 0.5, 3x threshold caps at 1.0, zero error maps
+to 0.0, negative IF score maps above 0.5, positive below
+0.5, and zero maps to 0.5. TestEnsembleFusion validates
+weighted average computation, all-zero scores fuse to 0.0,
+all-one scores fuse to 1.0, and partial model support.
+TestBlendScores validates ML/rule blending at various
+weights and clamping. TestClassifySeverity validates HIGH
+at >= 0.7, MEDIUM at [0.5, 0.7), LOW below 0.5
+
+Connects to:
+  core/detection/ensemble - normalize_ae_score,
+                            normalize_if_score, fuse_scores,
+                            blend_scores, classify_severity
 """
 
 from app.core.detection.ensemble import (

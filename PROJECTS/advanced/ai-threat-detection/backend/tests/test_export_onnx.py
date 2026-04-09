@@ -2,7 +2,22 @@
 ©AngelaMos | 2026
 test_export_onnx.py
 
-Tests ONNX export for the autoencoder, random forest, and isolation forest models.
+Tests ONNX export and inference parity for the autoencoder,
+random forest, and isolation forest models
+
+TestAutoencoderExport validates file creation, PyTorch-to-
+ONNX output match within 1e-5 tolerance, and dynamic batch
+dimension (1, 16, 64). TestRandomForestExport validates
+file creation and ONNX inference returning class predictions
+and probabilities. TestIsolationForestExport validates file
+creation and ONNX anomaly scores matching sklearn
+decision_function within 1e-4 tolerance
+
+Connects to:
+  ml/export_onnx  - export_autoencoder,
+                    export_random_forest,
+                    export_isolation_forest
+  ml/autoencoder  - ThreatAutoencoder for AE export
 """
 
 from pathlib import Path

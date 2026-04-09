@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // index.tsx
+//
+// Dashboard page with stats overview, severity distribution,
+// alert feed, and ranked lists
+//
+// Exports a lazy-loaded Component (displayName
+// DashboardPage) that fetches useStats, useModelStatus, and
+// useAlerts. Renders a stat row (threats detected, stored,
+// high severity count, detection mode), a proportional
+// SeverityBar with colored segments and a SeverityLegend,
+// a live AlertFeed capped at 360px, and two RankedList
+// panels for top source IPs and most attacked paths. Shows
+// a WebSocket connection error banner when present. Connects
+// to api/hooks/useStats, api/hooks/useModels,
+// api/hooks/useAlerts, components/alert-feed,
+// components/stat-card
 // ===================
 
 import { useAlerts, useModelStatus, useStats } from '@/api/hooks'

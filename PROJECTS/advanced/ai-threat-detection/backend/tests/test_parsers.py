@@ -2,7 +2,19 @@
 ©AngelaMos | 2026
 test_parsers.py
 
-Tests nginx combined log line parsing via parse_combined.
+Tests nginx combined-format log line parsing via the
+parse_combined function
+
+Validates full field extraction (IP, timestamp, method,
+path, query string, status code, response size, referer,
+user agent, raw line), IPv4 and IPv6 address handling,
+dash-referer normalization to empty string, multi-parameter
+query strings with special characters, malformed and empty
+line None returns, dash response size normalization to
+zero, and full-length IPv6 address parsing
+
+Connects to:
+  core/ingestion/parsers - parse_combined, ParsedLogEntry
 """
 
 from datetime import datetime, UTC

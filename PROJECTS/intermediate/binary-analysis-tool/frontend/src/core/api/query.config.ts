@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // query.config.ts
+//
+// TanStack React Query client configuration with retry
+// logic (exponential backoff, skip for auth/404/validation
+// errors), Sonner toast integration for background query
+// and mutation cache errors, and four pre-built query
+// strategies (standard, frequent, static, auth)
+//
+// Connects to:
+//   config.ts     - QUERY_CONFIG timing constants
+//   errors.ts     - ApiError, ApiErrorCode
+//   App.tsx       - QueryClientProvider
 // ===================
 
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'

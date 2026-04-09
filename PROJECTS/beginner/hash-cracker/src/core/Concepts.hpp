@@ -1,5 +1,33 @@
-// ©AngelaMos | 2026
-// Concepts.hpp
+/*
+©AngelaMos | 2026
+Concepts.hpp
+
+C++20 concepts, error types, and contract definitions for the crack pipeline
+
+Defines the two core concepts that Engine::crack is templated on: Hasher
+(requires hash(string_view)->string, name()->string_view, digest_length()
+->size_t) and AttackStrategy (requires next()->expected<string,
+AttackComplete>, total()->size_t, progress()->size_t). CrackError is the
+unified error enum propagated via std::expected throughout the tool.
+AttackComplete is a sentinel type returned by attack strategies when
+their candidate space is exhausted.
+
+Key exports:
+  Hasher          - Concept constraining hash algorithm implementations
+  AttackStrategy  - Concept constraining candidate generators
+  CrackError      - Error enum (FileNotFound, InvalidHash, Exhausted, etc.)
+  AttackComplete  - Empty sentinel signaling end of candidate stream
+  crack_error_message - Maps CrackError to human-readable string_view
+
+Connects to:
+  core/Engine.hpp           - Engine::crack<H, A> constrained by both concepts
+  hash/EVPHasher.hpp        - EVPHasher satisfies the Hasher concept
+  attack/BruteForceAttack.hpp - BruteForceAttack satisfies AttackStrategy
+  attack/DictionaryAttack.hpp - DictionaryAttack satisfies AttackStrategy
+  attack/RuleAttack.hpp       - RuleAttack satisfies AttackStrategy
+  io/MappedFile.hpp           - returns CrackError on failure
+  main.cpp                    - uses crack_error_message for error display
+*/
 
 #pragma once
 

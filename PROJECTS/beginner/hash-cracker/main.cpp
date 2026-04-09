@@ -1,5 +1,33 @@
-// ©AngelaMos | 2026
-// main.cpp
+/*
+©AngelaMos | 2026
+main.cpp
+
+CLI entry point with hash type dispatch and attack mode selection
+
+Parses command-line arguments via boost::program_options for hash target,
+algorithm (md5/sha1/sha256/sha512/auto), attack mode (dictionary, brute-
+force, or rule-based), charset selection, salt, thread count, and JSON
+output. build_charset assembles a character set from comma-separated
+tokens (lower, upper, digits, special). dispatch_hasher selects the
+concrete EVPHasher instantiation at runtime via a switch on HashType,
+then dispatch_attack picks the attack strategy (BruteForceAttack,
+RuleAttack, or DictionaryAttack) based on config flags. When auto-
+detection is requested, HashDetector identifies the algorithm from hex
+digest length.
+
+Key exports:
+  main - Entry point, returns 0 on crack success, 1 on failure or exhaustion
+
+Connects to:
+  config/Config.hpp         - CrackConfig, CrackResult, charset constants, defaults
+  core/Concepts.hpp         - CrackError enum for error propagation
+  core/Engine.hpp           - Engine::crack<H, A> template drives the crack session
+  hash/HashDetector.hpp     - HashDetector::detect for auto-detection
+  hash/MD5Hasher.hpp et al. - Concrete hasher types for dispatch
+  attack/BruteForceAttack.hpp - BruteForceAttack for exhaustive mode
+  attack/DictionaryAttack.hpp - DictionaryAttack for wordlist mode
+  attack/RuleAttack.hpp       - RuleAttack for mutation mode
+*/
 
 #include <boost/program_options.hpp>
 #include <expected>

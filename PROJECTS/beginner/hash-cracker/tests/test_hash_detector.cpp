@@ -1,5 +1,17 @@
-// ©AngelaMos | 2026
-// test_hash_detector.cpp
+/*
+©AngelaMos | 2026
+test_hash_detector.cpp
+
+Tests for hash algorithm auto-detection by digest length
+
+Verifies detection of MD5 (32 chars), SHA-1 (40), SHA-256 (64), and
+SHA-512 (128) from real and synthetic hex strings. Confirms rejection
+of invalid lengths and non-hex characters with CrackError::InvalidHash.
+
+Connects to:
+  hash/HashDetector.hpp - HashDetector::detect tested
+  core/Concepts.hpp     - CrackError enum for error assertions
+*/
 
 #include <gtest/gtest.h>
 #include "src/hash/HashDetector.hpp"

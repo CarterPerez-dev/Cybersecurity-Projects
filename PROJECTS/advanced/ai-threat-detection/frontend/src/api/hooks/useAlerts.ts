@@ -1,6 +1,21 @@
 // ===================
 // © AngelaMos | 2026
 // useAlerts.ts
+//
+// WebSocket alert stream hook with Zustand state and
+// exponential reconnect
+//
+// Maintains a Zustand AlertState store holding the alert
+// ring buffer (capped at ALERTS.MAX_ITEMS), connection
+// status, and error state. useAlerts opens a WebSocket to
+// WS_ENDPOINTS.ALERTS, validates incoming JSON frames
+// against WebSocketAlertSchema via safeParse, stamps each
+// with a crypto.randomUUID id, and prepends to the store.
+// On close the hook schedules reconnection with exponential
+// backoff (RECONNECT_BASE_MS * 2^attempt, capped at
+// RECONNECT_MAX_MS). Cleanup on unmount closes the socket
+// and clears the retry timer. Connects to api/types/
+// websocket.types, config, components/alert-feed
 // ===================
 
 import { useEffect, useRef } from 'react'

@@ -1,5 +1,31 @@
-// ©AngelaMos | 2026
-// optimizer.v
+/*
+©AngelaMos | 2026
+optimizer.v
+
+Optimization and hardening suggestions for firewall rulesets
+
+Produces advisory Findings that do not indicate bugs but highlight ways
+to tighten or simplify a ruleset. find_mergeable_ports groups rules that
+differ only in destination port and suggests combining them into a
+single multiport rule. suggest_reordering flags high-traffic port rules
+(HTTP, HTTPS, DNS) buried deep in a chain where they slow traversal.
+find_missing_rate_limits warns when sensitive ports like SSH accept
+traffic without rate limiting. find_missing_conntrack checks for an
+ESTABLISHED/RELATED rule near the top of each chain. find_overly_permissive
+flags sensitive ports (SSH, MySQL, PostgreSQL, Redis) open to any source.
+find_redundant_terminal_drop catches explicit drop-all rules that duplicate
+the chain default policy.
+
+Key exports:
+  suggest_optimizations - Scans a Ruleset and returns optimization Findings
+
+Connects to:
+  config/config.v        - reads port constants, rate-limit defaults, multiport_max
+  models/models.v        - imports Rule, Ruleset, Finding
+  analyzer/conflict.v    - sibling module, both called from main.v cmd_analyze
+  main.v                 - called from cmd_analyze and cmd_optimize
+  display/display.v      - Findings are rendered by print_findings
+*/
 
 module analyzer
 

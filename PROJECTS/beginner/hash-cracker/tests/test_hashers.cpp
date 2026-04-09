@@ -1,5 +1,20 @@
-// ©AngelaMos | 2026
-// test_hashers.cpp
+/*
+©AngelaMos | 2026
+test_hashers.cpp
+
+Tests for all four hash algorithm implementations against known vectors
+
+Verifies MD5, SHA-1, SHA-256, and SHA-512 against NIST/RFC test vectors
+for empty string and "password". Checks static name() and digest_length()
+properties. Confirms deterministic output and non-empty results.
+
+Connects to:
+  hash/MD5Hasher.hpp    - MD5Hasher tested
+  hash/SHA1Hasher.hpp   - SHA1Hasher tested
+  hash/SHA256Hasher.hpp - SHA256Hasher tested
+  hash/SHA512Hasher.hpp - SHA512Hasher tested
+  hash/EVPHasher.hpp    - underlying implementation
+*/
 
 #include <gtest/gtest.h>
 #include "src/hash/MD5Hasher.hpp"

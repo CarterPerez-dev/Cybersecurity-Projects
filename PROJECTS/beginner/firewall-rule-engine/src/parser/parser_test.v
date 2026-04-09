@@ -1,5 +1,31 @@
-// ©AngelaMos | 2026
-// parser_test.v
+/*
+©AngelaMos | 2026
+parser_test.v
+
+Tests for parsing primitives, format detection, and full ruleset parsing
+
+Covers every public function in common.v, iptables.v, and nftables.v.
+Primitive tests verify network address CIDR and negation parsing, single
+and ranged port specs, protocol name and number resolution, action and
+table mapping, chain type classification, and conntrack state flag
+combinations. Format detection tests confirm heuristic identification of
+iptables table headers, chain policies, rule lines, and nftables table
+blocks. Integration tests load fixture files from testdata/ to verify
+rule counts, policy extraction, SSH port rules, conntrack rules,
+multiport parsing, rate limits, NAT/masquerade actions, and IPv6
+address handling. Also tests tokenize_iptables for quoted strings,
+ip_to_u32 for valid/invalid addresses, and goto (-g/--goto) handling.
+
+Connects to:
+  parser/common.v   - tests parse_network_addr, parse_port_spec, parse_port_list,
+                       parse_protocol, parse_action, parse_table, parse_chain_type,
+                       parse_conn_states, detect_format
+  parser/iptables.v - tests parse_iptables, tokenize_iptables
+  parser/nftables.v - tests parse_nftables
+  models/models.v   - tests ip_to_u32 directly
+  testdata/         - loads iptables_basic, iptables_complex, iptables_conflicts,
+                       nftables_basic, nftables_complex, nftables_conflicts fixtures
+*/
 
 module parser
 

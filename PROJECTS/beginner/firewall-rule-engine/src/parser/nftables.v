@@ -1,5 +1,29 @@
-// ©AngelaMos | 2026
-// nftables.v
+/*
+©AngelaMos | 2026
+nftables.v
+
+Parser for nftables ruleset format
+
+Uses recursive descent to walk the nested brace structure: table blocks
+contain chain blocks which contain rule lines. parse_nft_table extracts
+the table name (skipping address family keywords like inet/ip/ip6),
+parse_nft_chain reads the "type filter hook ... policy ..." preamble to
+capture chain policies, and parse_nft_rule tokenizes individual rule
+lines. Port matching handles both single ports ("dport 22") and set
+syntax ("dport { 80, 443 }"). Supports IPv4/IPv6 address matching via
+"ip saddr"/"ip6 saddr", conntrack via "ct state", rate limiting, NAT
+actions (dnat/snat/masquerade), and log with prefix.
+
+Key exports:
+  parse_nftables      - Parses a full nftables ruleset string into a Ruleset
+  parse_nftables_file - Convenience wrapper that reads a file first
+
+Connects to:
+  parser/common.v - calls parse_network_addr, parse_port_spec, parse_protocol,
+                     parse_action, parse_table, parse_chain_type, parse_conn_states
+  models/models.v - imports Rule, Ruleset, MatchCriteria, NetworkAddr, Action, Table
+  main.v          - called from load_ruleset when format is .nftables
+*/
 
 module parser
 

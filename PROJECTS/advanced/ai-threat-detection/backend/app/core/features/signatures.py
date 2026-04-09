@@ -1,6 +1,23 @@
 """
 ©AngelaMos | 2026
 signatures.py
+
+User-agent signature sets for bot and security scanner
+detection
+
+BOT_USER_AGENTS contains 34 lowercase search engine and
+crawler identifiers (googlebot, bingbot, gptbot, claudebot,
+etc.) for benign bot classification. SCANNER_USER_AGENTS
+contains 41 lowercase security tool signatures (nikto,
+sqlmap, nmap, burp, nuclei, metasploit, hydra, etc.) for
+hostile scanner detection. Both are frozensets matched via
+substring search against lowercased user-agent strings
+
+Connects to:
+  core/features/
+    extractor    - is_known_bot, is_known_scanner features
+  core/detection/
+    rules        - SCANNER_USER_AGENTS for UA rule scoring
 """
 
 BOT_USER_AGENTS: frozenset[str] = frozenset({

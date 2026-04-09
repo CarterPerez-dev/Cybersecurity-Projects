@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 ingest.py
+
+Batch log ingestion endpoint for pushing raw log lines
+into the detection pipeline
+
+POST /ingest/batch accepts a BatchIngestRequest (list of
+raw log line strings), pushes each into the pipeline's
+raw_queue via put_nowait, stops on QueueFull, and returns
+the count of successfully queued lines. Protected by
+require_api_key dependency
+
+Connects to:
+  deps.py              - require_api_key
+  core/ingestion/
+    pipeline.py        - pipeline.raw_queue
+  factory.py           - app.state.pipeline
 """
 
 import asyncio

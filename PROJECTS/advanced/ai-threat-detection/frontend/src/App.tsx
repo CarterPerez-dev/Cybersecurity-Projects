@@ -1,6 +1,14 @@
 // ===================
 // © AngelaMos | 2026
 // App.tsx
+//
+// Root React component with providers and routing
+//
+// Wraps the application in QueryClientProvider (TanStack
+// React Query), provides the browser router via
+// RouterProvider, renders a dark-themed Sonner toast
+// container at top-right, and includes ReactQueryDevtools
+// in development mode
 // ===================
 
 import { QueryClientProvider } from '@tanstack/react-query'

@@ -1,6 +1,21 @@
 """
 ©AngelaMos | 2026
 health.py
+
+Health and readiness probe endpoints for container
+orchestration
+
+GET /health returns liveness status with uptime_seconds
+and pipeline_running flag. GET /ready checks database
+connectivity (SELECT 1) and Redis ping, reports
+models_loaded status, and returns 503 if any dependency
+is down. Both endpoints read from app.state set during
+lifespan
+
+Connects to:
+  factory.py          - app.state.startup_time,
+                         pipeline_running, db_engine
+  core/redis_manager  - redis_manager.ping()
 """
 
 import time

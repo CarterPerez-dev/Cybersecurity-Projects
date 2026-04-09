@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_04_logging.sh
+#
+# Tests for CIS Section 4 (Logging and Auditing) checks
+#
+# Uses pass and fail fixture directories to verify auditd installation
+# (4.1.1), boot-time audit parameter in GRUB (4.1.3), audit backlog
+# limit (4.1.4), time change audit rules (4.1.5), rsyslog installation
+# (4.2.1), rsyslog FileCreateMode (4.2.3), and logging rule presence
+# (4.2.4). Each test asserts the expected status and evidence substring
+# matches against fixture /etc/default/grub, /etc/audit/rules.d/, and
+# /etc/rsyslog.conf contents.
+#
+# Connects to:
+#   checks/04_logging.sh  - check functions under test
+#   tests/test_helpers.sh  - setup_test, assert_status,
+#                             assert_evidence_contains
 
 test_4_1_1_pass() {
     CURRENT_TEST="test_4_1_1_pass"

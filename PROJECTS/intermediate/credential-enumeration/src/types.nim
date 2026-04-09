@@ -1,5 +1,24 @@
 # ©AngelaMos | 2026
 # types.nim
+#
+# Domain types for the credential enumeration tool
+#
+# Defines the core type hierarchy: Severity (info through critical) and
+# Category (browser, ssh, cloud, history, keyring, git, apptoken) as
+# string-backed enums. Finding captures a discovered credential exposure
+# with path, severity, description, optional Credential detail,
+# permissions, modification time, and file size. CollectorResult groups
+# findings from a single module with timing and error tracking. Report
+# aggregates all collector results with metadata (timestamp, target,
+# version, duration, module list) and a severity summary array.
+# HarvestConfig holds CLI-parsed runtime options. CollectorProc defines
+# the nimcall signature all collector modules implement.
+#
+# Connects to:
+#   config.nim           - constructs HarvestConfig via defaultConfig
+#   collectors/base.nim  - makeFinding/makeFindingWithCred build Findings
+#   output/json.nim      - serializes Report/Finding/Credential to JSON
+#   output/terminal.nim  - renders Report/Finding with severity badges
 
 {.push raises: [].}
 

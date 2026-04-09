@@ -1,6 +1,18 @@
 """
 ©AngelaMos | 2026
 base.py
+
+Abstract SQLModel base class providing UUID primary key
+and timezone-aware created_at timestamp
+
+TimestampedModel defines id as a uuid4 primary key and
+created_at as a DateTime(timezone=True) column with
+CURRENT_TIMESTAMP server default. All domain models
+inherit from this base
+
+Connects to:
+  models/threat_event    - ThreatEvent inherits
+  models/model_metadata  - ModelMetadata inherits
 """
 
 import uuid

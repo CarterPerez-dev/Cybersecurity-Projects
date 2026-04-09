@@ -1,6 +1,22 @@
 // ===================
 // © AngelaMos | 2026
 // format.ts
+//
+// Display formatting utilities for binary analysis
+// values
+//
+// formatBytes converts raw byte counts to human-readable
+// strings (B/KB/MB/GB) using 1024-based units with two
+// decimal places above bytes. formatHex renders numbers
+// as zero-padded uppercase hex strings (default 8 chars).
+// truncateHash shortens SHA-256 digests to a display
+// length (default 16 chars) with an ellipsis. copyTo
+// Clipboard wraps the Clipboard API with a boolean
+// success/failure return
+//
+// Connects to:
+//   pages/analysis  - hex formatting, hash display
+//   pages/landing   - byte size display
 // ===================
 
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB'] as const

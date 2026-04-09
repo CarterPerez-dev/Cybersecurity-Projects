@@ -1,6 +1,38 @@
 // ===================
 // © AngelaMos | 2026
 // tab-disassembly.tsx
+//
+// Disassembly tab with function sidebar, instruction
+// table, and dagre-layouted control flow graph
+//
+// Renders a two-panel layout: a left sidebar listing
+// all disassembled functions (address, name or sub_hex
+// fallback, instruction count) with entry point
+// highlighting and click-to-select via selectedAddr
+// state; and a main panel showing the selected
+// function's header (name, address, size, instruction
+// count, block count), an InstructionTable with per-
+// basic-block rows (address, hex bytes, mnemonic,
+// operands) with block boundary markers, and a CfgGraph
+// SVG visualization. layoutCfg uses @dagrejs/dagre for
+// top-to-bottom hierarchical layout with CFG_NODE_WIDTH
+// (160), CFG_NODE_HEIGHT (40), CFG_RANK_SEP (60), and
+// CFG_NODE_SEP (30). CfgGraph renders nodes as labeled
+// rectangles and edges as colored lines with arrowhead
+// markers: Fallthrough gray, ConditionalTrue green,
+// ConditionalFalse red, Unconditional blue, Call purple
+//
+// Connects to:
+//   api/types         - AnalysisResponse, CfgEdge,
+//                        CfgEdgeType, CfgNode,
+//                        FunctionInfo
+//   core/lib          - formatHex
+//   @dagrejs/dagre    - Graph, layout for CFG
+//                        positioning
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - disasmLayout, fnSidebar,
+//                        cfgContainer, cfgSvg styles
 // ===================
 
 import { layout as dagreLayout, Graph } from '@dagrejs/dagre'

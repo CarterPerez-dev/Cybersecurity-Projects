@@ -1,6 +1,14 @@
 // ===================
 // © AngelaMos | 2026
 // _fonts.scss
+//
+// Font family stack definitions
+//
+// Defines $font-sans (system UI stack: -apple-system,
+// BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica
+// Neue, Arial) and $font-mono (ui-monospace, SFMono-Regular,
+// SF Mono, Menlo, Consolas, Liberation Mono). Connects to
+// styles/_tokens, styles/_index, styles/_reset
 // ===================
 
 @use 'tokens' as *;

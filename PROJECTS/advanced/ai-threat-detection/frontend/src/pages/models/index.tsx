@@ -1,6 +1,20 @@
 // ===================
 // © AngelaMos | 2026
 // index.tsx
+//
+// Models page with status banner, retrain button, and model
+// cards
+//
+// Exports a lazy-loaded Component (displayName ModelsPage)
+// that fetches useModelStatus and provides useRetrain. Shows
+// a status banner indicating whether models are loaded and
+// the current detection mode. A retrain button triggers the
+// mutation with a spinning icon while pending. ModelCard
+// renders each ActiveModel entry with model_type, version,
+// training_samples, optional threshold to 4 decimals, and
+// a metrics section listing all numeric metric key-value
+// pairs. Empty state prompts retraining. Connects to
+// api/hooks/useModels, api/types/models.types
 // ===================
 
 import { LuRefreshCw } from 'react-icons/lu'

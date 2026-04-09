@@ -1,5 +1,35 @@
-// ©AngelaMos | 2026
-// analyzer_test.v
+/*
+©AngelaMos | 2026
+analyzer_test.v
+
+Tests for conflict detection and optimization analysis
+
+Tests both conflict.v and optimizer.v functions. Conflict tests cover
+shadowed rules (broad ACCEPT before narrow DROP), contradictions
+(overlapping criteria with opposing actions), duplicates (identical
+criteria and action), and redundant rules (strict subset with same
+action). Also verifies that disjoint rules (different protocols, non-
+overlapping ports) produce no false positives. Comparison helper tests
+exercise matches_overlap, match_is_superset, criteria_equal,
+actions_conflict, ports_overlap, ports_is_superset, addr_is_superset,
+addrs_overlap, and opt_str_equal with various none/some combinations.
+Optimizer tests cover mergeable ports, missing SSH rate limits, missing
+conntrack, unreachable rules after catch-all drops, overly permissive
+source-less rules on sensitive ports, redundant terminal drops against
+chain policy, and CIDR /0 containment.
+
+Connects to:
+  analyzer/conflict.v  - tests analyze_conflicts, find_shadowed_rules,
+                          find_contradictions, find_duplicates, find_redundant_rules,
+                          matches_overlap, match_is_superset, criteria_equal,
+                          actions_conflict, ports_overlap, ports_is_superset,
+                          addr_is_superset, addrs_overlap, opt_str_equal
+  analyzer/optimizer.v - tests find_mergeable_ports, find_missing_rate_limits,
+                          find_missing_conntrack, find_unreachable_after_drop,
+                          find_overly_permissive, find_redundant_terminal_drop
+  models/models.v      - uses MatchCriteria, NetworkAddr, PortSpec, Rule, Ruleset,
+                          tests cidr_contains directly
+*/
 
 module analyzer
 

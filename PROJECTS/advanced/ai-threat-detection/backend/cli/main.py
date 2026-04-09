@@ -1,6 +1,29 @@
 """
 ©AngelaMos | 2026
 main.py
+
+Typer CLI application with serve, train, replay, config,
+and health commands
+
+serve launches uvicorn with configurable host/port/reload.
+train loads CSIC 2010 dataset and/or synthetic data, runs
+TrainingOrchestrator, exports ONNX models, and writes
+metadata to the database via _write_metadata (creates an
+async engine, calls save_model_metadata). replay sends
+historical log lines in batches to a running server's
+/ingest/batch endpoint via httpx. config prints all
+settings with secrets redacted (_redact_url masks
+credentials in database URLs). health pings /health and
+displays status, uptime, and pipeline state
+
+Connects to:
+  app/config            - settings for serve defaults
+  app/main              - uvicorn target "app.main:app"
+  ml/orchestrator       - TrainingOrchestrator for train
+  ml/data_loader        - load_csic_dataset for CSIC data
+  ml/synthetic          - generate_mixed_dataset
+  ml/metadata           - save_model_metadata
+  api/ingest            - /ingest/batch for replay
 """
 
 import asyncio

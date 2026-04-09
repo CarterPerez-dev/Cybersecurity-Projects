@@ -1,0 +1,72 @@
+{
+  "results": [
+    {
+      "vulns": [
+        {
+          "id": "GO-2023-2102",
+          "summary": "HTTP/2 rapid reset can cause excessive work in net/http",
+          "aliases": ["CVE-2023-44487", "GHSA-qppj-fm5r-hxr3"],
+          "severity": [
+            {
+              "type": "CVSS_V3",
+              "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            }
+          ],
+          "affected": [
+            {
+              "package": {
+                "ecosystem": "Go",
+                "name": "golang.org/x/net",
+                "purl": "pkg:golang/golang.org/x/net"
+              },
+              "ranges": [
+                {
+                  "type": "SEMVER",
+                  "events": [
+                    {"introduced": "0"},
+                    {"fixed": "0.17.0"}
+                  ]
+                }
+              ]
+            }
+          ],
+          "database_specific": {
+            "severity": "HIGH"
+          }
+        },
+        {
+          "id": "GO-2023-1571",
+          "summary": "Excessive resource consumption in net/http",
+          "aliases": ["CVE-2022-41723"],
+          "severity": [
+            {
+              "type": "CVSS_V3",
+              "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            }
+          ],
+          "affected": [
+            {
+              "package": {
+                "ecosystem": "Go",
+                "name": "golang.org/x/net",
+                "purl": "pkg:golang/golang.org/x/net"
+              },
+              "ranges": [
+                {
+                  "type": "SEMVER",
+                  "events": [
+                    {"introduced": "0"},
+                    {"fixed": "0.7.0"}
+                  ]
+                }
+              ]
+            }
+          ],
+          "database_specific": {
+            "severity": "HIGH"
+          }
+        }
+      ]
+    }
+  ]
+}

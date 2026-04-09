@@ -1,6 +1,19 @@
 /**
  * ©AngelaMos | 2026
  * vite.config.ts
+ *
+ * Vite build configuration with dev proxy and manual chunk
+ * splitting
+ *
+ * Loads environment from the parent directory via loadEnv,
+ * resolves VITE_API_TARGET for the dev server proxy
+ * (/api rewrite and /ws WebSocket passthrough), sets @ path
+ * alias to src, enables SCSS preprocessing, builds to
+ * esnext with oxc minification and hidden sourcemaps in
+ * production, and splits vendor chunks into vendor-react
+ * (react-dom, react-router), vendor-query (TanStack), and
+ * vendor-state (zustand). Connects to src/main.tsx,
+ * src/App.tsx, src/config.ts
  */
 
 import path from 'node:path'

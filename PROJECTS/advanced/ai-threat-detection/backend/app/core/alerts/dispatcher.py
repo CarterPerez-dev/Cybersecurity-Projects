@@ -1,6 +1,26 @@
 """
 ©AngelaMos | 2026
 dispatcher.py
+
+Alert dispatcher routing scored threat events to storage,
+Redis pub/sub, and structured logging
+
+AlertDispatcher.dispatch receives a ScoredRequest from the
+pipeline, classifies severity via classify_severity, logs
+every event, and for MEDIUM+ severity persists to
+PostgreSQL via create_threat_event and publishes a
+WebSocketAlert JSON payload to the ALERTS_CHANNEL for
+real-time WebSocket relay
+
+Connects to:
+  core/alerts/__init__ - ALERTS_CHANNEL
+  core/detection/
+    ensemble           - classify_severity
+  core/ingestion/
+    pipeline           - ScoredRequest dataclass
+  schemas/websocket    - WebSocketAlert model
+  services/threat_
+    service            - create_threat_event
 """
 
 import logging

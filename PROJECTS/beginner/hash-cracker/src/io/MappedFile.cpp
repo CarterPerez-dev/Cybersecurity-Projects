@@ -1,5 +1,25 @@
-// ©AngelaMos | 2026
-// MappedFile.cpp
+/*
+©AngelaMos | 2026
+MappedFile.cpp
+
+POSIX mmap-based file mapping with RAII cleanup and move semantics
+
+open() calls POSIX open(2), fstat for size, and mmap with PROT_READ |
+MAP_PRIVATE. madvise(MADV_SEQUENTIAL) hints to the kernel that the file
+will be read linearly, which improves readahead performance for large
+wordlists. The destructor munmaps the region and closes the fd. Move
+constructor and assignment transfer ownership by nulling the source
+pointers, preventing double-unmap. Copy is deleted.
+
+Key exports:
+  MappedFile::open - Maps a file read-only, returns MappedFile or CrackError
+  MappedFile::data - Pointer to mapped memory
+  MappedFile::size - File size in bytes
+
+Connects to:
+  io/MappedFile.hpp           - class declaration
+  attack/DictionaryAttack.cpp - open() called in create(), data() read in next()
+*/
 
 #include "src/io/MappedFile.hpp"
 #include <fcntl.h>

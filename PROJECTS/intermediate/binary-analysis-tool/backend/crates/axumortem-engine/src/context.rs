@@ -1,5 +1,26 @@
 // ©AngelaMos | 2026
 // context.rs
+//
+// Analysis context holding binary data and accumulated pass results
+//
+// BinarySource is a two-variant enum: Mapped wraps a memmap2
+// Mmap for disk-backed files, Buffered wraps an Arc<[u8]> for
+// in-memory data received over the network. Both implement
+// AsRef<[u8]> so passes access the binary through a uniform
+// data() method. AnalysisContext is constructed with a source,
+// SHA-256 digest, filename, and file size. Each analysis pass
+// populates its corresponding Option field (format_result,
+// import_result, string_result, entropy_result,
+// disassembly_result, threat_result) as it runs, building up
+// the full analysis incrementally.
+//
+// Connects to:
+//   formats/mod.rs     - FormatResult
+//   passes/disasm.rs   - DisassemblyResult
+//   passes/entropy.rs  - EntropyResult
+//   passes/imports.rs  - ImportResult
+//   passes/strings.rs  - StringResult
+//   passes/threat.rs   - ThreatResult
 
 use std::sync::Arc;
 

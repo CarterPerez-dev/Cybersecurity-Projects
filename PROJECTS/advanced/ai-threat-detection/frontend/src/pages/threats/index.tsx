@@ -1,6 +1,22 @@
 // ===================
 // © AngelaMos | 2026
 // index.tsx
+//
+// Threats table page with severity and IP filters,
+// pagination, and detail modal
+//
+// Exports a lazy-loaded Component (displayName ThreatsPage)
+// that manages offset, severity filter (ALL/HIGH/MEDIUM/
+// LOW), and source IP text filter as local state. Passes
+// these as ThreatParams to useThreats with PAGINATION
+// defaults. Renders a responsive table with time, source
+// IP, MethodBadge, path, score to 3 decimals,
+// SeverityBadge, and status code columns. Rows are
+// clickable to open ThreatDetail in a modal. Previous/Next
+// pagination controls show the current range and total.
+// Connects to api/hooks/useThreats, api/types/threats.types,
+// components/method-badge, components/severity-badge,
+// components/threat-detail, config
 // ===================
 
 import { useState } from 'react'

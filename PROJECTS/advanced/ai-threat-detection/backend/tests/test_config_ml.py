@@ -2,7 +2,17 @@
 ©AngelaMos | 2026
 test_config_ml.py
 
-Tests ML-related settings defaults: detection mode, ensemble weights, model paths, and MLflow URI.
+Tests ML-related settings defaults for detection mode,
+ensemble weights, model paths, and MLflow tracking URI
+
+Validates that the default detection_mode is 'rules',
+ensemble weights (AE + RF + IF) sum to exactly 1.0,
+model_dir defaults to 'data/models', ae_threshold_
+percentile defaults to 99.5, and mlflow_tracking_uri
+defaults to 'file:./mlruns'
+
+Connects to:
+  app/config - Settings pydantic-settings model
 """
 
 from app.config import settings

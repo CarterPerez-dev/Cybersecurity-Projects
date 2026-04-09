@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // models.types.ts
+//
+// Zod schemas and types for ML model status and retraining
+//
+// Defines ActiveModelSchema with model_type, version,
+// training_samples, a flexible metrics record, and nullable
+// threshold. ModelStatusSchema wraps models_loaded flag,
+// detection_mode string, and an array of ActiveModel
+// entries. RetrainResponseSchema captures the status and
+// job_id returned when a retrain is triggered. All types
+// are inferred from their schemas via z.infer. Connects to
+// api/hooks/useModels, pages/models
 // ===================
 
 import { z } from 'zod'

@@ -1,6 +1,19 @@
 // ===================
 // © AngelaMos | 2026
 // _mixins.scss
+//
+// Reusable SCSS mixins for layout, typography, transitions,
+// and responsiveness
+//
+// Defines a $breakpoints map (xs through 2xl) with
+// breakpoint-up and breakpoint-down media query mixins,
+// flex layout helpers (flex-center, flex-between,
+// flex-column, flex-column-center), accessibility (sr-only),
+// text overflow (truncate, line-clamp), transition presets
+// (transition-fast, transition-normal), positioning
+// (absolute-fill, absolute-center), hover media query
+// guard, and hide-scrollbar. Connects to styles/_tokens,
+// styles/_index, all *.module.scss files
 // ===================
 
 @use 'sass:map';

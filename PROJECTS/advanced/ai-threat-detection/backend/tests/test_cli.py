@@ -1,6 +1,20 @@
 """
 ©AngelaMos | 2026
 test_cli.py
+
+Tests the Typer CLI command help output, argument
+validation, and metadata persistence wiring
+
+TestCLICommands validates train --help shows csic-dir and
+synthetic options, nonexistent csic-dir exits with error,
+replay/serve/config/health --help exit cleanly with
+expected content, and missing replay log file fails.
+TestCLITrainMetadata mocks the orchestrator to verify that
+train emits a warning when DB metadata write is unavailable
+
+Connects to:
+  cli/main - Typer app with serve, train, replay, config,
+             health commands
 """
 
 import re

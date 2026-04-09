@@ -1,6 +1,14 @@
 # ©AngelaMos | 2026
-# Production Vite Dockerfile
-# Multi-stage build: pnpm build → nginx static serving
+# vite.prod
+#
+# Multi-stage production Dockerfile for the Vite frontend
+#
+# Builder stage: node:24-alpine with corepack pnpm, runs
+# frozen-lockfile install and pnpm build to produce the
+# dist output. Runtime stage: nginx:alpine, removes the
+# default config, copies vigil.conf and the built assets
+# to the nginx html root. Includes a HEALTHCHECK on /health.
+# Connects to compose.yml, infra/nginx/vigil.conf
 
 FROM node:24-alpine AS builder
 

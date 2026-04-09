@@ -1,6 +1,26 @@
 /**
- * ©AngelaMos | 2025
+ * ©AngelaMos | 2026
  * vite.config.ts
+ *
+ * Vite build configuration with React plugin, path
+ * aliases, dev proxy, SCSS preprocessing, and manual
+ * chunk splitting
+ *
+ * Configures @vitejs/plugin-react and vite-tsconfig-paths
+ * plugins, resolves @ alias to ./src, enables SCSS
+ * preprocessing, and sets up a dev server on port 5173
+ * with /api proxy to VITE_API_TARGET (fallback localhost
+ * :8000) that strips the /api prefix. Production builds
+ * target esnext with oxc minification, hidden sourcemaps,
+ * and manual chunks splitting react-dom/react-router into
+ * vendor-react, @tanstack/react-query into vendor-query,
+ * and zustand into vendor-state. Environment variables are
+ * loaded from the parent directory via loadEnv
+ *
+ * Connects to:
+ *   src/App.tsx     - root application component
+ *   src/config.ts   - VITE_API_URL consumed at runtime
+ *   tsconfig.json   - path aliases resolved by plugin
  */
 
 import path from 'node:path'

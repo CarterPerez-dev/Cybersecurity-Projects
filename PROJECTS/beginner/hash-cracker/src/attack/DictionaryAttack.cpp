@@ -1,5 +1,28 @@
-// ©AngelaMos | 2026
-// DictionaryAttack.cpp
+/*
+©AngelaMos | 2026
+DictionaryAttack.cpp
+
+Wordlist reading over a memory-mapped file with thread-safe partitioning
+
+create() opens the wordlist via MappedFile, counts total lines, divides
+them evenly among threads (with remainder distribution), then walks
+forward through the mapped buffer to find each thread's start and end
+byte offsets. next() scans forward from current_offset_ to the next
+newline, strips trailing \r for Windows-format wordlists, and returns
+the word. Skips blank lines. Returns AttackComplete when the thread's
+partition is exhausted.
+
+Key exports:
+  DictionaryAttack::create   - Factory that opens and partitions a wordlist file
+  DictionaryAttack::next     - Returns next word or AttackComplete
+  DictionaryAttack::total    - Total words in this thread's partition
+  DictionaryAttack::progress - Words read so far
+
+Connects to:
+  attack/DictionaryAttack.hpp - class declaration
+  io/MappedFile.hpp           - MappedFile for zero-copy file access
+  core/Concepts.hpp           - CrackError and AttackComplete types
+*/
 
 #include "src/attack/DictionaryAttack.hpp"
 #include <algorithm>

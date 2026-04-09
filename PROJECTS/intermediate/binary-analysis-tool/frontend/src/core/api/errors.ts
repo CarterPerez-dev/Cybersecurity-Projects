@@ -1,6 +1,20 @@
 /**
  * ©AngelaMos | 2026
  * errors.ts
+ *
+ * API error classification and Axios error transformer
+ *
+ * ApiError extends Error with a typed code (9 variants
+ * from NETWORK_ERROR to UNKNOWN_ERROR), HTTP status code,
+ * optional validation details, and getUserMessage() for
+ * user-facing strings. transformAxiosError maps HTTP
+ * status codes to ApiErrorCode values and extracts
+ * detail/message from response bodies. Registers ApiError
+ * as the TanStack React Query default error type.
+ *
+ * Connects to:
+ *   core/api/query.config.ts - error handling in caches
+ *   api/hooks                - onError transforms
  */
 
 import type { AxiosError } from 'axios'

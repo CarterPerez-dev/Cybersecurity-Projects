@@ -1,5 +1,29 @@
-// ©AngelaMos | 2026
-// iptables.v
+/*
+©AngelaMos | 2026
+iptables.v
+
+Parser for iptables-save output format
+
+Reads the *table / :CHAIN POLICY / -A rule / COMMIT structure that
+iptables-save produces. tokenize_iptables splits each rule line into
+tokens while respecting single and double quotes so log prefixes like
+"DROPPED: " stay intact. parse_iptables_rule walks the token stream
+flag by flag (-p, -s, -d, --dport, --state, -j, etc.) building a Rule
+struct. The ! negation token is tracked across flag boundaries so
+"! -s 10.0.0.0/8" correctly sets NetworkAddr.negated. Chain default
+policies (":INPUT DROP [0:0]") are stored in Ruleset.policies.
+
+Key exports:
+  parse_iptables      - Parses a full iptables-save string into a Ruleset
+  parse_iptables_file - Convenience wrapper that reads a file first
+
+Connects to:
+  parser/common.v - calls parse_network_addr, parse_port_spec, parse_port_list,
+                     parse_protocol, parse_action, parse_table, parse_chain_type,
+                     parse_conn_states for every token type
+  models/models.v - imports Rule, Ruleset, MatchCriteria, NetworkAddr, Action, Table
+  main.v          - called from load_ruleset when format is .iptables
+*/
 
 module parser
 

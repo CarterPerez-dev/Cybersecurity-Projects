@@ -1,5 +1,16 @@
 # ©AngelaMos | 2026
 # fastapi.prod
+#
+# Multi-stage production Dockerfile for the FastAPI backend
+#
+# Builder stage: python:3.14-slim with uv, compiles
+# requirements from pyproject.toml with ml extras and
+# installs to /app/deps. Runtime stage: python:3.14-slim
+# with libpq5 and curl, copies the dependency tree to a
+# non-root appuser site-packages path, copies backend source
+# and entrypoint, creates model directory, and runs uvicorn
+# without --reload. Includes a HEALTHCHECK on /health.
+# Connects to compose.yml, entrypoint.sh
 
 FROM python:3.14-slim AS builder
 

@@ -1,5 +1,23 @@
-// ©AngelaMos | 2026
-// HashDetector.cpp
+/*
+©AngelaMos | 2026
+HashDetector.cpp
+
+Hash algorithm detection via hex character validation and length matching
+
+Validates that every character in the input is hexadecimal, then switches
+on the string length to identify the algorithm: 32 chars for MD5, 40 for
+SHA-1, 64 for SHA-256, 128 for SHA-512. Returns CrackError::InvalidHash
+for non-hex input or unrecognized lengths.
+
+Key exports:
+  HashDetector::detect - Returns HashType or CrackError based on hex length
+
+Connects to:
+  hash/HashDetector.hpp - class declaration and HashType enum
+  config/Config.hpp     - MD5_HEX_LENGTH, SHA1_HEX_LENGTH, SHA256_HEX_LENGTH,
+                           SHA512_HEX_LENGTH constants
+  main.cpp              - called when --type=auto
+*/
 
 #include "src/hash/HashDetector.hpp"
 #include "src/config/Config.hpp"

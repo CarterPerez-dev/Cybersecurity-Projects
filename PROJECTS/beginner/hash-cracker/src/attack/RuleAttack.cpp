@@ -1,5 +1,28 @@
-// ©AngelaMos | 2026
-// RuleAttack.cpp
+/*
+©AngelaMos | 2026
+RuleAttack.cpp
+
+Mutation-based attack combining dictionary words with transformation rules
+
+For each word from the underlying DictionaryAttack, load_next_word()
+generates the full mutation set via RuleSet::apply_all (capitalize,
+uppercase, leet speak, append/prepend digits 0-999, reverse, toggle
+case). When chain_rules is true, it takes the first-pass mutations and
+runs them through apply_all again, producing double-mutated candidates.
+next() iterates through the mutations_ buffer for the current word,
+calling load_next_word() when the buffer is exhausted.
+
+Key exports:
+  RuleAttack::create   - Factory wrapping a DictionaryAttack with mutation config
+  RuleAttack::next     - Returns next mutation or AttackComplete
+  RuleAttack::total    - Underlying dictionary word count (mutations multiply this)
+  RuleAttack::progress - Total candidates yielded so far
+
+Connects to:
+  attack/RuleAttack.hpp       - class declaration
+  attack/DictionaryAttack.hpp - DictionaryAttack for word iteration
+  rules/RuleSet.hpp           - RuleSet::apply_all for generating mutations
+*/
 
 #include "src/attack/RuleAttack.hpp"
 #include "src/rules/RuleSet.hpp"

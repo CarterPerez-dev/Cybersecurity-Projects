@@ -2,7 +2,19 @@
 ©AngelaMos | 2026
 test_experiment.py
 
-Tests the VigilExperiment MLflow wrapper: run lifecycle, param/metric logging, and status tagging.
+Tests the VigilExperiment MLflow context manager for run
+lifecycle, parameter/metric logging, and status tagging
+
+Uses a tmp_path MLflow tracking URI for isolation.
+Validates run ID is set on context entry and None before,
+log_params writes string values, log_metrics stores floats,
+log_artifact uploads files to the artifact list,
+python_version and platform system metadata tags are auto-
+logged, successful exit tags status='completed', and
+exception exit tags status='failed' with the error message
+
+Connects to:
+  ml/experiment - VigilExperiment
 """
 
 from pathlib import Path

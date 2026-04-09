@@ -1,5 +1,37 @@
 # ©AngelaMos | 2026
 # terminal.nim
+#
+# ANSI terminal renderer with box-drawing output
+#
+# Renders the full credential enumeration report to the terminal
+# using Unicode box-drawing characters for bordered sections.
+# visualLen computes display width by skipping ANSI escape
+# sequences and UTF-8 continuation bytes so padding aligns
+# correctly despite embedded color codes. truncateVisual truncates
+# strings at a visual-width boundary without splitting escape
+# sequences. sevBadge produces colored severity labels using the
+# SeverityColors and SeverityLabels maps from config. Three box
+# helpers (boxLine, boxBottom, boxMid) draw top, bottom, and
+# mid-section borders at a fixed 78-column width.
+# renderModuleHeader prints a bordered header with the module name,
+# category description, finding count, and duration. renderFinding
+# shows a severity badge, truncated description, file path with
+# permissions and modification date, and an optional credential
+# preview. renderSummary totals findings across all modules and
+# displays a severity badge breakdown. renderTerminal orchestrates
+# the full output sequence: banner, target and module metadata,
+# per-module sections (skipping empty modules unless verbose), and
+# the summary footer.
+#
+# Connects to:
+#   types.nim   - Severity, Finding, Report, CollectorResult,
+#                  Credential, ReportMetadata
+#   config.nim  - BoxVertical, BoxTopLeft, BoxTopRight, BoxBottomLeft,
+#                  BoxBottomRight, BoxHorizontal, BoxTeeRight, BoxTeeLeft,
+#                  SeverityColors, SeverityLabels, ColorBold, ColorReset,
+#                  ColorDim, ColorCyan, ColorBoldRed, Banner,
+#                  BannerTagline, AppVersion, Arrow, CrossMark,
+#                  ModuleDescriptions
 
 {.push raises: [].}
 
@@ -88,14 +120,16 @@ proc renderBanner*(quiet: bool) =
   except CatchableError:
     discard
 
-proc renderModuleHeader(name: string, desc: string, findingCount: int, durationMs: int64) =
+proc renderModuleHeader(
+    name: string, desc: string, findingCount: int, durationMs: int64
+) =
   try:
     stdout.writeLine boxLine(BoxWidth)
-    let label = BoxVertical & " " & ColorBold & ColorCyan &
-      name.toUpperAscii() & ColorReset & ColorDim & " " & Arrow &
-      " " & desc & ColorReset
-    let stats = $findingCount & " findings" & ColorDim & " (" &
-      $durationMs & "ms)" & ColorReset
+    let label =
+      BoxVertical & " " & ColorBold & ColorCyan & name.toUpperAscii() & ColorReset &
+      ColorDim & " " & Arrow & " " & desc & ColorReset
+    let stats =
+      $findingCount & " findings" & ColorDim & " (" & $durationMs & "ms)" & ColorReset
     let usedWidth = 2 + name.len + 3 + desc.len
     let statsVisual = visualLen(stats)
     let gap = BoxWidth - usedWidth - statsVisual - 2
@@ -111,12 +145,12 @@ proc renderModuleHeader(name: string, desc: string, findingCount: int, durationM
     discard
 
 proc renderFinding(f: Finding) =
-  let descLine = BoxVertical & " " & sevBadge(f.severity) & " " &
+  let descLine =
+    BoxVertical & " " & sevBadge(f.severity) & " " &
     truncateVisual(f.description, InnerWidth - 14)
   writeBoxLine(descLine)
 
-  var detail = BoxVertical & "   " & ColorDim & f.path &
-    "  [" & f.permissions & "]"
+  var detail = BoxVertical & "   " & ColorDim & f.path & "  [" & f.permissions & "]"
   if f.modified != "unknown":
     detail &= "  mod:" & f.modified
   detail &= ColorReset
@@ -125,16 +159,17 @@ proc renderFinding(f: Finding) =
   if f.credential.isSome:
     let cred = f.credential.get()
     if cred.preview.len > 0:
-      let previewLine = BoxVertical & "   " & ColorDim & Arrow &
-        " " & cred.preview & ColorReset
+      let previewLine =
+        BoxVertical & "   " & ColorDim & Arrow & " " & cred.preview & ColorReset
       writeBoxLine(previewLine)
 
 proc renderModuleErrors(errors: seq[string]) =
   if errors.len == 0:
     return
   for err in errors:
-    let errLine = BoxVertical & " " & ColorBoldRed & CrossMark &
-      ColorReset & " " & ColorDim & err & ColorReset
+    let errLine =
+      BoxVertical & " " & ColorBoldRed & CrossMark & ColorReset & " " & ColorDim & err &
+      ColorReset
     writeBoxLine(errLine)
 
 proc renderSummary(report: Report) =
@@ -148,10 +183,10 @@ proc renderSummary(report: Report) =
     for sev in Severity:
       totalFindings += report.summary[sev]
 
-    let countLine = BoxVertical & " " & ColorBold & $totalFindings &
-      ColorReset & " findings across " & ColorBold &
-      $report.results.len & ColorReset & " modules" & ColorDim &
-      " (" & $report.metadata.durationMs & "ms)" & ColorReset
+    let countLine =
+      BoxVertical & " " & ColorBold & $totalFindings & ColorReset & " findings across " &
+      ColorBold & $report.results.len & ColorReset & " modules" & ColorDim & " (" &
+      $report.metadata.durationMs & "ms)" & ColorReset
     writeBoxLine(countLine)
 
     var badgeLine = BoxVertical & " "
@@ -184,10 +219,7 @@ proc renderTerminal*(report: Report, quiet: bool, verbose: bool) =
       continue
 
     renderModuleHeader(
-      res.name,
-      ModuleDescriptions[res.category],
-      res.findings.len,
-      res.durationMs
+      res.name, ModuleDescriptions[res.category], res.findings.len, res.durationMs
     )
 
     for finding in res.findings:

@@ -1,5 +1,17 @@
 // ©AngelaMos | 2026
 // cors.rs
+//
+// CORS middleware configuration
+//
+// layer() builds a tower-http CorsLayer allowing GET,
+// POST, and OPTIONS methods with Content-Type and Accept
+// headers. When cors_origin is "*" the layer permits any
+// origin; otherwise it parses the configured origin string
+// into a single allowed HeaderValue.
+//
+// Connects to:
+//   config.rs - AppConfig.cors_origin
+//   main.rs   - applied as tower layer
 
 use axum::http::header::{HeaderName, ACCEPT, CONTENT_TYPE};
 use axum::http::Method;

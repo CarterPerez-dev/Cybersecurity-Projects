@@ -1,6 +1,23 @@
 """
 ©AngelaMos | 2026
 threats.py
+
+Threat event CRUD endpoints with filtering and
+pagination
+
+GET /threats lists events with optional severity,
+source_ip, since/until datetime filters, and limit/
+offset pagination (max 100). GET /threats/{threat_id}
+fetches a single event by UUID, returning 404 if not
+found. Both delegate to threat_service for database
+queries
+
+Connects to:
+  deps.py               - get_session dependency
+  schemas/threats       - ThreatEventResponse,
+                           ThreatListResponse
+  services/threat_
+    service             - get_threats, get_threat_by_id
 """
 
 import uuid

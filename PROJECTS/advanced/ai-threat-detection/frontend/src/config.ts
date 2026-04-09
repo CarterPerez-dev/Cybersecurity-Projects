@@ -1,6 +1,17 @@
 // ===================
 // © AngelaMos | 2026
 // config.ts
+//
+// Application-wide constants and configuration values
+//
+// Centralizes all API endpoint paths (health, ready,
+// threats CRUD, stats, model status/retrain), WebSocket
+// endpoint (/ws/alerts), TanStack Query cache keys with
+// hierarchical namespacing, client-side route paths
+// (dashboard, threats, models), localStorage key for UI
+// persistence, query timing config (stale, GC, retry),
+// pagination defaults (50/100 limit), and alert feed
+// settings (max 50 items, exponential reconnect 1s-30s)
 // ===================
 
 export const API_ENDPOINTS = {

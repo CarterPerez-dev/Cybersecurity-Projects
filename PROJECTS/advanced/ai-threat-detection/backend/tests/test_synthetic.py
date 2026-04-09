@@ -1,6 +1,24 @@
 """
 ©AngelaMos | 2026
 test_synthetic.py
+
+Tests synthetic HTTP traffic generators and mixed dataset
+assembly for ML training
+
+TestGenerators validates all 7 per-type generators (SQLi,
+XSS, traversal, Log4Shell, SSRF, scanner, normal) return
+correct counts, contain expected payload patterns (OR/UNION
+for SQLi, script/alert for XSS, ../ for traversal), return
+ParsedLogEntry instances, and pass through feature
+extraction and encoding to 35-dim vectors. TestMixedDataset
+verifies correct X shape (n, 35), dual-label y, matching
+label counts, and finite feature values
+
+Connects to:
+  ml/synthetic            - all generate_* functions,
+                            generate_mixed_dataset
+  core/features/extractor - extract_request_features
+  core/features/encoder   - encode_for_inference
 """
 
 import numpy as np

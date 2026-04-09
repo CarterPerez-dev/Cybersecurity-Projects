@@ -1,6 +1,23 @@
 """
 ©AngelaMos | 2026
 test_data_loader.py
+
+Tests CSIC 2010 dataset parsing, CSICRequest-to-
+ParsedLogEntry conversion, and end-to-end dataset loading
+
+TestParseCSICFile validates HTTP request block splitting,
+method/path/query/header extraction, POST body capture,
+attack label assignment, malformed block skipping, and
+empty file handling using inline CSIC-format fixtures.
+TestCSICToParsedEntry verifies synthesized defaults (IP,
+timestamp, status) and POST body query string merging.
+TestLoadCSICDataset confirms 35-column X shape, dual-label
+y arrays, correct per-file label counts, and finite feature
+values
+
+Connects to:
+  ml/data_loader - parse_csic_file, csic_to_parsed_entry,
+                   load_csic_dataset
 """
 
 from pathlib import Path

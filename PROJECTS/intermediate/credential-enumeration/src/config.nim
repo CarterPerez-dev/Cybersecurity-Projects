@@ -1,5 +1,25 @@
 # ©AngelaMos | 2026
 # config.nim
+#
+# Application constants and default configuration
+#
+# Central repository for every configurable value in the tool. Defines
+# the module category list with human-readable names and descriptions,
+# filesystem paths for each collector target (Firefox/Chromium browser
+# dirs, SSH paths and key headers/encryption markers, AWS/GCP/Azure/
+# Kubernetes config paths, shell history files, secret regex patterns,
+# sensitive command patterns, .env file patterns, keyring/wallet/
+# password store dirs, Git credential files and token prefixes, and
+# 20+ application token paths from Docker to Terraform to rclone).
+# Also defines permission constants, ANSI color codes, severity color/
+# label mappings, box-drawing characters for terminal output, the
+# ASCII banner, and the defaultConfig factory proc.
+#
+# Connects to:
+#   types.nim               - Category, Severity, HarvestConfig, OutputFormat
+#   collectors/*.nim         - all collectors reference path/pattern constants
+#   output/terminal.nim     - banner, colors, box characters, severity labels
+#   harvester.nim           - defaultConfig, ModuleNames, ModuleDescriptions
 
 {.push raises: [].}
 
@@ -10,10 +30,8 @@ const
   AppVersion* = "0.1.0"
   BinaryName* = "credenum"
 
-  AllModules*: seq[Category] = @[
-    catBrowser, catSsh, catCloud,
-    catHistory, catKeyring, catGit, catApptoken
-  ]
+  AllModules*: seq[Category] =
+    @[catBrowser, catSsh, catCloud, catHistory, catKeyring, catGit, catApptoken]
 
   ModuleNames*: array[Category, string] = [
     catBrowser: "browser",
@@ -22,7 +40,7 @@ const
     catHistory: "history",
     catKeyring: "keyring",
     catGit: "git",
-    catApptoken: "apptoken"
+    catApptoken: "apptoken",
   ]
 
   ModuleDescriptions*: array[Category, string] = [
@@ -32,7 +50,7 @@ const
     catHistory: "Shell history and environment files",
     catKeyring: "Keyrings and password stores",
     catGit: "Git credential stores",
-    catApptoken: "Application tokens and database configs"
+    catApptoken: "Application tokens and database configs",
   ]
 
 const
@@ -42,12 +60,8 @@ const
   FirefoxCookiesDb* = "cookies.sqlite"
   FirefoxKeyDb* = "key4.db"
 
-  ChromiumDirs* = [
-    ".config/google-chrome",
-    ".config/chromium",
-    ".config/brave",
-    ".config/vivaldi"
-  ]
+  ChromiumDirs* =
+    [".config/google-chrome", ".config/chromium", ".config/brave", ".config/vivaldi"]
   ChromiumLoginData* = "Login Data"
   ChromiumCookies* = "Cookies"
   ChromiumWebData* = "Web Data"
@@ -59,20 +73,13 @@ const
   SshKnownHosts* = "known_hosts"
 
   SshKeyHeaders* = [
-    "-----BEGIN OPENSSH PRIVATE KEY-----",
-    "-----BEGIN RSA PRIVATE KEY-----",
-    "-----BEGIN EC PRIVATE KEY-----",
-    "-----BEGIN DSA PRIVATE KEY-----",
-    "-----BEGIN PRIVATE KEY-----"
+    "-----BEGIN OPENSSH PRIVATE KEY-----", "-----BEGIN RSA PRIVATE KEY-----",
+    "-----BEGIN EC PRIVATE KEY-----", "-----BEGIN DSA PRIVATE KEY-----",
+    "-----BEGIN PRIVATE KEY-----",
   ]
 
-  SshEncryptedMarkers* = [
-    "ENCRYPTED",
-    "Proc-Type: 4,ENCRYPTED",
-    "aes256-ctr",
-    "aes128-ctr",
-    "bcrypt"
-  ]
+  SshEncryptedMarkers* =
+    ["ENCRYPTED", "Proc-Type: 4,ENCRYPTED", "aes256-ctr", "aes128-ctr", "bcrypt"]
 
   SshSafeKeyPerms* = "0600"
   SshSafeDirPerms* = "0700"
@@ -96,35 +103,17 @@ const
   KubeUserMarker* = "users:"
 
 const
-  HistoryFiles* = [
-    ".bash_history",
-    ".zsh_history",
-    ".fish_history",
-    ".sh_history",
-    ".python_history"
-  ]
+  HistoryFiles* =
+    [".bash_history", ".zsh_history", ".fish_history", ".sh_history", ".python_history"]
 
   SecretPatterns* = [
-    "KEY=",
-    "SECRET=",
-    "TOKEN=",
-    "PASSWORD=",
-    "PASSWD=",
-    "API_KEY=",
-    "ACCESS_KEY=",
-    "PRIVATE_KEY=",
-    "AUTH_TOKEN=",
-    "CREDENTIALS="
+    "KEY=", "SECRET=", "TOKEN=", "PASSWORD=", "PASSWD=", "API_KEY=", "ACCESS_KEY=",
+    "PRIVATE_KEY=", "AUTH_TOKEN=", "CREDENTIALS=",
   ]
 
   HistoryCommandPatterns* = [
-    "curl.*-h.*authoriz",
-    "curl.*-u ",
-    "wget.*--header.*authoriz",
-    "wget.*--password",
-    "mysql.*-p",
-    "psql.*password",
-    "sshpass"
+    "curl.*-h.*authoriz", "curl.*-u ", "wget.*--header.*authoriz", "wget.*--password",
+    "mysql.*-p", "psql.*password", "sshpass",
   ]
 
   EnvFileName* = ".env"
@@ -206,7 +195,7 @@ const
     svLow: ColorCyan,
     svMedium: ColorYellow,
     svHigh: ColorBoldMagenta,
-    svCritical: ColorBoldRed
+    svCritical: ColorBoldRed,
   ]
 
   SeverityLabels*: array[Severity, string] = [
@@ -214,7 +203,7 @@ const
     svLow: "LOW",
     svMedium: "MEDIUM",
     svHigh: "HIGH",
-    svCritical: "CRITICAL"
+    svCritical: "CRITICAL",
   ]
 
 const
@@ -241,5 +230,5 @@ proc defaultConfig*(): HarvestConfig =
     outputPath: "",
     dryRun: false,
     quiet: false,
-    verbose: false
+    verbose: false,
   )

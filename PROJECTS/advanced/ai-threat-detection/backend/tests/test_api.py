@@ -2,7 +2,23 @@
 ©AngelaMos | 2026
 test_api.py
 
-Tests the FastAPI REST endpoints for threats, stats, health, readiness, and model management.
+Tests the FastAPI REST endpoints for health, threats, stats,
+and model management using an in-memory database
+
+Validates /health returns status, uptime, and pipeline flag.
+Tests /threats CRUD: empty list returns zero total, random
+UUID returns 404, seeded event is fetchable by ID with all
+fields, and severity filter returns only matching items.
+Tests /stats returns zeroed counts on empty window.
+Tests /models/status returns detection_mode and
+active_models list, and POST /models/retrain returns 202
+with a 32-char job ID
+
+Connects to:
+  api/health     - liveness endpoint
+  api/threats    - threat CRUD
+  api/stats      - statistics endpoint
+  api/models_api - model status and retrain
 """
 
 import uuid

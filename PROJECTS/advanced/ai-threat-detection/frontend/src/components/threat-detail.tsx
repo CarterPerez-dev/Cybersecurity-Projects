@@ -1,6 +1,19 @@
 // ===================
 // © AngelaMos | 2026
 // threat-detail.tsx
+//
+// Modal dialog for full threat event inspection
+//
+// Renders a click-to-dismiss overlay with a detail panel
+// displaying four sections: Overview (severity badge,
+// threat score to 4 decimals, detection timestamp, review
+// status), Request (source IP, method, path, status code,
+// response size, user agent), Component Scores (per-model
+// score bars with percentage fill widths), and conditionally
+// Geolocation (country, city) and Matched Rules (tag list).
+// Returns null when threat prop is null. Connects to
+// api/types/threats.types, components/severity-badge,
+// pages/threats
 // ===================
 
 import { LuX } from 'react-icons/lu'

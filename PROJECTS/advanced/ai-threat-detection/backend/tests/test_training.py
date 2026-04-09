@@ -2,7 +2,24 @@
 ©AngelaMos | 2026
 test_training.py
 
-Tests training pipelines for the autoencoder, random forest, and isolation forest models.
+Tests training functions for the autoencoder, random forest,
+and isolation forest models
+
+TestAutoencoderTraining validates train_autoencoder returns
+model/threshold/scaler/history, threshold is positive,
+history has correct epoch count, higher percentile yields
+higher threshold, and returned model is in eval mode.
+TestRandomForestTraining validates model/metrics return,
+predict_proba availability, required metric keys (f1,
+pr_auc, accuracy, precision, recall), probability range,
+and metric value range. TestIsolationForestTraining
+validates model return, score_samples availability,
+n_samples metric, and normal/outlier score separation
+
+Connects to:
+  ml/train_autoencoder  - train_autoencoder
+  ml/train_classifiers  - train_random_forest,
+                          train_isolation_forest
 """
 
 import numpy as np

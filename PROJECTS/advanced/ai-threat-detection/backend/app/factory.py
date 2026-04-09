@@ -1,6 +1,36 @@
 """
 ©AngelaMos | 2026
 factory.py
+
+FastAPI application factory with async lifespan managing
+database, Redis, pipeline, and ML model initialization
+
+lifespan creates the async SQLAlchemy engine and session
+factory, runs SQLModel.metadata.create_all, connects
+Redis, initializes GeoIPService, constructs the Alert
+Dispatcher, attempts to load the ONNX InferenceEngine
+(falling back to rules-only mode), builds the Pipeline
+with configured queue sizes and ensemble weights, starts
+the LogTailer if the nginx log directory exists, and
+stores all components on app.state. On shutdown it stops
+the tailer, pipeline, GeoIP, Redis, and disposes the DB
+engine. _load_inference_engine lazily imports onnxruntime
+-backed InferenceEngine, returning None if the dependency
+is missing or no models exist. create_app assembles the
+FastAPI instance and mounts all six API routers (health,
+ingest, threats, stats, models, websocket)
+
+Connects to:
+  config.py               - settings for all config values
+  core/ingestion/pipeline - Pipeline
+  core/ingestion/tailer   - LogTailer
+  core/detection/rules    - RuleEngine
+  core/detection/inference- InferenceEngine (optional)
+  core/alerts/dispatcher  - AlertDispatcher
+  core/enrichment/geoip   - GeoIPService
+  core/redis_manager      - redis_manager
+  api/                    - all route modules
+  models/                 - SQLModel registration
 """
 
 import asyncio

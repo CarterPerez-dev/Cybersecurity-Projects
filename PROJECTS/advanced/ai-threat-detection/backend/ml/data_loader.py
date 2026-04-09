@@ -1,6 +1,28 @@
 """
 ©AngelaMos | 2026
 data_loader.py
+
+CSIC 2010 HTTP dataset loader with feature extraction for
+ML training
+
+parse_csic_file reads a CSIC dataset file, splits on HTTP
+request line boundaries, and produces CSICRequest objects
+(method, path, query_string, headers, body, label).
+csic_to_parsed_entry converts CSICRequests to
+ParsedLogEntrys with synthetic defaults (private IP,
+random timestamp over 90 days, 200 status). load_csic_
+dataset loads normal (label=0) and attack (label=1)
+files, extracts 23 per-request features, zeros 12
+windowed features, encodes to 35-dim vectors, and returns
+(X, y) numpy arrays. load_csic_normal loads a single
+normal-only file
+
+Connects to:
+  core/features/extractor - extract_request_features
+  core/features/encoder   - encode_for_inference
+  core/features/mappings  - WINDOWED_FEATURE_NAMES
+  core/ingestion/parsers  - ParsedLogEntry
+  cli/main                - loaded in train command
 """
 
 import logging

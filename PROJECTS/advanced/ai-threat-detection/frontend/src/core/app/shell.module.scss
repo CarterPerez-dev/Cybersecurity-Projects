@@ -1,6 +1,20 @@
 // ===================
 // © AngelaMos | 2026
 // shell.module.scss
+//
+// Application shell layout styles with collapsible sidebar
+// and responsive mobile drawer
+//
+// Styles a fixed-position sidebar (240px expanded, 64px
+// collapsed) with dot-grid background, NavLink items with
+// hover and active states, red-tinted nav icons, a chevron
+// collapse toggle hidden on mobile, and a slide-in mobile
+// drawer with overlay dismiss. The main content area adjusts
+// margin-left to match sidebar width, contains a sticky
+// header with dot-grid background and mobile hamburger
+// button, and a scrollable content region with radial-dot
+// background pattern. Includes error and loading fallback
+// states. Connects to core/app/shell, styles/_index
 // ===================
 
 @use '@/styles' as *;

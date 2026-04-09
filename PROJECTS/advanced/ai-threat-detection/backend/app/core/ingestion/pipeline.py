@@ -1,6 +1,34 @@
 """
 ©AngelaMos | 2026
 pipeline.py
+
+Four-stage async pipeline transforming raw nginx log lines
+into scored threat candidates
+
+Stage 1 (_parse_worker): parses raw lines via parse_
+combined into ParsedLogEntry. Stage 2 (_feature_worker):
+enriches with GeoIP lookup, extracts 23 per-request
+features, aggregates 12 windowed features via Redis-backed
+WindowAggregator, and encodes the merged 35-dim float
+vector. Stage 3 (_detection_worker): scores via RuleEngine,
+optionally runs ML ensemble inference (normalize AE/IF
+scores, fuse with configurable weights, blend with rule
+score at 0.7 ML weight). Stage 4 (_dispatch_worker):
+forwards ScoredRequests via the on_result callback. Stages
+are connected by sized asyncio.Queues with poison-pill
+shutdown propagation. EnrichedRequest and ScoredRequest
+dataclasses carry data between stages
+
+Connects to:
+  core/ingestion/parsers    - parse_combined
+  core/enrichment/geoip     - GeoIPService.lookup
+  core/features/extractor   - extract_request_features
+  core/features/aggregator  - WindowAggregator
+  core/features/encoder     - encode_for_inference
+  core/detection/rules      - RuleEngine.score_request
+  core/detection/inference  - InferenceEngine.predict
+  core/detection/ensemble   - normalize/fuse/blend scores
+  core/alerts/dispatcher    - on_result callback
 """
 
 import asyncio

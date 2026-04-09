@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 autoencoder.py
+
+PyTorch symmetric autoencoder for HTTP request anomaly
+detection
+
+ThreatAutoencoder has a 35->24->12->6 encoder and 6->12
+->24->35 decoder with BatchNorm1d, LeakyReLU(0.2), and
+Dropout(0.2) between each linear layer. Trained on normal
+traffic only so that high reconstruction error (compute_
+reconstruction_error via per-sample MSE) indicates
+anomalous requests. encode/decode expose bottleneck access
+for analysis
+
+Connects to:
+  ml/export_onnx     - exported to ae.onnx
+  ml/orchestrator    - trained in _train_autoencoder
+  ml/scaler          - input normalized before training
 """
 
 import torch

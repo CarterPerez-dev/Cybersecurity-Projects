@@ -1,6 +1,24 @@
 """
 ©AngelaMos | 2026
 train_classifiers.py
+
+Sklearn classifier training for the random forest and
+isolation forest ensemble members
+
+train_random_forest builds a 200-tree balanced-weight
+RandomForestClassifier with max_depth 20, wraps it in
+CalibratedClassifierCV with isotonic calibration (3-fold
+CV) for well-calibrated probability outputs, evaluates on
+a held-out 20% calibration split, and returns the
+calibrated model with accuracy, precision, recall, F1, and
+PR-AUC metrics. train_isolation_forest fits a 200-tree
+IsolationForest on normal-only traffic with automatic
+contamination estimation, returning the model and sample
+count
+
+Connects to:
+  ml/orchestrator - called during pipeline execution
+  ml/export_onnx  - models exported to ONNX after training
 """
 
 from typing import Any

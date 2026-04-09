@@ -1,5 +1,20 @@
-// ©AngelaMos | 2026
-// test_engine.cpp
+/*
+©AngelaMos | 2026
+test_engine.cpp
+
+End-to-end tests for the crack engine
+
+Verifies Engine::crack with SHA256Hasher + DictionaryAttack finds
+"password" from the test wordlist. Confirms CrackError::Exhausted when
+the target hash is not in the wordlist. Tests salt support by cracking
+a prepend-salted hash.
+
+Connects to:
+  core/Engine.hpp             - Engine::crack tested
+  hash/SHA256Hasher.hpp       - SHA256Hasher used in all tests
+  attack/DictionaryAttack.hpp - DictionaryAttack as the attack strategy
+  tests/data/small_wordlist.txt - fixture wordlist
+*/
 
 #include <gtest/gtest.h>
 #include "src/core/Engine.hpp"

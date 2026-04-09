@@ -1,5 +1,26 @@
 # ©AngelaMos | 2026
 # ssh.nim
+#
+# SSH key and configuration collector
+#
+# Scans the target's ~/.ssh directory for credential exposure across
+# four areas. scanKeys walks all files looking for PEM/OpenSSH private
+# key headers, classifies each as encrypted or unencrypted by checking
+# for passphrase markers (ENCRYPTED, bcrypt, aes256-ctr), and escalates
+# severity based on encryption status and file permissions (world/group
+# readable). scanConfig parses ssh_config for host entry counts and
+# weak settings (PasswordAuthentication yes, StrictHostKeyChecking no).
+# scanAuthorizedKeys counts non-comment public key entries.
+# scanKnownHosts counts known host entries. Also validates .ssh
+# directory permissions against the expected 0700.
+#
+# Connects to:
+#   collectors/base.nim - expandHome, safeFileExists, safeDirExists,
+#                          readFileContent, readFileLines, makeFinding,
+#                          makeFindingWithCred, permissionSeverity
+#   config.nim          - SshDir, SshKeyHeaders, SshEncryptedMarkers,
+#                          SshSafeDirPerms, SshConfig, SshAuthorizedKeys,
+#                          SshKnownHosts
 
 {.push raises: [].}
 
@@ -26,12 +47,15 @@ proc scanKeys(config: HarvestConfig, result: var CollectorResult) =
   let dirPerms = getNumericPerms(sshPath)
   if dirPerms >= 0 and dirPerms != OwnerOnlyDirPerms:
     let sev = permissionSeverity(sshPath, isDir = true)
-    result.findings.add(makeFinding(
-      sshPath,
-      "SSH directory permissions " & getPermsString(sshPath) &
-        " (expected " & SshSafeDirPerms & ")",
-      catSsh, sev
-    ))
+    result.findings.add(
+      makeFinding(
+        sshPath,
+        "SSH directory permissions " & getPermsString(sshPath) & " (expected " &
+          SshSafeDirPerms & ")",
+        catSsh,
+        sev,
+      )
+    )
 
   try:
     for kind, path in walkDir(sshPath):
@@ -62,22 +86,29 @@ proc scanKeys(config: HarvestConfig, result: var CollectorResult) =
         if sev < svHigh:
           sev = svHigh
 
-      let keyType = if content.startsWith(SshKeyHeaders[0]): "OpenSSH"
-                    elif content.startsWith(SshKeyHeaders[1]): "RSA"
-                    elif content.startsWith(SshKeyHeaders[2]): "ECDSA"
-                    elif content.startsWith(SshKeyHeaders[3]): "DSA"
-                    else: "Unknown"
+      let keyType =
+        if content.startsWith(SshKeyHeaders[0]):
+          "OpenSSH"
+        elif content.startsWith(SshKeyHeaders[1]):
+          "RSA"
+        elif content.startsWith(SshKeyHeaders[2]):
+          "ECDSA"
+        elif content.startsWith(SshKeyHeaders[3]):
+          "DSA"
+        else:
+          "Unknown"
 
-      let desc = if encrypted:
-        keyType & " private key (passphrase-protected)"
-      else:
-        keyType & " private key (no passphrase)"
+      let desc =
+        if encrypted:
+          keyType & " private key (passphrase-protected)"
+        else:
+          keyType & " private key (no passphrase)"
 
       var cred = Credential(
         source: path,
         credType: "ssh_private_key",
         preview: keyType & " key",
-        metadata: initTable[string, string]()
+        metadata: initTable[string, string](),
       )
       cred.setMeta("encrypted", $encrypted)
       cred.setMeta("permissions", getPermsString(path))
@@ -98,7 +129,7 @@ proc scanConfig(config: HarvestConfig, result: var CollectorResult) =
   for line in lines:
     let stripped = line.strip()
     if stripped.toLowerAscii().startsWith("host ") and
-       not stripped.toLowerAscii().startsWith("host *"):
+        not stripped.toLowerAscii().startsWith("host *"):
       inc hostCount
 
     if stripped.toLowerAscii().startsWith("passwordauthentication yes"):
@@ -108,18 +139,16 @@ proc scanConfig(config: HarvestConfig, result: var CollectorResult) =
       weakSettings.add("StrictHostKeyChecking disabled")
 
   if hostCount > 0:
-    result.findings.add(makeFinding(
-      configPath,
-      "SSH config with " & $hostCount & " host entries",
-      catSsh, svInfo
-    ))
+    result.findings.add(
+      makeFinding(
+        configPath, "SSH config with " & $hostCount & " host entries", catSsh, svInfo
+      )
+    )
 
   for setting in weakSettings:
-    result.findings.add(makeFinding(
-      configPath,
-      "Weak SSH setting: " & setting,
-      catSsh, svMedium
-    ))
+    result.findings.add(
+      makeFinding(configPath, "Weak SSH setting: " & setting, catSsh, svMedium)
+    )
 
 proc scanAuthorizedKeys(config: HarvestConfig, result: var CollectorResult) =
   let akPath = expandHome(config, SshDir / SshAuthorizedKeys)
@@ -133,11 +162,9 @@ proc scanAuthorizedKeys(config: HarvestConfig, result: var CollectorResult) =
       inc keyCount
 
   if keyCount > 0:
-    result.findings.add(makeFinding(
-      akPath,
-      $keyCount & " authorized public keys",
-      catSsh, svInfo
-    ))
+    result.findings.add(
+      makeFinding(akPath, $keyCount & " authorized public keys", catSsh, svInfo)
+    )
 
 proc scanKnownHosts(config: HarvestConfig, result: var CollectorResult) =
   let khPath = expandHome(config, SshDir / SshKnownHosts)
@@ -151,11 +178,9 @@ proc scanKnownHosts(config: HarvestConfig, result: var CollectorResult) =
       inc hostCount
 
   if hostCount > 0:
-    result.findings.add(makeFinding(
-      khPath,
-      $hostCount & " known hosts",
-      catSsh, svInfo
-    ))
+    result.findings.add(
+      makeFinding(khPath, $hostCount & " known hosts", catSsh, svInfo)
+    )
 
 proc collect*(config: HarvestConfig): CollectorResult =
   result = newCollectorResult("ssh", catSsh)

@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # report_terminal.sh
+#
+# ANSI terminal report renderer
+#
+# Builds a rich terminal report through emit_terminal_report by
+# composing four sections: an ASCII art banner with version/hostname/
+# timestamp, a bordered summary card showing overall score and
+# pass/fail/warn/skip totals, a section breakdown table with inline
+# progress bars and color-coded percentages, and detailed per-control
+# results grouped by section with status symbols, evidence lines for
+# failures, and remediation hints. All color output uses the ANSI
+# escape sequences from constants.sh.
+#
+# Connects to:
+#   lib/constants.sh - ANSI colors, VERSION, CIS_BENCHMARK, STATUS_*
+#   lib/registry.sh  - RESULT_ORDER, RESULT_STATUS, RESULT_EVIDENCE,
+#                       CTRL_TITLE, CTRL_SECTION, CTRL_REMEDIATION
+#   lib/engine.sh    - SCORE_OVERALL, SCORE_LEVEL1, SCORE_LEVEL2,
+#                       SCORE_BY_SECTION, SECTION_PASS/FAIL/WARN/SKIP
 
 _status_color() {
     local status="$1"

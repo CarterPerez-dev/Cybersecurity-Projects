@@ -1,6 +1,32 @@
 """
 ©AngelaMos | 2026
 orchestrator.py
+
+End-to-end training pipeline orchestrator for the 3-model
+ML ensemble
+
+TrainingOrchestrator.run accepts (X, y) arrays, calls
+prepare_training_data for stratified splitting with SMOTE,
+trains the autoencoder on normal-only data, random forest
+on labeled data, and isolation forest on normal-only data,
+exports all three to ONNX (ae.onnx, rf.onnx, if.onnx)
+plus scaler.json and threshold.json, runs validate_ensemble
+against the held-out test set with PR-AUC and F1 quality
+gates, and logs all parameters, metrics, and artifacts to
+MLflow via VigilExperiment. Returns a TrainingResult
+dataclass aggregating per-model metrics, gate status,
+output directory, and MLflow run ID
+
+Connects to:
+  ml/experiment         - VigilExperiment context manager
+  ml/export_onnx        - ONNX export functions
+  ml/splitting          - prepare_training_data
+  ml/train_autoencoder  - train_autoencoder
+  ml/train_classifiers  - train_random_forest,
+                          train_isolation_forest
+  ml/validation         - validate_ensemble
+  cli/main              - called from train command
+  api/models_api        - called from retrain endpoint
 """
 
 import json

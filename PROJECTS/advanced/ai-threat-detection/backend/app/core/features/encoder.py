@@ -1,6 +1,23 @@
 """
 ©AngelaMos | 2026
 encoder.py
+
+Feature vector encoder transforming a combined feature
+dict into a 35-element float vector for ML inference
+
+encode_for_inference iterates FEATURE_ORDER, applying
+boolean 0/1 encoding for 7 BOOLEAN_FEATURES, ordinal
+lookup via CATEGORICAL_ENCODERS for http_method, status_
+class, and file_extension, deterministic country code
+encoding via _encode_country (A-Z ordinal to 1-676), and
+direct float cast for all numeric features
+
+Connects to:
+  core/features/
+    mappings         - FEATURE_ORDER, BOOLEAN_FEATURES,
+                        CATEGORICAL_ENCODERS
+  core/ingestion/
+    pipeline         - called after feature merge
 """
 
 from app.core.features.mappings import (

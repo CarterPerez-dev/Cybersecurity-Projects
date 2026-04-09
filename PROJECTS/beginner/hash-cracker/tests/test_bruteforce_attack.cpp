@@ -1,5 +1,17 @@
-// ©AngelaMos | 2026
-// test_bruteforce_attack.cpp
+/*
+©AngelaMos | 2026
+test_bruteforce_attack.cpp
+
+Tests for brute-force keyspace generation and thread partitioning
+
+Verifies single-char generation, multi-length enumeration up to
+max_length, correct keyspace total (sum of charset^len), and that
+splitting across two threads produces the same combined set without
+duplicates or gaps.
+
+Connects to:
+  attack/BruteForceAttack.hpp - BruteForceAttack tested
+*/
 
 #include <gtest/gtest.h>
 #include "src/attack/BruteForceAttack.hpp"

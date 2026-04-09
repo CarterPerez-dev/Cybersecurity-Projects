@@ -1,5 +1,29 @@
 // ©AngelaMos | 2026
 // elf.rs
+//
+// ELF binary format parser
+//
+// Parses ELF binaries via goblin::elf into a FormatResult.
+// Extracts architecture (x86/x86_64/ARM/AArch64), bitness,
+// endianness, entry point, and checks for symbol table
+// presence (stripped detection), PT_INTERP (PIE detection),
+// and .debug_ sections. build_sections iterates section
+// headers, computing SHA-256 per section and mapping
+// SHF_ALLOC/SHF_WRITE/SHF_EXECINSTR flags to
+// SectionPermissions. build_segments maps program headers
+// with PF_R/PF_W/PF_X flags and named segment types.
+// build_elf_info extracts OS ABI, ELF type, interpreter
+// path, GNU_RELRO, stack executability, BIND_NOW (via
+// DT_BIND_NOW and DF_BIND_NOW), and needed libraries.
+// collect_function_hints gathers STT_FUNC symbol addresses
+// for disassembly seeding.
+//
+// Connects to:
+//   formats/mod.rs - FormatResult, SectionInfo, SegmentInfo,
+//                     ElfInfo, detect_common_anomalies,
+//                     compute_section_hash
+//   types.rs       - Architecture, BinaryFormat, Endianness,
+//                     SectionPermissions
 
 use goblin::elf::dynamic::DT_BIND_NOW;
 use goblin::elf::header::{

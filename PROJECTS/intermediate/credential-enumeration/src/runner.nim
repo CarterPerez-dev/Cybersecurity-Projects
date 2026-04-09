@@ -1,5 +1,25 @@
 # ©AngelaMos | 2026
 # runner.nim
+#
+# Module dispatcher and report assembler
+#
+# Maps each Category enum value to its collector proc via getCollector,
+# then runCollectors iterates the enabled modules from HarvestConfig,
+# invokes each collector, collects results with monotonic timing, and
+# builds the final Report with aggregated severity counts across all
+# findings. The metadata timestamp is left empty for the caller
+# (harvester.nim) to fill with wall-clock time.
+#
+# Connects to:
+#   types.nim             - HarvestConfig, Report, CollectorResult, Severity
+#   config.nim            - AppVersion, ModuleNames
+#   collectors/ssh.nim    - ssh.collect
+#   collectors/git.nim    - git.collect
+#   collectors/cloud.nim  - cloud.collect
+#   collectors/browser.nim - browser.collect
+#   collectors/history.nim - history.collect
+#   collectors/keyring.nim - keyring.collect
+#   collectors/apptoken.nim - apptoken.collect
 
 {.push raises: [].}
 
@@ -49,8 +69,8 @@ proc runCollectors*(config: HarvestConfig): Report =
       target: config.targetDir,
       version: AppVersion,
       durationMs: elapsed.inMilliseconds,
-      modules: moduleNames
+      modules: moduleNames,
     ),
     results: results,
-    summary: summary
+    summary: summary,
   )

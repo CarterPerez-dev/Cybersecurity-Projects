@@ -1,5 +1,15 @@
 // ©AngelaMos | 2026
 // health.rs
+//
+// Health check endpoint
+//
+// check executes a SELECT 1 probe against the PostgreSQL
+// pool and returns a JSON HealthResponse with status "ok"
+// and database connectivity as "connected" or
+// "disconnected".
+//
+// Connects to:
+//   state.rs - AppState.db
 
 use axum::extract::State;
 use axum::Json;

@@ -1,6 +1,14 @@
 // ===================
 // © AngelaMos | 2026
 // api.config.ts
+//
+// Axios HTTP client singleton with error interceptor
+//
+// Creates an axios instance with base URL from VITE_API_URL
+// env var (defaulting to /api), 15-second timeout, and JSON
+// content type. Response interceptor transforms AxiosError
+// into typed ApiError via transformAxiosError for consistent
+// error handling across all API hooks
 // ===================
 
 import axios, { type AxiosError, type AxiosInstance } from 'axios'

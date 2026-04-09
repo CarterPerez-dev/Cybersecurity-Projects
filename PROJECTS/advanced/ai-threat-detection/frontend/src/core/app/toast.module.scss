@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // toast.module.scss
+//
+// Sonner toast notification theme overrides
+//
+// Applies global dark theme CSS custom properties to
+// [data-sonner-toaster] for normal, success, error,
+// warning, and info variants using $bg-surface-100,
+// $border-default, and $text-default tokens. Styles
+// [data-sonner-toast] with $radius-md border radius,
+// medium-weight titles, light-colored descriptions, and
+// hover-brightened close buttons. Error toasts receive a
+// $error-default border accent. Connects to App.tsx,
+// styles/_index
 // ===================
 
 @use '@/styles' as *;

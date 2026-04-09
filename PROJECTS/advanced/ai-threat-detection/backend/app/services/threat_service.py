@@ -1,6 +1,29 @@
 """
 ©AngelaMos | 2026
 threat_service.py
+
+Threat event CRUD service for database persistence and
+retrieval
+
+get_threats builds a filtered, paginated query with
+optional severity, source_ip, since/until datetime
+filters, ordered by created_at DESC. get_threat_by_id
+fetches a single event by UUID. create_threat_event
+persists a ScoredRequest as a ThreatEvent with full
+request context, GeoIP data, feature vector, matched
+rules, and severity classification. _to_response converts
+ThreatEvent ORM models to ThreatEventResponse schemas
+with nested GeoInfo
+
+Connects to:
+  models/threat_event     - ThreatEvent table operations
+  schemas/threats         - ThreatEventResponse, GeoInfo,
+                             ThreatListResponse
+  core/detection/ensemble - classify_severity for create
+  core/ingestion/pipeline - ScoredRequest input type
+  api/threats             - called from list/detail
+                             endpoints
+  core/alerts/dispatcher  - called on MEDIUM+ dispatch
 """
 
 import uuid

@@ -1,6 +1,22 @@
 """
 ©AngelaMos | 2026
 export_onnx.py
+
+ONNX model export functions for the 3-model ML ensemble
+
+export_autoencoder converts a PyTorch ThreatAutoencoder to
+ONNX with dynamic batch dimension, opset 17, constant
+folding, and named I/O (features/reconstructed). export_
+random_forest and export_isolation_forest convert sklearn
+estimators to ONNX via skl2onnx with FloatTensorType input
+and target opset {"": 17, "ai.onnx.ml": 3}. All functions
+create parent directories and return the output Path
+
+Connects to:
+  ml/autoencoder   - ThreatAutoencoder model class
+  ml/orchestrator  - called after training completes
+  core/detection/
+    inference      - loads the exported ONNX files
 """
 
 from pathlib import Path

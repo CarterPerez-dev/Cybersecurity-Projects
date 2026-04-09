@@ -1,6 +1,25 @@
 """
 ©AngelaMos | 2026
 app.py
+
+Minimal FastAPI target application for generating nginx
+access logs during development
+
+Exposes realistic REST endpoints that the simulate.py
+traffic generator hits through the nginx reverse proxy:
+/ (HTML landing), /health, /api/users (list and by ID),
+/api/login (POST returning a fake JWT), /api/search with
+query parameter, /api/products (list and by ID),
+/api/checkout (POST), /admin and /admin/dashboard (403
+forbidden), and /static/{path} (404). Designed to produce
+diverse nginx combined-format log lines for testing the
+ingestion pipeline and rule engine
+
+Connects to:
+  dev-log/nginx.conf   - proxied behind nginx
+  dev-log/simulate.py  - traffic generator targets these
+                         endpoints
+  dev-log/compose.yml  - containerized as vigil-devlog-app
 """
 
 from fastapi import FastAPI, Request

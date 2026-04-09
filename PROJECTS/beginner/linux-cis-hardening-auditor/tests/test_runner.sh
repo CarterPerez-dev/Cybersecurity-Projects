@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_runner.sh
+#
+# Test harness for the CIS auditor test suite
+#
+# Sources all project modules (constants, utils, registry, engine,
+# report_json, baseline, registry_data, and all check files) plus the
+# test_helpers assertion framework. Discovers test_*.sh files (excluding
+# itself and test_helpers.sh), sources each one, introspects all
+# functions matching the test_ prefix via declare -F, executes them in
+# order, then cleans up by unsetting each test function. Supports
+# running specific test files as CLI arguments or auto-discovering all
+# files in the tests directory. Prints the aggregated pass/fail summary
+# via print_results and exits non-zero on any failures.
+#
+# Connects to:
+#   tests/test_helpers.sh   - assertion framework (setup_test, assert_*)
+#   all src/ modules        - sourced to provide testable functions
+#   tests/test_*.sh         - individual test files discovered and run
 
 set -euo pipefail
 

@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # registry_data.sh
+#
+# CIS benchmark control definitions database
+#
+# Contains 70+ register_control calls that populate the control
+# registry with every audited CIS benchmark item. Each entry
+# specifies the control ID, parent section name, human-readable
+# title, CIS level (1 or 2), scored flag, a rationale paragraph
+# explaining the security impact, and a remediation command. Covers
+# all six sections: Initial Setup (filesystem modules, /tmp hardening,
+# package repos, bootloader, kernel protections), Services (xinetd
+# through rsync), Network Configuration (sysctl parameters, firewall
+# policies, wireless, uncommon protocols), Logging and Auditing
+# (auditd, audit rules, rsyslog), Access/Authentication/Authorization
+# (cron, SSH hardening, password policy, account lockout), and System
+# Maintenance (file permissions, duplicate IDs, legacy entries).
+#
+# Connects to:
+#   lib/registry.sh - register_control function stores each definition
+#   checks/*.sh     - check functions that implement each control ID
 
 register_control "1.1.1" \
     "Initial Setup" \

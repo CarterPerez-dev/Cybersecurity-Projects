@@ -1,5 +1,14 @@
-// ©AngelaMos | 2026
-// BruteForceAttack.hpp
+/*
+©AngelaMos | 2026
+BruteForceAttack.hpp
+
+Exhaustive keyspace enumeration with thread-partitioned ranges
+
+Connects to:
+  attack/BruteForceAttack.cpp - implementation of next(), index_to_candidate
+  core/Concepts.hpp           - satisfies AttackStrategy concept, uses AttackComplete
+  core/Engine.hpp             - instantiated when cfg.bruteforce is true
+*/
 
 #pragma once
 

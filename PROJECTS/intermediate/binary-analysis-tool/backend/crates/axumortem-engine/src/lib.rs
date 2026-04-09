@@ -1,5 +1,28 @@
 // ©AngelaMos | 2026
 // lib.rs
+//
+// Analysis engine entry point and binary pipeline coordinator
+//
+// Declares the AnalysisEngine struct which wires together six
+// analysis passes (format, imports, strings, entropy, disasm,
+// threat) via the PassManager's topological execution order.
+// analyze() takes raw binary bytes and a filename, computes a
+// SHA-256 digest, constructs an AnalysisContext backed by an
+// Arc'd buffer, runs all passes sequentially, and returns the
+// populated context alongside a PassReport of per-pass
+// outcomes. sha256_hex is re-exported for callers that need
+// hashing without a full analysis run.
+//
+// Connects to:
+//   context.rs        - AnalysisContext, BinarySource
+//   error.rs          - EngineError
+//   pass.rs           - PassManager, PassReport, AnalysisPass
+//   passes/format.rs  - FormatPass
+//   passes/imports.rs - ImportPass
+//   passes/strings.rs - StringPass
+//   passes/entropy.rs - EntropyPass
+//   passes/disasm.rs  - DisasmPass
+//   passes/threat.rs  - ThreatPass
 
 pub mod context;
 pub mod error;

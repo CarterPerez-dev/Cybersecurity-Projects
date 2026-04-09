@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # test_helpers.sh
+#
+# Test assertion framework for the bash test harness
+#
+# Provides the core testing primitives: setup_test resets registry state
+# and sets SYSROOT to a fixture directory for isolated filesystem
+# checks. assert_status compares a control's recorded status against an
+# expected value. assert_evidence_contains checks for a substring in the
+# evidence string. assert_json_valid validates JSON via python3's
+# json.tool (accepts both file paths and inline strings). print_results
+# outputs the total/pass/fail summary and returns non-zero on failures.
+# Tracks counts in TEST_PASS, TEST_FAIL, TEST_TOTAL globals.
+#
+# Connects to:
+#   lib/registry.sh    - reset_results, RESULT_STATUS, RESULT_EVIDENCE
+#   tests/test_runner.sh - sources this file before running tests
+#   testdata/fixtures/     - pass-scenario fixture directory
+#   testdata/fixtures_fail/ - fail-scenario fixture directory
 
 declare -g TEST_PASS=0
 declare -g TEST_FAIL=0

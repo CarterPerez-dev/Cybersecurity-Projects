@@ -1,5 +1,36 @@
 # ©AngelaMos | 2026
 # test_all.nim
+#
+# Unit tests for core utility and parsing functions
+#
+# Exercises exported helpers from four modules across eight test
+# suites. redactValue covers short, long, exact-length, and empty
+# strings. isPrivateKey validates detection of five PEM header
+# formats (OpenSSH, RSA, ECDSA, DSA, PKCS8) and rejection of
+# public keys and non-key content. isEncrypted checks for
+# ENCRYPTED, bcrypt, and aes256-ctr markers versus unencrypted
+# keys. matchesSecretPattern verifies detection of export-prefixed
+# and bare KEY=/SECRET=/TOKEN=/PASSWORD= assignments while
+# rejecting PATH exports and ordinary commands.
+# matchesCommandPattern tests curl with auth headers and -u flag,
+# wget with authorization header and password, mysql -p, psql
+# password, and sshpass detection, rejecting safe commands.
+# matchesExclude validates exact filename and directory segment
+# matching without false positives on partial or embedded
+# substrings. permissionSeverity confirms svInfo for nonexistent
+# paths. parseModules tests single, multiple, whitespace-padded,
+# full-set, empty, and unknown module string parsing. redactLine
+# checks export-prefixed quoted, unquoted, and single-quoted value
+# redaction plus passthrough for lines without an equals sign.
+#
+# Connects to:
+#   types.nim              - Category enum values for parseModules
+#   collectors/base.nim    - redactValue, matchesExclude,
+#                             permissionSeverity
+#   collectors/ssh.nim     - isPrivateKey, isEncrypted
+#   collectors/history.nim - matchesSecretPattern,
+#                             matchesCommandPattern, redactLine
+#   harvester.nim          - parseModules
 
 import std/[unittest, strutils]
 import types

@@ -1,5 +1,61 @@
 // ©AngelaMos | 2026
 // threat.rs
+//
+// Weighted threat scoring and risk classification pass
+//
+// ThreatPass depends on all five preceding passes (format,
+// imports, strings, entropy, disasm) and produces a
+// composite threat score across eight capped scoring
+// categories: Import/API Analysis (max 20), Entropy
+// Analysis (max 15), Packing Indicators (max 15), String
+// Analysis (max 10), Section Anomalies (max 10), Entry
+// Point Anomalies (max 10), Anti-Analysis Indicators
+// (max 10), and YARA Signature Matches (max 10).
+// score_imports weights injection chains (15), hollowing
+// chains (15), credential access (12), APC injection (8),
+// anti-debug APIs (8), download/execute (6), persistence
+// (7), very few imports (5), and Linux-specific chains
+// (ptrace 8, RWX memory 5, C2 10, network listener 8,
+// dynamic loading 5, process injection 15).
+// score_entropy flags high-entropy sections (6 pts, cap 2)
+// and very high overall entropy (3 pts). score_packing
+// checks packer section names (5), signature matches (3),
+// empty raw with virtual (4), high VR ratio (3), PUSHAD
+// at EP (3), and modified UPX without magic string (5).
+// score_strings checks C2 URL patterns with suspicious
+// TLDs, shell commands, base64-encoded PE headers, registry
+// persistence paths, and crypto wallet addresses.
+// score_sections flags RWX sections (5), empty names (3),
+// unusual section counts (2), and zero-size code (4).
+// score_entry_point flags EP outside .text (5), EP in last
+// section (5), EP outside all sections (7), and TLS
+// callbacks (3). score_anti_analysis checks
+// IsDebuggerPresent (3), NtQueryInformationProcess (5), VM
+// detection strings (3), sandbox evasion (3), timing APIs
+// (3), Linux ptrace checks (5), and /proc/self analysis
+// (3). score_yara weights malware/critical rules (10),
+// packer rules (3), and suspicious rules (5). classify_risk
+// maps totals to five RiskLevel bands: Benign (0-15), Low
+// (16-35), Medium (36-55), High (56-75), Critical (76+).
+// MITRE technique mappings are deduplicated from import
+// combinations and per-API mappings. generate_summary
+// ranks the top 5 findings by points. Unit tests verify
+// risk classification thresholds, category capping, empty
+// scoring, summary generation, YARA malware/packer
+// scoring, entropy scoring, RWX section scoring, and full
+// context population through all predecessor passes.
+//
+// Connects to:
+//   pass.rs            - AnalysisPass trait, Sealed
+//   context.rs         - AnalysisContext
+//   formats/mod.rs     - FormatResult, FormatAnomaly
+//   passes/imports.rs  - ImportResult
+//   passes/strings.rs  - StringResult
+//   passes/entropy.rs  - EntropyResult
+//   yara.rs            - YaraScanner, YaraMatch
+//   types.rs           - RiskLevel, EntropyFlag,
+//                         StringCategory
+//   error.rs           - EngineError
 
 use std::collections::HashSet;
 

@@ -1,5 +1,27 @@
-// ©AngelaMos | 2026
-// BruteForceAttack.cpp
+/*
+©AngelaMos | 2026
+BruteForceAttack.cpp
+
+Keyspace generation from charset and max length with parallel partitioning
+
+compute_keyspace calculates the total number of candidates across all
+lengths from 1 to max_length (sum of charset_size^len). The constructor
+divides this space evenly among threads using index-based partitioning
+with remainder distribution. index_to_candidate converts a flat index
+into a string by first determining the target length (walking cumulative
+powers) then extracting each character position via modular arithmetic,
+similar to converting a number to a variable-base representation.
+
+Key exports:
+  BruteForceAttack::BruteForceAttack - Constructor with charset, max_length, thread partitioning
+  BruteForceAttack::next             - Returns next candidate or AttackComplete
+  BruteForceAttack::total            - Total keyspace size
+  BruteForceAttack::progress         - Candidates generated so far by this partition
+
+Connects to:
+  attack/BruteForceAttack.hpp - class declaration
+  core/Concepts.hpp           - AttackComplete sentinel
+*/
 
 #include "src/attack/BruteForceAttack.hpp"
 #include <algorithm>

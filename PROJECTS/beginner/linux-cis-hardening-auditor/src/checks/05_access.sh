@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 05_access.sh
+#
+# CIS Section 5 checks: Cron and SSH hardening
+#
+# Implements controls 5.1.1-5.2.14 covering cron daemon and SSH
+# server configuration. Verifies cron is enabled and checks
+# permissions/ownership on /etc/crontab, cron.hourly, and cron.daily
+# (root:root, 0600/0700). SSH checks parse sshd_config for: file
+# permissions (0600 root-owned), access restrictions (AllowUsers/
+# AllowGroups/DenyUsers/DenyGroups), host private key permissions,
+# LogLevel (INFO or VERBOSE), X11Forwarding (no), MaxAuthTries (<=4),
+# IgnoreRhosts (yes), PermitRootLogin (no), PermitEmptyPasswords (no),
+# PermitUserEnvironment (no), weak cipher/MAC/KexAlgorithm rejection
+# (CBC ciphers, MD5/SHA1-96 MACs, DH group1/14-sha1 KEX), and
+# LoginGraceTime (<=60s). Uses _check_ssh_value and _check_ssh_max_int
+# helpers for consistent sshd_config parsing.
+#
+# Connects to:
+#   lib/registry.sh - record_result for each control
+#   lib/utils.sh    - service_is_enabled, file_exists, run_cmd,
+#                     get_config_value
 
 check_5_1_1() {
     local id="5.1.1"

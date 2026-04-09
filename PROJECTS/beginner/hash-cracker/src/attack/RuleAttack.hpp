@@ -1,5 +1,19 @@
-// ©AngelaMos | 2026
-// RuleAttack.hpp
+/*
+©AngelaMos | 2026
+RuleAttack.hpp
+
+Dictionary attack augmented with password mutation rules
+
+Wraps a DictionaryAttack and applies RuleSet mutations to each word.
+When chain_rules is enabled, mutations of mutations are also generated,
+greatly expanding the candidate space.
+
+Connects to:
+  attack/RuleAttack.cpp       - implementation of create(), next(), load_next_word()
+  attack/DictionaryAttack.hpp - DictionaryAttack used internally for word iteration
+  core/Concepts.hpp           - satisfies AttackStrategy concept
+  core/Engine.hpp             - instantiated when cfg.use_rules is true
+*/
 
 #pragma once
 

@@ -1,6 +1,18 @@
 #!/bin/sh
 # ©AngelaMos | 2026
 # entrypoint.sh
+#
+# Container entrypoint with automatic ML model training
+#
+# Cleans up any symlinked nginx log files, then checks
+# MODEL_DIR for the required ONNX artifacts (ae.onnx,
+# rf.onnx, if.onnx, scaler.json, threshold.json). If all
+# models exist, skips training. If SKIP_AUTO_TRAIN is true,
+# starts in rules-only mode. Otherwise runs cli.main train
+# with 2000 normal and 1000 attack synthetic samples, 100
+# epochs, batch size 256. Executes the CMD arguments via
+# exec on completion. Connects to cli/main, compose.yml,
+# dev.compose.yml
 
 MODEL_DIR="${MODEL_DIR:-data/models}"
 NGINX_LOG_PATH="${NGINX_LOG_PATH:-/var/log/nginx/access.log}"

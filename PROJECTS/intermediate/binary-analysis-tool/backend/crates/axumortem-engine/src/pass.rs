@@ -1,5 +1,24 @@
 // ©AngelaMos | 2026
 // pass.rs
+//
+// Analysis pass trait, pass manager, and topological execution
+//
+// Defines the AnalysisPass trait (sealed via a private module
+// to prevent external implementations) with name(),
+// dependencies(), and run() methods. PassManager accepts a
+// Vec of boxed passes, computes a topological execution order
+// via Kahn's algorithm (panics on cycles), and run_all()
+// executes them in dependency order, continuing through
+// failures and recording each PassOutcome with timing and
+// error info. PassReport aggregates outcomes with
+// all_succeeded() and failed_passes() query methods.
+// Includes unit tests using MockPass to verify topological
+// ordering, diamond dependencies, failure continuation,
+// cycle detection, and duration tracking.
+//
+// Connects to:
+//   context.rs - AnalysisContext (passed to each pass)
+//   error.rs   - EngineError (returned by pass::run)
 
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;

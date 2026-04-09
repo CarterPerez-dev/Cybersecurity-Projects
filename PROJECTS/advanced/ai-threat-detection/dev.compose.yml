@@ -1,5 +1,18 @@
 # ©AngelaMos | 2026
 # dev.compose.yml
+#
+# Development Docker Compose stack with exposed ports and
+# hot reload
+#
+# Orchestrates 4 services on the vigil_dev bridge: postgres
+# (18-alpine on host port 16969 with default devpassword),
+# redis (7.4-alpine on host port 26969 with appendonly),
+# backend (FastAPI dev build on host port 36969 with debug
+# enabled, quiet gitpython, and SKIP_AUTO_TRAIN toggle),
+# and frontend (Vite dev server on host port 46969 with
+# source bind-mount for HMR and API proxy to the backend).
+# Connects to infra/docker/fastapi.dev,
+# infra/docker/vite.dev
 
 services:
   postgres:

@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // errors.ts
+//
+// Typed API error handling with status code mapping and
+// user-facing messages
+//
+// Defines ApiErrorCode literal union (NETWORK_ERROR,
+// VALIDATION_ERROR, NOT_FOUND, CONFLICT, RATE_LIMITED,
+// SERVER_ERROR, UNKNOWN_ERROR), ApiError class with code,
+// statusCode, details, and getUserMessage() for toast
+// display, and transformAxiosError which maps HTTP status
+// codes to ApiErrorCode and extracts detail/message from
+// FastAPI error responses. Registers ApiError as the
+// TanStack React Query default error type
 // ===================
 
 import type { AxiosError } from 'axios'

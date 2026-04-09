@@ -1,5 +1,27 @@
 # ©AngelaMos | 2026
 # cloud.nim
+#
+# Cloud provider configuration collector
+#
+# Scans for credential exposure across four cloud platforms. scanAws
+# parses ~/.aws/credentials for profile counts, static keys (AKIA
+# prefix), and session keys (ASIA prefix), then checks ~/.aws/config
+# for SSO and MFA configuration. scanGcp inspects application default
+# credentials for service account vs user type and walks the gcloud
+# config directory for additional service account key files. scanAzure
+# checks for access token and MSAL token cache files. scanKubernetes
+# parses ~/.kube/config to count contexts and users, detecting token-
+# based and certificate-based authentication methods. Severity
+# escalates for static keys, service accounts, token auth, and
+# world-readable files.
+#
+# Connects to:
+#   collectors/base.nim - expandHome, safeFileExists, safeDirExists,
+#                          readFileContent, readFileLines, isWorldReadable,
+#                          makeFinding, makeFindingWithCred, permissionSeverity
+#   config.nim          - AwsCredentials, AwsConfig, AwsStaticKeyPrefix,
+#                          GcpConfigDir, GcpAppDefaultCreds, AzureDir,
+#                          AzureAccessTokens, KubeConfig, KubeContextMarker
 
 {.push raises: [].}
 
@@ -42,18 +64,22 @@ proc scanAws(config: HarvestConfig, result: var CollectorResult) =
       source: credPath,
       credType: "aws_credentials",
       preview: $profileCount & " profiles, " & $staticKeys & " static keys",
-      metadata: initTable[string, string]()
+      metadata: initTable[string, string](),
     )
     cred.setMeta("profiles", $profileCount)
     cred.setMeta("static_keys", $staticKeys)
     cred.setMeta("session_keys", $sessionKeys)
 
-    result.findings.add(makeFindingWithCred(
-      credPath,
-      "AWS credentials file: " & $profileCount & " profiles, " &
-        $staticKeys & " static keys, " & $sessionKeys & " session keys",
-      catCloud, sev, cred
-    ))
+    result.findings.add(
+      makeFindingWithCred(
+        credPath,
+        "AWS credentials file: " & $profileCount & " profiles, " & $staticKeys &
+          " static keys, " & $sessionKeys & " session keys",
+        catCloud,
+        sev,
+        cred,
+      )
+    )
 
   if safeFileExists(configPath):
     let lines = readFileLines(configPath)
@@ -91,16 +117,20 @@ proc scanGcp(config: HarvestConfig, result: var CollectorResult) =
       source: adcPath,
       credType: "gcp_credentials",
       preview: if isServiceAccount: "Service account key" else: "User credentials",
-      metadata: initTable[string, string]()
+      metadata: initTable[string, string](),
     )
     let credTypeStr = if isServiceAccount: "service_account" else: "authorized_user"
     cred.setMeta("type", credTypeStr)
 
-    result.findings.add(makeFindingWithCred(
-      adcPath,
-      "GCP application default credentials (" & credTypeStr & ")",
-      catCloud, sev, cred
-    ))
+    result.findings.add(
+      makeFindingWithCred(
+        adcPath,
+        "GCP application default credentials (" & credTypeStr & ")",
+        catCloud,
+        sev,
+        cred,
+      )
+    )
 
   if safeDirExists(gcpDir):
     try:
@@ -110,11 +140,9 @@ proc scanGcp(config: HarvestConfig, result: var CollectorResult) =
         if path.endsWith(".json") and path != adcPath:
           let content = readFileContent(path)
           if GcpServiceAccountPattern in content.toLowerAscii():
-            result.findings.add(makeFinding(
-              path,
-              "GCP service account key file",
-              catCloud, svHigh
-            ))
+            result.findings.add(
+              makeFinding(path, "GCP service account key file", catCloud, svHigh)
+            )
     except CatchableError as e:
       result.errors.add("Error scanning GCP directory: " & e.msg)
 
@@ -123,28 +151,20 @@ proc scanAzure(config: HarvestConfig, result: var CollectorResult) =
   if not safeDirExists(azDir):
     return
 
-  let tokenPaths = [
-    expandHome(config, AzureAccessTokens),
-    expandHome(config, AzureMsalTokenCache)
-  ]
+  let tokenPaths =
+    [expandHome(config, AzureAccessTokens), expandHome(config, AzureMsalTokenCache)]
 
   var foundTokens = false
   for path in tokenPaths:
     if safeFileExists(path):
       foundTokens = true
       let sev = if isWorldReadable(path): svCritical else: svMedium
-      result.findings.add(makeFinding(
-        path,
-        "Azure token cache",
-        catCloud, sev
-      ))
+      result.findings.add(makeFinding(path, "Azure token cache", catCloud, sev))
 
   if not foundTokens:
-    result.findings.add(makeFinding(
-      azDir,
-      "Azure CLI configuration directory",
-      catCloud, svInfo
-    ))
+    result.findings.add(
+      makeFinding(azDir, "Azure CLI configuration directory", catCloud, svInfo)
+    )
 
 proc scanKubernetes(config: HarvestConfig, result: var CollectorResult) =
   let kubePath = expandHome(config, KubeConfig)
@@ -170,7 +190,7 @@ proc scanKubernetes(config: HarvestConfig, result: var CollectorResult) =
       inUsers = true
       inContexts = false
     elif stripped.len > 0 and not stripped.startsWith(" ") and
-         not stripped.startsWith("-"):
+        not stripped.startsWith("-"):
       inContexts = false
       inUsers = false
 
@@ -183,26 +203,34 @@ proc scanKubernetes(config: HarvestConfig, result: var CollectorResult) =
     if "client-certificate-data:" in stripped:
       hasCertAuth = true
 
-  let sev = if isWorldReadable(kubePath): svCritical
-            elif hasTokenAuth: svHigh
-            else: svMedium
+  let sev =
+    if isWorldReadable(kubePath):
+      svCritical
+    elif hasTokenAuth:
+      svHigh
+    else:
+      svMedium
 
   var cred = Credential(
     source: kubePath,
     credType: "kubernetes_config",
     preview: $contextCount & " contexts, " & $userCount & " users",
-    metadata: initTable[string, string]()
+    metadata: initTable[string, string](),
   )
   cred.setMeta("contexts", $contextCount)
   cred.setMeta("users", $userCount)
   cred.setMeta("token_auth", $hasTokenAuth)
   cred.setMeta("cert_auth", $hasCertAuth)
 
-  result.findings.add(makeFindingWithCred(
-    kubePath,
-    "Kubernetes config: " & $contextCount & " contexts, " & $userCount & " users",
-    catCloud, sev, cred
-  ))
+  result.findings.add(
+    makeFindingWithCred(
+      kubePath,
+      "Kubernetes config: " & $contextCount & " contexts, " & $userCount & " users",
+      catCloud,
+      sev,
+      cred,
+    )
+  )
 
 proc collect*(config: HarvestConfig): CollectorResult =
   result = newCollectorResult("cloud", catCloud)

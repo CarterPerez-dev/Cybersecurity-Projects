@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # constants.sh
+#
+# Global constants and configuration values
+#
+# Defines the tool version string, CIS benchmark identifier, minimum
+# bash version requirement, process exit codes, ANSI terminal color
+# escape sequences, audit status labels (PASS/FAIL/WARN/SKIP), the
+# default SYSROOT path for live vs test-mode filesystem access, and
+# the six CIS section names with their display ordering.
+#
+# Connects to:
+#   cisaudit.sh  - sourced first, values used by all modules
+#   lib/utils.sh - ANSI colors used in logging functions
+#   lib/engine.sh - SECTION_ORDER drives per-section score iteration
 
 declare -gr VERSION="1.0.0"
 declare -gr CIS_BENCHMARK="CIS Debian Linux 12 Benchmark v1.1.0"

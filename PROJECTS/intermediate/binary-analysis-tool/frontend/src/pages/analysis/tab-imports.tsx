@@ -1,6 +1,30 @@
 // ===================
 // © AngelaMos | 2026
 // tab-imports.tsx
+//
+// Imports tab with library-grouped import tables,
+// suspicious combination alerts, and export listing
+//
+// Groups imports by library into collapsible Library
+// Group sections (tracked via openLibs Set state),
+// each showing function name, hex address, ordinal,
+// and threat tags with suspicious row highlighting via
+// ImportRow. Above the import groups, suspicious API
+// combinations render as alert cards with name, MITRE
+// ID pill, severity badge (styled per level), description,
+// and matched API tags. Below, an exports section shows
+// name, address, ordinal, and forward target in a
+// standard data table. All addresses formatted via
+// formatHex, with PAGE_SIZE-less full rendering since
+// import counts are typically manageable
+//
+// Connects to:
+//   api/types         - AnalysisResponse, ImportEntry
+//   core/lib          - formatHex
+//   analysis/index    - mounted in renderTab switch
+//   analysis.module
+//     .scss           - libraryGroup, alertCard,
+//                        dataTable, severityBadge styles
 // ===================
 
 import { useState } from 'react'

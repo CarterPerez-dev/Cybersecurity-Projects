@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # 01_initial_setup.sh
+#
+# CIS Section 1 checks: Initial Setup
+#
+# Implements controls 1.1.1-1.5.3 covering filesystem hardening and
+# kernel protections. Checks kernel module disabling for eight legacy
+# filesystems (cramfs, freevxfs, jffs2, hfs, hfsplus, squashfs, udf,
+# vfat) via modprobe.d configs and lsmod. Verifies /tmp as a separate
+# partition with noexec, nosuid, and nodev mount options through fstab
+# and findmnt. Validates package repository configuration, GPG key
+# presence, GRUB bootloader password, grub.cfg permissions and
+# ownership, single-user mode authentication (sulogin), ASLR
+# (kernel.randomize_va_space=2), core dump restrictions (limits.conf
+# + fs.suid_dumpable), and prelink removal.
+#
+# Connects to:
+#   lib/registry.sh          - record_result for each control
+#   lib/utils.sh             - get_sysctl, read_file, run_cmd, file_exists
+#   controls/registry_data.sh - defines CIS IDs 1.x.x
 
 _check_module_disabled() {
     local id="$1"

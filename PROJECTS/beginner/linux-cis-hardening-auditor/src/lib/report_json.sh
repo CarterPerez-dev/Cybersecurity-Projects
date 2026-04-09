@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 # ©AngelaMos | 2026
 # report_json.sh
+#
+# JSON report emitter for machine-readable audit output
+#
+# Serializes complete audit results into a structured JSON document
+# via emit_json_report. Output includes version, CIS benchmark ID,
+# ISO 8601 timestamp, hostname, OS detection, a summary block with
+# totals and overall/level scores, a sections array with per-section
+# pass/fail/warn/skip counts and scores, and a controls array with
+# each control's ID, section, title, level, scored flag, status,
+# evidence, and remediation. Provides json_escape for safe string
+# encoding and null-coalescing for N/A scores.
+#
+# Connects to:
+#   lib/constants.sh - VERSION, CIS_BENCHMARK, STATUS_*
+#   lib/registry.sh  - RESULT_ORDER, RESULT_STATUS, RESULT_EVIDENCE,
+#                       CTRL_TITLE, CTRL_SECTION, CTRL_LEVEL, CTRL_SCORED
+#   lib/engine.sh    - SCORE_OVERALL, SCORE_LEVEL1, SCORE_LEVEL2,
+#                       SCORE_BY_SECTION, SECTION_PASS/FAIL/WARN/SKIP
+#   lib/baseline.sh  - save_baseline calls emit_json_report
 
 json_escape() {
     local s="$1"

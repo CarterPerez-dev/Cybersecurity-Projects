@@ -2,7 +2,21 @@
 ©AngelaMos | 2026
 test_scaler.py
 
-Tests the FeatureScaler: fitting, transform correctness, JSON serialization, and round-trip loading.
+Tests the FeatureScaler IQR-based normalization for
+fitting, transform correctness, JSON round-trip, and error
+handling
+
+Validates n_features is stored after fit, transform
+preserves shape and float32 dtype, median of scaled
+features is near zero, inverse_transform recovers original
+values within 1e-5, save_json creates a valid JSON file
+with center/scale/n_features keys, load_json round-trip
+produces identical transform output within 1e-6, transform
+before fit raises RuntimeError, and fit_transform
+convenience method works
+
+Connects to:
+  ml/scaler - FeatureScaler
 """
 
 import json

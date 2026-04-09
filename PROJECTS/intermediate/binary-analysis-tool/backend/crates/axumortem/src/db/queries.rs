@@ -1,5 +1,23 @@
 // ©AngelaMos | 2026
 // queries.rs
+//
+// PostgreSQL query functions
+//
+// find_slug_by_sha256 checks for an existing analysis by
+// SHA-256 hash and returns the slug if cached.
+// find_by_slug retrieves a full AnalysisRow by its
+// URL-friendly slug. find_pass_results fetches all
+// PassResultRow entries for an analysis_id ordered by
+// pass_name. insert_analysis and insert_pass_result
+// perform transactional inserts within a caller-provided
+// Transaction, returning the created AnalysisRow and
+// committing pass result rows respectively.
+//
+// Connects to:
+//   db/models.rs       - AnalysisRow, PassResultRow,
+//                          NewAnalysis, NewPassResult
+//   routes/upload.rs   - insert_analysis, insert_pass_result
+//   routes/analysis.rs - find_by_slug, find_pass_results
 
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;

@@ -1,6 +1,23 @@
 /**
  * ©AngelaMos | 2026
  * shell.ui.store.ts
+ *
+ * Zustand UI state store with devtools and localStorage
+ * persistence
+ *
+ * Manages global theme (light/dark/system), sidebar open
+ * state, and sidebar collapsed state through a single
+ * Zustand store wrapped in devtools (named "UIStore" for
+ * Redux DevTools inspection) and persist middleware that
+ * serializes theme and sidebarCollapsed to localStorage
+ * under the "ui-storage" key. Exports three selector
+ * hooks (useTheme, useSidebarOpen, useSidebarCollapsed)
+ * for granular subscriptions without re-renders
+ *
+ * Connects to:
+ *   config.ts   - STORAGE_KEYS.UI matches persist key
+ *   shell.tsx   - consumes sidebar/theme state
+ *   pages/      - theme-aware rendering
  */
 
 import { create } from 'zustand'

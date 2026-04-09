@@ -1,5 +1,45 @@
 // ©AngelaMos | 2026
 // disasm.rs
+//
+// Recursive descent disassembly and CFG construction pass
+//
+// DisasmPass depends on format and performs recursive
+// descent disassembly of x86 and x86_64 binaries using
+// the iced-x86 decoder with Intel syntax formatting.
+// Non-x86 architectures receive an empty result.
+// disassemble seeds a function queue from the entry point
+// and format-provided function hints, then iterates
+// through function addresses with caps of 1000 functions
+// and 50000 total instructions. disassemble_function
+// performs worklist-driven linear sweep within a single
+// function, decoding instructions and tracking block
+// leaders from branch targets and fallthroughs.
+// Conditional branches split into taken/fallthrough
+// successors, unconditional branches follow the target,
+// and returns/interrupts terminate the block. Call
+// instructions discover new function entry points added
+// to the outer queue. build_basic_blocks partitions
+// decoded instructions by block leaders and terminators,
+// computing successor and predecessor edges.
+// finalize_block determines successors from branch targets
+// and fallthroughs. build_cfg emits CfgNode and CfgEdge
+// structs with ConditionalTrue/ConditionalFalse/
+// Unconditional/Fallthrough edge types, limited to
+// functions with 500 or fewer instructions.
+// vaddr_to_offset translates virtual addresses to file
+// offsets via section mappings. disassemble_code provides
+// a standalone linear disassembly API. Unit tests verify
+// simple function disassembly, basic block splitting on
+// conditional branches, CFG edge generation, non-x86
+// empty results, ELF disassembly, and context population.
+//
+// Connects to:
+//   pass.rs        - AnalysisPass trait, Sealed
+//   context.rs     - AnalysisContext
+//   formats/mod.rs - SectionInfo
+//   types.rs       - Architecture, CfgEdgeType,
+//                     FlowControlType
+//   error.rs       - EngineError
 
 use std::collections::{
     BTreeMap, HashMap, HashSet, VecDeque,

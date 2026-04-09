@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // alert-feed.module.scss
+//
+// CSS module for the live alert feed component
+//
+// Styles the feed container with surface background and
+// muted border, a header row with title and connection
+// status dot (green connected, red disconnected), and a
+// scrollable list of alert rows in a 6-column grid
+// (time, IP, method, path, severity, score). Applies
+// tabular-nums to time and score columns, monospace to
+// IP, truncation to path, and per-method color classes
+// (methodGet through methodOptions) using $method-* tokens.
+// Connects to components/alert-feed, styles/_tokens
 // ===================
 
 @use '@/styles/tokens' as *;

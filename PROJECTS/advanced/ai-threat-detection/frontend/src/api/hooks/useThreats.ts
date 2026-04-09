@@ -1,6 +1,18 @@
 // ===================
 // © AngelaMos | 2026
 // useThreats.ts
+//
+// TanStack Query hooks for threat event listing and detail
+//
+// useThreats accepts optional ThreatParams (limit, offset,
+// severity, source_ip, since, until) with PAGINATION
+// defaults, queries API_ENDPOINTS.THREATS.LIST, and
+// validates through ThreatListSchema using the frequent
+// strategy. useThreat fetches a single threat by id from
+// API_ENDPOINTS.THREATS.BY_ID, validates through
+// ThreatEventSchema, and is disabled when id is null.
+// Connects to api/types/threats.types, core/api, config,
+// pages/threats
 // ===================
 
 import { useQuery } from '@tanstack/react-query'

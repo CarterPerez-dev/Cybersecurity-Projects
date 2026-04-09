@@ -1,5 +1,28 @@
-// ©AngelaMos | 2026
-// generator.v
+/*
+©AngelaMos | 2026
+generator.v
+
+Hardened ruleset generation and cross-format export
+
+generate_hardened builds a complete firewall ruleset from scratch using
+CIS-aligned defaults: default-deny INPUT/FORWARD, loopback acceptance,
+conntrack early in the chain, RFC 1918 anti-spoofing, rate-limited ICMP
+and SSH, and a LOG rule before the final drop. Services are resolved
+through config.service_ports so DNS gets dual tcp/udp rules and NTP gets
+udp-only. export_ruleset converts an existing parsed Ruleset into the
+opposite format by serializing each Rule through rule_to_iptables or
+rule_to_nftables, preserving table and chain structure including
+multi-table layouts (filter + nat).
+
+Key exports:
+  generate_hardened - Builds a hardened ruleset string for given services and format
+  export_ruleset    - Converts a Ruleset to iptables or nftables string output
+
+Connects to:
+  config/config.v   - reads service_ports, private_ranges, rate-limit strings, log prefixes
+  models/models.v   - imports Rule, Ruleset, RuleSource
+  main.v            - called from cmd_harden and cmd_export
+*/
 
 module generator
 
