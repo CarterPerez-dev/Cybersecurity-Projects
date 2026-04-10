@@ -165,13 +165,13 @@ Text Input
 
 **Files:** `scanners/file_scanner.py`, `scanners/db_scanner.py`, `scanners/network_scanner.py`
 
-All scanners follow the same `Scanner` protocol: a `scan(target: str) -> ScanResult` method. They share a common flow: iterate over targets, extract text, run detection, classify matches into findings with severity/compliance/remediation metadata, and aggregate into a `ScanResult`.
+All scanners follow the same `Scanner` protocol: a `scan(target: str) -> ScanResult` method. They share a common flow: iterate over targets, extract text, run detection, convert matches to findings via `match_to_finding` in `scoring.py` (which handles severity classification, compliance lookup, remediation, and redaction in one call), and aggregate into a `ScanResult`.
 
 **FileScanner** walks a directory tree, applies extension and exclusion filters, dispatches each file to the appropriate extractor based on extension, and runs the detector on each `TextChunk`. The extension-to-extractor mapping is built once by `_build_extension_map`, which iterates over all extractor instances and indexes by their `supported_extensions`.
 
 **DatabaseScanner** connects via URI scheme detection (postgres, mysql, mongodb, sqlite), introspects the schema to find text-type columns, samples rows using database-native sampling (TABLESAMPLE BERNOULLI for PostgreSQL, RAND() for MySQL, $sample for MongoDB), and scans column values.
 
-**NetworkScanner** reads PCAP files using dpkt, extracts TCP/UDP payloads, decodes them to text, and runs detection. The companion modules in `network/` provide TCP stream reassembly, DNS query parsing, protocol identification via DPI, and DNS exfiltration detection.
+**NetworkScanner** reads PCAP files via `read_pcap`, feeds packets into a `FlowTracker` for TCP reassembly, and processes DNS traffic inline through `parse_dns` and `DnsExfilDetector`. Each packet payload is also checked by `detect_base64_payload` for encoded data. After packet iteration, the scanner reassembles TCP flows, identifies the application protocol via `identify_protocol`, extracts text with protocol awareness (`parse_http` for HTTP bodies and sensitive headers, skip encrypted TLS/SSH, UTF-8 decode for everything else), and runs detection on the extracted text.
 
 ### Extractors
 
@@ -317,7 +317,7 @@ class DetectorMatch:
 └────────────────────────────────────────────┘
 ```
 
-Every configuration value has a constant default defined in `constants.py`. The Pydantic models in `config.py` use these constants as field defaults, so a completely empty config file produces a working scanner. The config loader uses `ruamel.yaml` (not PyYAML) because it preserves comments and handles YAML 1.2.
+Every configuration value has a constant default defined in `constants.py`. The Pydantic models in `config.py` use these constants as field defaults, so a completely empty config file produces a working scanner. Constrained-choice fields (`severity_threshold`, `format`, `redaction_style`) use `Literal` types defined in `constants.py` (e.g., `Literal["critical", "high", "medium", "low"]`), so Pydantic rejects invalid values at parse time rather than silently accepting a typo. The config loader uses `ruamel.yaml` (not PyYAML) because it preserves comments and handles YAML 1.2.
 
 The YAML structure uses a `scan:` top-level key to group scanner-specific config, while `detection:`, `compliance:`, `output:`, and `logging:` sit at root level. This mirrors how users think about configuration: "how to scan" vs. "what to detect" vs. "how to report".
 
@@ -334,7 +334,7 @@ Step-by-step walkthrough of `dlp-scan file ./data -f json`:
        (WARNING for machine-readable formats keeps stdout clean)
 
 3. ScanEngine(config) constructs DetectorRegistry
-   └─► Registry loads 28 rules from PII/Financial/Credential/Health modules
+   └─► Registry loads 29 rules from PII/Financial/Credential/Health modules
    └─► Filters through enable_rules=["*"], disable_rules=[]
 
 4. engine.scan_files("./data")
@@ -355,10 +355,11 @@ Step-by-step walkthrough of `dlp-scan file ./data -f json`:
        └─► EntropyDetector: high-entropy region detection
 
 7. For each DetectorMatch above min_confidence:
-   └─► score_to_severity(match.score) -> Severity
-   └─► get_frameworks_for_rule(match.rule_id) -> compliance list
-   └─► get_remediation_for_rule(match.rule_id) -> guidance string
-   └─► redact(chunk.text, start, end, style="partial") -> snippet
+   └─► match_to_finding(match, text, location, redaction_style)
+       ├─► score_to_severity(match.score) -> Severity
+       ├─► get_frameworks_for_rule(match.rule_id) -> compliance list
+       ├─► get_remediation_for_rule(match.rule_id) -> guidance string
+       └─► redact(chunk.text, start, end, style) -> snippet
    └─► Append Finding to ScanResult
 
 8. Back in _run_scan():
@@ -413,7 +414,9 @@ RULE_FRAMEWORK_MAP: rule_id -> [frameworks]
 RULE_REMEDIATION_MAP: rule_id -> guidance string
 ```
 
-When a `DetectorMatch` is converted to a `Finding` inside a scanner, the scanner calls `get_frameworks_for_rule` and `get_remediation_for_rule` to decorate the finding with compliance metadata. If the detection rule itself also carries `compliance_frameworks`, both sets are merged.
+Rule IDs match actual detection rules (e.g., `FIN_CREDIT_CARD_VISA`, `FIN_CREDIT_CARD_MC`, not a generic `FIN_CREDIT_CARD`). Network exfiltration indicators (`NET_DNS_EXFIL_*`, `NET_ENCODED_*`) are also mapped. Every rule has a remediation entry with specific guidance text; unknown rules fall back to a generic default.
+
+When a `DetectorMatch` is converted to a `Finding` via `match_to_finding` in `scoring.py`, the function calls `get_frameworks_for_rule` and `get_remediation_for_rule` to decorate the finding with compliance metadata. If the detection rule itself also carries `compliance_frameworks`, both sets are merged.
 
 This design keeps detection rules independent of compliance logic. The PII module does not need to know that HIPAA cares about SSNs. The compliance module owns that mapping, and it can be updated independently when regulations change.
 
@@ -508,7 +511,7 @@ This "collect and continue" approach means a single corrupt PDF in a directory o
 
 **File scanning** is I/O-bound. The scanner processes files sequentially to avoid overwhelming disk I/O. Text extraction for binary formats (PDF, Office) can be CPU-intensive, but these files are typically a small fraction of the total.
 
-**Detection** scales linearly with text length times rule count. With 28 rules and an average text chunk of 500 lines, a single detection pass takes microseconds. The entropy detector is more expensive due to its sliding window, so it only runs when enabled and only against high-level text chunks (not individual regex matches).
+**Detection** scales linearly with text length times rule count. With 29 rules and an average text chunk of 500 lines, a single detection pass takes microseconds. The entropy detector is more expensive due to its sliding window, so it only runs when enabled and only against high-level text chunks (not individual regex matches).
 
 **Memory** stays bounded through chunking. The plaintext extractor reads 500 lines at a time. Archive extraction enforces depth limits and zip bomb ratio checks.
 
@@ -520,6 +523,7 @@ This "collect and continue" approach means a single corrupt PDF in a directory o
 - `constants.py` - All magic numbers, thresholds, type literals
 - `models.py` - Finding, Location, ScanResult, TextChunk
 - `compliance.py` - Rule-to-framework mapping, severity classification
+- `scoring.py` - Shared match-to-finding conversion for all scanners
 - `redaction.py` - Partial/full/none redaction strategies
 - `detectors/registry.py` - Rule loading, filtering, scoring pipeline
 - `detectors/pattern.py` - Regex matching with allowlist and checksum validation

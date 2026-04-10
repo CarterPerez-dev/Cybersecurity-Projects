@@ -17,6 +17,7 @@ src/dlp_scanner/
 ├── compliance.py           # Rule-to-framework mapping
 ├── redaction.py            # Snippet masking
 ├── log.py                  # structlog configuration
+├── scoring.py              # Shared match-to-finding conversion
 ├── commands/
 │   ├── scan.py             # file, db, network commands
 │   └── report.py           # convert, summary commands
@@ -173,6 +174,28 @@ def nhs_check(value: str) -> bool:
 ```
 
 Multiply the first 9 digits by descending weights (10, 9, 8, ..., 2), sum them, compute `11 - (sum mod 11)`, and compare to the check digit. If the result is 10, the number is invalid (NHS never issues these). If the result is 11, the check digit is 0.
+
+**Luhn-80840** for NPIs (in `detectors/rules/health.py`):
+
+```python
+def _validate_npi(value: str) -> bool:
+    digits = value.replace("-", "").replace(" ", "")
+    if len(digits) != 10 or not digits.isdigit():
+        return False
+
+    prefixed = "80840" + digits
+    total = 0
+    for i, d in enumerate(reversed(prefixed)):
+        n = int(d)
+        if i % 2 == 1:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+    return total % 10 == 0
+```
+
+NPI (National Provider Identifier) validation is a Luhn variant. The trick is prepending `80840` (the healthcare industry prefix assigned by ANSI) before running the standard Luhn algorithm. This prefix is not part of the NPI itself, but the ISO standard requires it for check digit computation. A random 10-digit number has about a 10% chance of passing, making this check useful but not definitive. The base score of 0.10 reflects that NPI patterns match many unrelated 10-digit numbers, and context keywords like "provider" or "npi" are needed to push the score into actionable territory.
 
 ### Pattern Detection
 
@@ -473,6 +496,79 @@ The `_get_full_suffix` function handles compound extensions like `.tar.gz` and `
 
 ## Network Analysis
 
+### Scanner Orchestration
+
+The `NetworkScanner` ties together the network modules into a multi-pass pipeline. The old implementation decoded raw packets as UTF-8 and ran detection directly. The rewrite is protocol-aware:
+
+```python
+def _scan_pcap(self, path, result):
+    tracker = FlowTracker()
+    dns_detector = DnsExfilDetector(
+        entropy_threshold=(
+            self._net_config.dns_label_entropy_threshold
+        ),
+    )
+    packet_count = 0
+
+    for packet in read_pcap(
+        path,
+        max_packets=self._net_config.max_packets,
+    ):
+        packet_count += 1
+        tracker.add_packet(packet)
+
+        if (
+            packet.protocol == "udp"
+            and (
+                packet.src_port == DNS_PORT
+                or packet.dst_port == DNS_PORT
+            )
+        ):
+            self._process_dns_packet(
+                packet.payload, packet.src_ip,
+                packet.dst_ip, path, packet_count,
+                dns_detector, result,
+            )
+
+        if packet.payload:
+            exfil_indicators = detect_base64_payload(
+                packet.payload,
+                src_ip=packet.src_ip,
+                dst_ip=packet.dst_ip,
+            )
+            for indicator in exfil_indicators:
+                finding = _indicator_to_finding(
+                    indicator, str(path), packet_count,
+                )
+                result.findings.append(finding)
+
+    txt_indicators = dns_detector.check_txt_volume()
+    for indicator in txt_indicators:
+        ...
+
+    self._scan_reassembled_flows(tracker, path, result)
+```
+
+Three things happen during the packet loop: every packet goes into the `FlowTracker` for later TCP reassembly, UDP packets on port 53 are parsed as DNS and fed to the `DnsExfilDetector`, and every payload is checked for base64/hex-encoded data by `detect_base64_payload`. After the loop, TXT query volume ratios are checked and TCP flows are reassembled for content scanning.
+
+The reassembled flow scanning uses protocol-aware text extraction:
+
+```python
+def _extract_scannable_text(self, stream, protocol):
+    if protocol == "http":
+        return self._extract_http_text(stream)
+    if protocol in ("tls", "ssh"):
+        return ""
+    try:
+        return stream.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+```
+
+HTTP flows get parsed by `parse_http`, which extracts URIs, sensitive headers (`cookie`, `authorization`, `set-cookie`), and bodies. TLS and SSH flows are skipped entirely since the content is encrypted and cannot be scanned. Everything else falls through to a UTF-8 decode attempt.
+
+DNS exfiltration indicators and encoded payload detections are converted to `Finding` objects through `_indicator_to_finding`, which maps indicator types to rule IDs via the `EXFIL_RULE_MAP` lookup table. Regex-based detections from reassembled flows go through `match_to_finding` like the other scanners.
+
 ### PCAP Parsing
 
 The `read_pcap` function in `network/pcap.py` reads packets using dpkt and yields `PacketInfo` structs:
@@ -638,16 +734,76 @@ The `RULE_FRAMEWORK_MAP` in `compliance.py` is a static lookup table:
 ```python
 RULE_FRAMEWORK_MAP = {
     "PII_SSN": ["HIPAA", "CCPA", "GLBA", "GDPR"],
-    "FIN_CREDIT_CARD": ["PCI_DSS", "GLBA"],
+    "PII_DRIVERS_LICENSE_FL": ["CCPA", "HIPAA"],
+    "FIN_CREDIT_CARD_VISA": ["PCI_DSS", "GLBA"],
+    "FIN_CREDIT_CARD_MC": ["PCI_DSS", "GLBA"],
     "FIN_IBAN": ["GDPR", "GLBA"],
-    "HEALTH_MEDICAL_RECORD": ["HIPAA"],
+    "HEALTH_NPI": ["HIPAA"],
+    "NET_DNS_EXFIL_HIGH_ENTROPY": [],
     ...
 }
 ```
 
-Each rule maps to the compliance frameworks that regulate that data type. SSNs trigger four frameworks because they are considered protected health information (HIPAA), personal information (CCPA), financial identifiers (GLBA), and personal data (GDPR). Credit card PANs only trigger PCI-DSS and GLBA because HIPAA and GDPR do not specifically regulate financial card numbers.
+Rule IDs match actual detection rules rather than using generic categories. Credit card rules are split by brand (`FIN_CREDIT_CARD_VISA`, `FIN_CREDIT_CARD_MC`, `FIN_CREDIT_CARD_AMEX`, `FIN_CREDIT_CARD_DISC`), each triggering PCI-DSS and GLBA. State-specific driver's license rules (`PII_DRIVERS_LICENSE_FL`, `PII_DRIVERS_LICENSE_IL`) map to CCPA and HIPAA alongside the generic CA pattern. Network exfiltration indicators (`NET_DNS_EXFIL_*`, `NET_ENCODED_*`) carry empty framework lists since DNS tunneling is a detection concern, not a regulatory data type.
+
+SSNs trigger four frameworks because they are considered protected health information (HIPAA), personal information (CCPA), financial identifiers (GLBA), and personal data (GDPR). Every rule also has a corresponding entry in `RULE_REMEDIATION_MAP` with specific guidance text. Unknown rules fall back to a generic default.
 
 The mapping is intentionally conservative. An SSN could trigger SOX if it appears in financial reporting data, but without business context the scanner cannot determine that. The listed frameworks are the ones where the mere presence of the data type creates a compliance obligation.
+
+## Shared Scoring Module
+
+The `match_to_finding` function in `scoring.py` centralizes the conversion from `DetectorMatch` to `Finding`. All three scanners import from this single location instead of duplicating the severity/compliance/redaction logic:
+
+```python
+def match_to_finding(
+    match: DetectorMatch,
+    text: str,
+    location: Location,
+    redaction_style: RedactionStyle,
+) -> Finding:
+    severity = score_to_severity(match.score)
+    frameworks = get_frameworks_for_rule(match.rule_id)
+    if match.compliance_frameworks:
+        combined = (
+            set(frameworks) | set(match.compliance_frameworks)
+        )
+        frameworks = sorted(combined)
+    remediation = get_remediation_for_rule(match.rule_id)
+
+    snippet = redact(
+        text, match.start, match.end,
+        style=redaction_style,
+    )
+
+    return Finding(
+        rule_id=match.rule_id,
+        rule_name=match.rule_name,
+        severity=severity,
+        confidence=match.score,
+        location=location,
+        redacted_snippet=snippet,
+        compliance_frameworks=frameworks,
+        remediation=remediation,
+    )
+```
+
+The function chains severity classification, compliance framework lookup, remediation guidance, and redaction in one call. The framework merging logic handles the case where a detection rule carries its own `compliance_frameworks` list: those are merged with the frameworks from the compliance module, deduplicated, and sorted for deterministic output.
+
+Each scanner calls this in its match loop:
+
+```python
+for match in matches:
+    if match.score < min_confidence:
+        continue
+
+    finding = match_to_finding(
+        match, chunk.text, chunk.location,
+        self._redaction_style,
+    )
+    result.findings.append(finding)
+```
+
+Adding a new compliance framework or changing severity thresholds affects all three scanners uniformly without touching scanner code.
 
 ## Redaction
 
