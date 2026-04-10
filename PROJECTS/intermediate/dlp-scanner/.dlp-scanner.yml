@@ -1,0 +1,86 @@
+# ©AngelaMos | 2026
+# .dlp-scanner.yml
+
+scan:
+  file:
+    max_file_size_mb: 100
+    recursive: true
+    exclude_patterns:
+      - "*.pyc"
+      - "__pycache__"
+      - ".git"
+      - "node_modules"
+      - ".venv"
+    include_extensions:
+      - ".pdf"
+      - ".docx"
+      - ".xlsx"
+      - ".xls"
+      - ".csv"
+      - ".json"
+      - ".xml"
+      - ".yaml"
+      - ".yml"
+      - ".txt"
+      - ".log"
+      - ".eml"
+      - ".msg"
+      - ".parquet"
+      - ".avro"
+      - ".tar.gz"
+      - ".tar.bz2"
+      - ".zip"
+
+  database:
+    sample_percentage: 5
+    max_rows_per_table: 10000
+    timeout_seconds: 30
+    exclude_tables: []
+    include_tables: []
+
+  network:
+    bpf_filter: ""
+    entropy_threshold: 7.2
+    dns_label_entropy_threshold: 4.0
+    max_packets: 0
+
+detection:
+  min_confidence: 0.20
+  severity_threshold: "low"
+  context_window_tokens: 10
+  enable_rules:
+    - "*"
+  disable_rules: []
+  allowlists:
+    values:
+      - "123-45-6789"
+      - "000-00-0000"
+      - "4111111111111111"
+    domains:
+      - "example.com"
+      - "test.com"
+    file_patterns:
+      - "test_*"
+      - "*_fixture*"
+      - "mock_*"
+
+compliance:
+  frameworks:
+    - "HIPAA"
+    - "PCI_DSS"
+    - "GDPR"
+    - "CCPA"
+    - "SOX"
+    - "GLBA"
+
+output:
+  format: "console"
+  output_file: ""
+  redaction_style: "partial"
+  verbose: false
+  color: true
+
+logging:
+  level: "INFO"
+  json_output: false
+  log_file: ""

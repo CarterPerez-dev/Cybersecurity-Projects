@@ -1,0 +1,181 @@
+# ©AngelaMos | 2026
+# pyproject.toml
+
+[project]
+name = "dlp-scanner"
+version = "0.1.0"
+description = "Data Loss Prevention scanner for files, databases, and network traffic"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15.0",
+    "rich>=14.0.0",
+    "structlog>=25.0.0",
+    "pydantic>=2.10.0",
+    "orjson>=3.10.0",
+    "ruamel.yaml>=0.18.0",
+    "pymupdf>=1.25.0",
+    "python-docx>=1.1.0",
+    "openpyxl>=3.1.0",
+    "xlrd>=2.0.0",
+    "defusedxml>=0.7.0",
+    "lxml>=5.0.0",
+    "pyarrow>=16.0.0",
+    "fastavro>=1.9.0",
+    "extract-msg>=0.50.0",
+    "asyncpg>=0.30.0",
+    "aiomysql>=0.2.0",
+    "pymongo>=4.10.0",
+    "aiosqlite>=0.21.0",
+    "dpkt>=1.9.0",
+]
+
+[project.scripts]
+dlp-scan = "dlp_scanner.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dlp_scanner"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+    "mypy>=1.15.0",
+    "yapf>=0.43.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.130.0",
+]
+
+[tool.ruff]
+line-length = 75
+indent-width = 4
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "B",
+    "S",
+    "C90",
+    "N",
+    "UP",
+    "SIM",
+    "PTH",
+    "PERF",
+    "RUF",
+    "PL",
+    "TRY",
+    "LOG",
+]
+ignore = [
+    "S101",
+    "S112",
+    "TRY003",
+    "PLR2004",
+    "PLR0913",
+    "PLR0911",
+    "PLC0415",
+    "PTH123",
+    "PERF401",
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004", "S104", "S105", "S106"]
+"src/dlp_scanner/detectors/rules/**/*.py" = ["E501"]
+"src/dlp_scanner/scanners/db_scanner.py" = ["S608"]
+"src/dlp_scanner/network/protocols.py" = ["S110"]
+"src/dlp_scanner/extractors/structured.py" = ["N817"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = [
+    "dpkt.*",
+    "extract_msg.*",
+    "fastavro.*",
+    "xlrd.*",
+    "docx.*",
+    "openpyxl.*",
+    "fitz.*",
+    "defusedxml.*",
+    "lxml.*",
+    "aiomysql.*",
+    "pymongo.*",
+    "asyncpg.*",
+    "aiosqlite.*",
+    "pyarrow.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "dlp_scanner.extractors.email",
+    "dlp_scanner.extractors.office",
+    "dlp_scanner.extractors.structured",
+    "dlp_scanner.scanners.db_scanner",
+    "dlp_scanner.scanners.network_scanner",
+    "dlp_scanner.network.pcap",
+]
+disallow_any_expr = false
+warn_return_any = false
+disable_error_code = ["attr-defined", "unused-coroutine", "no-untyped-call", "import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: fast unit tests with no I/O",
+    "integration: tests requiring real file system or DB",
+    "slow: long-running tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "src/dlp_scanner/extractors/pdf.py",
+    "src/dlp_scanner/extractors/office.py",
+    "src/dlp_scanner/extractors/archive.py",
+    "src/dlp_scanner/extractors/email.py",
+    "src/dlp_scanner/network/pcap.py",
+    "src/dlp_scanner/scanners/network_scanner.py",
+    "src/dlp_scanner/scanners/db_scanner.py",
+    "src/dlp_scanner/reporters/base.py",
+    "src/dlp_scanner/scanners/base.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
