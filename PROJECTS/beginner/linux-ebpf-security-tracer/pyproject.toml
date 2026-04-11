@@ -1,0 +1,65 @@
+# ©AngelaMos | 2026
+# pyproject.toml
+
+[project]
+name = "ebpf-security-tracer"
+version = "1.0.0"
+description = "Real-time syscall tracing tool using eBPF for security observability"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.21.1",
+    "rich>=14.0.0",
+]
+
+[project.scripts]
+ebpf-tracer = "src.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 75
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "C4"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: requires root and eBPF kernel support",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bcc.*"
+ignore_missing_imports = true
+ignore_errors = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.0",
+    "pytest>=9.0.0",
+    "ruff>=0.14.0",
+    "yapf>=0.43.0",
+]
+
+[tool.yapfignore]
+ignore_patterns = [
+    ".venv/",
+    "venv/",
+]
