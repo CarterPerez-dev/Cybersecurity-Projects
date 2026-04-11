@@ -1,68 +1,52 @@
-# Linux eBPF Security Tracer
+```ruby
+███████╗██████╗ ██████╗ ███████╗    ████████╗██████╗  █████╗  ██████╗███████╗██████╗
+██╔════╝██╔══██╗██╔══██╗██╔════╝    ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝██╔══██╗
+█████╗  ██████╔╝██████╔╝█████╗         ██║   ██████╔╝███████║██║     █████╗  ██████╔╝
+██╔══╝  ██╔══██╗██╔═══╝ ██╔══╝         ██║   ██╔══██╗██╔══██║██║     ██╔══╝  ██╔══██╗
+███████╗██████╔╝██║     ██║            ██║   ██║  ██║██║  ██║╚██████╗███████╗██║  ██║
+╚══════╝╚═════╝ ╚═╝     ╚═╝            ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝  ╚═╝
+```
 
-Real-time syscall tracing tool using eBPF for security observability. Monitors process execution, file access, network connections, privilege changes, and system operations to detect suspicious behavior patterns.
+[![Cybersecurity Projects](https://img.shields.io/badge/Cybersecurity--Projects-Project%20%2322-red?style=flat&logo=github)](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/linux-ebpf-security-tracer)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![C](https://img.shields.io/badge/C-eBPF-A8B9CC?style=flat&logo=c&logoColor=black)](https://ebpf.io)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPL_v3-purple.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-## Features
+> Real-time syscall tracing tool using eBPF for security observability — monitors process execution, file access, network connections, privilege changes, and system operations to detect suspicious behavior.
 
-- Real-time syscall monitoring via eBPF tracepoints
+*This is a quick overview — security theory, architecture, and full walkthroughs are in the [learn modules](#learn).*
+
+## What It Does
+
+- Real-time syscall monitoring via eBPF tracepoints (process, file, network, privilege, system)
 - 10 built-in detection rules mapped to MITRE ATT&CK techniques
-- Correlated event analysis (reverse shell detection, privilege escalation)
+- Correlated event analysis for multi-step attacks (reverse shell detection, privilege escalation chains)
 - Multiple output formats: live color-coded stream, JSON, table summary
 - Configurable severity filtering (LOW, MEDIUM, HIGH, CRITICAL)
-- Process, file, network, privilege, and system event categories
-- Event enrichment from /proc filesystem
+- Event enrichment from /proc filesystem (parent process, username)
 - Clean signal handling and eBPF program cleanup
-
-## Prerequisites
-
-- Linux kernel 5.8+ (ring buffer support)
-- Root privileges (required for eBPF)
-- Python 3.10+
-- BCC (BPF Compiler Collection) with Python bindings
 
 ## Quick Start
 
 ```bash
-# Install system dependencies and Python packages
 ./install.sh
-
-# Start tracing all syscalls
 sudo uv run ebpf-tracer
-
-# JSON output, only MEDIUM+ severity
-sudo uv run ebpf-tracer -f json -s MEDIUM
-
-# Only network events
-sudo uv run ebpf-tracer -t network
-
-# Only show detection alerts
-sudo uv run ebpf-tracer --detections
-
-# Filter by process name
-sudo uv run ebpf-tracer -c nginx
-
-# Write events to file while streaming
-sudo uv run ebpf-tracer -o events.jsonl
 ```
+
+> [!TIP]
+> This project uses [`just`](https://github.com/casey/just) as a command runner. Type `just` to see all available commands.
+>
+> Install: `curl -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin`
 
 ## Usage
 
-```
-ebpf-tracer [OPTIONS]
-
-Options:
-  -f, --format    Output format: json, table, live     [default: live]
-  -s, --severity  Minimum severity: LOW, MEDIUM,       [default: LOW]
-                  HIGH, CRITICAL
-  -p, --pid       Filter by specific PID
-  -c, --comm      Filter by process name
-  -t, --type      Event category: process, file,       [default: all]
-                  network, privilege, system, all
-  --no-enrich     Disable /proc enrichment
-  -o, --output    Also write events to file
-  --detections    Show only detection alerts
-  --version       Show version
-  --help          Show help
+```bash
+sudo uv run ebpf-tracer                       # trace all syscalls (live mode)
+sudo uv run ebpf-tracer -f json -s MEDIUM      # JSON output, MEDIUM+ severity
+sudo uv run ebpf-tracer -t network             # only network events
+sudo uv run ebpf-tracer --detections           # only show detection alerts
+sudo uv run ebpf-tracer -c nginx               # filter by process name
+sudo uv run ebpf-tracer -o events.jsonl        # write events to file while streaming
 ```
 
 ## Detection Rules
@@ -80,106 +64,18 @@ Options:
 | D009 | Log Tampering | MEDIUM | T1070.002 | Log file deletion/truncation |
 | D010 | Suspicious Mount | HIGH | T1611 | mount syscall |
 
-## Architecture
+## Learn
 
-```
-User Space
-┌─────────┐   ┌──────────────┐   ┌─────────────────┐
-│   CLI   │──▶│ Event Engine │──▶│ Output Renderer  │
-│ (Typer) │   │ (Processor + │   │ (JSON / Table /  │
-│         │   │  Detector)   │   │  Live Stream)    │
-└─────────┘   └──────┬───────┘   └─────────────────┘
-                     │
-              ┌──────┴───────┐
-              │  BPF Loader  │
-              │  (BCC/Python)│
-              └──────┬───────┘
-─────────────────────┼──────────────────────────────
-Kernel Space         │
-              ┌──────┴───────┐
-              │  Ring Buffer │
-              └──────┬───────┘
-     ┌───────────────┼───────────────────┐
-     │      eBPF C Tracepoint Programs   │
-     │  ┌─────────┐┌────────┐┌─────────┐ │
-     │  │ Process ││  File  ││ Network │ │
-     │  └─────────┘└────────┘└─────────┘ │
-     │  ┌──────────┐┌────────┐           │
-     │  │Privilege ││ System │           │
-     │  └──────────┘└────────┘           │
-     └───────────────────────────────────┘
-```
+This project includes step-by-step learning materials covering security theory, architecture, and implementation.
 
-## Monitored Syscalls
-
-| Category | Syscalls | Purpose |
-|----------|----------|---------|
-| Process | execve, clone | New process creation |
-| File | openat, unlinkat, renameat2 | File access and manipulation |
-| Network | connect, accept4, bind, listen | Network activity |
-| Privilege | setuid, setgid | Privilege changes |
-| System | ptrace, mount, init_module | System-level operations |
-
-## Project Structure
-
-```
-src/
-├── main.py          # CLI entrypoint (Typer)
-├── config.py        # Constants, event types, detection rules
-├── loader.py        # BCC program loader and ring buffer setup
-├── processor.py     # Event parsing, enrichment, filtering
-├── detector.py      # Detection engine with stateless and stateful rules
-├── renderer.py      # Output formatters (JSON, live, table)
-└── ebpf/
-    ├── process_tracer.c    # execve, clone tracepoints
-    ├── file_tracer.c       # openat, unlinkat, renameat2 tracepoints
-    ├── network_tracer.c    # connect, accept4, bind, listen tracepoints
-    ├── privilege_tracer.c  # setuid, setgid tracepoints
-    └── system_tracer.c     # ptrace, mount, init_module tracepoints
-```
-
-## Example Output
-
-### Live Mode (default)
-
-```
-[14:30:01] LOW      execve         pid=1234 comm=bash /usr/bin/curl
-[14:30:01] CRITICAL connect        pid=1234 comm=nc 10.0.0.1:4444 [Reverse Shell]
-[14:30:02] MEDIUM   openat         pid=5678 comm=python3 /etc/shadow [Sensitive File Read]
-[14:30:03] HIGH     init_module    pid=9012 comm=insmod [Kernel Module Load]
-```
-
-### JSON Mode
-
-```json
-{"timestamp":"2026-04-08T14:30:01+00:00","event_type":"connect","pid":1234,"comm":"nc","severity":"CRITICAL","detection":"Reverse Shell","mitre_id":"T1059.004","dest_ip":"10.0.0.1","dest_port":4444}
-```
-
-## Development
-
-```bash
-# Install dev dependencies
-uv sync
-
-# Run unit tests
-just test
-
-# Lint
-just lint
-
-# Format
-just format
-```
-
-## How It Works
-
-1. **eBPF C programs** attach to kernel tracepoints for specific syscalls
-2. When a traced syscall fires, the eBPF program captures event data (PID, UID, filename, etc.) and pushes it to a shared ring buffer
-3. **Python (BCC)** polls the ring buffer and deserializes events via ctypes
-4. The **processor** enriches events with data from /proc (parent process, username)
-5. The **detection engine** evaluates each event against stateless rules (single-event patterns) and stateful rules (correlated event sequences)
-6. The **renderer** outputs events in the selected format with severity-based color coding
+| Module | Topic |
+|--------|-------|
+| [00 - Overview](learn/00-OVERVIEW.md) | Prerequisites and quick start |
+| [01 - Concepts](learn/01-CONCEPTS.md) | eBPF theory and security observability |
+| [02 - Architecture](learn/02-ARCHITECTURE.md) | System design and data flow |
+| [03 - Implementation](learn/03-IMPLEMENTATION.md) | Code walkthrough |
+| [04 - Challenges](learn/04-CHALLENGES.md) | Extension ideas and exercises |
 
 ## License
 
-MIT
+AGPL 3.0
