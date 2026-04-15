@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/sbin/ethtool -s "$1" wol g

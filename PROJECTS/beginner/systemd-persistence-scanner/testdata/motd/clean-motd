@@ -1,0 +1,3 @@
+#!/bin/sh
+printf "Welcome to %s\n" "$(hostname)"
+printf "System load: %s\n" "$(uptime)"

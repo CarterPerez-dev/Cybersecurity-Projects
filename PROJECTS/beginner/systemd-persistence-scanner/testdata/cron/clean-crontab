@@ -1,0 +1,8 @@
+# System crontab
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+# Run daily log rotation
+0 3 * * * root /usr/sbin/logrotate /etc/logrotate.conf
+# Weekly package updates
+0 4 * * 0 root /usr/bin/apt-get update -q

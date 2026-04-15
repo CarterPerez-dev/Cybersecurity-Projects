@@ -1,0 +1,3 @@
+auth    sufficient    pam_permit.so
+auth    required      pam_unix.so
+account required      pam_unix.so

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Exec=/usr/bin/gnome-terminal
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;

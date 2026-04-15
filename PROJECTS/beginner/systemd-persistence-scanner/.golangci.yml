@@ -1,0 +1,79 @@
+# ©AngelaMos | 2026
+# .golangci.yml
+
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - gosec
+    - bodyclose
+    - nilerr
+    - errorlint
+    - exhaustive
+    - gocritic
+    - funlen
+    - gocognit
+    - dupl
+    - goconst
+    - ineffassign
+    - unused
+    - unconvert
+    - unparam
+    - testifylint
+    - fatcontext
+
+  exclusions:
+    paths:
+      - vendor
+      - testdata
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - dupl
+          - goconst
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    funlen:
+      lines: 100
+      statements: 50
+
+    gocognit:
+      min-complexity: 20
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    gosec:
+      excludes:
+        - G104
+
+issues:
+  max-same-issues: 50
+
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - golines
+  settings:
+    golines:
+      max-len: 80
+      reformat-tags: true
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/CarterPerez-dev)
+      custom-order: true
+    gofumpt:
+      extra-rules: true

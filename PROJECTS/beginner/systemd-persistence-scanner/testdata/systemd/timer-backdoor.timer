@@ -1,0 +1,9 @@
+[Unit]
+Description=Periodic system check
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

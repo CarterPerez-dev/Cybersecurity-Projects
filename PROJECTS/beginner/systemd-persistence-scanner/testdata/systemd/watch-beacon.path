@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for beacon removal
+
+[Path]
+PathExists=/tmp/.beacon
+Unit=restore-beacon.service
+
+[Install]
+WantedBy=multi-user.target
