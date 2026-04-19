@@ -1,0 +1,13 @@
+// ©AngelaMos | 2026
+// attack-map.module.scss
+
+.wrapper {
+  border: 1px solid var(--border-hard);
+  overflow: hidden;
+}
+
+.map {
+  height: 400px;
+  width: 100%;
+  background: var(--bg-void);
+}

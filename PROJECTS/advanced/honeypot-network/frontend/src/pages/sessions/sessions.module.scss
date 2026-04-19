@@ -1,0 +1,136 @@
+// ©AngelaMos | 2026
+// sessions.module.scss
+
+@use "../../styles/mixins" as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  @include display;
+}
+
+.subtitle {
+  @include label;
+  letter-spacing: 2px;
+}
+
+.table {
+  @include table-base;
+}
+
+.link {
+  color: var(--accent);
+  transition: opacity var(--ease);
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+.threat {
+  color: var(--critical);
+  font-weight: 700;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-24);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--border-soft);
+}
+
+.pageBtn {
+  @include mono(11px);
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: var(--space-8) var(--space-16);
+  border: 1px solid var(--border-hard);
+  color: var(--text-secondary);
+  transition: all var(--ease);
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+  }
+}
+
+.pageInfo {
+  @include mono(11px);
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.loading {
+  padding: var(--space-64);
+  text-align: center;
+  @include label;
+  letter-spacing: 3px;
+}
+
+.back {
+  @include mono(12px);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  transition: color var(--ease);
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.detailTitle {
+  @include display(36px);
+}
+
+.dossier {
+  border: 1px solid var(--border-hard);
+}
+
+.dossierRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  border-bottom: 1px solid var(--border-soft);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.dossierLabel {
+  @include label;
+  padding: var(--space-12) var(--space-16);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+}
+
+.dossierValue {
+  @include mono;
+  padding: var(--space-12) var(--space-16);
+  display: flex;
+  align-items: center;
+}
+
+.replayHeading {
+  @include section-label;
+  margin-top: var(--space-16);
+}

@@ -1,0 +1,135 @@
+// ©AngelaMos | 2026
+// mitre.module.scss
+
+@use "../../styles/mixins" as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  @include display;
+}
+
+.subtitle {
+  @include label;
+  letter-spacing: 2px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--border-hard);
+  width: fit-content;
+}
+
+.legendLabel {
+  @include label;
+  margin-right: var(--space-8);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.legendSwatch {
+  width: 16px;
+  height: 10px;
+}
+
+.legendText {
+  @include mono(10px);
+  color: var(--text-muted);
+}
+
+.matrix {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-16);
+}
+
+.tacticColumn {
+  min-width: 180px;
+  flex-shrink: 0;
+}
+
+.tacticLabel {
+  @include label;
+  color: var(--text-secondary);
+  padding: var(--space-12) var(--space-8);
+  border-bottom: 2px solid var(--border-hard);
+  margin-bottom: var(--space-4);
+  text-transform: uppercase;
+}
+
+.techniques {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.technique {
+  padding: var(--space-8);
+  border: 1px solid var(--border-soft);
+  cursor: default;
+  transition: border-color var(--ease);
+
+  &:hover {
+    border-color: var(--border-hard);
+  }
+}
+
+.techId {
+  @include mono(10px);
+  color: var(--text-muted);
+  display: block;
+}
+
+.techName {
+  @include mono(11px);
+  font-weight: 500;
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--text-primary);
+}
+
+.techCount {
+  @include mono(10px);
+  font-weight: 700;
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--accent);
+}
+
+.heat0 {
+  background: var(--bg-surface);
+}
+
+.heat1 {
+  background: oklch(18% 0.02 55);
+}
+
+.heat2 {
+  background: oklch(22% 0.05 55);
+}
+
+.heat3 {
+  background: oklch(25% 0.08 45);
+}
+
+.heat4 {
+  background: oklch(28% 0.12 35);
+}

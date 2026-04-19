@@ -1,0 +1,28 @@
+# ©AngelaMos | 2026
+# go.prod
+
+FROM golang:1.25-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -trimpath \
+    -o /build/hive ./cmd/hive
+
+FROM scratch
+
+COPY --from=builder /build/hive /hive
+COPY --from=builder /build/migrations /migrations
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+EXPOSE 2222 8080 2121 4450 3307 6380 8000
+
+ENTRYPOINT ["/hive"]
+CMD ["serve"]

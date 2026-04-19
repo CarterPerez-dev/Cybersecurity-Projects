@@ -1,0 +1,122 @@
+// ©AngelaMos | 2026
+// shell.module.scss
+
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 var(--space-32);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-hard);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-shrink: 0;
+}
+
+.brandMark {
+  font-size: 20px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.brandName {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--text-primary);
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-hard);
+  margin: 0 var(--space-24);
+  flex-shrink: 0;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  flex: 1;
+}
+
+.navLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  padding: 18px 0;
+  border-bottom: 2px solid transparent;
+  transition: color var(--ease);
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.navActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.statusLabel {
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.statusOn {
+  color: var(--active);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.statusOff {
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.substrip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-32);
+  background: var(--bg-void);
+  border-bottom: 2px solid var(--border-hard);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.main {
+  flex: 1;
+  padding: var(--space-48);
+}

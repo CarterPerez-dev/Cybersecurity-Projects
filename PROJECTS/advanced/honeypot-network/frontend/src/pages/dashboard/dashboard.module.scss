@@ -1,0 +1,90 @@
+// ©AngelaMos | 2026
+// dashboard.module.scss
+
+@use "../../styles/mixins" as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-48);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  @include display;
+}
+
+.subtitle {
+  @include label;
+  letter-spacing: 2px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border-hard);
+
+  > *:not(:last-child) {
+    border-right: 1px solid var(--border-hard);
+  }
+}
+
+.rowWide {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: var(--space-32);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-32);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.panelLabel {
+  @include section-label;
+}
+
+.chart {
+  border: 1px solid var(--border-soft);
+  padding: var(--space-16) var(--space-8) var(--space-8) 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-hard);
+}
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-8) var(--space-16);
+  border-bottom: 1px solid var(--border-soft);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.listLabel {
+  @include mono;
+  color: var(--text-primary);
+}
+
+.listValue {
+  @include mono;
+  color: var(--text-secondary);
+}

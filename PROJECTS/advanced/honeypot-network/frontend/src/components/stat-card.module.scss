@@ -1,0 +1,22 @@
+// ©AngelaMos | 2026
+// stat-card.module.scss
+
+@use "../styles/mixins" as *;
+
+.card {
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.label {
+  @include label;
+}
+
+.value {
+  @include mono(40px);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}

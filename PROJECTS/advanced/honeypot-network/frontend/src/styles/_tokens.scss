@@ -1,0 +1,38 @@
+// ©AngelaMos | 2026
+// _tokens.scss
+
+:root {
+  --bg-void: oklch(7% 0.005 55);
+  --bg-base: oklch(11% 0.005 55);
+  --bg-surface: oklch(16% 0.005 55);
+  --bg-elevated: oklch(22% 0.005 55);
+  --bg-invert: oklch(90% 0.01 70);
+
+  --text-primary: oklch(88% 0.008 70);
+  --text-secondary: oklch(52% 0.005 55);
+  --text-muted: oklch(32% 0.005 55);
+
+  --border-hard: oklch(30% 0.005 55);
+  --border-soft: oklch(18% 0.005 55);
+
+  --accent: oklch(70% 0.19 55);
+  --accent-dim: oklch(38% 0.08 55);
+
+  --critical: oklch(60% 0.22 28);
+  --active: oklch(65% 0.16 148);
+
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  --ease: 150ms ease-out;
+}

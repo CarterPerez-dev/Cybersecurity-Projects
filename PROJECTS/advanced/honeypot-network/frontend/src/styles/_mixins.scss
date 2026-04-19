@@ -1,0 +1,64 @@
+// ©AngelaMos | 2026
+// _mixins.scss
+
+@mixin mono($size: 13px) {
+  font-family: var(--font-mono);
+  font-size: $size;
+}
+
+@mixin label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@mixin display($size: 48px) {
+  font-family: var(--font-sans);
+  font-size: $size;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+@mixin section-label {
+  @include label;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-hard);
+}
+
+@mixin table-base {
+  width: 100%;
+
+  th {
+    @include label;
+    padding: var(--space-12) var(--space-16);
+    text-align: left;
+    border-bottom: 2px solid var(--border-hard);
+  }
+
+  td {
+    padding: var(--space-12) var(--space-16);
+    border-bottom: 1px solid var(--border-soft);
+    @include mono;
+  }
+
+  tbody tr {
+    transition: background var(--ease);
+
+    &:hover {
+      background: var(--bg-surface);
+    }
+  }
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

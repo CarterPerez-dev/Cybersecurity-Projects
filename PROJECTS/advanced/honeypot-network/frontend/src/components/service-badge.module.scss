@@ -1,0 +1,14 @@
+// ©AngelaMos | 2026
+// service-badge.module.scss
+
+@use "../styles/mixins" as *;
+
+.badge {
+  @include mono(10px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-hard);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

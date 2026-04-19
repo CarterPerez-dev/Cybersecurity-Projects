@@ -1,0 +1,19 @@
+# ©AngelaMos | 2026
+# .stylelintignore
+
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+out/
+
+# JS/TS files
+**/*.js
+**/*.jsx
+**/*.ts
+**/*.tsx
+
+# Generated files
+*.min.css

@@ -1,0 +1,80 @@
+// ©AngelaMos | 2026
+// session-player.module.scss
+
+@use "../styles/mixins" as *;
+
+.player {
+  border: 1px solid var(--border-hard);
+  overflow: hidden;
+}
+
+.terminal {
+  padding: var(--space-8);
+  min-height: 300px;
+  background: var(--bg-void);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-16);
+  background: var(--bg-surface);
+  border-top: 2px solid var(--border-hard);
+}
+
+.btn {
+  @include mono(11px);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--border-hard);
+  color: var(--text-secondary);
+  transition: all var(--ease);
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.speedGroup {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.speedBtn {
+  @include mono(10px);
+  padding: var(--space-4) var(--space-8);
+  color: var(--text-muted);
+  transition: color var(--ease);
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.speedBtnActive {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+.progress {
+  flex: 1;
+  height: 2px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+.counter {
+  @include mono(10px);
+  color: var(--text-muted);
+  min-width: 56px;
+  text-align: right;
+}
