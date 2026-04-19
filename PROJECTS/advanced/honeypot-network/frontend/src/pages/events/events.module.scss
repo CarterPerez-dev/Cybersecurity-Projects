@@ -1,0 +1,76 @@
+// ©AngelaMos | 2026
+// events.module.scss
+
+@use "../../styles/mixins" as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.headingLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  @include display;
+}
+
+.subtitle {
+  @include label;
+  letter-spacing: 2px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.filterLabel {
+  @include label;
+}
+
+.filter {
+  @include mono;
+  padding: var(--space-8) var(--space-12);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--border-hard);
+  width: 200px;
+  color: var(--text-primary);
+  transition: border-color var(--ease);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+  }
+}
+
+.table {
+  @include table-base;
+}
+
+.dim {
+  color: var(--text-muted);
+}
+
+.loading {
+  padding: var(--space-64);
+  text-align: center;
+  @include label;
+  letter-spacing: 3px;
+}

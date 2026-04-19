@@ -1,0 +1,118 @@
+// ©AngelaMos | 2026
+// attackers.module.scss
+
+@use "../../styles/mixins" as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  @include display;
+}
+
+.subtitle {
+  @include label;
+  letter-spacing: 2px;
+}
+
+.table {
+  @include table-base;
+}
+
+.link {
+  color: var(--accent);
+  transition: opacity var(--ease);
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+.threat {
+  color: var(--critical);
+  font-weight: 700;
+}
+
+.loading {
+  padding: var(--space-64);
+  text-align: center;
+  @include label;
+  letter-spacing: 3px;
+}
+
+.back {
+  @include mono(12px);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  transition: color var(--ease);
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.detailTitle {
+  @include display(36px);
+  letter-spacing: 2px;
+}
+
+.dossier {
+  border: 1px solid var(--border-hard);
+  max-width: 640px;
+}
+
+.dossierRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  border-bottom: 1px solid var(--border-soft);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.dossierLabel {
+  @include label;
+  padding: var(--space-12) var(--space-16);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+}
+
+.dossierValue {
+  @include mono;
+  padding: var(--space-12) var(--space-16);
+  display: flex;
+  align-items: center;
+}
+
+.threatValue {
+  color: var(--critical);
+  font-weight: 700;
+}
+
+.tags {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.tag {
+  @include mono(10px);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-hard);
+  color: var(--text-secondary);
+}

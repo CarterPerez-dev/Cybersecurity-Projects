@@ -1,0 +1,40 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Go build output
+bin/
+tmp/
+
+# Runtime data
+data/
+*.cast
+*.mmdb
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres-data/
+redis-data/
+
+# Test/debug
+coverage.out
+*.prof
+*.test

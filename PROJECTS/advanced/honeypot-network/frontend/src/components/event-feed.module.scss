@@ -1,0 +1,60 @@
+// ©AngelaMos | 2026
+// event-feed.module.scss
+
+@use "../styles/mixins" as *;
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border-hard);
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-16);
+  border-bottom: 1px solid var(--border-soft);
+  animation: enter var(--ease);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.time {
+  @include mono(11px);
+  color: var(--text-muted);
+  min-width: 72px;
+}
+
+.type {
+  @include mono(12px);
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.ip {
+  @include mono(12px);
+  color: var(--accent);
+}
+
+.empty {
+  padding: var(--space-48);
+  text-align: center;
+  color: var(--text-muted);
+  @include mono(12px);
+  letter-spacing: 2px;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

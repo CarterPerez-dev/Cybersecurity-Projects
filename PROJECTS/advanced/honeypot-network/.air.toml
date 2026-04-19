@@ -1,0 +1,28 @@
+# ©AngelaMos | 2026
+# .air.toml
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/hive ./cmd/hive"
+bin = "./tmp/hive"
+full_bin = "./tmp/hive serve"
+delay = 1000
+exclude_dir = ["tmp", "vendor", "frontend", "testdata", "docs", "learn", "infra", "migrations"]
+exclude_file = []
+exclude_regex = ["_test\\.go$"]
+exclude_unchanged = true
+follow_symlink = false
+include_ext = ["go", "yaml"]
+include_dir = []
+kill_delay = 500
+send_interrupt = true
+stop_on_error = true
+
+[log]
+time = false
+main_only = false
+
+[misc]
+clean_on_exit = true

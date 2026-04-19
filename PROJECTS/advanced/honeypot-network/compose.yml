@@ -1,0 +1,78 @@
+# ©AngelaMos | 2026
+# compose.yml
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hive}
+      POSTGRES_DB: ${POSTGRES_DB:-hive}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hive}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/go.prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      HIVE_DATABASE_URL: postgres://${POSTGRES_USER:-hive}:${POSTGRES_PASSWORD:-hive}@postgres:5432/${POSTGRES_DB:-hive}?sslmode=disable
+      HIVE_REDIS_URL: redis://redis:6379
+      HIVE_SENSOR_ID: ${HIVE_SENSOR_ID:-hive-01}
+      HIVE_SENSOR_REGION: ${HIVE_SENSOR_REGION:-local}
+      HIVE_LOG_LEVEL: ${HIVE_LOG_LEVEL:-info}
+      HIVE_GEOIP_DB_PATH: /usr/share/GeoIP/GeoLite2-City.mmdb
+      HIVE_CORS_ORIGINS: ${HIVE_CORS_ORIGINS:-http://localhost,http://localhost:3000}
+    ports:
+      - "${HIVE_SSH_PORT:-2211}:2222"
+      - "${HIVE_HTTP_PORT:-8055}:8080"
+      - "${HIVE_FTP_PORT:-21272}:2121"
+      - "${HIVE_SMB_PORT:-46353}:4450"
+      - "${HIVE_MYSQL_PORT:-33077}:3307"
+      - "${HIVE_REDIS_PORT:-44801}:6380"
+    volumes:
+      - replays:/data/replays
+      - hostkeys:/data
+      - geoipdata:/usr/share/GeoIP
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/vite.prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${DASHBOARD_PORT:-7119}:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  replays:
+  hostkeys:
+  geoipdata:
