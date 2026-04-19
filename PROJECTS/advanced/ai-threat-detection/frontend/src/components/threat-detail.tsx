@@ -4,7 +4,8 @@
 //
 // Modal dialog for full threat event inspection
 //
-// Renders a click-to-dismiss overlay with a detail panel
+// Renders a click-to-dismiss overlay (also dismissable via
+// Escape key) with a detail panel
 // displaying four sections: Overview (severity badge,
 // threat score to 4 decimals, detection timestamp, review
 // status), Request (source IP, method, path, status code,
@@ -16,6 +17,7 @@
 // pages/threats
 // ===================
 
+import { useEffect } from 'react'
 import { LuX } from 'react-icons/lu'
 import type { ThreatEvent } from '@/api/types'
 import { SeverityBadge } from './severity-badge'
@@ -34,6 +36,15 @@ export function ThreatDetail({
   threat,
   onClose,
 }: ThreatDetailProps): React.ReactElement | null {
+  useEffect(() => {
+    if (!threat) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [threat, onClose])
+
   if (!threat) return null
 
   return (

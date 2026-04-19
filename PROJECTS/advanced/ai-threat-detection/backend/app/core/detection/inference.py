@@ -31,6 +31,8 @@ from typing import Any
 
 import numpy as np
 
+from app.core.features.mappings import FEATURE_ORDER
+
 try:
     import onnxruntime as ort
 except ImportError:
@@ -88,6 +90,18 @@ class InferenceEngine:
             self._if_session = ort.InferenceSession(str(if_path), opts)
 
             scaler_data = json.loads(scaler_path.read_text())
+
+            stored_names = scaler_data.get("feature_names")
+            if (
+                stored_names is not None
+                and stored_names != list(FEATURE_ORDER)
+            ):
+                logger.error(
+                    "Feature ordering mismatch in %s",
+                    scaler_path,
+                )
+                return
+
             self._scaler_center = np.array(scaler_data["center"],
                                            dtype=np.float32)
             self._scaler_scale = np.array(scaler_data["scale"],

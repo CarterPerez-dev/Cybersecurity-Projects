@@ -15,8 +15,9 @@ rules aggregate to higher scores, scores are clamped to
 [0, 1], severity thresholds align with architecture
 (LOW < 0.5, MEDIUM >= 0.5, HIGH >= 0.7), component_scores
 match matched_rules, FILE_INCLUSION detects PHP stream
-wrappers, and DOUBLE_ENCODING detects %25-prefixed
-sequences
+wrappers, DOUBLE_ENCODING detects %25-prefixed sequences,
+CRLF_INJECTION detects %0d%0a header injection, and
+OPEN_REDIRECT detects redirect params to external URLs
 
 Connects to:
   core/detection/rules  - RuleEngine
@@ -252,3 +253,29 @@ def test_double_encoding() -> None:
     entry = _make_entry(path="/path%2527trick")
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "DOUBLE_ENCODING" in result.matched_rules
+
+
+def test_crlf_injection() -> None:
+    """
+    CRLF sequences in the URI trigger the CRLF_INJECTION rule
+    """
+    entry = _make_entry(
+        path="/api/v1/users",
+        query_string="name=admin%0d%0aSet-Cookie:session=hijacked",
+    )
+    result = ENGINE.score_request(_empty_windowed(), entry)
+    assert "CRLF_INJECTION" in result.matched_rules
+    assert result.threat_score >= 0.5
+
+
+def test_open_redirect() -> None:
+    """
+    Redirect parameter pointing to an external URL triggers OPEN_REDIRECT
+    """
+    entry = _make_entry(
+        path="/login",
+        query_string="redirect_uri=https://evil.com/steal",
+    )
+    result = ENGINE.score_request(_empty_windowed(), entry)
+    assert "OPEN_REDIRECT" in result.matched_rules
+    assert result.threat_score >= 0.5

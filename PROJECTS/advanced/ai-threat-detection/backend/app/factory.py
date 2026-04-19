@@ -119,7 +119,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log_dir = Path(settings.nginx_log_path).resolve().parent
     if log_dir.is_dir():
         loop = asyncio.get_running_loop()
-        tailer = LogTailer(settings.nginx_log_path, pipeline.raw_queue, loop)
+        position_path = Path(settings.model_dir) / ".tailer_pos.json"
+        tailer = LogTailer(
+            settings.nginx_log_path,
+            pipeline.raw_queue,
+            loop,
+            position_path=position_path,
+        )
         tailer.start()
     else:
         logger.warning("Log directory %s not found — tailer disabled", log_dir)

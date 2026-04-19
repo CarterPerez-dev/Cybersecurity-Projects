@@ -13,11 +13,13 @@ WindowAggregator, and encodes the merged 35-dim float
 vector. Stage 3 (_detection_worker): scores via RuleEngine,
 optionally runs ML ensemble inference (normalize AE/IF
 scores, fuse with configurable weights, blend with rule
-score at 0.7 ML weight). Stage 4 (_dispatch_worker):
-forwards ScoredRequests via the on_result callback. Stages
-are connected by sized asyncio.Queues with poison-pill
-shutdown propagation. EnrichedRequest and ScoredRequest
-dataclasses carry data between stages
+score at 0.7 ML weight), and persists per-model ML scores
+on ScoredRequest for downstream observability. Stage 4
+(_dispatch_worker): forwards ScoredRequests via the
+on_result callback. Stages are connected by sized
+asyncio.Queues with poison-pill shutdown propagation.
+EnrichedRequest and ScoredRequest dataclasses carry data
+between stages
 
 Connects to:
   core/ingestion/parsers    - parse_combined
@@ -95,6 +97,7 @@ class ScoredRequest:
     rule_result: RuleResult
     final_score: float = 0.0
     detection_mode: str = "rules"
+    ml_scores: dict[str, float] | None = None
 
 
 class Pipeline:
@@ -138,6 +141,23 @@ class Pipeline:
         self._inference_engine = inference_engine
         self._ensemble_weights = ensemble_weights or DEFAULT_ENSEMBLE_WEIGHTS
         self._tasks: list[asyncio.Task[None]] = []
+        self._stats: dict[str, int] = {
+            "parsed": 0,
+            "parse_errors": 0,
+            "enriched": 0,
+            "enrich_errors": 0,
+            "scored": 0,
+            "score_errors": 0,
+            "dispatched": 0,
+            "dispatch_errors": 0,
+        }
+
+    @property
+    def stats(self) -> dict[str, int]:
+        """
+        Return a snapshot of per-stage processed/error counters
+        """
+        return dict(self._stats)
 
     async def start(self) -> None:
         """
@@ -174,7 +194,9 @@ class Pipeline:
                 entry = parse_combined(line)
                 if entry is not None:
                     await self._parsed_queue.put(entry)
+                    self._stats["parsed"] += 1
             except Exception:
+                self._stats["parse_errors"] += 1
                 logger.exception("Parse error")
             self.raw_queue.task_done()
 
@@ -222,7 +244,9 @@ class Pipeline:
                         feature_vector=vector,
                         geo=geo,
                     ))
+                self._stats["enriched"] += 1
             except Exception:
+                self._stats["enrich_errors"] += 1
                 logger.exception(
                     "Feature extraction failed for %s",
                     entry.ip,
@@ -248,14 +272,17 @@ class Pipeline:
 
                 final_score = rule_result.threat_score
                 detection_mode = "rules"
+                per_model_scores: dict[str, float] | None = None
 
                 if (self._inference_engine is not None
                         and self._inference_engine.is_loaded
                         and np is not None):
-                    ml_scores = self._score_with_ml(enriched.feature_vector)
-                    if ml_scores is not None:
+                    per_model_scores = self._score_with_ml(
+                        enriched.feature_vector,
+                    )
+                    if per_model_scores is not None:
                         ml_fused = fuse_scores(
-                            ml_scores,
+                            per_model_scores,
                             self._ensemble_weights,
                         )
                         final_score = blend_scores(
@@ -273,8 +300,11 @@ class Pipeline:
                         rule_result=rule_result,
                         final_score=final_score,
                         detection_mode=detection_mode,
+                        ml_scores=per_model_scores,
                     ))
+                self._stats["scored"] += 1
             except Exception:
+                self._stats["score_errors"] += 1
                 logger.exception("Detection failed")
             self._feature_queue.task_done()
 
@@ -314,7 +344,9 @@ class Pipeline:
             try:
                 if self._on_result is not None:
                     await self._on_result(scored)
+                self._stats["dispatched"] += 1
             except Exception:
+                self._stats["dispatch_errors"] += 1
                 logger.exception(
                     "Dispatch failed for %s",
                     scored.entry.ip,

@@ -9,9 +9,11 @@ FeatureScaler wraps sklearn RobustScaler (median/IQR
 normalization) to handle outlier-heavy HTTP traffic data.
 Provides fit, transform, fit_transform, and
 inverse_transform mirroring the sklearn API. save_json
-serializes center and scale arrays to a human-readable
-JSON file (avoiding pickle for security and portability),
-and load_json reconstructs a fitted scaler from that file.
+serializes center, scale arrays, and optional feature_names
+to a human-readable JSON file (avoiding pickle for security
+and portability), and load_json reconstructs a fitted
+scaler from that file with optional feature ordering
+validation against expected_feature_names.
 Only the autoencoder uses this scaler since tree-based
 models (random forest, isolation forest) are
 scale-invariant
@@ -84,25 +86,47 @@ class FeatureScaler:
         self.fit(X)
         return self.transform(X)
 
-    def save_json(self, path: Path | str) -> None:
+    def save_json(
+        self,
+        path: Path | str,
+        feature_names: list[str] | None = None,
+    ) -> None:
         """
         Serialize scaler parameters to a human-readable JSON file.
         """
         if not self._fitted or self._scaler is None:
             raise RuntimeError("Scaler has not been fitted")
-        data = {
+        data: dict[str, object] = {
             "center": self._scaler.center_.tolist(),
             "scale": self._scaler.scale_.tolist(),
             "n_features": int(self._scaler.n_features_in_),
         }
+        if feature_names is not None:
+            data["feature_names"] = feature_names
         Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     @classmethod
-    def load_json(cls, path: Path | str) -> FeatureScaler:
+    def load_json(
+        cls,
+        path: Path | str,
+        expected_feature_names: list[str] | None = None,
+    ) -> FeatureScaler:
         """
         Reconstruct a fitted scaler from a JSON file.
         """
         data = json.loads(Path(path).read_text(encoding="utf-8"))
+
+        stored_names = data.get("feature_names")
+        if (
+            expected_feature_names is not None
+            and stored_names is not None
+            and stored_names != expected_feature_names
+        ):
+            raise ValueError(
+                "Feature ordering mismatch between trained "
+                "scaler and current FEATURE_ORDER"
+            )
+
         scaler = cls()
         scaler._scaler = RobustScaler()
         scaler._scaler.center_ = np.array(data["center"], dtype=np.float64)

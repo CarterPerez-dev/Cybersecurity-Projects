@@ -3,7 +3,7 @@
 patterns.py
 
 Compiled regex patterns for web attack detection covering
-7 OWASP categories plus encoding anomalies
+9 OWASP categories plus encoding anomalies
 
 Defines case-insensitive compiled patterns for: SQLI
 (union select, sleep, benchmark, information_schema, hex
@@ -17,9 +17,10 @@ backtick substitution, ${} expansion), FILE_INCLUSION
 (php://, file://, data://, phar:// wrapper schemes), SSRF
 (cloud metadata IPs 169.254.169.254, localhost with paths,
 dict:// and gopher://), LOG4SHELL (${jndi, ${lower, ${:-
-patterns). Also provides ENCODED_CHARS, DOUBLE_ENCODED for
-evasion detection, and ATTACK_COMBINED unioning all 7
-patterns
+patterns), CRLF_INJECTION (%0d%0a sequences, bare CR/LF),
+OPEN_REDIRECT (redirect params pointing to external URLs).
+Also provides ENCODED_CHARS, DOUBLE_ENCODED for evasion
+detection, and ATTACK_COMBINED unioning all 9 patterns
 
 Connects to:
   core/features/
@@ -115,6 +116,14 @@ _SSRF = (
 
 _LOG4SHELL = r"(?:\$\{(?:j(?:ndi|ava)|lower|upper|:-|:\+|#))"
 
+_CRLF_INJECTION = r"(?:%0[dD]%0[aA]|%0[dD]|%0[aA]|\\r\\n)"
+
+_OPEN_REDIRECT = (
+    r"(?:(?:redirect|return|next|url|rurl|dest|destination|redir|"
+    r"redirect_uri|return_to|checkout_url|continue|return_path)"
+    r"\s*=\s*(?:https?://|//|\\\\)[^\s&]*)"
+)
+
 SQLI = re.compile(_SQLI, re.IGNORECASE)
 XSS = re.compile(_XSS, re.IGNORECASE)
 PATH_TRAVERSAL = re.compile(_PATH_TRAVERSAL, re.IGNORECASE)
@@ -122,11 +131,14 @@ COMMAND_INJECTION = re.compile(_COMMAND_INJECTION, re.IGNORECASE)
 FILE_INCLUSION = re.compile(_FILE_INCLUSION, re.IGNORECASE)
 SSRF = re.compile(_SSRF, re.IGNORECASE)
 LOG4SHELL = re.compile(_LOG4SHELL, re.IGNORECASE)
+CRLF_INJECTION = re.compile(_CRLF_INJECTION, re.IGNORECASE)
+OPEN_REDIRECT = re.compile(_OPEN_REDIRECT, re.IGNORECASE)
 
 ATTACK_COMBINED = re.compile(
     r"|".join((
         _SQLI, _XSS, _PATH_TRAVERSAL, _COMMAND_INJECTION,
         _FILE_INCLUSION, _SSRF, _LOG4SHELL,
+        _CRLF_INJECTION, _OPEN_REDIRECT,
     )),
     re.IGNORECASE,
 )

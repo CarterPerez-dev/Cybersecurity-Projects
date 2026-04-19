@@ -13,8 +13,9 @@ database path, nginx log path, pipeline queue sizes
 settings (size 32, timeout 50ms), and ML configuration
 (model_dir, detection_mode, ensemble weights for
 autoencoder/random-forest/isolation-forest at 0.40/0.40
-/0.20, ae_threshold_percentile 99.5, MLflow tracking
-URI). Exports a module-level singleton settings instance
+/0.20 with model_validator enforcing sum-to-1.0,
+ae_threshold_percentile 99.5, MLflow tracking URI).
+Exports a module-level singleton settings instance
 
 Connects to:
   factory.py        - consumed in lifespan and create_app
@@ -24,6 +25,9 @@ Connects to:
   core/enrichment/  - geoip_db_path
 """
 
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -69,6 +73,22 @@ class Settings(BaseSettings):
     ensemble_weight_if: float = 0.20
     ae_threshold_percentile: float = 99.5
     mlflow_tracking_uri: str = "file:./mlruns"
+
+    @model_validator(mode="after")
+    def _check_ensemble_weights(self) -> Self:
+        """
+        Validate that ensemble weights sum to 1.0
+        """
+        total = (
+            self.ensemble_weight_ae
+            + self.ensemble_weight_rf
+            + self.ensemble_weight_if
+        )
+        if abs(total - 1.0) > 1e-6:
+            raise ValueError(
+                f"Ensemble weights must sum to 1.0, got {total:.6f}"
+            )
+        return self
 
 
 settings = Settings()

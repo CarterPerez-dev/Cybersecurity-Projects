@@ -5,10 +5,11 @@ rules.py
 Cold-start rule-based detection engine inspired by
 ModSecurity Core Rule Set
 
-RuleEngine.score_request evaluates requests against 7
+RuleEngine.score_request evaluates requests against 9
 regex-based _PatternRules (LOG4SHELL 0.95, COMMAND_
 INJECTION 0.90, SQL_INJECTION 0.85, XSS 0.80, FILE_
-INCLUSION 0.75, SSRF 0.70, PATH_TRAVERSAL 0.60),
+INCLUSION 0.75, SSRF 0.70, CRLF_INJECTION 0.65,
+PATH_TRAVERSAL 0.60, OPEN_REDIRECT 0.55),
 double-encoding detection (0.40), scanner user-agent
 signature matching (0.35), and 2 _ThresholdRules
 (RATE_ANOMALY >100 req/min 0.30, HIGH_ERROR_RATE >50%
@@ -20,7 +21,8 @@ and component_scores
 Connects to:
   core/features/
     patterns       - compiled regex patterns (SQLI,
-                      XSS, LOG4SHELL, etc.)
+                      XSS, LOG4SHELL, CRLF_INJECTION,
+                      OPEN_REDIRECT, etc.)
   core/features/
     signatures     - SCANNER_USER_AGENTS list
   core/detection/
@@ -35,9 +37,11 @@ from typing import NamedTuple
 
 from app.core.features.patterns import (
     COMMAND_INJECTION,
+    CRLF_INJECTION,
     DOUBLE_ENCODED,
     FILE_INCLUSION,
     LOG4SHELL,
+    OPEN_REDIRECT,
     PATH_TRAVERSAL,
     SQLI,
     SSRF,
@@ -77,6 +81,8 @@ _PATTERN_RULES: list[_PatternRule] = [
     _PatternRule("FILE_INCLUSION", FILE_INCLUSION, 0.75),
     _PatternRule("SSRF", SSRF, 0.70),
     _PatternRule("PATH_TRAVERSAL", PATH_TRAVERSAL, 0.60),
+    _PatternRule("CRLF_INJECTION", CRLF_INJECTION, 0.65),
+    _PatternRule("OPEN_REDIRECT", OPEN_REDIRECT, 0.55),
 ]
 
 _THRESHOLD_RULES: list[_ThresholdRule] = [

@@ -51,6 +51,8 @@ from ml.train_classifiers import (
 )
 from ml.validation import ValidationResult, validate_ensemble
 
+from app.core.features.mappings import FEATURE_ORDER
+
 logger = logging.getLogger(__name__)
 
 N_FEATURES = 35
@@ -240,7 +242,10 @@ class TrainingOrchestrator:
             ae_result["model"],
             self._output_dir / AE_FILENAME,
         )
-        ae_result["scaler"].save_json(self._output_dir / SCALER_FILENAME)
+        ae_result["scaler"].save_json(
+            self._output_dir / SCALER_FILENAME,
+            feature_names=list(FEATURE_ORDER),
+        )
         threshold_data = {"threshold": ae_result["threshold"]}
         (self._output_dir / THRESHOLD_FILENAME).write_text(
             json.dumps(threshold_data, indent=2))

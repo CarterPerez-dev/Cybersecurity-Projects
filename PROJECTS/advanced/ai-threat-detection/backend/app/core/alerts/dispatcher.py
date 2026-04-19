@@ -104,6 +104,9 @@ class AlertDispatcher:
             request_path=scored.entry.path,
             threat_score=scored.final_score,
             severity=severity,
-            component_scores=scored.rule_result.component_scores,
+            component_scores={
+                **scored.rule_result.component_scores,
+                **(scored.ml_scores or {}),
+            },
         )
         await self._redis.publish(ALERTS_CHANNEL, alert.model_dump_json())

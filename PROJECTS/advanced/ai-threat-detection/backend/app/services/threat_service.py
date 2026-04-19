@@ -151,7 +151,10 @@ async def create_threat_event(
         user_agent=scored.entry.user_agent,
         threat_score=scored.final_score,
         severity=classify_severity(scored.final_score),
-        component_scores=scored.rule_result.component_scores,
+        component_scores={
+            **scored.rule_result.component_scores,
+            **(scored.ml_scores or {}),
+        },
         geo_country=(scored.geo.country if scored.geo else None),
         geo_city=(scored.geo.city if scored.geo else None),
         geo_lat=(scored.geo.lat if scored.geo else None),

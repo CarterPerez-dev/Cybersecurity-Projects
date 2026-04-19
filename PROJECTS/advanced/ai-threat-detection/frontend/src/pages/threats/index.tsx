@@ -7,8 +7,9 @@
 //
 // Exports a lazy-loaded Component (displayName ThreatsPage)
 // that manages offset, severity filter (ALL/HIGH/MEDIUM/
-// LOW), and source IP text filter as local state. Passes
-// these as ThreatParams to useThreats with PAGINATION
+// LOW), and source IP text filter as local state. The IP
+// filter uses useDeferredValue to avoid per-keystroke API
+// calls. Passes these as ThreatParams to useThreats with PAGINATION
 // defaults. Renders a responsive table with time, source
 // IP, MethodBadge, path, score to 3 decimals,
 // SeverityBadge, and status code columns. Rows are
@@ -19,7 +20,7 @@
 // components/threat-detail, config
 // ===================
 
-import { useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { useThreats } from '@/api/hooks'
 import type { ThreatEvent } from '@/api/types'
 import { MethodBadge, SeverityBadge, ThreatDetail } from '@/components'
@@ -37,12 +38,13 @@ export function Component(): React.ReactElement {
   const [severity, setSeverity] = useState<SeverityFilter>('ALL')
   const [sourceIp, setSourceIp] = useState('')
   const [selectedThreat, setSelectedThreat] = useState<ThreatEvent | null>(null)
+  const deferredIp = useDeferredValue(sourceIp)
 
   const params = {
     limit: PAGINATION.DEFAULT_LIMIT,
     offset,
     ...(severity !== 'ALL' && { severity }),
-    ...(sourceIp && { source_ip: sourceIp }),
+    ...(deferredIp && { source_ip: deferredIp }),
   }
 
   const { data, isLoading } = useThreats(params)

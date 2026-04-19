@@ -5,8 +5,10 @@ health.py
 Health and readiness probe endpoints for container
 orchestration
 
-GET /health returns liveness status with uptime_seconds
-and pipeline_running flag. GET /ready checks database
+GET /health returns liveness status with uptime_seconds,
+pipeline_running flag, and per-stage pipeline_stats
+counters (parsed/enriched/scored/dispatched with error
+counts). GET /ready checks database
 connectivity (SELECT 1) and Redis ping, reports
 models_loaded status, and returns 503 if any dependency
 is down. Both endpoints read from app.state set during
@@ -34,10 +36,12 @@ async def health(request: Request) -> dict[str, object]:
     Liveness probe — returns 200 if the process is alive.
     """
     uptime = time.monotonic() - request.app.state.startup_time
+    pipeline = getattr(request.app.state, "pipeline", None)
     return {
         "status": "healthy",
         "uptime_seconds": round(uptime, 2),
         "pipeline_running": request.app.state.pipeline_running,
+        "pipeline_stats": pipeline.stats if pipeline else {},
     }
 
 

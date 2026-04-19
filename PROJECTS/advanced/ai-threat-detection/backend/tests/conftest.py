@@ -99,6 +99,7 @@ async def db_client(db_engine) -> AsyncIterator[AsyncClient]:
             await session.commit()
 
     test_app.dependency_overrides[get_session] = override_get_session
+    test_app.state.session_factory = factory
 
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport,
