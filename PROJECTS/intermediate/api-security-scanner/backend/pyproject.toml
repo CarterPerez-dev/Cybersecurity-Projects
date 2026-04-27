@@ -28,7 +28,7 @@ dependencies = [
     # Settings management
     "pydantic==2.12.5",
     "pydantic-settings==2.12.0",
-    "python-dotenv==1.2.1",
+    "python-dotenv==1.2.2",
     # Utilities
     "email-validator==2.3.0",
 ]
