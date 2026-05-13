@@ -140,9 +140,9 @@ func patchTemplate(template []byte, triggerURL string) ([]byte, error) {
 		}
 
 		hdr := &zip.FileHeader{Name: f.Name, Method: f.Method}
-		fw, cErr := w.CreateHeader(hdr)
-		if cErr != nil {
-			return nil, fmt.Errorf("docx: create %s: %w", f.Name, cErr)
+		fw, hErr := w.CreateHeader(hdr)
+		if hErr != nil {
+			return nil, fmt.Errorf("docx: create %s: %w", f.Name, hErr)
 		}
 		if _, wErr := fw.Write(body); wErr != nil {
 			return nil, fmt.Errorf("docx: write %s: %w", f.Name, wErr)

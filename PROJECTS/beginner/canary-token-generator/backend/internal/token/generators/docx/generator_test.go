@@ -479,10 +479,24 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 				wantIP:  "2001:db8::1",
 			},
 			{
+				name:    "RemoteAddr loopback IPv6 strips brackets and port",
+				headers: nil,
+				remote:  "[::1]:9999",
+				wantIP:  "::1",
+			},
+			{
 				name:    "RemoteAddr without port falls back to raw value",
 				headers: nil,
 				remote:  "127.0.0.1",
 				wantIP:  "127.0.0.1",
+			},
+			{
+				name: "XFF IPv6 rightmost",
+				headers: map[string]string{
+					"X-Forwarded-For": "198.51.100.1, 2001:db8::dead",
+				},
+				remote: "127.0.0.1:9999",
+				wantIP: "2001:db8::dead",
 			},
 			{
 				name: "CF value is trimmed of whitespace",
