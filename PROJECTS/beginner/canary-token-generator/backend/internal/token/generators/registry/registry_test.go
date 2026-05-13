@@ -54,6 +54,14 @@ func TestBuild_RegistersKubeconfig(t *testing.T) {
 	require.Equal(t, token.TypeKubeconfig, g.Type())
 }
 
+func TestBuild_RegistersEnvfile(t *testing.T) {
+	reg := registry.Build(registry.Config{BaseURL: testBaseURL})
+	g, ok := reg[token.TypeEnvfile]
+	require.True(t, ok, "expected envfile generator registered")
+	require.NotNil(t, g)
+	require.Equal(t, token.TypeEnvfile, g.Type())
+}
+
 func TestBuild_UnknownTypeReturnsZeroValue(t *testing.T) {
 	reg := registry.Build(registry.Config{BaseURL: testBaseURL})
 	g, ok := reg["nonexistent-type"]
@@ -64,7 +72,6 @@ func TestBuild_UnknownTypeReturnsZeroValue(t *testing.T) {
 func TestBuild_PendingTypesNotYetRegistered(t *testing.T) {
 	reg := registry.Build(registry.Config{BaseURL: testBaseURL})
 	pending := []token.Type{
-		token.TypeEnvfile,
 		token.TypeMySQL,
 	}
 	for _, tt := range pending {
@@ -78,12 +85,12 @@ func TestBuild_PendingTypesNotYetRegistered(t *testing.T) {
 	}
 }
 
-func TestBuild_OnlyExpectedTypesPresentInPhase6(t *testing.T) {
+func TestBuild_OnlyExpectedTypesPresentInPhase7(t *testing.T) {
 	reg := registry.Build(registry.Config{BaseURL: testBaseURL})
 	require.Len(
 		t,
 		reg,
-		5,
-		"Phase 6 registers exactly five generators (webbug, slowredirect, docx, pdf, kubeconfig); other phases append",
+		6,
+		"Phase 7 registers exactly six generators (webbug, slowredirect, docx, pdf, kubeconfig, envfile); other phases append",
 	)
 }
