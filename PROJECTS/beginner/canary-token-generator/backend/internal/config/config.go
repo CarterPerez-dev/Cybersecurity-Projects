@@ -23,6 +23,26 @@ type Config struct {
 	CORS      CORSConfig      `koanf:"cors"`
 	Log       LogConfig       `koanf:"log"`
 	Otel      OtelConfig      `koanf:"otel"`
+	Canary    CanaryConfig    `koanf:"canary"`
+	Turnstile TurnstileConfig `koanf:"turnstile"`
+	MySQL     MySQLConfig     `koanf:"mysql"`
+}
+
+type CanaryConfig struct {
+	BaseURL   string `koanf:"base_url"`
+	ManageURL string `koanf:"manage_url"`
+}
+
+type TurnstileConfig struct {
+	SecretKey string `koanf:"secret_key"`
+	SiteKey   string `koanf:"site_key"`
+}
+
+type MySQLConfig struct {
+	Enabled    bool   `koanf:"enabled"`
+	Addr       string `koanf:"addr"`
+	PublicHost string `koanf:"public_host"`
+	PublicPort int    `koanf:"public_port"`
 }
 
 type AppConfig struct {
@@ -191,6 +211,17 @@ func loadDefaults(k *koanf.Koanf) error {
 		"otel.insecure":     true,
 		"otel.sample_rate":  0.1,
 		"otel.service_name": "canary-token-generator",
+
+		"canary.base_url":   "http://localhost:8080",
+		"canary.manage_url": "http://localhost:8080",
+
+		"turnstile.secret_key": "",
+		"turnstile.site_key":   "",
+
+		"mysql.enabled":     false,
+		"mysql.addr":        "0.0.0.0:3306",
+		"mysql.public_host": "localhost",
+		"mysql.public_port": 3306,
 	}
 
 	for key, value := range defaults {
@@ -219,6 +250,14 @@ var envKeyMap = map[string]string{
 	"OTEL_ENABLED":                "otel.enabled",
 	"OTEL_INSECURE":               "otel.insecure",
 	"OTEL_SAMPLE_RATE":            "otel.sample_rate",
+	"CANARY_BASE_URL":             "canary.base_url",
+	"CANARY_MANAGE_URL":           "canary.manage_url",
+	"TURNSTILE_SECRET_KEY":        "turnstile.secret_key",
+	"TURNSTILE_SITE_KEY":          "turnstile.site_key",
+	"MYSQL_ENABLED":               "mysql.enabled",
+	"MYSQL_ADDR":                  "mysql.addr",
+	"MYSQL_PUBLIC_HOST":           "mysql.public_host",
+	"MYSQL_PUBLIC_PORT":           "mysql.public_port",
 }
 
 func envKeyReplacer(s string) string {
