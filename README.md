@@ -1,7 +1,7 @@
 <div align="center">
   <img width="260" height="260" alt="Kali-dragon-icon svg" src="https://github.com/user-attachments/assets/d911b71f-6ad9-45b7-9513-237f83377023" alt="Kali Linux Icon"/>
   <h1 align="center">Cybersecurity Projects 🐉</h1>
-  <p align="center">67 Cybersecurity Projects, Certification Roadmaps & Resources</p>
+  <p align="center">70 Cybersecurity Projects, Certification Roadmaps & Resources</p>
 </div>
 
 <div align="center">
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects" alt="issues"/>
   <img src="https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects" alt="license"/>
   <br/>
-  <img src="https://img.shields.io/badge/Cybersecurity-67_Projects-darkblue" alt="projects"/>
+  <img src="https://img.shields.io/badge/Cybersecurity-70_Projects-darkblue" alt="projects"/>
   <img src="https://img.shields.io/badge/Security-Learning_Resources-darkred" alt="resources"/>
 </div>
 
@@ -25,7 +25,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-28/67-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-32/70-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -36,7 +36,7 @@
 ## Quick Navigation
 
 ### [Projects](#projects)
-67 hands-on cybersecurity projects with full source code, from beginner to advanced level.
+Hands-on cybersecurity projects with full source code, organized in four tiers — **Foundations** (pre-beginner, first-time programmers), **Beginner**, **Intermediate**, and **Advanced**.
 
 ### [Certification Roadmaps](./ROADMAPS/README.md)
 10 structured career paths with certification guides for SOC Analyst, Pentester, Security Engineer, and more.
@@ -47,6 +47,35 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 ---
 
 # Projects
+
+<div align="center">
+  <img src="https://img.shields.io/badge/Foundations-5DEFD0?style=for-the-badge&logo=bookstack&logoColor=black&labelColor=5DEFD0" alt="Foundations"/>
+  <img src="https://img.shields.io/badge/Beginner-2EA44F?style=for-the-badge&logo=leaflet&logoColor=white" alt="Beginner"/>
+  <img src="https://img.shields.io/badge/Intermediate-D4A017?style=for-the-badge&logo=target&logoColor=white" alt="Intermediate"/>
+  <img src="https://img.shields.io/badge/Advanced-C73E3A?style=for-the-badge&logo=shield&logoColor=white" alt="Advanced"/>
+</div>
+
+---
+
+## Foundations Projects
+
+> [!NOTE]
+> **Start here if this is your first time coding.** The Foundations tier is *pre-beginner* — built for someone who has never written Python, has barely used a terminal, and is new to cybersecurity. Source files are heavily commented as a teaching aid, and every `learn/` folder explains concepts from zero. Once you're comfortable here, the Beginner projects assume you already know the language and move faster.
+>
+> **What makes Foundations different:**
+> - **Single-file projects** — the entire tool lives in one readable Python file. No file-hopping.
+> - **Heavy teaching comments** — every line that introduces a new concept is annotated inline.
+> - **Numpy-style docstrings on every function** — what it does, why it exists, every parameter.
+> - **Extra-deep `learn/` folders** — Python features and security concepts both explained from zero.
+> - **Senior-level code, beginner-level explanations** — the code itself is still production-quality.
+
+| Project | Info | What You'll Learn |
+|---------|------|-------------------|
+| **[Hash Identifier](./PROJECTS/foundations/hash-identifier)**<br>Identify hash types by prefix, length, and charset | ![Step 1/3](https://img.shields.io/badge/Step-1%2F3_easiest-2EA44F?style=flat&logo=bookstack&logoColor=white) ![2-4h](https://img.shields.io/badge/⏱️_2--4h-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Foundations](https://img.shields.io/badge/●_Foundations-00C9A7) | Hash families (MD5, SHA, bcrypt, Argon2) • PHC string format • Pattern matching • Pure-function design<br>[Source Code](./PROJECTS/foundations/hash-identifier) \| [Docs](./PROJECTS/foundations/hash-identifier/learn) |
+| **[HTTP Headers Scanner](./PROJECTS/foundations/http-headers-scanner)**<br>Audit a URL's response headers for missing or weak security controls | ![Step 2/3](https://img.shields.io/badge/Step-2%2F3_stepping_up-D4A017?style=flat&logo=bookstack&logoColor=white) ![3-5h](https://img.shields.io/badge/⏱️_3--5h-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Foundations](https://img.shields.io/badge/●_Foundations-00C9A7) | HTTP fundamentals • Security headers (CSP, HSTS, X-Frame-Options) • httpx requests • Scored audits<br>[Source Code](./PROJECTS/foundations/http-headers-scanner) \| [Docs](./PROJECTS/foundations/http-headers-scanner/learn) |
+| **[Password Manager](./PROJECTS/foundations/password-manager)**<br>Encrypted local vault with master password unlock | ![Step 3/3](https://img.shields.io/badge/Step-3%2F3_hardest-C73E3A?style=flat&logo=bookstack&logoColor=white) ![6-8h](https://img.shields.io/badge/⏱️_6--8h-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Foundations](https://img.shields.io/badge/●_Foundations-00C9A7) | Argon2id key derivation • AES-GCM authenticated encryption • Secure on-disk vaults • Master-password workflows<br>[Source Code](./PROJECTS/foundations/password-manager) \| [Docs](./PROJECTS/foundations/password-manager/learn) |
+
+---
 
 ## Beginner Projects
 
@@ -111,7 +140,7 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 | **[API Rate Limiter](./PROJECTS/advanced/api-rate-limiter)**<br>Distributed rate limiting middleware | ![1w](https://img.shields.io/badge/⏱️_1w-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Token bucket algorithm • Distributed systems • Redis backend<br>[Source Code](./PROJECTS/advanced/api-rate-limiter) \| [Docs](./PROJECTS/advanced/api-rate-limiter/learn) |
 | **[Encrypted Chat Application](./PROJECTS/advanced/encrypted-p2p-chat)**<br>Real-time E2EE messaging | ![1-2w](https://img.shields.io/badge/⏱️_1--2w-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi) ![SolidJS](https://img.shields.io/badge/SolidJS-2C4F7C?logo=solid) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Signal Protocol • Double Ratchet • WebAuthn • WebSockets<br>[Source Code](./PROJECTS/advanced/encrypted-p2p-chat) \| [Docs](./PROJECTS/advanced/encrypted-p2p-chat/learn) |
 | **[Exploit Development Framework](./SYNOPSES/advanced/Exploit.Development.Framework.md)**<br>Modular exploitation framework | ![3-4w](https://img.shields.io/badge/⏱️_3--4w-blue) ![C++](https://img.shields.io/badge/C%2B%2B-00599C?logo=cplusplus&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Exploit development • Payload generation • Plugin architecture<br>[Learn More](./SYNOPSES/advanced/Exploit.Development.Framework.md) |
-| **[AI Threat Detection](./PROJECTS/advanced/ai-threat-detection)**<br>ML-powered nginx threat detection | ![3-4w](https://img.shields.io/badge/⏱️_3--4w-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | ML ensemble (AE + RF + IF) • ONNX inference • Real-time detection<br>[Source Code](./PROJECTS/advanced/ai-threat-detection) \| [Docs](./PROJECTS/advanced/ai-threat-detection/learn) |
+| **[AI Threat Detection](./PROJECTS/advanced/ai-threat-detection)**<br>ML-powered nginx threat detection | ![3-4w](https://img.shields.io/badge/⏱️_3--4w-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | ML ensemble (AE + RF + IF) • ONNX inference • Real-time detection<br>[Source Code](./PROJECTS/advanced/ai-threat-detection) |
 | **[Bug Bounty Platform](./PROJECTS/advanced/bug-bounty-platform)**<br>Full vulnerability disclosure platform | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Full-stack development • CVSS scoring • Workflow automation<br>[Source Code](./PROJECTS/advanced/bug-bounty-platform) \| [Docs](./PROJECTS/advanced/bug-bounty-platform/learn) |
 | **[Cloud Security Compliance Dashboard](./SYNOPSES/advanced/Cloud.Security.Compliance.Dashboard.md)**<br>Multi-cloud compliance with CIS, SOC2, HIPAA | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazonaws) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | CIS benchmarks • SOC2/HIPAA compliance • Cost-security optimization • Drift detection<br>[Learn More](./SYNOPSES/advanced/Cloud.Security.Compliance.Dashboard.md) |
 | **[Malware Analysis Platform](./SYNOPSES/advanced/Malware.Analysis.Platform.md)**<br>Automated sandbox analysis | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Malware analysis • Sandboxing • YARA rules • IOC extraction<br>[Learn More](./SYNOPSES/advanced/Malware.Analysis.Platform.md) |
