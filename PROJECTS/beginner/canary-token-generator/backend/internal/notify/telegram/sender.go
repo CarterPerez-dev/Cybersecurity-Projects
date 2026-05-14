@@ -249,11 +249,11 @@ func formatGeo(evt *event.Event) string {
 	var parens string
 	switch {
 	case city != "" && country != "":
-		parens = "(" + EscapeMD(city) + ", " + EscapeMD(country) + ")"
+		parens = `\(` + EscapeMD(city) + ", " + EscapeMD(country) + `\)`
 	case country != "":
-		parens = "(" + EscapeMD(country) + ")"
+		parens = `\(` + EscapeMD(country) + `\)`
 	case city != "":
-		parens = "(" + EscapeMD(city) + ")"
+		parens = `\(` + EscapeMD(city) + `\)`
 	}
 	if parens == "" && asnOrg == "" {
 		return ""

@@ -186,8 +186,11 @@ func TestSender_Send_MessageContainsKeyFields(t *testing.T) {
 	)
 	require.Contains(t, text, "envfile")
 	require.Contains(t, text, `203\.0\.113\.45`, "IP dots escaped")
-	require.Contains(t, text, "Toronto")
-	require.Contains(t, text, "CA")
+	require.Contains(t,
+		text,
+		`\(Toronto, CA\)`,
+		"geo wrapping parens escaped (V2 reserved chars)",
+	)
 	require.Contains(t, text, `Cloudflare, Inc\.`, "asn_org . escaped")
 	require.Contains(t, text, "View full event timeline", "manage link present")
 	require.Contains(t,
