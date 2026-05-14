@@ -124,6 +124,8 @@ func setupIntgStack(t *testing.T) *intgStack {
 		tokenSvc,
 		intgRecorderAdapter{svc: eventSvc},
 		nil,
+		eventRepo,
+		eventSvc,
 		logger,
 	)
 
@@ -134,6 +136,7 @@ func setupIntgStack(t *testing.T) *intgStack {
 	r.Route("/api", func(api chi.Router) {
 		api.Get("/tokens/types", tokenH.GetTypes)
 		api.Post("/tokens", tokenH.CreateToken)
+		tokenH.RegisterManageRoutes(api)
 	})
 
 	return &intgStack{
@@ -348,6 +351,154 @@ func TestIntegration_DedupTTLExpiry(t *testing.T) {
 	rec("203.0.113.1")
 	notifySvc.Wait()
 	require.Equal(t, 2, sender.callCount(), "after TTL expiry next trigger notifies again")
+}
+
+func TestIntegration_ManagePageReturnsTokenAndEventsAndSilencedCount(t *testing.T) {
+	t.Parallel()
+	st := setupIntgStack(t)
+
+	createBody := `{
+		"type": "webbug",
+		"memo": "manage-flow",
+		"alert_channel": "telegram",
+		"telegram_bot": "111:AAA",
+		"telegram_chat": "12345"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tokens",
+		strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	st.router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusCreated, w.Code, "body=%s", w.Body.String())
+
+	var createResp struct {
+		Data struct {
+			Token struct {
+				ID       string `json:"id"`
+				ManageID string `json:"manage_id"`
+			} `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&createResp))
+	tokenID := createResp.Data.Token.ID
+	manageID := createResp.Data.Token.ManageID
+
+	for range 3 {
+		trigReq := httptest.NewRequest(http.MethodGet, "/c/"+tokenID, nil)
+		trigReq.Header.Set("CF-Connecting-IP", "203.0.113.50")
+		tw := httptest.NewRecorder()
+		st.router.ServeHTTP(tw, trigReq)
+		require.Equal(t, http.StatusOK, tw.Code)
+	}
+	st.notifySvc.Wait()
+
+	mw := httptest.NewRecorder()
+	st.router.ServeHTTP(mw, httptest.NewRequest(http.MethodGet,
+		"/api/m/"+manageID, nil))
+	require.Equal(t, http.StatusOK, mw.Code, "body=%s", mw.Body.String())
+
+	var manageResp struct {
+		Success bool                 `json:"success"`
+		Data    token.ManageResponse `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(mw.Body).Decode(&manageResp))
+	require.True(t, manageResp.Success)
+
+	require.Equal(t, tokenID, manageResp.Data.Token.ID)
+	require.Equal(t, "https://canary.example.com/c/"+tokenID,
+		manageResp.Data.Token.TriggerURL)
+	require.Equal(t, int64(3), manageResp.Data.Token.TriggerCount)
+
+	require.Equal(t, int64(3), manageResp.Data.EventsTotal,
+		"all 3 events recorded (one sent + two deduped)")
+	require.Equal(t, int64(2), manageResp.Data.EventsSilencedActive,
+		"two triggers deduped within 15-min window")
+
+	require.Len(t, manageResp.Data.Events, 3, "events page payload")
+	require.False(t, manageResp.Data.Page.HasMore,
+		"3 events fits in a 20-page; no next cursor")
+
+	statuses := []event.NotifyStatus{}
+	for _, e := range manageResp.Data.Events {
+		statuses = append(statuses, e.NotifyStatus)
+	}
+	var sent, deduped int
+	for _, s := range statuses {
+		switch s {
+		case event.NotifySent:
+			sent++
+		case event.NotifyDeduped:
+			deduped++
+		}
+	}
+	require.Equal(t, 1, sent)
+	require.Equal(t, 2, deduped)
+}
+
+func TestIntegration_ManagePageReturns404OnUnknownManageID(t *testing.T) {
+	t.Parallel()
+	st := setupIntgStack(t)
+
+	w := httptest.NewRecorder()
+	st.router.ServeHTTP(w, httptest.NewRequest(http.MethodGet,
+		"/api/m/00000000-0000-0000-0000-000000000000", nil))
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestIntegration_ManageDeleteCascadesEvents(t *testing.T) {
+	t.Parallel()
+	st := setupIntgStack(t)
+
+	createBody := `{
+		"type": "webbug",
+		"memo": "delete-flow",
+		"alert_channel": "telegram",
+		"telegram_bot": "111:AAA",
+		"telegram_chat": "12345"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tokens",
+		strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	st.router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var createResp struct {
+		Data struct {
+			Token struct {
+				ID       string `json:"id"`
+				ManageID string `json:"manage_id"`
+			} `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&createResp))
+
+	for i := range 2 {
+		trigReq := httptest.NewRequest(http.MethodGet, "/c/"+createResp.Data.Token.ID, nil)
+		ip := "203.0.113." + string(rune('1'+i))
+		trigReq.Header.Set("CF-Connecting-IP", ip)
+		tw := httptest.NewRecorder()
+		st.router.ServeHTTP(tw, trigReq)
+		require.Equal(t, http.StatusOK, tw.Code)
+	}
+	st.notifySvc.Wait()
+
+	count, err := st.eventRepo.CountByToken(context.Background(), createResp.Data.Token.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), count)
+
+	dw := httptest.NewRecorder()
+	st.router.ServeHTTP(dw, httptest.NewRequest(http.MethodDelete,
+		"/api/m/"+createResp.Data.Token.ManageID, nil))
+	require.Equal(t, http.StatusNoContent, dw.Code)
+
+	count, err = st.eventRepo.CountByToken(context.Background(), createResp.Data.Token.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), count, "FK cascade removes events")
+
+	tok, err := st.tokenRepo.GetByID(context.Background(), createResp.Data.Token.ID)
+	require.Nil(t, tok)
+	require.ErrorIs(t, err, token.ErrNotFound)
 }
 
 func TestIntegration_RetentionLoopPrunes(t *testing.T) {

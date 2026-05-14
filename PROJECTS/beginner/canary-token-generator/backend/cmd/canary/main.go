@@ -92,43 +92,11 @@ func run(configPath string) error {
 	logger.Info("redis connected")
 
 	notifySvc, eventSvc := buildEventStack(
-		cfg,
-		logger,
-		eventRepo,
-		tokenRepo,
-		rdb,
+		cfg, logger, eventRepo, tokenRepo, rdb,
 	)
-
-	genRegistry := registry.Build(registry.Config{
-		BaseURL:         cfg.Canary.BaseURL,
-		MySQLPublicHost: cfg.MySQL.PublicHost,
-		MySQLPublicPort: cfg.MySQL.PublicPort,
-	})
-	tokenSvc := token.NewService(
-		tokenRepo,
-		registryAdapter{r: genRegistry},
-		token.ServiceConfig{
-			BaseURL:   cfg.Canary.BaseURL,
-			ManageURL: cfg.Canary.ManageURL,
-		},
+	tokenSvc, verifier, healthH, tokenH := buildHTTPDeps(
+		cfg, logger, db, rdb, eventRepo, tokenRepo, eventSvc,
 	)
-
-	verifier := turnstile.NewVerifier(
-		turnstile.Config{SecretKey: cfg.Turnstile.SecretKey},
-		rdb.Client,
-	)
-
-	healthH := health.NewHandler(db, rdb)
-	tokenH := token.NewHandler(
-		tokenSvc,
-		&eventRecorderAdapter{svc: eventSvc},
-		&fingerprintRecorderAdapter{
-			repo:   eventRepo,
-			window: cfg.Notify.FingerprintWindow,
-		},
-		logger,
-	)
-
 	srv := mountRouter(cfg, logger, rdb, healthH, tokenH, verifier)
 
 	var wg sync.WaitGroup
@@ -150,6 +118,47 @@ func run(configPath string) error {
 	notifySvc.Wait()
 	wg.Wait()
 	return shutdownErr
+}
+
+func buildHTTPDeps(
+	cfg *config.Config,
+	logger *slog.Logger,
+	db *core.Database,
+	rdb *core.Redis,
+	eventRepo *event.Repository,
+	tokenRepo *token.Repository,
+	eventSvc *event.Service,
+) (*token.Service, *turnstile.Verifier, *health.Handler, *token.Handler) {
+	genRegistry := registry.Build(registry.Config{
+		BaseURL:         cfg.Canary.BaseURL,
+		MySQLPublicHost: cfg.MySQL.PublicHost,
+		MySQLPublicPort: cfg.MySQL.PublicPort,
+	})
+	tokenSvc := token.NewService(
+		tokenRepo,
+		registryAdapter{r: genRegistry},
+		token.ServiceConfig{
+			BaseURL:   cfg.Canary.BaseURL,
+			ManageURL: cfg.Canary.ManageURL,
+		},
+	)
+	verifier := turnstile.NewVerifier(
+		turnstile.Config{SecretKey: cfg.Turnstile.SecretKey},
+		rdb.Client,
+	)
+	healthH := health.NewHandler(db, rdb)
+	tokenH := token.NewHandler(
+		tokenSvc,
+		&eventRecorderAdapter{svc: eventSvc},
+		&fingerprintRecorderAdapter{
+			repo:   eventRepo,
+			window: cfg.Notify.FingerprintWindow,
+		},
+		eventRepo,
+		eventSvc,
+		logger,
+	)
+	return tokenSvc, verifier, healthH, tokenH
 }
 
 func buildEventStack(
@@ -301,6 +310,7 @@ func mountRouter(
 			createHour,
 			middleware.TurnstileVerify(verifier),
 		).Post("/tokens", tokenH.CreateToken)
+		tokenH.RegisterManageRoutes(api)
 	})
 
 	return srv
