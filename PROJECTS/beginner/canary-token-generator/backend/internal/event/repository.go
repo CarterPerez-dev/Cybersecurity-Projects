@@ -138,6 +138,18 @@ func (r *Repository) CountByToken(
 	return n, nil
 }
 
+func (r *Repository) CountAll(ctx context.Context) (int64, error) {
+	var n int64
+	if err := r.db.GetContext(
+		ctx,
+		&n,
+		`SELECT COUNT(*) FROM events`,
+	); err != nil {
+		return 0, fmt.Errorf("count events: %w", err)
+	}
+	return n, nil
+}
+
 func (r *Repository) AttachFingerprint(
 	ctx context.Context,
 	tokenID, sourceIP string,

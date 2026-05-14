@@ -5,191 +5,253 @@ package admin
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
-	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/redis/go-redis/v9"
 
-	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/core"
+	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token"
 )
 
+const (
+	urlParamID = "id"
+
+	queryParamOffset = "offset"
+	queryParamLimit  = "limit"
+
+	defaultPageSize = 50
+	maxPageSize     = 100
+
+	headerContentType = "Content-Type"
+	contentTypeJSON   = "application/json"
+
+	errorCodeNotFound      = "NOT_FOUND"
+	errorCodeBadParam      = "BAD_PARAM"
+	errorCodeInternalError = "INTERNAL_ERROR"
+
+	respMessageNotFound      = "not found"
+	respMessageBadOffset     = "invalid offset"
+	respMessageInternalError = "internal server error"
+)
+
+type TokenRepository interface {
+	ListAll(ctx context.Context, opts token.ListOptions) ([]token.Token, error)
+	CountAll(ctx context.Context) (int64, error)
+	CountByType(ctx context.Context) ([]token.TypeCount, error)
+	CountByAlertChannel(ctx context.Context) ([]token.ChannelCount, error)
+	SetEnabled(ctx context.Context, id string, enabled bool) error
+}
+
+type EventRepository interface {
+	CountAll(ctx context.Context) (int64, error)
+}
+
+type URLBuilder interface {
+	TriggerURL(id string) string
+	ManageURL(manageID string) string
+}
+
 type Handler struct {
-	dbStats    func() sql.DBStats
-	redisStats func() *redis.PoolStats
-	redisPing  func(ctx context.Context) error
-	dbPing     func(ctx context.Context) error
+	tokens TokenRepository
+	events EventRepository
+	urls   URLBuilder
+	logger *slog.Logger
 }
 
-type HandlerConfig struct {
-	DBStats    func() sql.DBStats
-	RedisStats func() *redis.PoolStats
-	RedisPing  func(ctx context.Context) error
-	DBPing     func(ctx context.Context) error
-}
-
-func NewHandler(cfg HandlerConfig) *Handler {
+func NewHandler(
+	tokens TokenRepository,
+	events EventRepository,
+	urls URLBuilder,
+	logger *slog.Logger,
+) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &Handler{
-		dbStats:    cfg.DBStats,
-		redisStats: cfg.RedisStats,
-		redisPing:  cfg.RedisPing,
-		dbPing:     cfg.DBPing,
+		tokens: tokens,
+		events: events,
+		urls:   urls,
+		logger: logger,
 	}
 }
 
-func (h *Handler) RegisterRoutes(r chi.Router) {
-	r.Route("/admin", func(r chi.Router) {
-		r.Get("/stats", h.GetSystemStats)
-		r.Get("/stats/db", h.GetDatabaseStats)
-		r.Get("/stats/redis", h.GetRedisStats)
-		r.Get("/stats/runtime", h.GetRuntimeStats)
-	})
+func (h *Handler) Register(r chi.Router) {
+	r.Get("/stats", h.GetStats)
+	r.Get("/tokens", h.ListTokens)
+	r.Post("/tokens/{"+urlParamID+"}/disable", h.DisableToken)
 }
 
-func (h *Handler) GetSystemStats(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	dbHealthy := true
-	if h.dbPing != nil {
-		if err := h.dbPing(ctx); err != nil {
-			dbHealthy = false
+	tokensCount, err := h.tokens.CountAll(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: count tokens", "error", err)
+		h.writeInternal(w)
+		return
+	}
+	eventsCount, err := h.events.CountAll(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: count events", "error", err)
+		h.writeInternal(w)
+		return
+	}
+	byType, err := h.tokens.CountByType(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: count by type", "error", err)
+		h.writeInternal(w)
+		return
+	}
+	byChannel, err := h.tokens.CountByAlertChannel(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: count by channel", "error", err)
+		h.writeInternal(w)
+		return
+	}
+
+	stats := Stats{
+		TokensCount:    tokensCount,
+		EventsCount:    eventsCount,
+		ByType:         byType,
+		ByAlertChannel: byChannel,
+	}
+	h.writeJSON(w, http.StatusOK, envelopeData(stats))
+}
+
+func (h *Handler) ListTokens(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	offset, err := parseOffset(r.URL.Query().Get(queryParamOffset))
+	if err != nil {
+		h.writeJSON(w, http.StatusBadRequest, envelopeError(
+			errorCodeBadParam, respMessageBadOffset,
+		))
+		return
+	}
+	limit := parseLimit(r.URL.Query().Get(queryParamLimit))
+
+	rows, err := h.tokens.ListAll(ctx, token.ListOptions{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: list tokens", "error", err)
+		h.writeInternal(w)
+		return
+	}
+
+	total, err := h.tokens.CountAll(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "admin: count tokens", "error", err)
+		h.writeInternal(w)
+		return
+	}
+
+	out := make([]token.Response, 0, len(rows))
+	for i := range rows {
+		out = append(out, rows[i].ToResponse(
+			h.urls.TriggerURL(rows[i].ID),
+			h.urls.ManageURL(rows[i].ManageID),
+		))
+	}
+
+	next := offset + len(rows)
+	hasMore := int64(next) < total
+
+	resp := TokenListResponse{
+		Tokens: out,
+		Total:  total,
+		Page: TokenListPage{
+			NextOffset: next,
+			HasMore:    hasMore,
+		},
+	}
+	h.writeJSON(w, http.StatusOK, envelopeData(resp))
+}
+
+func (h *Handler) DisableToken(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, urlParamID)
+	if id == "" {
+		h.writeJSON(w, http.StatusNotFound, envelopeError(
+			errorCodeNotFound, respMessageNotFound,
+		))
+		return
+	}
+
+	if err := h.tokens.SetEnabled(r.Context(), id, false); err != nil {
+		if errors.Is(err, token.ErrNotFound) {
+			h.writeJSON(w, http.StatusNotFound, envelopeError(
+				errorCodeNotFound, respMessageNotFound,
+			))
+			return
 		}
+		h.logger.ErrorContext(r.Context(), "admin: disable token",
+			"error", err, "token_id", id)
+		h.writeInternal(w)
+		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
-	redisHealthy := true
-	if h.redisPing != nil {
-		if err := h.redisPing(ctx); err != nil {
-			redisHealthy = false
-		}
+func parseOffset(raw string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
 	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v < 0 {
+		return 0, errors.New("invalid offset")
+	}
+	return v, nil
+}
 
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+func parseLimit(raw string) int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return defaultPageSize
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return defaultPageSize
+	}
+	if v > maxPageSize {
+		return maxPageSize
+	}
+	return v
+}
 
-	response := SystemStatsResponse{
-		Database: DatabaseStatus{
-			Healthy: dbHealthy,
-			Stats:   h.getDBStats(),
+func (h *Handler) writeJSON(
+	w http.ResponseWriter,
+	status int,
+	body any,
+) {
+	w.Header().Set(headerContentType, contentTypeJSON)
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		h.logger.Warn("write json response", "error", err)
+	}
+}
+
+func (h *Handler) writeInternal(w http.ResponseWriter) {
+	h.writeJSON(w, http.StatusInternalServerError, envelopeError(
+		errorCodeInternalError, respMessageInternalError,
+	))
+}
+
+func envelopeData(data any) map[string]any {
+	return map[string]any{"success": true, "data": data}
+}
+
+func envelopeError(code, message string) map[string]any {
+	return map[string]any{
+		"success": false,
+		"error": map[string]any{
+			"code":    code,
+			"message": message,
 		},
-		Redis: RedisStatus{
-			Healthy: redisHealthy,
-			Stats:   h.getRedisStats(),
-		},
-		Runtime: RuntimeStats{
-			GoVersion:    runtime.Version(),
-			NumGoroutine: runtime.NumGoroutine(),
-			NumCPU:       runtime.NumCPU(),
-			MemAlloc:     memStats.Alloc,
-			MemSys:       memStats.Sys,
-			NumGC:        memStats.NumGC,
-		},
 	}
-
-	core.OK(w, response)
-}
-
-func (h *Handler) GetDatabaseStats(w http.ResponseWriter, r *http.Request) {
-	core.OK(w, h.getDBStats())
-}
-
-func (h *Handler) GetRedisStats(w http.ResponseWriter, r *http.Request) {
-	core.OK(w, h.getRedisStats())
-}
-
-func (h *Handler) GetRuntimeStats(w http.ResponseWriter, r *http.Request) {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	response := RuntimeStats{
-		GoVersion:    runtime.Version(),
-		NumGoroutine: runtime.NumGoroutine(),
-		NumCPU:       runtime.NumCPU(),
-		MemAlloc:     memStats.Alloc,
-		MemSys:       memStats.Sys,
-		NumGC:        memStats.NumGC,
-	}
-
-	core.OK(w, response)
-}
-
-func (h *Handler) getDBStats() *DBPoolStats {
-	if h.dbStats == nil {
-		return nil
-	}
-
-	stats := h.dbStats()
-	return &DBPoolStats{
-		MaxOpenConnections: stats.MaxOpenConnections,
-		OpenConnections:    stats.OpenConnections,
-		InUse:              stats.InUse,
-		Idle:               stats.Idle,
-		WaitCount:          stats.WaitCount,
-		WaitDuration:       stats.WaitDuration.String(),
-		MaxIdleClosed:      stats.MaxIdleClosed,
-		MaxIdleTimeClosed:  stats.MaxIdleTimeClosed,
-		MaxLifetimeClosed:  stats.MaxLifetimeClosed,
-	}
-}
-
-func (h *Handler) getRedisStats() *RedisPoolStats {
-	if h.redisStats == nil {
-		return nil
-	}
-
-	stats := h.redisStats()
-	return &RedisPoolStats{
-		Hits:       stats.Hits,
-		Misses:     stats.Misses,
-		Timeouts:   stats.Timeouts,
-		TotalConns: stats.TotalConns,
-		IdleConns:  stats.IdleConns,
-		StaleConns: stats.StaleConns,
-	}
-}
-
-type SystemStatsResponse struct {
-	Database DatabaseStatus `json:"database"`
-	Redis    RedisStatus    `json:"redis"`
-	Runtime  RuntimeStats   `json:"runtime"`
-}
-
-type DatabaseStatus struct {
-	Healthy bool         `json:"healthy"`
-	Stats   *DBPoolStats `json:"stats,omitempty"`
-}
-
-type RedisStatus struct {
-	Healthy bool            `json:"healthy"`
-	Stats   *RedisPoolStats `json:"stats,omitempty"`
-}
-
-type DBPoolStats struct {
-	MaxOpenConnections int    `json:"max_open_connections"`
-	OpenConnections    int    `json:"open_connections"`
-	InUse              int    `json:"in_use"`
-	Idle               int    `json:"idle"`
-	WaitCount          int64  `json:"wait_count"`
-	WaitDuration       string `json:"wait_duration"`
-	MaxIdleClosed      int64  `json:"max_idle_closed"`
-	MaxIdleTimeClosed  int64  `json:"max_idle_time_closed"`
-	MaxLifetimeClosed  int64  `json:"max_lifetime_closed"`
-}
-
-type RedisPoolStats struct {
-	Hits       uint32 `json:"hits"`
-	Misses     uint32 `json:"misses"`
-	Timeouts   uint32 `json:"timeouts"`
-	TotalConns uint32 `json:"total_conns"`
-	IdleConns  uint32 `json:"idle_conns"`
-	StaleConns uint32 `json:"stale_conns"`
-}
-
-type RuntimeStats struct {
-	GoVersion    string `json:"go_version"`
-	NumGoroutine int    `json:"num_goroutine"`
-	NumCPU       int    `json:"num_cpu"`
-	MemAlloc     uint64 `json:"mem_alloc_bytes"`
-	MemSys       uint64 `json:"mem_sys_bytes"`
-	NumGC        uint32 `json:"num_gc"`
 }

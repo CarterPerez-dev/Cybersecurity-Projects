@@ -125,6 +125,28 @@ func TestRepository_FKCascade(t *testing.T) {
 	require.Equal(t, int64(0), count, "cascade delete should remove all events")
 }
 
+func TestRepository_CountAll(t *testing.T) {
+	t.Parallel()
+	_, tokRepo, evtRepo := newRepos(t)
+	ctx := context.Background()
+
+	tok := seedToken(t, tokRepo, "evtcntallall")
+
+	base, err := evtRepo.CountAll(ctx)
+	require.NoError(t, err)
+
+	for range 4 {
+		require.NoError(t, evtRepo.Insert(ctx, &event.Event{
+			TokenID:  tok.ID,
+			SourceIP: "203.0.113.99",
+		}))
+	}
+
+	got, err := evtRepo.CountAll(ctx)
+	require.NoError(t, err)
+	require.Equal(t, base+4, got)
+}
+
 func TestRepository_AttachFingerprint(t *testing.T) {
 	t.Parallel()
 	_, tokRepo, evtRepo := newRepos(t)

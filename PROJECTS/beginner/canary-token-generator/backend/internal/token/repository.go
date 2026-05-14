@@ -183,3 +183,41 @@ func (r *Repository) CountAll(ctx context.Context) (int64, error) {
 	}
 	return n, nil
 }
+
+type TypeCount struct {
+	Type  Type  `db:"type"  json:"type"`
+	Count int64 `db:"count" json:"count"`
+}
+
+type ChannelCount struct {
+	Channel AlertChannel `db:"alert_channel" json:"alert_channel"`
+	Count   int64        `db:"count"         json:"count"`
+}
+
+func (r *Repository) CountByType(
+	ctx context.Context,
+) ([]TypeCount, error) {
+	rows := []TypeCount{}
+	q := `SELECT type, COUNT(*) AS count
+	        FROM tokens
+	       GROUP BY type
+	       ORDER BY type`
+	if err := r.db.SelectContext(ctx, &rows, q); err != nil {
+		return nil, fmt.Errorf("count tokens by type: %w", err)
+	}
+	return rows, nil
+}
+
+func (r *Repository) CountByAlertChannel(
+	ctx context.Context,
+) ([]ChannelCount, error) {
+	rows := []ChannelCount{}
+	q := `SELECT alert_channel, COUNT(*) AS count
+	        FROM tokens
+	       GROUP BY alert_channel
+	       ORDER BY alert_channel`
+	if err := r.db.SelectContext(ctx, &rows, q); err != nil {
+		return nil, fmt.Errorf("count tokens by channel: %w", err)
+	}
+	return rows, nil
+}

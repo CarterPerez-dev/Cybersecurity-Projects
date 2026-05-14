@@ -200,6 +200,56 @@ func TestRepository_ListAll(t *testing.T) {
 	require.Equal(t, int64(3), count)
 }
 
+func TestRepository_CountByType(t *testing.T) {
+	t.Parallel()
+	repo := newRepo(t)
+	ctx := context.Background()
+
+	webbug := sampleWebhookToken("cntbytype01a")
+	webbug.Type = token.TypeWebbug
+	require.NoError(t, repo.Insert(ctx, webbug))
+
+	webbug2 := sampleWebhookToken("cntbytype01b")
+	webbug2.Type = token.TypeWebbug
+	require.NoError(t, repo.Insert(ctx, webbug2))
+
+	docx := sampleTelegramToken("cntbytype02a")
+	docx.Type = token.TypeDocx
+	require.NoError(t, repo.Insert(ctx, docx))
+
+	rows, err := repo.CountByType(ctx)
+	require.NoError(t, err)
+
+	got := map[token.Type]int64{}
+	for _, r := range rows {
+		got[r.Type] = r.Count
+	}
+	require.GreaterOrEqual(t, got[token.TypeWebbug], int64(2))
+	require.GreaterOrEqual(t, got[token.TypeDocx], int64(1))
+}
+
+func TestRepository_CountByAlertChannel(t *testing.T) {
+	t.Parallel()
+	repo := newRepo(t)
+	ctx := context.Background()
+
+	wh := sampleWebhookToken("cntbychan01a")
+	require.NoError(t, repo.Insert(ctx, wh))
+
+	tg := sampleTelegramToken("cntbychan02a")
+	require.NoError(t, repo.Insert(ctx, tg))
+
+	rows, err := repo.CountByAlertChannel(ctx)
+	require.NoError(t, err)
+
+	got := map[token.AlertChannel]int64{}
+	for _, r := range rows {
+		got[r.Channel] = r.Count
+	}
+	require.GreaterOrEqual(t, got[token.ChannelWebhook], int64(1))
+	require.GreaterOrEqual(t, got[token.ChannelTelegram], int64(1))
+}
+
 func TestRepository_TypeAndChannelValidation(t *testing.T) {
 	t.Parallel()
 	repo := newRepo(t)
