@@ -1,0 +1,77 @@
+// ===================
+// ©AngelaMos | 2026
+// notfound.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  inline-size: 100%;
+  max-inline-size: 56rem;
+  margin-inline: auto;
+  padding-inline: $space-4;
+  padding-block-end: $space-8;
+  gap: $space-8;
+
+  @include breakpoint-up('md') {
+    padding-inline: $space-8;
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  padding-block-start: $space-10;
+}
+
+.index {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+  margin: 0;
+}
+
+.headline {
+  font-family: $font-sans;
+  font-weight: 900;
+  font-size: clamp(2.25rem, 8vw, 5.5rem);
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: $ink;
+  margin: 0;
+}
+
+.purpose {
+  font-family: $font-sans;
+  font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+  color: $ink-soft;
+  max-inline-size: 42rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.link {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink;
+  text-decoration: none;
+  border-block-end: $hairline solid $ink;
+  padding-block-end: $space-0-5;
+  align-self: flex-start;
+
+  &:hover {
+    color: $alarm;
+    border-block-end-color: $alarm;
+  }
+}

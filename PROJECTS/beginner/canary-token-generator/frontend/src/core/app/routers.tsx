@@ -16,8 +16,12 @@ const routes: RouteObject[] = [
         lazy: () => import('@/pages/landing'),
       },
       {
+        path: ROUTES.MANAGE,
+        lazy: () => import('@/pages/manage'),
+      },
+      {
         path: '*',
-        lazy: () => import('@/pages/landing'),
+        lazy: () => import('@/pages/notfound'),
       },
     ],
   },

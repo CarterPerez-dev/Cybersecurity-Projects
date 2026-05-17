@@ -14,6 +14,7 @@ import {
   SpecimenCard,
   SpecimenCardSection,
 } from '@/components'
+import { manageRoute } from '@/config'
 import { ArtifactDisplay } from './artifact'
 import { ARTIFACT_LABEL, PAGE_COPY } from './copy'
 import styles from './landing.module.scss'
@@ -30,7 +31,7 @@ export function ResultView({
   filenameFallback,
 }: ResultViewProps): React.ReactElement {
   const { token, artifact } = data
-  const managePath = `/m/${token.manage_id}`
+  const managePath = manageRoute(token.manage_id)
   return (
     <div className={styles.result}>
       <header className={styles.resultHead}>

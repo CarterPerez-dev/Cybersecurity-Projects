@@ -5,9 +5,14 @@
 
 export const ROUTES = {
   HOME: '/',
+  MANAGE: '/m/:manageId',
 } as const
 
 export type Route = typeof ROUTES
+
+export function manageRoute(manageId: string): string {
+  return `/m/${encodeURIComponent(manageId)}`
+}
 
 export const QUERY_CONFIG = {
   STALE_TIME: {

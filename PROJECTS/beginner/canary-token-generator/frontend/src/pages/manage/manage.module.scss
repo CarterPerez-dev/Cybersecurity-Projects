@@ -1,0 +1,378 @@
+// ===================
+// ©AngelaMos | 2026
+// manage.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  inline-size: 100%;
+  max-inline-size: 88rem;
+  margin-inline: auto;
+  padding-inline: $space-4;
+  padding-block-end: $space-8;
+  gap: $space-6;
+
+  @include breakpoint-up('md') {
+    padding-inline: $space-8;
+    gap: $space-8;
+  }
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding-block-start: $space-6;
+  max-inline-size: 56rem;
+
+  @include breakpoint-up('md') {
+    padding-block-start: $space-10;
+  }
+}
+
+.heroIndex {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+  margin: 0;
+}
+
+.heroLink {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink;
+  text-decoration: none;
+  border-block-end: $hairline solid $ink;
+  padding-block-end: $space-0-5;
+  align-self: flex-start;
+  transition: color $duration-fast $ease-out;
+
+  &:hover {
+    color: $alarm;
+    border-block-end-color: $alarm;
+  }
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  flex-wrap: wrap;
+}
+
+.headline {
+  font-family: $font-sans;
+  font-weight: 900;
+  font-size: clamp(2.25rem, 8vw, 6rem);
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: $ink;
+  margin: 0;
+
+  &[data-state='live'] {
+    color: $alarm;
+  }
+
+  &[data-state='disabled'] {
+    color: $ink-mute;
+  }
+}
+
+.purpose {
+  font-family: $font-sans;
+  font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+  line-height: $line-height-snug;
+  color: $ink;
+  max-inline-size: 42rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.memo {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+  color: $ink-soft;
+  padding-inline-start: $space-3;
+  border-inline-start: $hairline-bold solid $rule;
+  margin: 0;
+  max-inline-size: 42rem;
+}
+
+// ----------------------------------------------------------------------------
+// EVENT LOG
+// ----------------------------------------------------------------------------
+
+.eventLog {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+}
+
+.eventLogHead {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+}
+
+.eventLogIndex {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+}
+
+.eventLogRule {
+  flex: 1 1 auto;
+  block-size: $hairline;
+  background-color: $rule-hair;
+}
+
+.eventLogCount {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-soft;
+}
+
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.eventEmpty {
+  padding: $space-5;
+  border: $hairline dashed $rule-soft;
+  background-color: $paper;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+  color: $ink-soft;
+  text-align: center;
+}
+
+.eventLogFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-3;
+  padding-block-start: $space-3;
+  border-block-start: $hairline solid $rule-hair;
+}
+
+.eventEnd {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+}
+
+// ----------------------------------------------------------------------------
+// EVENT ROW
+// ----------------------------------------------------------------------------
+
+.eventRow {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border: $hairline solid $rule;
+  background-color: $paper;
+}
+
+.eventHead {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  flex-wrap: wrap;
+  padding-block-end: $space-2;
+  border-block-end: $hairline solid $rule-hair;
+}
+
+.eventIndex {
+  font-family: $font-mono;
+  font-size: $font-size-2xs;
+  letter-spacing: $tracking-wider;
+  color: $ink-mute;
+}
+
+.eventTime {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+  color: $ink;
+  flex: 1 1 auto;
+}
+
+.eventGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-2;
+
+  @include breakpoint-up('sm') {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.eventField {
+  display: flex;
+  flex-direction: column;
+  gap: $space-0-5;
+  min-inline-size: 0;
+
+  &[data-wide='true'] {
+    @include breakpoint-up('sm') {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &[data-mono='true'] .eventValue {
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    letter-spacing: $tracking-wide;
+  }
+
+  &[data-truncate='true'] .eventValue {
+    @include truncate;
+  }
+}
+
+.eventLabel {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+}
+
+.eventValue {
+  font-family: $font-sans;
+  font-size: $font-size-sm;
+  color: $ink;
+  overflow-wrap: anywhere;
+}
+
+.eventExtra {
+  background-color: $paper-deep;
+  padding: $space-3;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+
+  summary {
+    cursor: pointer;
+    color: $ink-soft;
+    font-size: $font-size-3xs;
+    letter-spacing: $tracking-wider;
+    text-transform: uppercase;
+  }
+}
+
+.eventExtraBody {
+  margin: $space-2 0 0;
+  white-space: pre-wrap;
+  color: $ink;
+  font-size: $font-size-xs;
+  overflow: auto;
+  max-block-size: 16rem;
+}
+
+// ----------------------------------------------------------------------------
+// DELETE
+// ----------------------------------------------------------------------------
+
+.deleteSection {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding-block-start: $space-6;
+}
+
+.deleteHead {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+}
+
+.deleteIndex {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $alarm-deep;
+}
+
+.deleteRule {
+  flex: 1 1 auto;
+  block-size: $hairline;
+  background-color: $alarm;
+}
+
+.deleteTitle {
+  font-family: $font-sans;
+  font-weight: 800;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: $alarm-deep;
+  margin: 0;
+}
+
+.deleteBody {
+  font-size: $font-size-sm;
+  color: $ink-soft;
+  max-inline-size: 38rem;
+  margin: 0;
+}
+
+.deleteArmed {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  flex-wrap: wrap;
+}
+
+// ----------------------------------------------------------------------------
+// FOOTER
+// ----------------------------------------------------------------------------
+
+.footerLink {
+  color: inherit;
+  text-decoration: none;
+  border-block-end: $hairline solid $ink;
+  padding-block-end: $space-0-5;
+
+  &:hover {
+    color: $alarm;
+    border-block-end-color: $alarm;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// LOADING / STATUS
+// ----------------------------------------------------------------------------
+
+.statusBlock {
+  padding: $space-4;
+  border: $hairline solid $rule-hair;
+  background-color: $paper-deep;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+  color: $ink-soft;
+}
