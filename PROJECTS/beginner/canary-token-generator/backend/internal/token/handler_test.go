@@ -220,6 +220,40 @@ func TestHandleTrigger_KnownTokenReturnsResponseAndRecordsEvent(t *testing.T) {
 	require.Len(t, rec.events, 1)
 }
 
+func TestHandleTrigger_TrimsTrailingUnderscoresFromPaddedID(t *testing.T) {
+	gen := &triggerGen{
+		tokenType: token.TypeWebbug,
+		artifact:  generators.Artifact{Kind: generators.KindURL},
+		resp: &generators.TriggerResponse{
+			StatusCode:  200,
+			ContentType: "image/gif",
+			Body:        []byte{0x47},
+		},
+		evt: &event.Event{SourceIP: "1.2.3.4"},
+	}
+	h, repo, rec := newWebbugHandler(t, gen)
+
+	tok := &token.Token{
+		ID: "abcdef012345", ManageID: "m", Type: token.TypeWebbug,
+		AlertChannel: token.ChannelWebhook, Enabled: true,
+		Metadata: json.RawMessage(`{}`),
+	}
+	require.NoError(t, repo.Insert(context.Background(), tok))
+
+	r := chi.NewRouter()
+	h.RegisterTriggerRoutes(r)
+
+	w := httptest.NewRecorder()
+	padded := "/c/abcdef012345____________________"
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, padded, nil))
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, rec.events, 1,
+		"trailing-underscore padded id must still resolve to the real token "+
+			"so PDFs already in the field (carrying padded URLs) record events "+
+			"instead of silently no-opping (audit finding F2)")
+}
+
 func TestHandleTrigger_UnknownTokenStillReturnsArtifactShape(t *testing.T) {
 	gen := &triggerGen{
 		tokenType: token.TypeWebbug,

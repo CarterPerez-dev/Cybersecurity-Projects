@@ -35,6 +35,8 @@ const (
 
 	padChar = "_"
 
+	queryPadPrefix = "?p="
+
 	contentType     = "application/pdf"
 	defaultFilename = "Document.pdf"
 )
@@ -71,8 +73,7 @@ func (g *Generator) Generate(
 		)
 	}
 
-	padded := triggerURL +
-		strings.Repeat(padChar, PlaceholderLength-len(triggerURL))
+	padded := padTriggerURL(triggerURL)
 
 	out := bytes.Replace(
 		pdfTemplate,
@@ -139,4 +140,17 @@ func resolveFilename(name *string) string {
 		return defaultFilename
 	}
 	return trimmed
+}
+
+func padTriggerURL(triggerURL string) string {
+	needed := PlaceholderLength - len(triggerURL)
+	switch {
+	case needed == 0:
+		return triggerURL
+	case needed >= len(queryPadPrefix):
+		return triggerURL + queryPadPrefix +
+			strings.Repeat(padChar, needed-len(queryPadPrefix))
+	default:
+		return triggerURL + strings.Repeat(padChar, needed)
+	}
 }

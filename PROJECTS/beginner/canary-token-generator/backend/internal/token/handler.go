@@ -162,7 +162,7 @@ func (h *Handler) CreateToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleTrigger(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, urlParamTokenID)
+	id := strings.TrimRight(chi.URLParam(r, urlParamTokenID), "_")
 	if id == "" {
 		http.NotFound(w, r)
 		return

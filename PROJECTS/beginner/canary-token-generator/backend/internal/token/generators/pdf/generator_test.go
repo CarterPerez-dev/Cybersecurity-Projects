@@ -286,6 +286,34 @@ func TestGenerate_ContainsTriggerURL(t *testing.T) {
 	)
 }
 
+func TestGenerate_ByteAfterTokenIDIsNotUnderscore(t *testing.T) {
+	g := pdf.New()
+	art, err := g.Generate(
+		context.Background(),
+		newPDFToken("token42"),
+		testBaseURL,
+	)
+	require.NoError(t, err)
+
+	urlPrefix := testBaseURL + "/c/token42"
+	idx := bytes.Index(art.Content, []byte(urlPrefix))
+	require.GreaterOrEqual(
+		t,
+		idx,
+		0,
+		"trigger URL prefix must be present in PDF output",
+	)
+	after := art.Content[idx+len(urlPrefix)]
+	require.NotEqual(
+		t,
+		byte('_'),
+		after,
+		"byte immediately after the token id must not be underscore — "+
+			"otherwise Acrobat fetches /c/token42____ and the canary silently "+
+			"no-ops on lookup (audit finding F2)",
+	)
+}
+
 func TestGenerate_PlaceholderRemoved(t *testing.T) {
 	g := pdf.New()
 	art, err := g.Generate(
