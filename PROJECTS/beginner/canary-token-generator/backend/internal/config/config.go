@@ -14,6 +14,8 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
+const defaultCanaryBaseURL = "http://localhost:8080"
+
 type Config struct {
 	App       AppConfig       `koanf:"app"`
 	Server    ServerConfig    `koanf:"server"`
@@ -169,6 +171,11 @@ func Load(configPath string) (*Config, error) {
 			return
 		}
 
+		if cfg.Canary.ManageURL == "" ||
+			cfg.Canary.ManageURL == defaultCanaryBaseURL {
+			cfg.Canary.ManageURL = cfg.Canary.BaseURL
+		}
+
 		if err := validate(cfg); err != nil {
 			loadErr = fmt.Errorf("validate config: %w", err)
 			return
@@ -244,8 +251,8 @@ func loadDefaults(k *koanf.Koanf) error {
 		"otel.sample_rate":  0.1,
 		"otel.service_name": "canary-token-generator",
 
-		"canary.base_url":   "http://localhost:8080",
-		"canary.manage_url": "http://localhost:8080",
+		"canary.base_url":   defaultCanaryBaseURL,
+		"canary.manage_url": defaultCanaryBaseURL,
 
 		"turnstile.secret_key": "",
 		"turnstile.site_key":   "",
