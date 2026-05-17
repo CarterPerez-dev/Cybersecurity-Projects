@@ -1,0 +1,24 @@
+// ===================
+// ©AngelaMos | 2026
+// Halftone.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+
+.halftone {
+  inline-size: 100%;
+  background-image: $halftone-dots;
+  background-repeat: repeat;
+
+  &[data-density='sparse'] {
+    background-size: 14px 14px;
+  }
+
+  &[data-density='normal'] {
+    background-size: 8px 8px;
+  }
+
+  &[data-density='dense'] {
+    background-size: 5px 5px;
+  }
+}

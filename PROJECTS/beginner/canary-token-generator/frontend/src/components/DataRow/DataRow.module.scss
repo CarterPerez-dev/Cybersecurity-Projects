@@ -1,0 +1,60 @@
+// ===================
+// ©AngelaMos | 2026
+// DataRow.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: $space-2;
+  font-size: $font-size-sm;
+  line-height: $line-height-snug;
+
+  &[data-alarm='true'] {
+    color: $alarm-deep;
+  }
+}
+
+.label {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+  white-space: nowrap;
+}
+
+.leader {
+  align-self: end;
+  block-size: $hairline;
+  background-image: linear-gradient(
+    to right,
+    $rule-soft 0,
+    $rule-soft 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  background-size: 8px $hairline;
+  transform: translateY(-3px);
+  min-inline-size: $space-4;
+}
+
+.value {
+  color: inherit;
+  text-align: right;
+  overflow-wrap: anywhere;
+
+  &[data-mono='true'] {
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    letter-spacing: $tracking-wide;
+  }
+
+  &[data-emphasize='true'] {
+    font-weight: $font-weight-semibold;
+  }
+}

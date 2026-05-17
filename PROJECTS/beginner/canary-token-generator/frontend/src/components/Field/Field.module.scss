@@ -1,0 +1,108 @@
+// ===================
+// ©AngelaMos | 2026
+// Field.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+}
+
+.index {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+  white-space: nowrap;
+}
+
+.label {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink;
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+}
+
+.required {
+  color: $alarm;
+}
+
+.rule {
+  flex: 1 1 auto;
+  block-size: $hairline;
+  background-color: $rule-hair;
+}
+
+.input,
+.textarea,
+.select {
+  inline-size: 100%;
+  padding-block: $space-2-5;
+  padding-inline: $space-3;
+  border: $hairline solid $rule;
+  background-color: $paper;
+  font-family: $font-sans;
+  font-size: $font-size-base;
+  color: $ink;
+  appearance: none;
+  border-radius: 0;
+  transition: border-color $duration-fast $ease-out;
+
+  &::placeholder {
+    color: $ink-faint;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $ink;
+    box-shadow: inset 0 0 0 $hairline $ink;
+  }
+
+  .field[data-invalid='true'] & {
+    border-color: $alarm;
+  }
+}
+
+.textarea {
+  min-block-size: 5lh;
+  resize: vertical;
+  font-family: $font-sans;
+  line-height: $line-height-normal;
+}
+
+.select {
+  padding-inline-end: $space-8;
+  background-image: linear-gradient(45deg, transparent 50%, $ink 50%),
+    linear-gradient(135deg, $ink 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.hint {
+  font-size: $font-size-xs;
+  color: $ink-mute;
+  font-family: $font-sans;
+}
+
+.error {
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $alarm;
+}

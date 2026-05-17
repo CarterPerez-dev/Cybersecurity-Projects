@@ -1,0 +1,53 @@
+// ===================
+// ©AngelaMos | 2026
+// Pill.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1;
+  padding-block: $space-0-5;
+  padding-inline: $space-2;
+  border: $hairline solid $rule;
+  font-family: $font-mono;
+  text-transform: uppercase;
+  letter-spacing: $tracking-wider;
+  white-space: nowrap;
+
+  &[data-size='sm'] {
+    font-size: $font-size-3xs;
+  }
+
+  &[data-size='md'] {
+    font-size: $font-size-2xs;
+    padding-block: $space-1;
+    padding-inline: $space-2-5;
+  }
+
+  &[data-tone='paper'] {
+    background-color: $paper;
+    color: $ink;
+  }
+
+  &[data-tone='ink'] {
+    background-color: $ink;
+    color: $paper;
+    border-color: $ink;
+  }
+
+  &[data-tone='alarm'] {
+    background-color: $alarm-tint;
+    color: $alarm-deep;
+    border-color: $alarm;
+  }
+
+  &[data-tone='signal'] {
+    background-color: $signal-tint;
+    color: $signal;
+    border-color: $signal;
+  }
+}

@@ -1,0 +1,57 @@
+// ===================
+// ©AngelaMos | 2026
+// LeaderLabel.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  max-width: 22ch;
+  font-family: $font-mono;
+
+  &[data-align='right'] {
+    text-align: right;
+    align-self: flex-end;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: $space-1-5;
+}
+
+.index {
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
+  white-space: nowrap;
+}
+
+.rule {
+  flex: 1 1 auto;
+  block-size: $hairline;
+  background-color: $rule;
+  align-self: center;
+}
+
+.body {
+  font-size: $font-size-2xs;
+  line-height: $line-height-tight;
+  letter-spacing: $tracking-wide;
+  text-transform: uppercase;
+  color: $ink;
+}
+
+.caption {
+  font-size: $font-size-3xs;
+  line-height: $line-height-snug;
+  color: $ink-mute;
+  text-transform: none;
+  letter-spacing: $tracking-normal;
+}

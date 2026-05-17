@@ -1,0 +1,76 @@
+// ===================
+// ©AngelaMos | 2026
+// Strip.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  flex-wrap: wrap;
+  padding-block: $space-2;
+  padding-inline: $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-soft;
+
+  &[data-border='bottom'] {
+    border-bottom: $hairline solid $rule;
+  }
+
+  &[data-border='top'] {
+    border-top: $hairline solid $rule;
+  }
+
+  &[data-border='both'] {
+    border-block: $hairline solid $rule;
+  }
+
+  &[data-align='split'] {
+    justify-content: space-between;
+  }
+
+  &[data-align='left'] {
+    justify-content: flex-start;
+  }
+}
+
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: $space-1-5;
+  padding-block: $space-0-5;
+  padding-inline: $space-2;
+  border: $hairline solid $rule;
+  background-color: transparent;
+
+  &[data-inverted='true'] {
+    background-color: $ink;
+    color: $paper;
+    border-color: $ink;
+  }
+}
+
+.mark {
+  display: inline-block;
+  font-size: $font-size-2xs;
+  transform: translateY(1px);
+}
+
+.label {
+  font-weight: $font-weight-semibold;
+  color: $ink-mute;
+
+  &::after {
+    content: '\00a0';
+  }
+}
+
+.value {
+  color: inherit;
+}

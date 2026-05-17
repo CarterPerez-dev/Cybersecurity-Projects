@@ -1,0 +1,89 @@
+// ===================
+// ©AngelaMos | 2026
+// Button.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: $hairline solid $ink;
+  background-color: $ink;
+  color: $paper;
+  font-family: $font-mono;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color $duration-fast $ease-out,
+    color $duration-fast $ease-out;
+
+  &[data-size='sm'] {
+    padding-block: $space-1-5;
+    padding-inline: $space-3;
+    font-size: $font-size-3xs;
+  }
+
+  &[data-size='md'] {
+    padding-block: $space-2-5;
+    padding-inline: $space-5;
+    font-size: $font-size-2xs;
+  }
+
+  &[data-size='lg'] {
+    padding-block: $space-3-5;
+    padding-inline: $space-7;
+    font-size: $font-size-xs;
+  }
+
+  &[data-full='true'] {
+    inline-size: 100%;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: $paper;
+    color: $ink;
+  }
+
+  &[data-variant='ghost'] {
+    background-color: transparent;
+    color: $ink;
+
+    &:hover:not(:disabled) {
+      background-color: $ink;
+      color: $paper;
+    }
+  }
+
+  &[data-variant='alarm'] {
+    background-color: $paper;
+    color: $alarm-deep;
+    border-color: $alarm;
+
+    &:hover:not(:disabled) {
+      background-color: $alarm;
+      color: $paper;
+    }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &[data-busy='true'] {
+    cursor: progress;
+
+    .label::after {
+      content: ' …';
+    }
+  }
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+}

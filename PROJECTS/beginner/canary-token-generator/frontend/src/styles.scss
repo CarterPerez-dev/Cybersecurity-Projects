@@ -7,9 +7,35 @@
 @forward 'styles/fonts';
 @forward 'styles/mixins';
 
+@use 'styles/tokens' as *;
+@use 'styles/fonts' as *;
 @use 'styles/reset';
+
+html,
+body {
+  background-color: $paper;
+  color: $ink;
+}
+
+body {
+  font-family: $font-sans;
+  font-size: $font-size-base;
+  font-weight: $font-weight-regular;
+  line-height: $line-height-normal;
+  letter-spacing: $tracking-normal;
+  background-image: $paper-grain;
+  background-attachment: fixed;
+  background-size: 240px 240px;
+}
+
+::selection {
+  background-color: $ink;
+  color: $paper;
+}
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }

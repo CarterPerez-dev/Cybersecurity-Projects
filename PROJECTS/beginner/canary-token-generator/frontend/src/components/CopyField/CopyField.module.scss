@@ -1,0 +1,63 @@
+// ===================
+// ©AngelaMos | 2026
+// CopyField.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+
+.field {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: stretch;
+  border: $hairline solid $rule;
+  background-color: $paper;
+
+  &[data-full='true'] {
+    inline-size: 100%;
+  }
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: $space-3;
+  background-color: $ink;
+  color: $paper;
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+}
+
+.value {
+  display: inline-flex;
+  align-items: center;
+  padding-block: $space-2;
+  padding-inline: $space-3;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  letter-spacing: $tracking-wide;
+  color: $ink;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.copy {
+  padding-block: $space-2;
+  padding-inline: $space-3;
+  border-inline-start: $hairline solid $rule;
+  background-color: $paper-deep;
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink;
+  cursor: pointer;
+  transition: background-color $duration-fast $ease-out;
+
+  &:hover {
+    background-color: $ink;
+    color: $paper;
+  }
+}
