@@ -8,18 +8,21 @@ import { toast } from 'sonner'
 import { QUERY_CONFIG } from '@/config'
 import { ApiError, ApiErrorCode } from './errors'
 
-const NO_RETRY_ERROR_CODES: readonly ApiErrorCode[] = [
-  ApiErrorCode.AUTHENTICATION_ERROR,
-  ApiErrorCode.AUTHORIZATION_ERROR,
-  ApiErrorCode.NOT_FOUND,
+const NO_RETRY_ERROR_CODES: ReadonlySet<string> = new Set<string>([
   ApiErrorCode.VALIDATION_ERROR,
-] as const
+  ApiErrorCode.BAD_JSON,
+  ApiErrorCode.BAD_CURSOR,
+  ApiErrorCode.BAD_PARAM,
+  ApiErrorCode.UNKNOWN_TYPE,
+  ApiErrorCode.NOT_FOUND,
+  ApiErrorCode.TURNSTILE_FAILED,
+  ApiErrorCode.RATE_LIMITED,
+  ApiErrorCode.PARSE_ERROR,
+])
 
 const shouldRetryQuery = (failureCount: number, error: Error): boolean => {
-  if (error instanceof ApiError) {
-    if (NO_RETRY_ERROR_CODES.includes(error.code)) {
-      return false
-    }
+  if (error instanceof ApiError && NO_RETRY_ERROR_CODES.has(error.code)) {
+    return false
   }
   return failureCount < QUERY_CONFIG.RETRY.DEFAULT
 }

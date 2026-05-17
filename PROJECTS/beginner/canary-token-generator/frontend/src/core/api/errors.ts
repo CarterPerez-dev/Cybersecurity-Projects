@@ -1,110 +1,132 @@
-/**
- * ©AngelaMos | 2026
- * errors.ts
- */
+// ===================
+// ©AngelaMos | 2026
+// errors.ts
+// ===================
 
 import type { AxiosError } from 'axios'
 
 export const ApiErrorCode = {
   NETWORK_ERROR: 'NETWORK_ERROR',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
-  AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR',
-  NOT_FOUND: 'NOT_FOUND',
-  CONFLICT: 'CONFLICT',
-  RATE_LIMITED: 'RATE_LIMITED',
-  SERVER_ERROR: 'SERVER_ERROR',
+  PARSE_ERROR: 'PARSE_ERROR',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  BAD_JSON: 'BAD_JSON',
+  BAD_CURSOR: 'BAD_CURSOR',
+  BAD_PARAM: 'BAD_PARAM',
+  UNKNOWN_TYPE: 'UNKNOWN_TYPE',
+  GENERATE_FAILED: 'GENERATE_FAILED',
+  TURNSTILE_FAILED: 'TURNSTILE_FAILED',
+  NOT_FOUND: 'NOT_FOUND',
+  RATE_LIMITED: 'RATE_LIMITED',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 } as const
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode]
 
+const STATUS_FALLBACK_CODE: Record<number, ApiErrorCode> = {
+  400: ApiErrorCode.VALIDATION_ERROR,
+  404: ApiErrorCode.NOT_FOUND,
+  410: ApiErrorCode.NOT_FOUND,
+  429: ApiErrorCode.RATE_LIMITED,
+  500: ApiErrorCode.INTERNAL_ERROR,
+  502: ApiErrorCode.SERVICE_UNAVAILABLE,
+  503: ApiErrorCode.SERVICE_UNAVAILABLE,
+  504: ApiErrorCode.SERVICE_UNAVAILABLE,
+}
+
+const USER_FACING_COPY: Partial<Record<string, string>> = {
+  [ApiErrorCode.NETWORK_ERROR]:
+    'Unable to reach the server. Check your connection.',
+  [ApiErrorCode.PARSE_ERROR]: 'Server response did not match expected shape.',
+  [ApiErrorCode.UNKNOWN_ERROR]: 'An unexpected error occurred.',
+  [ApiErrorCode.RATE_LIMITED]: 'Too many requests. Wait a moment, then retry.',
+  [ApiErrorCode.SERVICE_UNAVAILABLE]:
+    'Service is temporarily unavailable. Try again shortly.',
+}
+
 export class ApiError extends Error {
-  readonly code: ApiErrorCode
+  readonly code: string
   readonly statusCode: number
-  readonly details?: Record<string, string[]>
+  readonly fields?: Readonly<Record<string, string>>
 
   constructor(
     message: string,
-    code: ApiErrorCode,
+    code: string,
     statusCode: number,
-    details?: Record<string, string[]>
+    fields?: Record<string, string>
   ) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.statusCode = statusCode
-    this.details = details
+    this.fields = fields
   }
 
   getUserMessage(): string {
-    const messages: Record<ApiErrorCode, string> = {
-      [ApiErrorCode.NETWORK_ERROR]:
-        'Unable to connect. Please check your internet connection.',
-      [ApiErrorCode.VALIDATION_ERROR]: 'Please check your input and try again.',
-      [ApiErrorCode.AUTHENTICATION_ERROR]:
-        'Your session has expired. Please log in again.',
-      [ApiErrorCode.AUTHORIZATION_ERROR]:
-        'You do not have permission to perform this action.',
-      [ApiErrorCode.NOT_FOUND]: 'The requested resource was not found.',
-      [ApiErrorCode.CONFLICT]:
-        'This operation conflicts with an existing resource.',
-      [ApiErrorCode.RATE_LIMITED]:
-        'Too many requests. Please wait a moment and try again.',
-      [ApiErrorCode.SERVER_ERROR]:
-        'Something went wrong on our end. Please try again later.',
-      [ApiErrorCode.UNKNOWN_ERROR]:
-        'An unexpected error occurred. Please try again.',
+    if (this.message.length > 0) {
+      return this.message
     }
-    return messages[this.code]
+    return USER_FACING_COPY[this.code] ?? 'An unexpected error occurred.'
   }
 }
 
-interface ApiErrorResponse {
-  detail?: string | { msg: string; type: string }[]
-  message?: string
+interface EnvelopeErrorShape {
+  success?: unknown
+  error?: {
+    code?: unknown
+    message?: unknown
+    fields?: unknown
+  }
+}
+
+function parseEnvelopeError(
+  data: unknown
+): { code: string; message: string; fields?: Record<string, string> } | null {
+  if (data === null || typeof data !== 'object') {
+    return null
+  }
+  const envelope = data as EnvelopeErrorShape
+  if (envelope.success !== false || envelope.error == null) {
+    return null
+  }
+  const { code, message, fields } = envelope.error
+  if (typeof code !== 'string' || typeof message !== 'string') {
+    return null
+  }
+  return {
+    code,
+    message,
+    fields: parseFields(fields),
+  }
+}
+
+function parseFields(raw: unknown): Record<string, string> | undefined {
+  if (raw === null || typeof raw !== 'object') {
+    return undefined
+  }
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'string') {
+      out[k] = v
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 export function transformAxiosError(error: AxiosError<unknown>): ApiError {
   if (!error.response) {
     return new ApiError('Network error', ApiErrorCode.NETWORK_ERROR, 0)
   }
+  const { status, data } = error.response
 
-  const { status } = error.response
-  const data = error.response.data as ApiErrorResponse | undefined
-  let message = 'An error occurred'
-  let details: Record<string, string[]> | undefined
-
-  if (data?.detail) {
-    if (typeof data.detail === 'string') {
-      message = data.detail
-    } else if (Array.isArray(data.detail)) {
-      details = { validation: [] }
-      data.detail.forEach((err) => {
-        details?.validation.push(err.msg)
-      })
-      message = 'Validation error'
-    }
-  } else if (data?.message) {
-    message = data.message
+  const envelope = parseEnvelopeError(data)
+  if (envelope) {
+    return new ApiError(envelope.message, envelope.code, status, envelope.fields)
   }
 
-  const codeMap: Record<number, ApiErrorCode> = {
-    400: ApiErrorCode.VALIDATION_ERROR,
-    401: ApiErrorCode.AUTHENTICATION_ERROR,
-    403: ApiErrorCode.AUTHORIZATION_ERROR,
-    404: ApiErrorCode.NOT_FOUND,
-    409: ApiErrorCode.CONFLICT,
-    429: ApiErrorCode.RATE_LIMITED,
-    500: ApiErrorCode.SERVER_ERROR,
-    502: ApiErrorCode.SERVER_ERROR,
-    503: ApiErrorCode.SERVER_ERROR,
-    504: ApiErrorCode.SERVER_ERROR,
-  }
-
-  const code = codeMap[status] || ApiErrorCode.UNKNOWN_ERROR
-
-  return new ApiError(message, code, status, details)
+  const fallbackCode = STATUS_FALLBACK_CODE[status] ?? ApiErrorCode.UNKNOWN_ERROR
+  return new ApiError('Request failed', fallbackCode, status)
 }
 
 declare module '@tanstack/react-query' {
