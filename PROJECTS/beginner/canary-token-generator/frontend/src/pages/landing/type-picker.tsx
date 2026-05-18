@@ -56,14 +56,20 @@ function TypeCard({
   onSelect,
 }: TypeCardProps): React.ReactElement {
   const indexStr = String(index).padStart(2, '0')
+  const disabled = !descriptor.enabled
   return (
-    <label className={styles.typeCard} data-selected={selected}>
+    <label
+      className={styles.typeCard}
+      data-selected={selected}
+      data-disabled={disabled}
+    >
       <input
         className={styles.srOnly}
         type="radio"
         name={name}
         value={descriptor.type}
         checked={selected}
+        disabled={disabled}
         onChange={onSelect}
       />
       <span className={styles.typeIndex}>{indexStr}</span>
@@ -72,7 +78,12 @@ function TypeCard({
       </span>
       <span className={styles.typeName}>{descriptor.name}</span>
       <span className={styles.typeCode}>{descriptor.type}</span>
-      <span className={styles.typeBlurb}>{TOKEN_BLURB[descriptor.type]}</span>
+      <span className={styles.typeBlurb}>
+        {disabled && descriptor.disabled_reason
+          ? descriptor.disabled_reason
+          : TOKEN_BLURB[descriptor.type]}
+      </span>
+      {disabled ? <span className={styles.typeDisabledTag}>disabled</span> : null}
     </label>
   )
 }

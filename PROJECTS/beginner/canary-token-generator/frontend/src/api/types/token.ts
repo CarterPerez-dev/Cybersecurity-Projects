@@ -102,6 +102,8 @@ export const typeDescriptorSchema = z.object({
   name: z.string(),
   description: z.string(),
   artifact_kind: artifactKindSchema,
+  enabled: z.boolean().default(true),
+  disabled_reason: z.string().optional(),
 })
 
 export type TypeDescriptor = z.infer<typeof typeDescriptorSchema>

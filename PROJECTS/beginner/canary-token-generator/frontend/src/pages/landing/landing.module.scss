@@ -219,6 +219,44 @@
       color: $paper-edge;
     }
   }
+
+  &[data-disabled='true'] {
+    cursor: not-allowed;
+    background-color: $paper-deep;
+    border-color: $rule-soft;
+    border-style: dashed;
+    opacity: 0.55;
+
+    &:hover {
+      background-color: $paper-deep;
+    }
+
+    .typeIndex,
+    .typeName,
+    .typeCode,
+    .typeBlurb {
+      color: $ink-mute;
+    }
+
+    .typeGlyph {
+      opacity: 0.5;
+    }
+  }
+}
+
+.typeDisabledTag {
+  position: absolute;
+  inset-block-start: $space-2;
+  inset-inline-end: $space-2;
+  padding-block: 2px;
+  padding-inline: $space-1-5;
+  background-color: $paper;
+  border: $hairline solid $rule-soft;
+  font-family: $font-mono;
+  font-size: $font-size-3xs;
+  letter-spacing: $tracking-wider;
+  text-transform: uppercase;
+  color: $ink-mute;
 }
 
 .typeIndex {

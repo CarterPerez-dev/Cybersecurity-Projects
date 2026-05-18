@@ -88,6 +88,7 @@ type Handler struct {
 	eventQuery          EventQuery
 	dedupCounter        DedupCounter
 	logger              *slog.Logger
+	mysqlEnabled        bool
 }
 
 func NewHandler(
@@ -97,6 +98,7 @@ func NewHandler(
 	eventQuery EventQuery,
 	dedupCounter DedupCounter,
 	logger *slog.Logger,
+	mysqlEnabled bool,
 ) *Handler {
 	if logger == nil {
 		logger = slog.Default()
@@ -108,6 +110,7 @@ func NewHandler(
 		eventQuery:          eventQuery,
 		dedupCounter:        dedupCounter,
 		logger:              logger,
+		mysqlEnabled:        mysqlEnabled,
 	}
 }
 
@@ -129,7 +132,7 @@ func (h *Handler) RegisterTriggerRoutes(r chi.Router) {
 }
 
 func (h *Handler) GetTypes(w http.ResponseWriter, _ *http.Request) {
-	h.writeJSON(w, http.StatusOK, envelopeData(TypeDescriptors()))
+	h.writeJSON(w, http.StatusOK, envelopeData(TypeDescriptors(h.mysqlEnabled)))
 }
 
 func (h *Handler) CreateToken(w http.ResponseWriter, r *http.Request) {
@@ -417,7 +420,7 @@ func (h *Handler) writeCreateError(
 		h.writeJSON(w, http.StatusInternalServerError, envelopeError(
 			errorCodeGenerateFailed, respMessageGenerateFailed,
 		))
-	case strings.Contains(err.Error(), "validate request"):
+	case errors.Is(err, ErrValidation):
 		h.writeJSON(w, http.StatusBadRequest, envelopeError(
 			errorCodeValidation, respMessageValidation,
 		))

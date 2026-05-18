@@ -85,13 +85,14 @@ func newWebbugHandler(
 		nil,
 		nil,
 		quietHandlerLogger(),
+		false,
 	), repo, rec
 }
 
 func TestGetTypes_Returns7Types(t *testing.T) {
 	svc := token.NewService(newFakeRepo(), token.MapRegistry{},
 		token.ServiceConfig{BaseURL: "https://x.test"})
-	h := token.NewHandler(svc, nil, nil, nil, nil, quietHandlerLogger())
+	h := token.NewHandler(svc, nil, nil, nil, nil, quietHandlerLogger(), false)
 
 	r := chi.NewRouter()
 	h.RegisterAPIRoutes(r)
@@ -389,7 +390,7 @@ func exposeArtifactToJSON(a generators.Artifact) token.ArtifactJSON {
 	repo := newFakeRepo()
 	svc := token.NewService(repo, token.MapRegistry{token.TypeWebbug: gen},
 		token.ServiceConfig{BaseURL: "https://x"})
-	h := token.NewHandler(svc, nil, nil, nil, nil, quietHandlerLogger())
+	h := token.NewHandler(svc, nil, nil, nil, nil, quietHandlerLogger(), false)
 
 	r := chi.NewRouter()
 	h.RegisterAPIRoutes(r)
@@ -461,7 +462,7 @@ func newManageHandler(
 			BaseURL:   "https://canary.example.com",
 			ManageURL: "https://canary.example.com",
 		})
-	return token.NewHandler(svc, nil, nil, eq, dc, quietHandlerLogger()), repo
+	return token.NewHandler(svc, nil, nil, eq, dc, quietHandlerLogger(), false), repo
 }
 
 func seedToken(t *testing.T, repo *fakeRepo, manageID string) *token.Token {

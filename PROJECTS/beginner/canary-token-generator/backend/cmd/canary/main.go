@@ -71,6 +71,12 @@ func run(configPath string) error {
 		"environment", cfg.App.Environment,
 	)
 
+	if err = middleware.SetTrustedProxyCIDRs(
+		cfg.Server.TrustedProxyCIDRs,
+	); err != nil {
+		return fmt.Errorf("trusted proxy cidrs: %w", err)
+	}
+
 	telemetry := initTelemetry(ctx, cfg, logger)
 
 	db, err := core.NewDatabase(ctx, cfg.Database)
@@ -163,6 +169,7 @@ func buildHTTPDeps(
 		eventRepo,
 		eventSvc,
 		logger,
+		cfg.MySQL.Enabled,
 	)
 	return tokenSvc, verifier, healthH, tokenH
 }
