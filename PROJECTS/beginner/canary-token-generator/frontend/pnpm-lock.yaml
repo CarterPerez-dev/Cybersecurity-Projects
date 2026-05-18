@@ -21,7 +21,7 @@ importers:
         specifier: ^19.2.1
         version: 19.2.1
       react-dom:
-        specifier: ^19.2.1
+        specifier: ^19.2.0
         version: 19.2.1(react@19.2.1)
       react-error-boundary:
         specifier: ^6.0.0
@@ -33,7 +33,7 @@ importers:
         specifier: ^5.5.0
         version: 5.5.0(react@19.2.1)
       react-router-dom:
-        specifier: ^7.10.1
+        specifier: ^7.1.1
         version: 7.10.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       sonner:
         specifier: ^2.0.7
@@ -61,7 +61,7 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.7)
       '@vitejs/plugin-react':
-        specifier: ^5.1.2
+        specifier: ^5.1.1
         version: 5.1.2(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))
       sass:
         specifier: ^1.95.0
@@ -82,7 +82,7 @@ importers:
         specifier: npm:rolldown-vite@7.2.5
         version: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
       vite-tsconfig-paths:
-        specifier: ^5.1.4
+        specifier: ^5.1.0
         version: 5.1.4(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))(typescript@5.9.3)
 
 packages:
