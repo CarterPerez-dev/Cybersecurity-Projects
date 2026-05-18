@@ -160,6 +160,7 @@ func setupE2EStack(t *testing.T) *e2eStack {
 		eventRepo,
 		eventSvc,
 		logger,
+		true,
 	)
 
 	r := chi.NewRouter()

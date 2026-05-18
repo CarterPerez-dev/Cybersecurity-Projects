@@ -462,7 +462,16 @@ func newManageHandler(
 			BaseURL:   "https://canary.example.com",
 			ManageURL: "https://canary.example.com",
 		})
-	return token.NewHandler(svc, nil, nil, eq, dc, quietHandlerLogger(), false), repo
+	return token.NewHandler(
+			svc,
+			nil,
+			nil,
+			eq,
+			dc,
+			quietHandlerLogger(),
+			false,
+		),
+		repo
 }
 
 func seedToken(t *testing.T, repo *fakeRepo, manageID string) *token.Token {
