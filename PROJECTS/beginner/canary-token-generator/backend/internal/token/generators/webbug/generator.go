@@ -4,7 +4,9 @@
 package webbug
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"net/http"
 	"strings"
 
@@ -12,7 +14,6 @@ import (
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/middleware"
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token"
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token/generators"
-	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token/generators/pixel"
 )
 
 const (
@@ -24,7 +25,12 @@ const (
 	pragmaNoCache       = "no-cache"
 
 	triggerPathPrefix = "/c/"
+
+	pixelContentType = "image/jpeg"
 )
+
+//go:embed asset/pixel.jpg
+var pixelBytes []byte
 
 type Generator struct{}
 
@@ -50,8 +56,8 @@ func (g *Generator) Trigger(
 ) (*event.Event, *generators.TriggerResponse, error) {
 	resp := &generators.TriggerResponse{
 		StatusCode:  http.StatusOK,
-		ContentType: pixel.ContentType,
-		Body:        pixel.Clone(),
+		ContentType: pixelContentType,
+		Body:        bytes.Clone(pixelBytes),
 		ExtraHeaders: map[string]string{
 			headerCacheControl: cacheControlNoStore,
 			headerPragma:       pragmaNoCache,

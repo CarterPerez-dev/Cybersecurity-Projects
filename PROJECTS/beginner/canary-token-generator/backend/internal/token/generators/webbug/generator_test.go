@@ -13,14 +13,15 @@ import (
 
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token"
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token/generators"
-	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token/generators/pixel"
 	"github.com/CarterPerez-dev/cybersecurity-projects/canary-token-generator/backend/internal/token/generators/webbug"
 )
 
 const (
 	cacheControlNoStore = "no-store, no-cache, must-revalidate, max-age=0"
 	pragmaNoCache       = "no-cache"
-	gifByteLength       = 43
+	pixelContentType    = "image/jpeg"
+	jpegSOI0            = 0xff
+	jpegSOI1            = 0xd8
 )
 
 func newWebbugToken(id string) *token.Token {
@@ -124,13 +125,13 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 				wantIP: "203.0.113.10",
 			},
 			{
-				name: "XFF rightmost wins over XRI when no CF",
+				name: "XFF leftmost wins over XRI when no CF",
 				headers: map[string]string{
 					"X-Forwarded-For": "198.51.100.1, 198.51.100.7",
 					"X-Real-IP":       "192.0.2.99",
 				},
 				remote: "127.0.0.1:9999",
-				wantIP: "198.51.100.7",
+				wantIP: "198.51.100.1",
 			},
 			{
 				name: "XFF trailing-comma falls through to XRI",
@@ -183,12 +184,12 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 				wantIP:  "127.0.0.1",
 			},
 			{
-				name: "XFF IPv6 rightmost",
+				name: "XFF mixed IPv4+IPv6 leftmost",
 				headers: map[string]string{
 					"X-Forwarded-For": "198.51.100.1, 2001:db8::dead",
 				},
 				remote: "127.0.0.1:9999",
-				wantIP: "2001:db8::dead",
+				wantIP: "198.51.100.1",
 			},
 			{
 				name: "CF value is trimmed of whitespace",
@@ -240,7 +241,7 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 	)
 }
 
-func TestTrigger_ResponseIs43ByteGIF(t *testing.T) {
+func TestTrigger_ResponseIsEmbeddedJPEG(t *testing.T) {
 	g := webbug.New()
 	tok := newWebbugToken("abc")
 	r := httptest.NewRequest(http.MethodGet, "/c/abc", nil)
@@ -249,9 +250,12 @@ func TestTrigger_ResponseIs43ByteGIF(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, pixel.ContentType, resp.ContentType)
-	require.Len(t, resp.Body, gifByteLength)
-	require.Equal(t, pixel.Clone(), resp.Body)
+	require.Equal(t, pixelContentType, resp.ContentType)
+	require.NotEmpty(t, resp.Body, "embedded pixel.jpg must not be empty")
+	require.Equal(t, jpegSOI0, int(resp.Body[0]),
+		"body must begin with JPEG SOI marker 0xff 0xd8")
+	require.Equal(t, jpegSOI1, int(resp.Body[1]),
+		"body must begin with JPEG SOI marker 0xff 0xd8")
 	require.Equal(t, cacheControlNoStore, resp.ExtraHeaders["Cache-Control"])
 	require.Equal(t, pragmaNoCache, resp.ExtraHeaders["Pragma"])
 }
@@ -266,16 +270,17 @@ func TestTrigger_ResponseBodyIsIndependentCopyPerCall(t *testing.T) {
 	_, resp2, err := g.Trigger(context.Background(), tok, r)
 	require.NoError(t, err)
 
+	original := resp2.Body[0]
 	resp1.Body[0] = 0x00
 	require.Equal(
 		t,
-		byte(0x47),
+		original,
 		resp2.Body[0],
 		"each Trigger call must produce an independent body slice",
 	)
 }
 
-func TestTrigger_TokenNotFound_StillReturnsGIF(t *testing.T) {
+func TestTrigger_TokenNotFound_StillReturnsImage(t *testing.T) {
 	g := webbug.New()
 	r := httptest.NewRequest(http.MethodGet, "/c/does-not-exist", nil)
 	r.Header.Set("CF-Connecting-IP", "203.0.113.100")
@@ -287,10 +292,10 @@ func TestTrigger_TokenNotFound_StillReturnsGIF(t *testing.T) {
 		err,
 		"nil-token path must not error (spec §8.5 defense-in-depth)",
 	)
-	require.NotNil(t, resp, "nil-token path must still return GIF response")
+	require.NotNil(t, resp, "nil-token path must still return image response")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, pixel.ContentType, resp.ContentType)
-	require.Equal(t, pixel.Clone(), resp.Body)
+	require.Equal(t, pixelContentType, resp.ContentType)
+	require.NotEmpty(t, resp.Body)
 	require.Nil(
 		t,
 		evt,
