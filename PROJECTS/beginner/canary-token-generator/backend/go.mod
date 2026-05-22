@@ -18,7 +18,7 @@ require (
 	github.com/oschwald/geoip2-golang/v2 v2.1.0
 	github.com/pdfcpu/pdfcpu v0.12.1
 	github.com/pressly/goose/v3 v3.27.1
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
