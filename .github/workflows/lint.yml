@@ -274,6 +274,10 @@ jobs:
       if: matrix.type == 'crystal'
       run: shards install
 
+    - name: Build ameba binary
+      if: matrix.type == 'crystal'
+      run: crystal build lib/ameba/bin/ameba.cr -o bin/ameba
+
     # V (Vlang) Setup (no check-latest — master drift breaks fmt parity)
     - name: Install V
       if: matrix.type == 'v'
@@ -437,20 +441,21 @@ jobs:
         cat crystal-output.txt
       continue-on-error: true
 
-    # V Linting
-    - name: Run v fmt and v vet
+    # V Linting (v fmt is advisory — formatter rules drift between V builds even
+    # within the same version string, making strict fmt parity impractical. v vet
+    # is stable across builds and remains the pass/fail gate.)
+    - name: Run v fmt (advisory) and v vet
       if: matrix.type == 'v'
       id: v
       run: |
         V_OK=true
-        echo "Running v fmt -diff src/..."
+        echo "Running v fmt -diff src/ (advisory)..."
         v fmt -diff src/ > v-output.txt 2>&1 || true
-        echo "Running v fmt -verify src/..."
+        echo "Running v fmt -verify src/ (advisory)..."
         if v fmt -verify src/ >> v-output.txt 2>&1; then
           echo "v fmt: no issues"
         else
-          V_OK=false
-          echo "v fmt: formatting issues found"
+          echo "v fmt: formatting suggestions found (advisory — not failing the job)"
         fi
         echo "Running v vet src/..."
         if v vet src/ >> v-output.txt 2>&1; then
@@ -710,10 +715,10 @@ jobs:
           echo "## Lint Results: ${{ matrix.name }}"
           echo ''
           if [[ "${{ env.V_PASSED }}" == "true" ]]; then
-            echo '### v fmt + v vet: **Passed**'
-            echo 'No V issues found.'
+            echo '### v vet: **Passed** (v fmt advisory)'
+            echo 'No V vet issues found. See output for v fmt suggestions.'
           else
-            echo '### v fmt + v vet: **Issues Found**'
+            echo '### v vet: **Issues Found**'
             echo '<details><summary>View output</summary>'
             echo ''
             echo '```'
