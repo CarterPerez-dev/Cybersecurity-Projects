@@ -14,7 +14,19 @@
 
 > Educational keylogger for security research demonstrating input capture, window tracking, and C2 delivery techniques.
 
-*This is a quick overview — security theory, architecture, and full walkthroughs are in the [learn modules](#learn).*
+<p align="center">
+  <a href="https://youtu.be/gTd8cNlMD1k">
+    <img src="https://img.shields.io/badge/Watch_on-YouTube-FF0000?logo=youtube&logoColor=white" alt="Watch on YouTube">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/gTd8cNlMD1k">
+    <img src="https://img.youtube.com/vi/gTd8cNlMD1k/maxresdefault.jpg" alt="Video Thumbnail" width="800">
+  </a>
+</p>
+
+*Learn Docs are in the [learn modules](#learn).*
 
 ## What It Does
 
