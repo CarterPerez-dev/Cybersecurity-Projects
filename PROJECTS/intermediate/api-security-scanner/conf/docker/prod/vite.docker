@@ -9,17 +9,20 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY frontend/package*.json ./
+# Install pnpm
+RUN npm install -g pnpm
 
-# Install dependencies
-RUN npm ci --only=production
+# Copy package files
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Install dependencies (including dev deps for build)
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY frontend/ .
 
 # Build the app (creates dist/ folder with static files)
-RUN npm run build
+RUN pnpm run build
 
 
 

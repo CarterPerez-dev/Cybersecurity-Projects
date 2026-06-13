@@ -8,11 +8,14 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # Copy package files first (for layer caching)
-COPY frontend/package*.json ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Install dependencies
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy application code (in dev this is overridden by volume mount)
 COPY frontend/ .
@@ -21,4 +24,4 @@ COPY frontend/ .
 EXPOSE 5173
 
 # Run Vite dev server with --host to allow external connections
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev", "--", "--host", "0.0.0.0"]

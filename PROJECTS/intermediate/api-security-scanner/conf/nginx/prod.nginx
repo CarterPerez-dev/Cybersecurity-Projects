@@ -67,8 +67,8 @@ http {
         add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
         # Backend API routes
-        location /api {
-            proxy_pass http://backend;
+        location /api/ {
+            proxy_pass http://backend/;
 
             # Apply common proxy settings
             proxy_http_version 1.1;

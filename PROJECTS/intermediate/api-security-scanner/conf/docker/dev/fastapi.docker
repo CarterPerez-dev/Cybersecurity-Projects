@@ -1,7 +1,7 @@
 # ⒸAngelaMos | 2025
 # Development FastAPI Dockerfile
 
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -18,11 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first (for layer caching)
-COPY backend/requirements.txt .
+# Copy pyproject.toml for dependency installation
+COPY backend/pyproject.toml .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies from pyproject.toml
+RUN pip install --no-cache-dir .
 
 # Copy application code
 COPY backend/ .
