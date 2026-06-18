@@ -60,6 +60,10 @@ test-backend:
     cargo test --workspace
 
 [group('backend')]
+bench *ARGS:
+    cargo bench --bench fingerprint {{ARGS}}
+
+[group('backend')]
 clippy:
     cargo clippy --workspace --all-targets -- -D warnings
 

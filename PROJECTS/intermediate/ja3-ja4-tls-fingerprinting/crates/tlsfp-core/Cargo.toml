@@ -31,3 +31,8 @@ aes-gcm.workspace = true
 hex.workspace = true
 proptest = "1"
 serde_json.workspace = true
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "fingerprint"
+harness = false

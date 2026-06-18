@@ -3,7 +3,7 @@
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -12,6 +12,7 @@ use tracing_subscriber::EnvFilter;
 use tlsfp_core::{FingerprintEvent, PcapFileSource, Pipeline, PipelineConfig, SourceError};
 
 use crate::live::{DEFAULT_BPF_FILTER, LiveConfig, LiveSource};
+use crate::report::ReportBuilder;
 use crate::serve::{self, ServeConfig, Source};
 use tlsfp_intel::{Alert, FpKind, IntelStore, MatchReport, MatchStrength, default_db_path};
 
@@ -53,6 +54,16 @@ pub enum Command {
         /// Run the detection rules, recording observations and raising alerts.
         #[arg(long)]
         detect: bool,
+
+        /// Print a single forensic summary of the whole capture instead of one
+        /// line per handshake. When an intelligence database is present it also
+        /// folds in match verdicts and detection alerts.
+        #[arg(long)]
+        report: bool,
+
+        /// How many rows each ranked section of the report shows.
+        #[arg(long, default_value_t = crate::report::DEFAULT_TOP)]
+        top: usize,
 
         /// Path to the intelligence database, defaulting to the data directory.
         #[arg(long)]
@@ -251,8 +262,10 @@ impl Cli {
                 json,
                 intel,
                 detect,
+                report,
+                top,
                 db,
-            } => run_pcap(&path, json, intel, detect, db.as_deref()),
+            } => run_pcap(&path, json, intel, detect, report, top, db.as_deref()),
             Command::Live {
                 interface,
                 json,
@@ -318,7 +331,19 @@ impl IntelCommand {
 /// The summary goes to the log rather than stdout so that piping the output
 /// into a tool sees only events, while a human still learns how much of the
 /// capture was readable and whether the file was cut short mid packet.
-fn run_pcap(path: &Path, json: bool, intel: bool, detect: bool, db: Option<&Path>) -> Result<()> {
+#[allow(clippy::fn_params_excessive_bools)]
+fn run_pcap(
+    path: &Path,
+    json: bool,
+    intel: bool,
+    detect: bool,
+    report: bool,
+    top: usize,
+    db: Option<&Path>,
+) -> Result<()> {
+    if report {
+        return run_pcap_report(path, json, top, db);
+    }
     let mut source = PcapFileSource::open(path)
         .with_context(|| format!("cannot open capture {}", path.display()))?;
     let mut store = open_for_run(intel, detect, db)?;
@@ -356,7 +381,9 @@ fn run_pcap(path: &Path, json: bool, intel: bool, detect: bool, db: Option<&Path
         quic_initials = counters.quic_initials,
         quic_decrypted = counters.quic_decrypted,
         quic_version_unsupported = counters.quic_version_unsupported,
+        tls_handshakes = counters.tls_handshakes_fingerprinted,
         unfinished_tls_streams = counters.unfinished_tls_streams,
+        tls_miss_rate = counters.tls_miss_rate(),
         segments_dropped = counters.segments_dropped,
         "capture processed"
     );
@@ -364,6 +391,70 @@ fn run_pcap(path: &Path, json: bool, intel: bool, detect: bool, db: Option<&Path
         tracing::warn!("capture file ended mid packet; the tail was not read");
     }
     Ok(())
+}
+
+/// Reads a whole capture and prints one forensic summary instead of a stream
+/// of events.
+///
+/// Unlike the streaming path, the report builds an in process picture of every
+/// endpoint, fingerprint, and miss before printing, so it folds intelligence
+/// and detection in automatically whenever a database is present rather than
+/// asking for the flags. With no database it falls back to a pure fingerprint
+/// inventory. The intel lookups and detection writes are the same calls the
+/// streaming path makes, so the report can never disagree with a live sensor
+/// pointed at the same store.
+fn run_pcap_report(path: &Path, json: bool, top: usize, db: Option<&Path>) -> Result<()> {
+    let mut source = PcapFileSource::open(path)
+        .with_context(|| format!("cannot open capture {}", path.display()))?;
+    let mut store = open_for_report(db)?;
+    let enabled = store.is_some();
+    let mut pipeline = Pipeline::new(PipelineConfig::default());
+    let mut builder = ReportBuilder::new(&path.display().to_string());
+
+    let started = Instant::now();
+    pipeline.run(&mut source, |event| {
+        let reports = if enabled {
+            enrich(store.as_ref(), &event)
+        } else {
+            Vec::new()
+        };
+        let alerts = detect_event(store.as_mut(), enabled, &event);
+        builder.observe(&event, &reports, &alerts);
+    })?;
+    let elapsed = started.elapsed();
+
+    let report = builder.finish(*pipeline.counters(), source.truncated(), elapsed, top);
+    let stdout = std::io::stdout().lock();
+    let mut out = std::io::BufWriter::new(stdout);
+    if json {
+        serde_json::to_writer_pretty(&mut out, &report).context("writing report as JSON")?;
+        writeln!(out).context("writing report as JSON")?;
+    } else {
+        write!(out, "{}", report.render_text()).context("writing report")?;
+    }
+    out.flush().context("flushing the report to stdout")?;
+    Ok(())
+}
+
+/// Opens the store for a report run. A report folds in intelligence and
+/// detection whenever a database is there to answer, so this opens an existing
+/// database but never creates one: a forensic read of a capture should not
+/// quietly leave a new database behind, and with none present the report is
+/// still a complete fingerprint inventory.
+fn open_for_report(db: Option<&Path>) -> Result<Option<IntelStore>> {
+    let path = db.map_or_else(default_db_path, Path::to_path_buf);
+    if path.exists() {
+        tracing::info!(
+            path = %path.display(),
+            "matching and recording detections against the intelligence database"
+        );
+        return Ok(Some(open_or_create(&path)?));
+    }
+    tracing::info!(
+        path = %path.display(),
+        "no intelligence database found; reporting fingerprints only, run 'tlsfp intel seed' to add verdicts"
+    );
+    Ok(None)
 }
 
 /// Builds the dashboard configuration from the command line and starts the
@@ -507,7 +598,9 @@ async fn drive_live(
         quic_initials = counters.quic_initials,
         quic_decrypted = counters.quic_decrypted,
         quic_version_unsupported = counters.quic_version_unsupported,
+        tls_handshakes = counters.tls_handshakes_fingerprinted,
         unfinished_tls_streams = counters.unfinished_tls_streams,
+        tls_miss_rate = counters.tls_miss_rate(),
         segments_dropped = counters.segments_dropped,
         "live capture stopped"
     );

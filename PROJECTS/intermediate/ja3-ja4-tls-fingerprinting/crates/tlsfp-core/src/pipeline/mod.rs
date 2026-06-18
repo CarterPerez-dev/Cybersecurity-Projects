@@ -102,6 +102,10 @@ pub struct Counters {
     pub segments_dropped: u64,
     pub events: u64,
     pub streams_capped: u64,
+    /// TCP streams recognized as TLS that yielded a complete ClientHello or
+    /// ServerHello. The denominator, with `unfinished_tls_streams`, of the miss
+    /// rate: how many handshakes the tool actually read.
+    pub tls_handshakes_fingerprinted: u64,
     pub unfinished_tls_streams: u64,
     /// QUIC long header Initial packets observed, both directions.
     pub quic_initials: u64,
@@ -111,6 +115,28 @@ pub struct Counters {
     pub quic_decrypted: u64,
     /// Initials carrying a QUIC version this build has no salt for.
     pub quic_version_unsupported: u64,
+}
+
+impl Counters {
+    /// The share of recognized TLS streams the capture clipped before a
+    /// complete handshake message could be read.
+    ///
+    /// A fingerprinting tool that cannot say what it failed to read is one
+    /// whose silence gets mistaken for absence. A truncated or multi segment
+    /// ClientHello whose later segments never arrived counts as a miss here, so
+    /// an operator can tell a clean link from a clipped capture before trusting
+    /// the count of fingerprints. Zero recognized streams reports a zero rate
+    /// rather than dividing by nothing.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
+    pub fn tls_miss_rate(&self) -> f64 {
+        let recognized = self.tls_handshakes_fingerprinted + self.unfinished_tls_streams;
+        if recognized == 0 {
+            0.0
+        } else {
+            self.unfinished_tls_streams as f64 / recognized as f64
+        }
+    }
 }
 
 /// One direction of one tracked flow.
@@ -300,8 +326,15 @@ impl Pipeline {
 
         if outcome == PushOutcome::Grew {
             let mut emitted = 0u64;
+            let mut tls_fingerprinted = 0u64;
             tls::advance(&mut half.protocol, half.reassembler.data(), &mut |event| {
                 emitted += 1;
+                if matches!(
+                    event,
+                    StreamEvent::ClientHello { .. } | StreamEvent::ServerHello { .. }
+                ) {
+                    tls_fingerprinted += 1;
+                }
                 sink(FingerprintEvent {
                     ts_nanos: frame.ts_nanos,
                     src,
@@ -310,6 +343,7 @@ impl Pipeline {
                 });
             });
             self.counters.events += emitted;
+            self.counters.tls_handshakes_fingerprinted += tls_fingerprinted;
             if half.protocol.finished() && !half.reassembler.released() {
                 half.reassembler.release();
             }
@@ -593,6 +627,47 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert!(events[0].to_string().contains("tcp_syn ja4t="));
         assert!(events[1].to_string().contains("http_request"));
+    }
+
+    #[test]
+    fn miss_rate_arithmetic_is_misses_over_recognized() {
+        use super::Counters;
+        let none = Counters::default();
+        assert!(none.tls_miss_rate().abs() < 1e-9);
+
+        let clean = Counters {
+            tls_handshakes_fingerprinted: 4,
+            unfinished_tls_streams: 0,
+            ..Counters::default()
+        };
+        assert!(clean.tls_miss_rate().abs() < 1e-9);
+
+        let clipped = Counters {
+            tls_handshakes_fingerprinted: 3,
+            unfinished_tls_streams: 1,
+            ..Counters::default()
+        };
+        assert!((clipped.tls_miss_rate() - 0.25).abs() < 1e-9);
+    }
+
+    #[test]
+    fn clipped_tls_handshake_counts_as_a_miss() {
+        let client = ([10, 0, 0, 1], 40002);
+        let server = ([10, 0, 0, 2], 443);
+        let clipped_client_hello = [
+            0x16, 0x03, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0xfa, 0x03, 0x03,
+        ];
+
+        let frames = vec![tcp_frame(client, server, 1000, &clipped_client_hello)];
+        let mut pipeline = Pipeline::new(PipelineConfig::default());
+        let events = feed_all(&mut pipeline, &frames);
+        pipeline.finish();
+
+        assert!(events.is_empty());
+        let counters = pipeline.counters();
+        assert_eq!(counters.tls_handshakes_fingerprinted, 0);
+        assert_eq!(counters.unfinished_tls_streams, 1);
+        assert!((counters.tls_miss_rate() - 1.0).abs() < 1e-9);
     }
 
     #[test]

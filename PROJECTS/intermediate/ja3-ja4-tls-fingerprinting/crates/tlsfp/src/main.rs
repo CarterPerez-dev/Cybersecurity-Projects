@@ -3,6 +3,7 @@
 
 mod cli;
 mod live;
+mod report;
 mod serve;
 
 use anyhow::Result;

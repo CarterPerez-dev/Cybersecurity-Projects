@@ -32,11 +32,11 @@ export function Component(): React.ReactElement {
 
       <header className={styles.head}>
         <span className={styles.kicker}>tls dossier / passive</span>
-        <span className={styles.stamp}>specimen 001 / handshake</span>
+        <span className={styles.stamp}>specimen 006 / handshake</span>
       </header>
 
       <main className={styles.center}>
-        <span className={styles.over}>surveillance aesthetics</span>
+        <span className={styles.over}>sleep is counter surveillance</span>
         <h1 className={styles.title}>TLSFP</h1>
         <span className={styles.under}>
           the fingerprint of every client that speaks tls
