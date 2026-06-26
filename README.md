@@ -17,15 +17,11 @@
 
 <p align="center">Made possible by <a href="https://certgames.com"><strong>CertGames</strong></a></p>
 
----
-
 A curated collection of cybersecurity projects organized by skill level. Each project includes full source code, documentation, and learning materials.
 
 Browse the [certification roadmaps](./ROADMAPS/README.md) for career guidance or the [learning resources](./RESOURCES/README.md) for tools, courses, and communities.
 
 > Currently building: **Self-Hosted Shodan Clone**
-
----
 
 ## Projects
 
@@ -135,8 +131,6 @@ Browse the [certification roadmaps](./ROADMAPS/README.md) for career guidance or
 | **[Honeypot Network](./PROJECTS/advanced/honeypot-network)**<br>Multi-service honeypot deployment & analysis | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) | Honeypot deployment • Attacker behavior analysis • IOC extraction • MITRE mapping<br>[Live Demo](https://honeypot-network.carterperez-dev.com/) |
 | **[Supply Chain Security Analyzer](./SYNOPSES/advanced/Supply.Chain.Security.Analyzer.md)**<br>Dependency vulnerability analysis | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) | Supply chain security • Dependency analysis • Malicious packages |
 
----
-
 ## Getting Started
 
 Each project lives in its own directory under [`PROJECTS/`](./PROJECTS) with its own README, source code, and `learn/` documentation. To explore a project:
@@ -148,14 +142,10 @@ cd PROJECTS/<tier>/<project-name>
 
 Projects marked with a synopsis (under [`SYNOPSES/`](./SYNOPSES)) have detailed design documents available. Source-code-complete projects are indicated by the blue badge count above.
 
----
-
 ## Roadmaps & Resources
 
 - **[Certification Roadmaps](./ROADMAPS/README.md)** — 10 career paths for SOC Analyst, Pentester, Security Engineer, GRC Analyst, and more
 - **[Learning Resources](./RESOURCES/README.md)** — Curated tools, courses, certifications, YouTube channels, Reddit communities, and security frameworks
-
----
 
 ## Contributing
 
@@ -166,8 +156,6 @@ Contributions are welcome. If you want to add a project, improve existing code, 
 3. Open a pull request
 
 See the [open issues](https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues) for ideas on what to work on.
-
----
 
 ## License
 
