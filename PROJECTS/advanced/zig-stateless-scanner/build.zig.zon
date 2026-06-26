@@ -1,0 +1,14 @@
+// ©AngelaMos | 2026
+// build.zig.zon
+.{
+    .name = .zingela,
+    .version = "0.0.0",
+    .minimum_zig_version = "0.16.0",
+    .fingerprint = 0xc79d74b14130bdf4,
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
