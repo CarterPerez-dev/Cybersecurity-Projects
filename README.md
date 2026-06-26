@@ -147,16 +147,6 @@ Projects marked with a synopsis (under [`SYNOPSES/`](./SYNOPSES)) have detailed 
 - **[Certification Roadmaps](./ROADMAPS/README.md)** — 10 career paths for SOC Analyst, Pentester, Security Engineer, GRC Analyst, and more
 - **[Learning Resources](./RESOURCES/README.md)** — Curated tools, courses, certifications, YouTube channels, Reddit communities, and security frameworks
 
-## Contributing
-
-Contributions are welcome. If you want to add a project, improve existing code, or fix documentation:
-
-1. Fork the repository
-2. Create a feature branch
-3. Open a pull request
-
-See the [open issues](https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues) for ideas on what to work on.
-
 ## License
 
 [AGPL 3.0](./LICENSE)
