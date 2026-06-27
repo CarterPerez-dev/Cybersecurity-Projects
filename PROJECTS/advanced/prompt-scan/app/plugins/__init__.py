@@ -1,0 +1,1 @@
+"""Prompt Scan — plugins package."""

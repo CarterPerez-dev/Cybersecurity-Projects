@@ -1,0 +1,32 @@
+# Prompt Scan — Docker Compose
+#
+# ⚠️  WARNING: This configuration is intentionally insecure for security testing.
+#     Bind to 127.0.0.1 only — never expose port 5000 to public networks.
+
+services:
+  prompt-scan:
+    build: .
+    container_name: prompt-scan
+    ports:
+      - "127.0.0.1:5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=True
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - lab-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+networks:
+  lab-network:
+    driver: bridge
+    internal: false  # set true to fully isolate from host internet

@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prompt-scan"
+version = "1.0.0"
+description = "Deliberately vulnerable LLM chatbot platform for OWASP Top 10 LLM security testing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "mohelobeid", email = "mohelobeid@users.noreply.github.com" }]
+keywords = ["security", "llm", "owasp", "vulnerability", "chatbot", "ai-security"]
+
+dependencies = [
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+    "openai>=1.30.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pylint>=3.2.0",
+    "yapf>=0.40.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = false
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-module-docstring",
+    "too-few-public-methods",
+    "broad-exception-caught",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,16 @@
+.env
+.env.local
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+data/*.db
+data/*.log
+data/chat_history/
+.idea/
+.vscode/
+.DS_Store
