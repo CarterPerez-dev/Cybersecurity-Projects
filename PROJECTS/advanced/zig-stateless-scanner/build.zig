@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const opts = b.addOptions();
-    opts.addOption([]const u8, "version", "0.0.0-m1");
+    opts.addOption([]const u8, "version", "0.0.0-m2");
 
     const packet_mod = b.createModule(.{
         .root_source_file = b.path("src/packet.zig"),
@@ -35,6 +35,19 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const numtheory_mod = b.createModule(.{
+        .root_source_file = b.path("src/numtheory.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const targets_mod = b.createModule(.{
+        .root_source_file = b.path("src/targets.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    targets_mod.addImport("numtheory", numtheory_mod);
 
     const exe = b.addExecutable(.{
         .name = "zingela",
@@ -63,7 +76,7 @@ pub fn build(b: *std.Build) void {
     smoke_step.dependOn(&smoke_cmd.step);
 
     const test_step = b.step("test", "Run unit tests");
-    const test_mods = [_]*std.Build.Module{ packet_mod, cli_mod, smoke_mod, cookie_mod };
+    const test_mods = [_]*std.Build.Module{ packet_mod, cli_mod, smoke_mod, cookie_mod, numtheory_mod, targets_mod };
     for (test_mods) |mod| {
         const t = b.addTest(.{ .root_module = mod });
         const rt = b.addRunArtifact(t);
