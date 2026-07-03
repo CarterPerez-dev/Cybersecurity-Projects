@@ -65,6 +65,17 @@ pub fn printHelp(io: std.Io, env: *std.process.Environ.Map) !void {
         \\  --json           emit NDJSON results to stdout (visuals go to stderr)
         \\  --color <when>   auto | always | never (default auto)
         \\
+        \\stealth / evasion (tx + scan; every flag requires --authorized-scan):
+        \\  --authorized-scan          confirm you are authorized to scan the target
+        \\  --os-template <os>         SYN fingerprint none|masscan|linux|windows|macos
+        \\  --scan-type <t>            syn|fin|null|xmas|maimon|ack|window (default syn)
+        \\  --jitter <mode>            poisson | none: exponential inter-packet timing
+        \\  --source-port-rotation     vary the source port per probe (cookie still matches)
+        \\  --decoys <list>            spoofed decoys ip1,ip2,RND:N (real probe always sent)
+        \\  --suppress-rst             drop our own kernel RSTs on the scan port range
+        \\  (idle-scan, fragmentation, TTL, and MAC/source-route spoofing are deliberately
+        \\   omitted as obsolete in 2026; run with --authorized-scan for the rationale)
+        \\
         \\authorized use only. responsible default rate; needs CAP_NET_RAW
         \\(grant once: sudo setcap cap_net_raw,cap_net_admin=eip ./zig-out/bin/zingela)
         \\

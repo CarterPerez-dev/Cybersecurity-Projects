@@ -9,6 +9,12 @@ const packet_io = @import("packet_io");
 const cookie = @import("cookie");
 const tx = @import("tx");
 const netutil = @import("netutil");
+const stealth = @import("stealth");
+
+const authorized_warning =
+    "tx: stealth/evasion features require --authorized-scan. Use ONLY on systems you\n" ++
+    "own or are authorized to test; unauthorized scanning is a crime (CFAA et al.).\n\n" ++
+    stealth.omitted_help ++ "\n";
 
 const getFlag = netutil.getFlag;
 const parseIpv4 = netutil.parseIpv4;
@@ -53,6 +59,21 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !
         seed = std.mem.readInt(u64, &seed_bytes, .little);
     }
 
+    var scfg = stealth.parse(allocator, io, args) catch |e| switch (e) {
+        error.AuthorizationRequired => {
+            try out.writeAll(authorized_warning);
+            try out.flush();
+            return;
+        },
+        error.OutOfMemory => return e,
+        else => {
+            try out.print("tx: invalid stealth flag ({s})\n", .{@errorName(e)});
+            try out.flush();
+            return;
+        },
+    };
+    defer scfg.deinit(allocator);
+
     const cidr = try targets.parseCidr(target_text);
     var eng = try targets.Engine.init(allocator, &.{cidr}, ports, seed);
     defer eng.deinit();
@@ -60,14 +81,22 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !
     const count = if (getFlag(args, "--count")) |c| try std.fmt.parseInt(u64, c, 10) else eng.total;
 
     const ck = try cookie.Cookie.random(io);
+    const rot_span: u16 = if (scfg.rotate) @intCast(@min(@as(u32, scfg.rotate_span), 65536 - @as(u32, src_port))) else 0;
     const tmpl = template.SynTemplate.init(.{
         .src_mac = src_mac,
         .dst_mac = gw_mac,
         .src_ip = src_ip,
         .src_port = src_port,
         .cookie = ck,
+        .profile = scfg.profile,
+        .scan = scfg.scan,
+        .rotate = scfg.rotate,
+        .rotate_base = src_port,
+        .rotate_span = rot_span,
+        .decoys = scfg.decoys,
     });
     var bucket = ratelimit.TokenBucket.init(rate, rate);
+    if (scfg.jitter) bucket = bucket.withJitter(seed);
 
     const backend_choice = packet_io.parseChoice(getFlag(args, "--backend")) orelse {
         try out.writeAll("tx: --backend must be one of auto, xdp, afpacket\n");
@@ -89,6 +118,27 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !
     };
     defer backend.close();
     try out.print("tx: using {s}\n", .{packet_io.kindLabel(backend.kind())});
+
+    if (scfg.profile != .none or scfg.scan != .syn or scfg.jitter or scfg.rotate or scfg.decoys.len > 0) {
+        try out.print("tx: stealth template={s} scan={s} jitter={s} rotate={s} decoys={d}\n", .{
+            @tagName(scfg.profile),
+            @tagName(scfg.scan),
+            if (scfg.jitter) "on" else "off",
+            if (scfg.rotate) "on" else "off",
+            scfg.decoys.len,
+        });
+    }
+
+    var supp: ?stealth.RstSuppressor = null;
+    if (scfg.suppress_rst) {
+        const lo = src_port;
+        const hi = if (scfg.rotate) src_port +| (rot_span -| 1) else src_port;
+        supp = stealth.RstSuppressor.install(allocator, io, src_ip, lo, hi) catch |e| blk: {
+            try out.print("tx: RST-suppression unavailable ({s}); continuing without it\n", .{@errorName(e)});
+            break :blk null;
+        };
+    }
+    defer if (supp) |*s| s.teardown();
 
     var clock = RealClock{};
     const t0 = clock.now();

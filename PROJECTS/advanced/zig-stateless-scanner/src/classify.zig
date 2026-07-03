@@ -5,7 +5,7 @@ const std = @import("std");
 const packet = @import("packet");
 const cookie = @import("cookie");
 
-pub const State = enum { open, closed, filtered };
+pub const State = enum { open, closed, filtered, unfiltered };
 
 pub const Result = struct {
     ip: u32,
@@ -41,6 +41,7 @@ const TCP_OFF_DPORT: usize = 2;
 const TCP_OFF_SEQ: usize = 4;
 const TCP_OFF_ACK: usize = 8;
 const TCP_OFF_FLAGS: usize = 13;
+const TCP_OFF_WINDOW: usize = 14;
 const TCP_MIN_LEN: usize = 20;
 
 const TCP_FLAG_SYN: u8 = 0x02;
@@ -71,6 +72,10 @@ fn ihlBytes(first_byte: u8) usize {
 }
 
 pub fn classify(frame: []const u8, ck: cookie.Cookie) ?Result {
+    return classifyTcp(frame, ck, .syn);
+}
+
+pub fn classifyTcp(frame: []const u8, ck: cookie.Cookie, scan: packet.ScanType) ?Result {
     if (frame.len < ETH_HDR_LEN + IP_MIN_IHL) return null;
     if (std.mem.readInt(u16, frame[ETH_OFF_TYPE..][0..2], .big) != ETHERTYPE_IPV4) return null;
 
@@ -87,20 +92,44 @@ pub fn classify(frame: []const u8, ck: cookie.Cookie) ?Result {
         if (frame.len < tcp + TCP_MIN_LEN) return null;
         const sport = std.mem.readInt(u16, frame[tcp + TCP_OFF_SPORT ..][0..2], .big);
         const dport = std.mem.readInt(u16, frame[tcp + TCP_OFF_DPORT ..][0..2], .big);
+        const seqno = std.mem.readInt(u32, frame[tcp + TCP_OFF_SEQ ..][0..4], .big);
         const ackno = std.mem.readInt(u32, frame[tcp + TCP_OFF_ACK ..][0..4], .big);
         const flags = frame[tcp + TCP_OFF_FLAGS];
+        const window = std.mem.readInt(u16, frame[tcp + TCP_OFF_WINDOW ..][0..2], .big);
 
-        const is_synack = (flags & (TCP_FLAG_SYN | TCP_FLAG_ACK)) == (TCP_FLAG_SYN | TCP_FLAG_ACK);
-        if (is_synack) {
-            if (ck.validateSynAck(ackno, ip_src, sport, ip_dst, dport))
-                return .{ .ip = ip_src, .port = sport, .state = .open };
-            return null;
+        const cookie_val = ck.seq(ip_src, sport, ip_dst, dport);
+        const has_rst = (flags & TCP_FLAG_RST) != 0;
+
+        switch (scan) {
+            .syn => {
+                const is_synack = (flags & (TCP_FLAG_SYN | TCP_FLAG_ACK)) == (TCP_FLAG_SYN | TCP_FLAG_ACK);
+                if (is_synack and ackno == cookie_val +% 1)
+                    return .{ .ip = ip_src, .port = sport, .state = .open };
+                if (has_rst and (flags & TCP_FLAG_ACK) != 0 and ackno == cookie_val +% 1)
+                    return .{ .ip = ip_src, .port = sport, .state = .closed };
+                return null;
+            },
+            .fin, .null_scan, .xmas => {
+                if (has_rst and ackno == cookie_val +% scan.seqConsumed())
+                    return .{ .ip = ip_src, .port = sport, .state = .closed };
+                return null;
+            },
+            .maimon => {
+                if (has_rst and seqno == cookie_val)
+                    return .{ .ip = ip_src, .port = sport, .state = .closed };
+                return null;
+            },
+            .ack => {
+                if (has_rst and seqno == cookie_val)
+                    return .{ .ip = ip_src, .port = sport, .state = .unfiltered };
+                return null;
+            },
+            .window => {
+                if (has_rst and seqno == cookie_val)
+                    return .{ .ip = ip_src, .port = sport, .state = if (window != 0) .open else .closed };
+                return null;
+            },
         }
-        if ((flags & TCP_FLAG_RST) != 0 and (flags & TCP_FLAG_ACK) != 0) {
-            if (ck.validateSynAck(ackno, ip_src, sport, ip_dst, dport))
-                return .{ .ip = ip_src, .port = sport, .state = .closed };
-        }
-        return null;
     }
 
     if (proto == IPPROTO_ICMP) {
@@ -188,9 +217,10 @@ pub fn classifyUdp(frame: []const u8, ck: cookie.Cookie, base: u16, span: u16) ?
 
 pub const TcpClassifier = struct {
     ck: cookie.Cookie,
+    scan: packet.ScanType = .syn,
 
     pub fn match(self: TcpClassifier, frame: []const u8) ?Result {
-        return classify(frame, self.ck);
+        return classifyTcp(frame, self.ck, self.scan);
     }
 };
 
@@ -471,4 +501,85 @@ test "classifier adapters route each frame to the right protocol path" {
     const udp_clf = UdpClassifier{ .ck = ck, .base = udp_base, .span = udp_span };
     try std.testing.expectEqual(State.open, udp_clf.match(&udp_f).?.state);
     try std.testing.expect(tcp_clf.match(&udp_f) == null);
+}
+
+fn flagScanReply(buf: *[54]u8, seq: u32, ack: u32, flags: u8) void {
+    buildTcpReply(buf, their_ip, our_ip, their_port, our_port, seq, ack, flags);
+}
+
+test "FIN and Xmas scans classify a cookie-1 RST as closed and reject a wrong ack" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+
+    for ([_]packet.ScanType{ .fin, .xmas }) |st| {
+        flagScanReply(&f, 0, cv +% 1, TCP_FLAG_RST | TCP_FLAG_ACK);
+        try std.testing.expectEqual(State.closed, classifyTcp(&f, ck, st).?.state);
+        flagScanReply(&f, 0, cv +% 5, TCP_FLAG_RST | TCP_FLAG_ACK);
+        try std.testing.expect(classifyTcp(&f, ck, st) == null);
+    }
+}
+
+test "NULL scan expects the RST ack to equal the cookie exactly (no sequence consumed)" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+    flagScanReply(&f, 0, cv, TCP_FLAG_RST | TCP_FLAG_ACK);
+    try std.testing.expectEqual(State.closed, classifyTcp(&f, ck, .null_scan).?.state);
+    flagScanReply(&f, 0, cv +% 1, TCP_FLAG_RST | TCP_FLAG_ACK);
+    try std.testing.expect(classifyTcp(&f, ck, .null_scan) == null);
+}
+
+test "a FIN scan does not classify a SYN-ACK (open ports stay silent)" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+    flagScanReply(&f, 0xCAFEBABE, cv +% 1, TCP_FLAG_SYN | TCP_FLAG_ACK);
+    try std.testing.expect(classifyTcp(&f, ck, .fin) == null);
+}
+
+test "Maimon scan matches the RST sequence to the ack-field cookie" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+    flagScanReply(&f, cv, 0, TCP_FLAG_RST);
+    try std.testing.expectEqual(State.closed, classifyTcp(&f, ck, .maimon).?.state);
+    flagScanReply(&f, cv +% 3, 0, TCP_FLAG_RST);
+    try std.testing.expect(classifyTcp(&f, ck, .maimon) == null);
+}
+
+test "ACK scan reports a validated RST as unfiltered, not open or closed" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+    flagScanReply(&f, cv, 0, TCP_FLAG_RST);
+    try std.testing.expectEqual(State.unfiltered, classifyTcp(&f, ck, .ack).?.state);
+    flagScanReply(&f, cv +% 7, 0, TCP_FLAG_RST);
+    try std.testing.expect(classifyTcp(&f, ck, .ack) == null);
+}
+
+test "Window scan reads the RST window: nonzero is open, zero is closed" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    const win_off = ETH_HDR_LEN + IP_MIN_IHL + TCP_OFF_WINDOW;
+    var f: [54]u8 = undefined;
+
+    flagScanReply(&f, cv, 0, TCP_FLAG_RST);
+    std.mem.writeInt(u16, f[win_off..][0..2], 8192, .big);
+    try std.testing.expectEqual(State.open, classifyTcp(&f, ck, .window).?.state);
+
+    flagScanReply(&f, cv, 0, TCP_FLAG_RST);
+    std.mem.writeInt(u16, f[win_off..][0..2], 0, .big);
+    try std.testing.expectEqual(State.closed, classifyTcp(&f, ck, .window).?.state);
+}
+
+test "the scan-type classifier adapter threads the mode into classifyTcp" {
+    const ck = cookie.Cookie.init(test_key);
+    const cv = ck.seq(their_ip, their_port, our_ip, our_port);
+    var f: [54]u8 = undefined;
+    flagScanReply(&f, cv, 0, TCP_FLAG_RST);
+    const ack_clf = TcpClassifier{ .ck = ck, .scan = .ack };
+    try std.testing.expectEqual(State.unfiltered, ack_clf.match(&f).?.state);
+    const syn_clf = TcpClassifier{ .ck = ck };
+    try std.testing.expect(syn_clf.match(&f) == null);
 }

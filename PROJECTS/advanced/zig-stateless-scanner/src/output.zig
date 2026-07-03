@@ -30,6 +30,7 @@ pub const Stats = struct {
     open: Padded = .{},
     closed: Padded = .{},
     filtered: Padded = .{},
+    unfiltered: Padded = .{},
 
     pub fn record(self: *Stats, st: State) void {
         _ = self.found.v.fetchAdd(1, .monotonic);
@@ -37,6 +38,7 @@ pub const Stats = struct {
             .open => _ = self.open.v.fetchAdd(1, .monotonic),
             .closed => _ = self.closed.v.fetchAdd(1, .monotonic),
             .filtered => _ = self.filtered.v.fetchAdd(1, .monotonic),
+            .unfiltered => _ = self.unfiltered.v.fetchAdd(1, .monotonic),
         }
     }
 };
@@ -211,6 +213,7 @@ fn stateName(st: State) []const u8 {
         .open => "open",
         .closed => "closed",
         .filtered => "filtered",
+        .unfiltered => "unfiltered",
     };
 }
 
@@ -219,6 +222,7 @@ fn stateLabel(st: State) []const u8 {
         .open => "OPEN",
         .closed => "CLOSED",
         .filtered => "FILTERED",
+        .unfiltered => "UNFILTERED",
     };
 }
 
@@ -227,6 +231,7 @@ fn stateColor(st: State) Rgb {
         .open => neon_green,
         .closed => chrome_gray,
         .filtered => soft_amber,
+        .unfiltered => bright_white,
     };
 }
 
@@ -446,6 +451,7 @@ pub fn renderSummary(
     open: u64,
     closed: u64,
     filtered: u64,
+    unfiltered: u64,
 ) !void {
     try out.writeAll("  ");
     try span(out, level, violet_mid, gutter_bar);
@@ -471,6 +477,12 @@ pub fn renderSummary(
     try setFg(out, level, soft_amber);
     try writeThousands(out, filtered);
     try span(out, level, chrome_gray, " filtered");
+    if (unfiltered > 0) {
+        try span(out, level, chrome_gray, "  ");
+        try setFg(out, level, bright_white);
+        try writeThousands(out, unfiltered);
+        try span(out, level, chrome_gray, " unfiltered");
+    }
     try resetFg(out, level);
     try out.writeByte('\n');
 }

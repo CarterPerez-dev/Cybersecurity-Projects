@@ -13,6 +13,7 @@ const rx = @import("rx");
 const dedup = @import("dedup");
 const netutil = @import("netutil");
 const output = @import("output");
+const stealth = @import("stealth");
 
 const default_iface = "lo";
 const default_rate: u64 = 10_000;
@@ -38,6 +39,14 @@ const need_cap_hint =
 
 const concurrency_hint =
     "scan: this system cannot launch concurrent TX/RX (needs >= 2 worker threads).\n";
+
+const authorized_warning =
+    "scan: stealth/evasion features require explicit authorization.\n" ++
+    "Re-run with --authorized-scan ONLY against systems you own or are\n" ++
+    "contractually authorized to test. Unauthorized scanning is a crime\n" ++
+    "under the CFAA and equivalent statutes worldwide.\n\n" ++
+    "  stealth flags: --os-template --scan-type --jitter --source-port-rotation --decoys --suppress-rst\n\n" ++
+    stealth.omitted_help ++ "\n";
 
 const TxSink = struct {
     backend: *packet_io.Backend,
@@ -80,8 +89,8 @@ fn txWorkerUdp(engine: *targets.Engine, tmpl: *const udp.UdpTemplate, bucket: *r
     return txWorkerImpl(engine, tmpl, bucket, sink, max_packets, budget_ns, tx_done);
 }
 
-fn rxWorkerTcp(receiver: *rx.Receiver, ck: cookie.Cookie, dd: *dedup.Dedup, sink: *rx.QueueSink, rx_done: *std.atomic.Value(bool)) void {
-    rx.run(receiver, rx.TcpClassifier{ .ck = ck }, dd, sink);
+fn rxWorkerTcp(receiver: *rx.Receiver, clf: rx.TcpClassifier, dd: *dedup.Dedup, sink: *rx.QueueSink, rx_done: *std.atomic.Value(bool)) void {
+    rx.run(receiver, clf, dd, sink);
     rx_done.store(true, .release);
 }
 
@@ -156,6 +165,46 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
         try derr.flush();
         return;
     };
+
+    var scfg = stealth.parse(allocator, io, args) catch |e| switch (e) {
+        error.AuthorizationRequired => {
+            try derr.writeAll(authorized_warning);
+            try derr.flush();
+            return;
+        },
+        error.BadOsTemplate => {
+            try derr.writeAll("scan: --os-template must be none, masscan, linux, windows, or macos\n");
+            try derr.flush();
+            return;
+        },
+        error.BadScanType => {
+            try derr.writeAll("scan: --scan-type must be syn, fin, null, xmas, maimon, ack, or window\n");
+            try derr.flush();
+            return;
+        },
+        error.BadJitterMode => {
+            try derr.writeAll("scan: --jitter must be poisson or none\n");
+            try derr.flush();
+            return;
+        },
+        error.BadDecoySpec => {
+            try derr.writeAll("scan: --decoys must be comma-separated IPv4 addresses and/or RND:N\n");
+            try derr.flush();
+            return;
+        },
+        error.TooManyDecoys => {
+            try derr.print("scan: at most {d} decoys allowed\n", .{stealth.max_decoys});
+            try derr.flush();
+            return;
+        },
+        error.OutOfMemory => return e,
+    };
+    defer scfg.deinit(allocator);
+
+    if (is_udp and (scfg.profile != .none or scfg.scan != .syn or scfg.rotate or scfg.decoys.len > 0 or scfg.suppress_rst)) {
+        try derr.writeAll("  note: --os-template/--scan-type/--source-port-rotation/--decoys/--suppress-rst apply to TCP scans; ignored for --udp\n");
+    }
+
     const udp_base: u16 = src_port;
     const udp_span: u16 = @intCast(@min(@as(u32, default_udp_src_span), 65536 - @as(u32, udp_base)));
     const proto_json: []const u8 = if (is_udp) "udp" else "tcp";
@@ -191,15 +240,23 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
     var eng = try targets.Engine.init(allocator, &.{cidr}, ports, seed);
     defer eng.deinit();
     const count = if (netutil.getFlag(args, "--count")) |c| try std.fmt.parseInt(u64, c, 10) else eng.total;
-    const dash_total = @min(count, eng.total);
+    const frames_per_probe: u64 = if (is_udp) 1 else 1 + @as(u64, @intCast(scfg.decoys.len));
+    const dash_total = @min(count, eng.total) *| frames_per_probe;
 
     const ck = try cookie.Cookie.random(io);
+    const rot_span: u16 = if (scfg.rotate) @intCast(@min(@as(u32, scfg.rotate_span), 65536 - @as(u32, src_port))) else 0;
     const tcp_tmpl = template.SynTemplate.init(.{
         .src_mac = src_mac,
         .dst_mac = gw_mac,
         .src_ip = src_ip,
         .src_port = src_port,
         .cookie = ck,
+        .profile = scfg.profile,
+        .scan = scfg.scan,
+        .rotate = scfg.rotate,
+        .rotate_base = src_port,
+        .rotate_span = rot_span,
+        .decoys = scfg.decoys,
     });
     const udp_tmpl = udp.UdpTemplate.init(.{
         .src_mac = src_mac,
@@ -210,6 +267,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
         .cookie = ck,
     });
     var bucket = ratelimit.TokenBucket.init(rate, rate);
+    if (scfg.jitter) bucket = bucket.withJitter(seed);
 
     var backend = packet_io.select(allocator, ifname, backend_choice, .{}, .{}, derr) catch |err| switch (err) {
         error.NeedCapNetRaw => {
@@ -227,11 +285,36 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
     defer backend.close();
     try derr.print("  using {s}\n", .{packet_io.kindLabel(backend.kind())});
 
+    if (scfg.profile != .none or scfg.scan != .syn or scfg.jitter or scfg.rotate or scfg.decoys.len > 0) {
+        try derr.print("  stealth: template={s} scan={s} jitter={s} rotate={s} decoys={d}\n", .{
+            @tagName(scfg.profile),
+            @tagName(scfg.scan),
+            if (scfg.jitter) "on" else "off",
+            if (scfg.rotate) "on" else "off",
+            scfg.decoys.len,
+        });
+    }
+
+    var supp: ?stealth.RstSuppressor = null;
+    if (scfg.suppress_rst and !is_udp) {
+        const lo = src_port;
+        const hi = if (scfg.rotate) src_port +| (rot_span -| 1) else src_port;
+        supp = stealth.RstSuppressor.install(allocator, io, src_ip, lo, hi) catch |e| blk: {
+            try derr.print("  note: RST-suppression unavailable ({s}); continuing without it\n", .{@errorName(e)});
+            break :blk null;
+        };
+    }
+    defer if (supp) |*s| s.teardown();
+    if (supp) |*s| {
+        var hbuf: [160]u8 = undefined;
+        try derr.print("  RST-suppression active (cleanup if hard-killed: {s})\n", .{s.cleanupHint(&hbuf)});
+    }
+
     var tx_done = std.atomic.Value(bool).init(false);
     var rx_done = std.atomic.Value(bool).init(false);
 
     const drain_window_ns: u64 = @as(u64, @intCast(@max(wait_ms, 0))) * ns_per_ms;
-    const est_tx_ns: u64 = if (rate > 0) (count / rate) *| ns_per_sec else rx_hard_cap_floor_ns;
+    const est_tx_ns: u64 = if (rate > 0) (dash_total / rate) *| ns_per_sec else rx_hard_cap_floor_ns;
     const tx_budget_ns: u64 = (est_tx_ns *| 4) +| rx_hard_cap_floor_ns;
     const hard_cap_ns: u64 = tx_budget_ns +| drain_window_ns;
 
@@ -280,7 +363,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
     const rx_res = if (is_udp)
         io.concurrent(rxWorkerUdp, .{ &receiver, ck, udp_base, udp_span, &dd, &rx_sink, &rx_done })
     else
-        io.concurrent(rxWorkerTcp, .{ &receiver, ck, &dd, &rx_sink, &rx_done });
+        io.concurrent(rxWorkerTcp, .{ &receiver, rx.TcpClassifier{ .ck = ck, .scan = scfg.scan }, &dd, &rx_sink, &rx_done });
     var rx_fut = rx_res catch {
         _ = tx_fut.await(io);
         try derr.writeAll(concurrency_hint);
@@ -315,10 +398,12 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
     var open_n: u64 = 0;
     var closed_n: u64 = 0;
     var filtered_n: u64 = 0;
+    var unfiltered_n: u64 = 0;
     for (found.items) |r| switch (r.state) {
         .open => open_n += 1,
         .closed => closed_n += 1,
         .filtered => filtered_n += 1,
+        .unfiltered => unfiltered_n += 1,
     };
 
     if (!json) {
@@ -334,9 +419,9 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
 
     const elapsed_s = @as(f64, @floatFromInt(clock.now() - t0)) / @as(f64, @floatFromInt(ns_per_sec));
     try derr.writeByte('\n');
-    try output.renderSummary(derr, err_level, sent, probe_label, ifname, elapsed_s, open_n, closed_n, filtered_n);
+    try output.renderSummary(derr, err_level, sent, probe_label, ifname, elapsed_s, open_n, closed_n, filtered_n, unfiltered_n);
     if (is_udp) {
-        const answered = open_n + closed_n + filtered_n;
+        const answered = open_n + closed_n + filtered_n + unfiltered_n;
         try output.renderUnanswered(derr, err_level, sent -| answered);
     }
     try derr.flush();

@@ -113,6 +113,15 @@ pub const UdpTemplate = struct {
 
         return frame_len;
     }
+
+    pub fn variantCount(_: *const UdpTemplate) usize {
+        return 1;
+    }
+
+    pub fn stampVariant(self: *const UdpTemplate, out: *[max_frame_len]u8, dst_ip: u32, dst_port: u16, variant: usize) usize {
+        _ = variant;
+        return self.stamp(out, dst_ip, dst_port);
+    }
 };
 
 const test_key = [16]u8{

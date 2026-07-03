@@ -153,6 +153,205 @@ pub fn udpChecksum(src_be: u32, dst_be: u32, segment: []const u8) u16 {
     return if (folded == 0) 0xffff else folded;
 }
 
+pub const TcpFlag = struct {
+    pub const fin: u8 = 0x01;
+    pub const syn: u8 = 0x02;
+    pub const rst: u8 = 0x04;
+    pub const psh: u8 = 0x08;
+    pub const ack: u8 = 0x10;
+    pub const urg: u8 = 0x20;
+};
+
+pub const ScanType = enum {
+    syn,
+    fin,
+    null_scan,
+    xmas,
+    maimon,
+    ack,
+    window,
+
+    pub fn probeFlags(self: ScanType) u8 {
+        return switch (self) {
+            .syn => TcpFlag.syn,
+            .fin => TcpFlag.fin,
+            .null_scan => 0,
+            .xmas => TcpFlag.fin | TcpFlag.psh | TcpFlag.urg,
+            .maimon => TcpFlag.fin | TcpFlag.ack,
+            .ack, .window => TcpFlag.ack,
+        };
+    }
+
+    pub fn cookieInAck(self: ScanType) bool {
+        return switch (self) {
+            .maimon, .ack, .window => true,
+            else => false,
+        };
+    }
+
+    pub fn seqConsumed(self: ScanType) u32 {
+        return switch (self) {
+            .syn, .fin, .xmas => 1,
+            else => 0,
+        };
+    }
+
+    pub fn parse(text: []const u8) ?ScanType {
+        const map = .{
+            .{ "syn", ScanType.syn },
+            .{ "fin", ScanType.fin },
+            .{ "null", ScanType.null_scan },
+            .{ "xmas", ScanType.xmas },
+            .{ "maimon", ScanType.maimon },
+            .{ "ack", ScanType.ack },
+            .{ "window", ScanType.window },
+        };
+        inline for (map) |entry| {
+            if (std.mem.eql(u8, text, entry[0])) return entry[1];
+        }
+        return null;
+    }
+};
+
+const opt_eol: u8 = 0;
+const opt_nop: u8 = 1;
+const opt_mss: u8 = 2;
+const opt_mss_len: u8 = 4;
+const opt_wscale: u8 = 3;
+const opt_wscale_len: u8 = 3;
+const opt_sack_perm: u8 = 4;
+const opt_sack_perm_len: u8 = 2;
+const opt_ts: u8 = 8;
+const opt_ts_len: u8 = 10;
+
+const mss_ethernet_hi: u8 = 0x05;
+const mss_ethernet_lo: u8 = 0xb4;
+
+const wscale_linux: u8 = 7;
+const wscale_windows: u8 = 8;
+const wscale_macos: u8 = 6;
+
+const window_minimal: u16 = 1024;
+const window_linux: u16 = 64240;
+const window_windows: u16 = 64240;
+const window_macos: u16 = 65535;
+
+const syn_opts_masscan = [_]u8{ opt_mss, opt_mss_len, mss_ethernet_hi, mss_ethernet_lo };
+
+const syn_opts_linux = [_]u8{
+    opt_mss,       opt_mss_len, mss_ethernet_hi, mss_ethernet_lo,
+    opt_sack_perm, opt_sack_perm_len,
+    opt_ts,        opt_ts_len,  0,               0,
+    0,             0,           0,               0,
+    0,             0,           opt_nop,         opt_wscale,
+    opt_wscale_len, wscale_linux,
+};
+
+const syn_opts_windows = [_]u8{
+    opt_mss,     opt_mss_len,   mss_ethernet_hi, mss_ethernet_lo,
+    opt_nop,     opt_wscale,    opt_wscale_len,  wscale_windows,
+    opt_nop,     opt_nop,       opt_sack_perm,   opt_sack_perm_len,
+};
+
+const syn_opts_macos = [_]u8{
+    opt_mss,     opt_mss_len,   mss_ethernet_hi, mss_ethernet_lo,
+    opt_nop,     opt_wscale,    opt_wscale_len,  wscale_macos,
+    opt_nop,     opt_nop,       opt_ts,          opt_ts_len,
+    0,           0,             0,               0,
+    0,           0,             0,               0,
+    opt_sack_perm, opt_sack_perm_len, opt_eol,   opt_eol,
+};
+
+pub const max_syn_options_len: usize = syn_opts_macos.len;
+
+pub const OsProfile = enum {
+    none,
+    masscan,
+    linux,
+    windows,
+    macos,
+
+    pub fn options(self: OsProfile) []const u8 {
+        return switch (self) {
+            .none => &.{},
+            .masscan => &syn_opts_masscan,
+            .linux => &syn_opts_linux,
+            .windows => &syn_opts_windows,
+            .macos => &syn_opts_macos,
+        };
+    }
+
+    pub fn window(self: OsProfile) u16 {
+        return switch (self) {
+            .none, .masscan => window_minimal,
+            .linux => window_linux,
+            .windows => window_windows,
+            .macos => window_macos,
+        };
+    }
+
+    pub fn tsValOffset(self: OsProfile) ?usize {
+        return switch (self) {
+            .linux => 8,
+            .macos => 12,
+            else => null,
+        };
+    }
+
+    pub fn variesIpId(self: OsProfile) bool {
+        return switch (self) {
+            .windows, .macos => true,
+            else => false,
+        };
+    }
+
+    pub fn parse(text: []const u8) ?OsProfile {
+        const map = .{
+            .{ "none", OsProfile.none },
+            .{ "masscan", OsProfile.masscan },
+            .{ "linux", OsProfile.linux },
+            .{ "windows", OsProfile.windows },
+            .{ "macos", OsProfile.macos },
+        };
+        inline for (map) |entry| {
+            if (std.mem.eql(u8, text, entry[0])) return entry[1];
+        }
+        return null;
+    }
+};
+
+pub fn optionKinds(opts: []const u8, out: []u8) usize {
+    var i: usize = 0;
+    var n: usize = 0;
+    while (i < opts.len) {
+        const kind = opts[i];
+        if (kind == opt_eol) break;
+        if (n < out.len) {
+            out[n] = kind;
+            n += 1;
+        }
+        if (kind == opt_nop) {
+            i += 1;
+            continue;
+        }
+        if (i + 1 >= opts.len) break;
+        const len = opts[i + 1];
+        if (len < 2) break;
+        i += len;
+    }
+    return n;
+}
+
+comptime {
+    std.debug.assert((@sizeOf(TcpHdr) + syn_opts_masscan.len) % 4 == 0);
+    std.debug.assert((@sizeOf(TcpHdr) + syn_opts_linux.len) % 4 == 0);
+    std.debug.assert((@sizeOf(TcpHdr) + syn_opts_windows.len) % 4 == 0);
+    std.debug.assert((@sizeOf(TcpHdr) + syn_opts_macos.len) % 4 == 0);
+    std.debug.assert(syn_opts_linux.len == 20);
+    std.debug.assert(syn_opts_windows.len == 12);
+    std.debug.assert(syn_opts_macos.len == 24);
+}
+
 test "header sizes are wire-exact" {
     try std.testing.expectEqual(@as(usize, 14), @sizeOf(EthHdr));
     try std.testing.expectEqual(@as(usize, 20), @sizeOf(Ipv4Hdr));
@@ -252,4 +451,81 @@ test "udpChecksum self-verifies: a correct datagram re-sums to the 0xFFFF all-on
 test "udpChecksum maps a computed 0x0000 to 0xFFFF (IPv4 UDP quirk)" {
     try std.testing.expectEqual(@as(u16, 0xffff), udpChecksum(0, 0, &[_]u8{ 0xff, 0xec }));
     try std.testing.expect(udpChecksum(0, 0, &[_]u8{ 0xff, 0xec }) != 0);
+}
+
+test "the Linux SYN option chain decodes to the authoritative JA4T kind list 2-4-8-1-3" {
+    var kinds: [16]u8 = undefined;
+    const n = optionKinds(OsProfile.linux.options(), &kinds);
+    try std.testing.expectEqualSlices(u8, &.{ 2, 4, 8, 1, 3 }, kinds[0..n]);
+}
+
+test "the Windows SYN option chain omits the timestamp (kinds 2-1-3-1-1-4)" {
+    var kinds: [16]u8 = undefined;
+    const n = optionKinds(OsProfile.windows.options(), &kinds);
+    try std.testing.expectEqualSlices(u8, &.{ 2, 1, 3, 1, 1, 4 }, kinds[0..n]);
+    for (kinds[0..n]) |k| try std.testing.expect(k != 8);
+}
+
+test "the macOS SYN option chain carries the timestamp before SACK (kinds 2-1-3-1-1-8-4)" {
+    var kinds: [16]u8 = undefined;
+    const n = optionKinds(OsProfile.macos.options(), &kinds);
+    try std.testing.expectEqualSlices(u8, &.{ 2, 1, 3, 1, 1, 8, 4 }, kinds[0..n]);
+}
+
+test "the masscan profile sends exactly one MSS option and the fingerprintable 1024 window" {
+    var kinds: [16]u8 = undefined;
+    const n = optionKinds(OsProfile.masscan.options(), &kinds);
+    try std.testing.expectEqualSlices(u8, &.{2}, kinds[0..n]);
+    try std.testing.expectEqual(@as(u16, 1024), OsProfile.masscan.window());
+}
+
+test "the bare profile sends no options" {
+    try std.testing.expectEqual(@as(usize, 0), OsProfile.none.options().len);
+}
+
+test "every OS profile advertises the ethernet MSS 1460" {
+    for ([_]OsProfile{ .masscan, .linux, .windows, .macos }) |p| {
+        const opts = p.options();
+        try std.testing.expectEqual(opt_mss, opts[0]);
+        try std.testing.expectEqual(@as(u16, 1460), std.mem.readInt(u16, opts[2..4], .big));
+    }
+}
+
+test "the timestamp offset points at four zero bytes inside the option chain" {
+    inline for ([_]OsProfile{ .linux, .macos }) |p| {
+        const off = p.tsValOffset().?;
+        const opts = p.options();
+        try std.testing.expectEqual(opt_ts, opts[off - 2]);
+        try std.testing.expectEqual(opt_ts_len, opts[off - 1]);
+        try std.testing.expectEqual(@as(u32, 0), std.mem.readInt(u32, opts[off..][0..4], .big));
+    }
+    try std.testing.expect(OsProfile.windows.tsValOffset() == null);
+}
+
+test "scan-type probe flags match the RFC 793 flag combinations" {
+    try std.testing.expectEqual(TcpFlag.syn, ScanType.syn.probeFlags());
+    try std.testing.expectEqual(TcpFlag.fin, ScanType.fin.probeFlags());
+    try std.testing.expectEqual(@as(u8, 0), ScanType.null_scan.probeFlags());
+    try std.testing.expectEqual(TcpFlag.fin | TcpFlag.psh | TcpFlag.urg, ScanType.xmas.probeFlags());
+    try std.testing.expectEqual(TcpFlag.fin | TcpFlag.ack, ScanType.maimon.probeFlags());
+    try std.testing.expectEqual(TcpFlag.ack, ScanType.ack.probeFlags());
+    try std.testing.expectEqual(TcpFlag.ack, ScanType.window.probeFlags());
+}
+
+test "ack-flag scans carry the cookie in the ack field, seq-scans in the seq field" {
+    for ([_]ScanType{ .maimon, .ack, .window }) |st| try std.testing.expect(st.cookieInAck());
+    for ([_]ScanType{ .syn, .fin, .null_scan, .xmas }) |st| try std.testing.expect(!st.cookieInAck());
+}
+
+test "seqConsumed reflects whether the probe advances the sequence space" {
+    for ([_]ScanType{ .syn, .fin, .xmas }) |st| try std.testing.expectEqual(@as(u32, 1), st.seqConsumed());
+    for ([_]ScanType{ .null_scan, .maimon, .ack, .window }) |st| try std.testing.expectEqual(@as(u32, 0), st.seqConsumed());
+}
+
+test "scan-type and OS-profile parsers round-trip the CLI spellings" {
+    try std.testing.expectEqual(ScanType.null_scan, ScanType.parse("null").?);
+    try std.testing.expectEqual(ScanType.window, ScanType.parse("window").?);
+    try std.testing.expect(ScanType.parse("bogus") == null);
+    try std.testing.expectEqual(OsProfile.macos, OsProfile.parse("macos").?);
+    try std.testing.expect(OsProfile.parse("bogus") == null);
 }
