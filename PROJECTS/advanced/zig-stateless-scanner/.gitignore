@@ -1,0 +1,10 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+# build artifacts
+zig-out/
+.zig-cache/
+
+# private dev + research material (never public)
+docs/
+zig/
