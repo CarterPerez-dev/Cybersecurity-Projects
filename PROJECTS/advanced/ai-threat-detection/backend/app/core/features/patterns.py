@@ -3,7 +3,7 @@
 patterns.py
 
 Compiled regex patterns for web attack detection covering
-9 OWASP categories plus encoding anomalies
+10 OWASP categories plus encoding anomalies
 
 Defines case-insensitive compiled patterns for: SQLI
 (union select, sleep, benchmark, information_schema, hex
@@ -14,13 +14,16 @@ document.cookie/write, eval/alert/prompt), PATH_TRAVERSAL
 etc/passwd, .git/config, .env), COMMAND_INJECTION
 (semicolon/pipe chaining to shell commands, $() and
 backtick substitution, ${} expansion), FILE_INCLUSION
-(php://, file://, data://, phar:// wrapper schemes), SSRF
-(cloud metadata IPs 169.254.169.254, localhost with paths,
-dict:// and gopher://), LOG4SHELL (${jndi, ${lower, ${:-
-patterns), CRLF_INJECTION (%0d%0a sequences, bare CR/LF),
+(php://, file://, data://, phar:// wrapper schemes),
+XXE_INJECTION (<!ENTITY / <!DOCTYPE declarations, SYSTEM
+"file:///" references, xmlns:xi includes, and their
+URL-encoded variants), SSRF (cloud metadata IPs
+169.254.169.254, localhost with paths, dict:// and
+gopher://), LOG4SHELL (${jndi, ${lower, ${:- patterns),
+CRLF_INJECTION (%0d%0a sequences, bare CR/LF),
 OPEN_REDIRECT (redirect params pointing to external URLs).
 Also provides ENCODED_CHARS, DOUBLE_ENCODED for evasion
-detection, and ATTACK_COMBINED unioning all 9 patterns
+detection, and ATTACK_COMBINED unioning all 10 patterns
 
 Connects to:
   core/features/
@@ -103,6 +106,14 @@ _FILE_INCLUSION = (r"(?:php://|"
                    r"phar://|"
                    r"glob://)")
 
+_XXE_INJECTION = (
+    r"(?:<!\s*(?:ENTITY|DOCTYPE)\b|"
+    r"SYSTEM\s+[\"']\s*(?:file|http|https|ftp|php|data)://|"
+    r"xmlns\s*:\s*xi\s*=|"
+    r"%(?:25)?3[Cc]!(?:ENTITY|DOCTYPE)|"
+    r"&(?:xxe|xml|ext|file);|"
+    r"%(?:25)?(?:53|73)(?:25)?(?:59|79)(?:25)?(?:53|73)(?:25)?(?:54|74)(?:25)?(?:45|65)(?:25)?(?:4d|6d))")
+
 _SSRF = (
     r"(?:169\.254\.169\.254|"
     r"metadata\.google\.internal|"
@@ -129,6 +140,7 @@ XSS = re.compile(_XSS, re.IGNORECASE)
 PATH_TRAVERSAL = re.compile(_PATH_TRAVERSAL, re.IGNORECASE)
 COMMAND_INJECTION = re.compile(_COMMAND_INJECTION, re.IGNORECASE)
 FILE_INCLUSION = re.compile(_FILE_INCLUSION, re.IGNORECASE)
+XXE_INJECTION = re.compile(_XXE_INJECTION, re.IGNORECASE)
 SSRF = re.compile(_SSRF, re.IGNORECASE)
 LOG4SHELL = re.compile(_LOG4SHELL, re.IGNORECASE)
 CRLF_INJECTION = re.compile(_CRLF_INJECTION, re.IGNORECASE)
@@ -137,7 +149,7 @@ OPEN_REDIRECT = re.compile(_OPEN_REDIRECT, re.IGNORECASE)
 ATTACK_COMBINED = re.compile(
     r"|".join((
         _SQLI, _XSS, _PATH_TRAVERSAL, _COMMAND_INJECTION,
-        _FILE_INCLUSION, _SSRF, _LOG4SHELL,
+        _FILE_INCLUSION, _XXE_INJECTION, _SSRF, _LOG4SHELL,
         _CRLF_INJECTION, _OPEN_REDIRECT,
     )),
     re.IGNORECASE,
