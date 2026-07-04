@@ -182,9 +182,9 @@ pub const RstSuppressor = struct {
 
     fn runIptables(self: *RstSuppressor, action: []const u8) RstError!void {
         const args = [_][]const u8{
-            "iptables",     action, "OUTPUT", "-p",  "tcp",
-            "-s",           self.ip_str, "--sport", self.range_str,
-            "--tcp-flags",  "RST",  "RST",    "-j",  "DROP",
+            "iptables", action,      "OUTPUT",  "-p",           "tcp",
+            "-s",       self.ip_str, "--sport", self.range_str, "--tcp-flags",
+            "RST",      "RST",       "-j",      "DROP",
         };
         const res = std.process.run(self.allocator, self.io, .{ .argv = &args }) catch return error.IptablesSpawnFailed;
         defer self.allocator.free(res.stdout);
@@ -210,7 +210,7 @@ pub const RstSuppressor = struct {
 };
 
 pub const omitted_help =
-    \\  deliberately omitted (obsolete in 2026; rationale + citations in learn/ + AUDIT-M8):
+    \\  deliberately omitted (obsolete in 2026; rationale + citations)
     \\    idle/zombie scan      modern OSes randomize IP-ID; the side channel is dead
     \\    fragmentation         Snort 3.x and Suricata fully reassemble before matching
     \\    TTL manipulation      inline IPS normalize TTL; FortiGuard ships a signature
@@ -258,8 +258,8 @@ test "authorized stealth parses every knob" {
     var threaded = testIo();
     defer threaded.deinit();
     const args = [_][]const u8{
-        "scan",         "--authorized-scan",   "--os-template", "windows",
-        "--scan-type",  "ack",                 "--jitter",      "poisson",
+        "scan",                   "--authorized-scan", "--os-template", "windows",
+        "--scan-type",            "ack",               "--jitter",      "poisson",
         "--source-port-rotation", "--suppress-rst",
     };
     var cfg = try parse(std.testing.allocator, threaded.io(), &args);
