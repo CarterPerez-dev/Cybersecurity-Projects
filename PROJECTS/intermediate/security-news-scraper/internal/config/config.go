@@ -13,18 +13,21 @@ import (
 const (
 	defaultDBPath = "nadezhda.db"
 
-	defaultUserAgent      = "nadezhda/0.1 (+https://github.com/CarterPerez-dev/nadezhda)"
-	defaultPerHostRate    = 0.5
-	defaultPerHostBurst   = 1
-	defaultTimeoutSeconds = 25
-	defaultWorkers        = 8
-	defaultMaxRetries     = 3
+	defaultUserAgent            = "nadezhda/0.1 (+https://github.com/CarterPerez-dev/nadezhda)"
+	defaultPerHostRate          = 0.5
+	defaultPerHostBurst         = 1
+	defaultTimeoutSeconds       = 25
+	defaultSourceTimeoutSeconds = 90
+	defaultWorkers              = 8
+	defaultMaxRetries           = 3
 
 	defaultCacheTTLHours    = 24
 	defaultNegativeTTLHours = 3
 
 	defaultTitleJaccard = 0.6
 	defaultWindowHours  = 72
+
+	trackingUTMPrefix = "utm_*"
 
 	defaultHalfLifeHours = 48
 	defaultVelocityNorm  = 0.5
@@ -48,13 +51,18 @@ const (
 	defaultClaudeModel  = "claude-opus-4-8"
 )
 
+var defaultTrackingParams = []string{
+	trackingUTMPrefix, "gclid", "fbclid", "ref", "mc_cid", "mc_eid",
+}
+
 type Fetch struct {
-	UserAgent      string  `yaml:"user_agent"`
-	PerHostRate    float64 `yaml:"per_host_rate"`
-	PerHostBurst   int     `yaml:"per_host_burst"`
-	TimeoutSeconds int     `yaml:"timeout_seconds"`
-	Workers        int     `yaml:"workers"`
-	MaxRetries     int     `yaml:"max_retries"`
+	UserAgent            string  `yaml:"user_agent"`
+	PerHostRate          float64 `yaml:"per_host_rate"`
+	PerHostBurst         int     `yaml:"per_host_burst"`
+	TimeoutSeconds       int     `yaml:"timeout_seconds"`
+	SourceTimeoutSeconds int     `yaml:"source_timeout_seconds"`
+	Workers              int     `yaml:"workers"`
+	MaxRetries           int     `yaml:"max_retries"`
 }
 
 type Enrich struct {
@@ -63,8 +71,9 @@ type Enrich struct {
 }
 
 type Cluster struct {
-	TitleJaccard float64 `yaml:"title_jaccard_threshold"`
-	WindowHours  int     `yaml:"window_hours"`
+	TitleJaccard   float64  `yaml:"title_jaccard_threshold"`
+	WindowHours    int      `yaml:"window_hours"`
+	TrackingParams []string `yaml:"tracking_params"`
 }
 
 type Weights struct {
@@ -112,20 +121,22 @@ func Default() Config {
 	return Config{
 		DBPath: defaultDBPath,
 		Fetch: Fetch{
-			UserAgent:      defaultUserAgent,
-			PerHostRate:    defaultPerHostRate,
-			PerHostBurst:   defaultPerHostBurst,
-			TimeoutSeconds: defaultTimeoutSeconds,
-			Workers:        defaultWorkers,
-			MaxRetries:     defaultMaxRetries,
+			UserAgent:            defaultUserAgent,
+			PerHostRate:          defaultPerHostRate,
+			PerHostBurst:         defaultPerHostBurst,
+			TimeoutSeconds:       defaultTimeoutSeconds,
+			SourceTimeoutSeconds: defaultSourceTimeoutSeconds,
+			Workers:              defaultWorkers,
+			MaxRetries:           defaultMaxRetries,
 		},
 		Enrich: Enrich{
 			CacheTTLHours:    defaultCacheTTLHours,
 			NegativeTTLHours: defaultNegativeTTLHours,
 		},
 		Cluster: Cluster{
-			TitleJaccard: defaultTitleJaccard,
-			WindowHours:  defaultWindowHours,
+			TitleJaccard:   defaultTitleJaccard,
+			WindowHours:    defaultWindowHours,
+			TrackingParams: defaultTrackingParams,
 		},
 		Rank: Rank{
 			HalfLifeHours: defaultHalfLifeHours,
@@ -184,6 +195,12 @@ func (c Config) validate() error {
 	}
 	if c.Fetch.PerHostBurst < 1 {
 		return fmt.Errorf("config: fetch.per_host_burst must be >= 1, got %d", c.Fetch.PerHostBurst)
+	}
+	if c.Fetch.TimeoutSeconds < 1 {
+		return fmt.Errorf("config: fetch.timeout_seconds must be >= 1, got %d", c.Fetch.TimeoutSeconds)
+	}
+	if c.Fetch.SourceTimeoutSeconds < 1 {
+		return fmt.Errorf("config: fetch.source_timeout_seconds must be >= 1, got %d", c.Fetch.SourceTimeoutSeconds)
 	}
 	if c.Enrich.CacheTTLHours < 0 || c.Enrich.NegativeTTLHours < 0 {
 		return fmt.Errorf("config: enrich TTLs must be >= 0, got cache=%d negative=%d", c.Enrich.CacheTTLHours, c.Enrich.NegativeTTLHours)

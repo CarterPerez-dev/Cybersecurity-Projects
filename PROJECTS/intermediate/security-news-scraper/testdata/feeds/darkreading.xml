@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xml:base="https://www.darkreading.com"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:media="http://search.yahoo.com/mrss/"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel>
+        <title>darkreading</title>
+        <link>https://www.darkreading.com</link>
+        <description>Public RSS feed</description>
+                <language>en</language>
+        <atom:link href="https://www.darkreading.com/feeds/rss.xml" rel="self" type="application/rss+xml" />
+                 <item>
+            <title><![CDATA[Chinese LLMs Broaden the Gap Between Attackers &amp; Defenders]]></title>
+            <link><![CDATA[https://www.darkreading.com/cyber-risk/chinese-llms-broaden-gap-between-attackers-and-defenders]]></link>
+                        <description><![CDATA[Two new models from Chinese firms compete with top US mainstream and frontier models. Should cyber-defenders be worried?]]></description>
+                                                        <pubDate>Fri, 03 Jul 2026 13:01:00 GMT</pubDate>
+                                                                <dc:creator>Robert Lemos</dc:creator>
+                                    <guid isPermaLink="false"><![CDATA[https://www.darkreading.com/cyber-risk/chinese-llms-broaden-gap-between-attackers-and-defenders]]></guid>
+
+                <media:thumbnail url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/blt0617bd7899766864/6a46aac83cc4ed702aef33b2/castle-of-the-moors-Gabriela_Beres-shutterstock.jpg?width=720&amp;quality=80&amp;disable=upscale" />
+                <media:content url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/blt0617bd7899766864/6a46aac83cc4ed702aef33b2/castle-of-the-moors-Gabriela_Beres-shutterstock.jpg?width=720&amp;quality=80&amp;disable=upscale" medium="image">
+                    <media:title type="html">castle-of-the-moors-Gabriela_Beres-shutterstock.jpg</media:title>
+                </media:content>
+                                    </item>
+<item>
+            <title><![CDATA[Aussies Face Reduced Cybercrime Risk, as Pressure Shifts to SMBs]]></title>
+            <link><![CDATA[https://www.darkreading.com/cybersecurity-analytics/aussies-face-reduced-cybercrime-risk-pressure-shifts-smbs]]></link>
+                        <description><![CDATA[Improved institutional safeguards and stricter regulations have pushed the burdens of protection and risk reduction on to Australian businesses.]]></description>
+                                                        <pubDate>Thu, 02 Jul 2026 23:01:00 GMT</pubDate>
+                                                                <dc:creator>Nate Nelson</dc:creator>
+                                    <guid isPermaLink="false"><![CDATA[https://www.darkreading.com/cybersecurity-analytics/aussies-face-reduced-cybercrime-risk-pressure-shifts-smbs]]></guid>
+
+                <media:thumbnail url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/bltef5cf25552ad1b17/6a46744dec9caa31e05a16a8/Australia-imaginima-Getty.jpg?width=720&amp;quality=80&amp;disable=upscale" />
+                <media:content url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/bltef5cf25552ad1b17/6a46744dec9caa31e05a16a8/Australia-imaginima-Getty.jpg?width=720&amp;quality=80&amp;disable=upscale" medium="image">
+                    <media:title type="html">Australia-imaginima-Getty.jpg</media:title>
+                </media:content>
+                                    </item>
+<item>
+            <title><![CDATA[Apple Reverses Age-Old Patch Policy to Keep Up With AI]]></title>
+            <link><![CDATA[https://www.darkreading.com/cybersecurity-operations/apple-patch-policy-ai]]></link>
+                        <description><![CDATA[Expect more compressed patching cycles from Apple going forward, as attackers leverage artificial intelligence to reduce time to exploit.]]></description>
+                                                        <pubDate>Thu, 02 Jul 2026 19:31:58 GMT</pubDate>
+                                                                <dc:creator>Nate Nelson</dc:creator>
+                                    <guid isPermaLink="false"><![CDATA[https://www.darkreading.com/cybersecurity-operations/apple-patch-policy-ai]]></guid>
+
+                <media:thumbnail url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/bltb900b57271d6fc24/6a46a07ecef8a87304f980df/Apple_bandage-imtmphoto-Getty.jpg?width=720&amp;quality=80&amp;disable=upscale" />
+                <media:content url="https://eu-images.contentstack.com/v3/assets/blt6d90778a997de1cd/bltb900b57271d6fc24/6a46a07ecef8a87304f980df/Apple_bandage-imtmphoto-Getty.jpg?width=720&amp;quality=80&amp;disable=upscale" medium="image">
+                    <media:title type="html">Apple_bandage-imtmphoto-Getty.jpg</media:title>
+                </media:content>
+                                    </item>    </channel>
+</rss>

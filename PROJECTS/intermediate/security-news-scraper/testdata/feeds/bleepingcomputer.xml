@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+        xmlns:content="http://purl.org/rss/1.0/modules/content/"
+        xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+        xmlns:dc="http://purl.org/dc/elements/1.1/"
+        xmlns:atom="http://www.w3.org/2005/Atom"
+        >
+
+<channel>
+        <title>BleepingComputer</title>
+
+        <link>https://www.bleepingcomputer.com/</link>
+        <description>BleepingComputer - All Stories</description>
+        <pubDate>Sun, 05 Jul 2026 16:55:00 GMT</pubDate>
+        <generator>https://www.bleepingcomputer.com/</generator>
+        <language>en</language>
+        <atom:link href="https://www.bleepingcomputer.com/feed/" rel="self" type="application/rss+xml" />
+
+ <item>
+        <title>Flipper Zero firmware development continues with community help</title>
+        <link>https://www.bleepingcomputer.com/news/security/flipper-zero-firmware-development-continues-with-community-help/</link>
+        <pubDate>Sun, 05 Jul 2026 10:14:52 -0400</pubDate>
+        <dc:creator>Bill Toulas</dc:creator>
+
+
+        <category><![CDATA[Security]]></category>
+
+
+        <guid>https://www.bleepingcomputer.com/news/security/flipper-zero-firmware-development-continues-with-community-help/</guid>
+        <description><![CDATA[Flipper Devices says development of the Flipper Zero firmware will continue, albeit with a smaller internal team and greater reliance on community contributions. [...]]]></description>
+ </item>
+<item>
+        <title>JadePuffer ransomware used AI agent to automate entire attack</title>
+        <link>https://www.bleepingcomputer.com/news/security/jadepuffer-ransomware-used-ai-agent-to-automate-entire-attack/</link>
+        <pubDate>Sat, 04 Jul 2026 10:16:38 -0400</pubDate>
+        <dc:creator>Bill Toulas</dc:creator>
+
+
+        <category><![CDATA[Security]]></category>
+
+        <category><![CDATA[Artificial Intelligence]]></category>
+
+
+        <guid>https://www.bleepingcomputer.com/news/security/jadepuffer-ransomware-used-ai-agent-to-automate-entire-attack/</guid>
+        <description><![CDATA[Researchers identified what they believe is the first documented case of a ransomware operation, JadePuffer, conducted entirely by a large language model (LLM) agent. [...]]]></description>
+ </item>
+<item>
+        <title>NetNut proxy network disrupted, 2 million infected devices cut off</title>
+        <link>https://www.bleepingcomputer.com/news/security/netnut-proxy-network-disrupted-2-million-infected-devices-cut-off/</link>
+        <pubDate>Fri, 03 Jul 2026 13:50:04 -0400</pubDate>
+        <dc:creator>Ionut Ilascu</dc:creator>
+
+
+        <category><![CDATA[Security]]></category>
+
+
+        <guid>https://www.bleepingcomputer.com/news/security/netnut-proxy-network-disrupted-2-million-infected-devices-cut-off/</guid>
+        <description><![CDATA[A joint operation involving Google has disrupted NetNut, a residential proxy network that gave access to millions of compromised Android devices, including smart TVs and streaming boxes. [...]]]></description>
+ </item>
+
+</channel>
+</rss>

@@ -45,12 +45,20 @@ type Article struct {
 	SourceID     int64
 	CanonicalURL string
 	ContentHash  string
+	TitleHash    string
 	Title        string
 	Summary      string
 	Body         string
 	Author       string
 	PublishedAt  int64
 	FetchedAt    int64
+}
+
+type FetchState struct {
+	ETag         string
+	LastModified string
+	LastFetched  int64
+	LastStatus   int64
 }
 
 func Open(path string) (*Store, error) {
@@ -114,9 +122,9 @@ func (s *Store) GetSourceByName(name string) (SourceRow, error) {
 func (s *Store) InsertArticle(a Article) (int64, error) {
 	res, err := s.db.Exec(`
 		INSERT INTO articles
-			(source_id, canonical_url, content_hash, title, summary, body, author, published_at, fetched_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.SourceID, a.CanonicalURL, a.ContentHash, a.Title, a.Summary, a.Body,
+			(source_id, canonical_url, content_hash, title_hash, title, summary, body, author, published_at, fetched_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.SourceID, a.CanonicalURL, a.ContentHash, a.TitleHash, a.Title, a.Summary, a.Body,
 		a.Author, a.PublishedAt, a.FetchedAt,
 	)
 	if err != nil {
@@ -139,6 +147,36 @@ func (s *Store) CountArticles() (int, error) {
 		return 0, fmt.Errorf("count articles: %w", err)
 	}
 	return n, nil
+}
+
+func (s *Store) GetFetchState(sourceID int64) (FetchState, bool, error) {
+	var fs FetchState
+	err := s.db.QueryRow(`
+		SELECT etag, last_modified, last_fetched, last_status
+		FROM fetch_state WHERE source_id = ?`, sourceID,
+	).Scan(&fs.ETag, &fs.LastModified, &fs.LastFetched, &fs.LastStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FetchState{}, false, nil
+	}
+	if err != nil {
+		return FetchState{}, false, fmt.Errorf("get fetch_state %d: %w", sourceID, err)
+	}
+	return fs, true, nil
+}
+
+func (s *Store) UpsertFetchState(sourceID int64, fs FetchState) error {
+	_, err := s.db.Exec(`
+		INSERT INTO fetch_state (source_id, etag, last_modified, last_fetched, last_status)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(source_id) DO UPDATE SET
+			etag = excluded.etag, last_modified = excluded.last_modified,
+			last_fetched = excluded.last_fetched, last_status = excluded.last_status`,
+		sourceID, fs.ETag, fs.LastModified, fs.LastFetched, fs.LastStatus,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert fetch_state %d: %w", sourceID, err)
+	}
+	return nil
 }
 
 func boolToInt(b bool) int {
