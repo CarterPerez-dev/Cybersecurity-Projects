@@ -15,6 +15,11 @@ import (
 
 var ErrDuplicate = errors.New("store: article already exists")
 
+const (
+	EnrichStatusOK       = "ok"
+	EnrichStatusNotFound = "not_found"
+)
+
 type Store struct {
 	db      *sql.DB
 	version int
@@ -179,6 +184,135 @@ func (s *Store) UpsertFetchState(sourceID int64, fs FetchState) error {
 	return nil
 }
 
+type CVE struct {
+	ID             string
+	Description    string
+	CVSSScore      *float64
+	CVSSVersion    string
+	CVSSSeverity   string
+	CVSSVector     string
+	CWE            string
+	IsKEV          bool
+	KEVDateAdded   string
+	KEVRansomware  bool
+	EPSS           *float64
+	EPSSPercentile *float64
+	NVDPublished   string
+	NVDModified    string
+	EnrichedAt     int64
+	EnrichStatus   string
+}
+
+type ArticleSummary struct {
+	ID           int64
+	SourceName   string
+	Title        string
+	CanonicalURL string
+	PublishedAt  int64
+}
+
+type ListFilter struct {
+	Source  string
+	Since   int64
+	MinCVSS float64
+	KEV     bool
+	Keyword string
+	Limit   int
+}
+
+func (s *Store) CVEsNeedingEnrichment(now, positiveTTL, negativeTTL int64) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT id FROM cves
+		WHERE enriched_at = 0
+		   OR (enrich_status = ? AND enriched_at < ?)
+		   OR (enrich_status = ? AND enriched_at < ?)
+		ORDER BY id`, EnrichStatusOK, now-positiveTTL, EnrichStatusNotFound, now-negativeTTL)
+	if err != nil {
+		return nil, fmt.Errorf("cves needing enrichment: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("cves needing enrichment: scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) UpdateCVEEnrichment(c CVE) error {
+	_, err := s.db.Exec(`
+		UPDATE cves SET
+			description = ?, cvss_score = ?, cvss_version = ?, cvss_severity = ?, cvss_vector = ?,
+			cwe = ?, is_kev = ?, kev_date_added = ?, kev_ransomware = ?,
+			epss = ?, epss_percentile = ?, nvd_published = ?, nvd_modified = ?,
+			enriched_at = ?, enrich_status = ?
+		WHERE id = ?`,
+		c.Description, c.CVSSScore, c.CVSSVersion, c.CVSSSeverity, c.CVSSVector,
+		c.CWE, boolToInt(c.IsKEV), c.KEVDateAdded, boolToInt(c.KEVRansomware),
+		c.EPSS, c.EPSSPercentile, c.NVDPublished, c.NVDModified,
+		c.EnrichedAt, c.EnrichStatus, c.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update cve enrichment %q: %w", c.ID, err)
+	}
+	return nil
+}
+
+func (s *Store) GetCVE(id string) (CVE, error) {
+	var c CVE
+	var isKEV, ransomware int
+	err := s.db.QueryRow(`
+		SELECT id, description, cvss_score, cvss_version, cvss_severity, cvss_vector,
+			cwe, is_kev, kev_date_added, kev_ransomware, epss, epss_percentile,
+			nvd_published, nvd_modified, enriched_at, enrich_status
+		FROM cves WHERE id = ?`, id,
+	).Scan(&c.ID, &c.Description, &c.CVSSScore, &c.CVSSVersion, &c.CVSSSeverity, &c.CVSSVector,
+		&c.CWE, &isKEV, &c.KEVDateAdded, &ransomware, &c.EPSS, &c.EPSSPercentile,
+		&c.NVDPublished, &c.NVDModified, &c.EnrichedAt, &c.EnrichStatus)
+	if err != nil {
+		return CVE{}, fmt.Errorf("get cve %q: %w", id, err)
+	}
+	c.IsKEV = isKEV != 0
+	c.KEVRansomware = ransomware != 0
+	return c, nil
+}
+
+func (s *Store) ArticlesForCVE(id string) ([]ArticleSummary, error) {
+	rows, err := s.db.Query(`
+		SELECT a.id, s.name, a.title, a.canonical_url, a.published_at
+		FROM article_cves ac
+		JOIN articles a ON a.id = ac.article_id
+		JOIN sources s ON s.id = a.source_id
+		WHERE ac.cve_id = ?
+		ORDER BY a.published_at DESC`, id)
+	if err != nil {
+		return nil, fmt.Errorf("articles for cve %q: %w", id, err)
+	}
+	defer rows.Close()
+	return scanArticleSummaries(rows)
+}
+
+func (s *Store) UpsertCVEStub(id string) error {
+	_, err := s.db.Exec(`INSERT INTO cves (id) VALUES (?) ON CONFLICT(id) DO NOTHING`, id)
+	if err != nil {
+		return fmt.Errorf("upsert cve %q: %w", id, err)
+	}
+	return nil
+}
+
+func (s *Store) LinkArticleCVE(articleID int64, cveID string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO article_cves (article_id, cve_id) VALUES (?, ?)
+		ON CONFLICT(article_id, cve_id) DO NOTHING`, articleID, cveID)
+	if err != nil {
+		return fmt.Errorf("link article %d cve %q: %w", articleID, cveID, err)
+	}
+	return nil
+}
+
 type CandidateArticle struct {
 	ID       int64
 	SourceID int64
@@ -271,6 +405,64 @@ func (s *Store) ReplaceClusters(rows []ClusterRow) error {
 		return fmt.Errorf("replace clusters: commit: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) ListArticles(f ListFilter) ([]ArticleSummary, error) {
+	query := `
+		SELECT a.id, s.name, a.title, a.canonical_url, a.published_at
+		FROM articles a
+		JOIN sources s ON s.id = a.source_id
+		WHERE 1 = 1`
+	var args []any
+
+	if f.Source != "" {
+		query += ` AND s.name = ?`
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		query += ` AND a.published_at >= ?`
+		args = append(args, f.Since)
+	}
+	if f.Keyword != "" {
+		query += ` AND (a.title LIKE ? OR a.summary LIKE ?)`
+		like := "%" + f.Keyword + "%"
+		args = append(args, like, like)
+	}
+	if f.MinCVSS > 0 {
+		query += ` AND EXISTS (
+			SELECT 1 FROM article_cves ac JOIN cves c ON c.id = ac.cve_id
+			WHERE ac.article_id = a.id AND c.cvss_score >= ?)`
+		args = append(args, f.MinCVSS)
+	}
+	if f.KEV {
+		query += ` AND EXISTS (
+			SELECT 1 FROM article_cves ac JOIN cves c ON c.id = ac.cve_id
+			WHERE ac.article_id = a.id AND c.is_kev = 1)`
+	}
+	query += ` ORDER BY a.published_at DESC`
+	if f.Limit > 0 {
+		query += ` LIMIT ?`
+		args = append(args, f.Limit)
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list articles: %w", err)
+	}
+	defer rows.Close()
+	return scanArticleSummaries(rows)
+}
+
+func scanArticleSummaries(rows *sql.Rows) ([]ArticleSummary, error) {
+	var out []ArticleSummary
+	for rows.Next() {
+		var a ArticleSummary
+		if err := rows.Scan(&a.ID, &a.SourceName, &a.Title, &a.CanonicalURL, &a.PublishedAt); err != nil {
+			return nil, fmt.Errorf("scan article summary: %w", err)
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
 }
 
 func boolToInt(b bool) int {

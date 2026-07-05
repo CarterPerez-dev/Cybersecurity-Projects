@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/CarterPerez-dev/nadezhda/internal/config"
+	"github.com/CarterPerez-dev/nadezhda/internal/cve"
 	"github.com/CarterPerez-dev/nadezhda/internal/fetch"
 	"github.com/CarterPerez-dev/nadezhda/internal/normalize"
 	"github.com/CarterPerez-dev/nadezhda/internal/parse"
@@ -24,6 +25,7 @@ type SourceResult struct {
 	Parsed      int
 	New         int
 	Duplicates  int
+	CVEs        int
 	ItemErrors  int
 	NotModified bool
 	Err         error
@@ -134,19 +136,22 @@ func storeItem(st *store.Store, cfg config.Config, sourceID int64, it parse.Item
 		return
 	}
 
+	summary := normalize.StripHTML(it.Summary)
+	body := normalize.StripHTML(it.Body)
+
 	var publishedAt int64
 	if !it.Published.IsZero() {
 		publishedAt = it.Published.Unix()
 	}
 
-	_, err = st.InsertArticle(store.Article{
+	id, err := st.InsertArticle(store.Article{
 		SourceID:     sourceID,
 		CanonicalURL: canonical,
 		ContentHash:  normalize.ContentHash(canonical),
 		TitleHash:    normalize.TitleHash(normalize.NormalizeTitle(it.Title)),
 		Title:        it.Title,
-		Summary:      normalize.StripHTML(it.Summary),
-		Body:         normalize.StripHTML(it.Body),
+		Summary:      summary,
+		Body:         body,
 		Author:       it.Author,
 		PublishedAt:  publishedAt,
 		FetchedAt:    now.Unix(),
@@ -154,9 +159,24 @@ func storeItem(st *store.Store, cfg config.Config, sourceID int64, it parse.Item
 	switch {
 	case err == nil:
 		out.New++
+		linkCVEs(st, id, cve.Extract(it.Title, summary, body), out)
 	case errors.Is(err, store.ErrDuplicate):
 		out.Duplicates++
 	default:
 		out.ItemErrors++
+	}
+}
+
+func linkCVEs(st *store.Store, articleID int64, ids []string, out *SourceResult) {
+	for _, id := range ids {
+		if err := st.UpsertCVEStub(id); err != nil {
+			out.ItemErrors++
+			continue
+		}
+		if err := st.LinkArticleCVE(articleID, id); err != nil {
+			out.ItemErrors++
+			continue
+		}
+		out.CVEs++
 	}
 }

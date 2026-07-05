@@ -67,8 +67,9 @@ type Fetch struct {
 }
 
 type Enrich struct {
-	CacheTTLHours    int `yaml:"cache_ttl_hours"`
-	NegativeTTLHours int `yaml:"negative_ttl_hours"`
+	CacheTTLHours    int    `yaml:"cache_ttl_hours"`
+	NegativeTTLHours int    `yaml:"negative_ttl_hours"`
+	NVDAPIKey        string `yaml:"nvd_api_key"`
 }
 
 type Cluster struct {

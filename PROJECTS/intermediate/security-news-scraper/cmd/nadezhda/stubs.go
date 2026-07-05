@@ -21,8 +21,6 @@ func init() {
 		short     string
 		milestone string
 	}{
-		{"list", "List stored articles with filters", "milestone M3"},
-		{"cve", "Show an enriched CVE and articles mentioning it", "milestone M3"},
 		{"digest", "Render a ranked digest to Markdown or JSON", "milestone M4"},
 		{"tui", "Browse aggregated news in an interactive terminal UI", "milestone M5"},
 		{"ideate", "Generate content angles from ranked clusters via an AI provider", "milestone M6"},

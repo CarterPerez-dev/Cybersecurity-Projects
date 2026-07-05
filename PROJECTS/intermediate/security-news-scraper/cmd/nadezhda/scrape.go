@@ -105,14 +105,16 @@ func selectTargets(srcs []source.Source, only string) ([]source.Source, error) {
 
 func printSummary(cmd *cobra.Command, summary ingest.Summary) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "%-18s %-8s %-8s %-5s %-5s %-5s\n", "SOURCE", "STATUS", "PARSED", "NEW", "DUP", "ERR")
+	fmt.Fprintf(out, "%-18s %-8s %-8s %-5s %-5s %-5s %-5s\n", "SOURCE", "STATUS", "PARSED", "NEW", "DUP", "CVE", "ERR")
+	totalCVEs := 0
 	for _, r := range summary.Results {
-		fmt.Fprintf(out, "%-18s %-8s %-8s %-5s %-5s %-5s\n",
-			r.Name, status(r), count(r, r.Parsed), count(r, r.New), count(r, r.Duplicates), count(r, r.ItemErrors))
+		totalCVEs += r.CVEs
+		fmt.Fprintf(out, "%-18s %-8s %-8s %-5s %-5s %-5s %-5s\n",
+			r.Name, status(r), count(r, r.Parsed), count(r, r.New), count(r, r.Duplicates), count(r, r.CVEs), count(r, r.ItemErrors))
 	}
 	newArticles, duplicates, failed := summary.Totals()
-	fmt.Fprintf(out, "\n%d new, %d duplicate across %d sources (%d failed)\n",
-		newArticles, duplicates, len(summary.Results), failed)
+	fmt.Fprintf(out, "\n%d new, %d duplicate, %d CVE refs across %d sources (%d failed)\n",
+		newArticles, duplicates, totalCVEs, len(summary.Results), failed)
 	for _, r := range summary.Results {
 		if r.Err != nil {
 			fmt.Fprintf(out, "  %s: %v\n", r.Name, r.Err)
