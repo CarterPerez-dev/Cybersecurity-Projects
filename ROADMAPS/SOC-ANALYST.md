@@ -1,10 +1,10 @@
 # SOC Analyst Certification Roadmap
 
-A structured path to becoming a Security Operations Center Analyst, from entry-level to senior/management positions.
+A structured path to becoming a Security Operations Center Analyst, from zero to landing your first SOC role. Five certifications, in order, each building on the last.
 
 ## Career Path Overview
 
-SOC Analysts monitor, detect, investigate, and respond to cybersecurity threats. This roadmap progresses from foundational knowledge through incident handling and intrusion analysis.
+SOC Analysts monitor, detect, investigate, and respond to cybersecurity threats. This roadmap progresses from foundational knowledge through hands-on defense and SIEM tooling, in the order that actually gets you hired: foundation first, tool skills last.
 
 ---
 
@@ -14,21 +14,22 @@ SOC Analysts monitor, detect, investigate, and respond to cybersecurity threats.
 
 ## Certification Path
 
-| Level | Certification | Organization | Link |
-|-------|--------------|--------------|------|
-| **Entry** | **Security+** | CompTIA | [Website](https://www.comptia.org/certifications/security) |
-| **Core** | **CySA+** | CompTIA | [Website](https://www.comptia.org/certifications/cybersecurity-analyst) |
-| **Intermediate** | **GCIH** (Certified Incident Handler) | GIAC | [Website](https://www.giac.org/certifications/certified-incident-handler-gcih/) |
-| **Intermediate** | **CEH** (Certified Ethical Hacker) | EC-Council | [Website](https://www.eccouncil.org/train-certify/certified-ethical-hacker-ceh/) |
-| **Advanced** | **GCIA** (Certified Intrusion Analyst) | GIAC | [Website](https://www.giac.org/certifications/certified-intrusion-analyst-gcia/) |
-| **Senior/Management** | **CISSP** | (ISC)² | [Website](https://www.isc2.org/Certifications/CISSP) |
+| Step | Certification | Organization | Approx. Cost | Link |
+|------|--------------|--------------|--------------|------|
+| **01 - Foundation** | **Security+** | CompTIA | ~$404 | [Website](https://www.comptia.org/certifications/security) |
+| **02 - Analyst** | **CySA+** | CompTIA | ~$404 | [Website](https://www.comptia.org/certifications/cybersecurity-analyst) |
+| **03 - Hands-On** | **Blue Team Level 1** | Security Blue Team | ~$399 | [Website](https://securityblue.team/certifications/blue-team-level-1) |
+| **04 - SIEM Tool** | **Splunk Core Certified User** | Splunk | ~$130 | [Website](https://www.splunk.com/en_us/training/certification-track/splunk-core-certified-user.html) |
+| **05 - Cloud SOC** | **Microsoft SC-200** | Microsoft | ~$165 | [Website](https://learn.microsoft.com/en-us/credentials/certifications/security-operations-analyst/) |
+
+*Costs are approximate USD exam-voucher prices and change over time. Check each vendor for current pricing. Splunk and Microsoft both offer free official training.*
 
 ---
 
 ## Recommended Learning Path
 
 ### Phase 1: Foundation (3-6 months)
-**Target:** Security+
+**Target:** Security+ (~$404, CompTIA)
 
 Build fundamental knowledge in:
 - Network security concepts
@@ -42,8 +43,8 @@ Build fundamental knowledge in:
 - Practice labs and simulations
 - Security fundamentals courses
 
-### Phase 2: Core SOC Skills (4-8 months)
-**Target:** CySA+
+### Phase 2: Analyst Skills (4-8 months)
+**Target:** CySA+ (~$404, CompTIA)
 
 Develop analyst capabilities:
 - Security operations and monitoring
@@ -57,50 +58,48 @@ Develop analyst capabilities:
 - SOC analyst training platforms
 - Hands-on lab environments (TryHackMe, HackTheBox)
 
-### Phase 3: Incident Handling (6-12 months)
-**Target:** GCIH and/or CEH
+### Phase 3: Hands-On Defense (3-6 months)
+**Target:** Blue Team Level 1 (~$399, Security Blue Team)
 
-Master incident response:
-- Incident detection and analysis
-- Malware analysis basics
-- Forensic investigation
-- Ethical hacking techniques
-- Attack methodologies
-
-**Resources:**
-- SANS incident handling courses
-- EC-Council CEH training
-- Incident response simulations
-
-### Phase 4: Advanced Analysis (12+ months experience)
-**Target:** GCIA
-
-Specialize in intrusion analysis:
-- Advanced network traffic analysis
-- Threat hunting techniques
-- Deep packet inspection
-- Attack pattern recognition
-- Advanced persistent threat (APT) detection
+Prove you can do the work in a live, graded investigation:
+- Practical SIEM and log analysis
+- Phishing analysis
+- Threat intelligence
+- Digital forensics fundamentals
+- End-to-end incident response
 
 **Resources:**
-- GIAC training materials
-- Advanced threat hunting platforms
-- Real-world SOC experience
+- Security Blue Team labs (included with the certification)
+- Hands-on ranges (TryHackMe, HackTheBox)
+- Real investigation practice
 
-### Phase 5: Leadership (3-5 years experience)
-**Target:** CISSP
+### Phase 4: SIEM Tooling (2-4 months)
+**Target:** Splunk Core Certified User (~$130, Splunk)
 
-Transition to strategic roles:
-- Security program management
-- Risk assessment frameworks
-- Security architecture design
-- Policy and governance
-- Team leadership
+Get fluent in the SIEM most SOCs run all day:
+- Splunk Search Processing Language (SPL)
+- Building and reading dashboards
+- Field extraction and reporting
+- Alerts and scheduled searches
 
 **Resources:**
-- CISSP study materials
-- Management and leadership training
-- Industry frameworks (NIST, ISO 27001)
+- Splunk free official training (Intro to Splunk, Search Fundamentals)
+- Splunk Search Tutorial and sample data
+- Hands-on practice in a free Splunk instance
+
+### Phase 5: Cloud SOC (2-4 months)
+**Target:** Microsoft SC-200 (~$165, Microsoft)
+
+Cover the cloud SIEM side SOCs increasingly hire for:
+- Microsoft Sentinel
+- Microsoft Defender XDR
+- Kusto Query Language (KQL)
+- Cloud detection and incident response
+
+**Resources:**
+- Microsoft Learn (free SC-200 study path)
+- Hands-on Azure and Sentinel labs
+- KQL practice environments
 
 ---
 
@@ -125,11 +124,11 @@ Transition to strategic roles:
 
 ## Estimated Timeline
 
-- **Entry to Core:** 6-12 months
-- **Core to Advanced:** 1-2 years
-- **Advanced to Senior:** 2-3 years
+- **Foundation to Analyst (Security+ to CySA+):** 6-12 months
+- **Analyst to Hands-On (CySA+ to BTL1):** 3-6 months
+- **Tooling (Splunk + SC-200):** 4-8 months
 
-Total time to senior-level: **4-6 years** with continuous learning and hands-on experience.
+Total time to job-ready: **~12-24 months** with consistent study and hands-on practice.
 
 ---
 
