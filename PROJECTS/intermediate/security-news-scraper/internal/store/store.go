@@ -179,6 +179,100 @@ func (s *Store) UpsertFetchState(sourceID int64, fs FetchState) error {
 	return nil
 }
 
+type CandidateArticle struct {
+	ID       int64
+	SourceID int64
+	Title    string
+	Time     int64
+}
+
+type ClusterRow struct {
+	Key       string
+	Members   []int64
+	FirstSeen int64
+	LastSeen  int64
+}
+
+func (s *Store) ClusterCandidates(since int64) ([]CandidateArticle, error) {
+	rows, err := s.db.Query(`
+		SELECT id, source_id, title, COALESCE(NULLIF(published_at, 0), fetched_at) AS t
+		FROM articles
+		WHERE COALESCE(NULLIF(published_at, 0), fetched_at) >= ?
+		ORDER BY id`, since)
+	if err != nil {
+		return nil, fmt.Errorf("cluster candidates: %w", err)
+	}
+	defer rows.Close()
+
+	var out []CandidateArticle
+	for rows.Next() {
+		var c CandidateArticle
+		if err := rows.Scan(&c.ID, &c.SourceID, &c.Title, &c.Time); err != nil {
+			return nil, fmt.Errorf("cluster candidates: scan: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ArticleCVEMap() (map[int64][]string, error) {
+	rows, err := s.db.Query(`SELECT article_id, cve_id FROM article_cves`)
+	if err != nil {
+		return nil, fmt.Errorf("article cve map: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[int64][]string)
+	for rows.Next() {
+		var articleID int64
+		var cveID string
+		if err := rows.Scan(&articleID, &cveID); err != nil {
+			return nil, fmt.Errorf("article cve map: scan: %w", err)
+		}
+		out[articleID] = append(out[articleID], cveID)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ReplaceClusters(rows []ClusterRow) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("replace clusters: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM cluster_members`); err != nil {
+		return fmt.Errorf("replace clusters: clear members: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM clusters`); err != nil {
+		return fmt.Errorf("replace clusters: clear clusters: %w", err)
+	}
+
+	for _, r := range rows {
+		var clusterID int64
+		if err := tx.QueryRow(`
+			INSERT INTO clusters (cluster_key, first_seen, last_seen, size)
+			VALUES (?, ?, ?, ?) RETURNING id`,
+			r.Key, r.FirstSeen, r.LastSeen, len(r.Members),
+		).Scan(&clusterID); err != nil {
+			return fmt.Errorf("replace clusters: insert cluster %q: %w", r.Key, err)
+		}
+		for _, articleID := range r.Members {
+			if _, err := tx.Exec(`
+				INSERT INTO cluster_members (cluster_id, article_id) VALUES (?, ?)`,
+				clusterID, articleID,
+			); err != nil {
+				return fmt.Errorf("replace clusters: insert member %d: %w", articleID, err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("replace clusters: commit: %w", err)
+	}
+	return nil
+}
+
 func boolToInt(b bool) int {
 	if b {
 		return 1

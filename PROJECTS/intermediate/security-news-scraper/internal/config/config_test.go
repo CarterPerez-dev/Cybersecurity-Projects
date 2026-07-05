@@ -92,3 +92,15 @@ func TestValidateRejectsBadProvider(t *testing.T) {
 		t.Error("expected error for invalid ai.provider")
 	}
 }
+
+func TestValidateRejectsLookbackBelowWindow(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "lb.yaml")
+	body := "cluster:\n  window_hours: 72\n  lookback_hours: 24\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil {
+		t.Error("expected error when lookback_hours < window_hours")
+	}
+}

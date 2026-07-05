@@ -24,8 +24,9 @@ const (
 	defaultCacheTTLHours    = 24
 	defaultNegativeTTLHours = 3
 
-	defaultTitleJaccard = 0.6
-	defaultWindowHours  = 72
+	defaultTitleJaccard  = 0.6
+	defaultWindowHours   = 72
+	defaultLookbackHours = 168
 
 	trackingUTMPrefix = "utm_*"
 
@@ -73,6 +74,7 @@ type Enrich struct {
 type Cluster struct {
 	TitleJaccard   float64  `yaml:"title_jaccard_threshold"`
 	WindowHours    int      `yaml:"window_hours"`
+	LookbackHours  int      `yaml:"lookback_hours"`
 	TrackingParams []string `yaml:"tracking_params"`
 }
 
@@ -136,6 +138,7 @@ func Default() Config {
 		Cluster: Cluster{
 			TitleJaccard:   defaultTitleJaccard,
 			WindowHours:    defaultWindowHours,
+			LookbackHours:  defaultLookbackHours,
 			TrackingParams: defaultTrackingParams,
 		},
 		Rank: Rank{
@@ -207,6 +210,15 @@ func (c Config) validate() error {
 	}
 	if c.Cluster.TitleJaccard < 0 || c.Cluster.TitleJaccard > 1 {
 		return fmt.Errorf("config: cluster.title_jaccard_threshold must be in [0,1], got %v", c.Cluster.TitleJaccard)
+	}
+	if c.Cluster.WindowHours < 1 {
+		return fmt.Errorf("config: cluster.window_hours must be >= 1, got %d", c.Cluster.WindowHours)
+	}
+	if c.Cluster.LookbackHours < 1 {
+		return fmt.Errorf("config: cluster.lookback_hours must be >= 1, got %d", c.Cluster.LookbackHours)
+	}
+	if c.Cluster.LookbackHours < c.Cluster.WindowHours {
+		return fmt.Errorf("config: cluster.lookback_hours (%d) must be >= cluster.window_hours (%d) or window edges near the corpus boundary are silently dropped", c.Cluster.LookbackHours, c.Cluster.WindowHours)
 	}
 	if c.Rank.HalfLifeHours < 1 {
 		return fmt.Errorf("config: rank.half_life_hours must be >= 1, got %d", c.Rank.HalfLifeHours)

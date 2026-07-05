@@ -12,11 +12,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/CarterPerez-dev/nadezhda/internal/cluster"
 	"github.com/CarterPerez-dev/nadezhda/internal/fetch"
 	"github.com/CarterPerez-dev/nadezhda/internal/ingest"
 	"github.com/CarterPerez-dev/nadezhda/internal/source"
 	"github.com/CarterPerez-dev/nadezhda/internal/store"
 )
+
+const secondsPerHour = 3600
 
 const (
 	statusNotModified = "304"
@@ -70,12 +73,21 @@ func runScrape(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	summary, err := ingest.Run(ctx, fc, st, cfg, targets, time.Now())
+	now := time.Now()
+	summary, err := ingest.Run(ctx, fc, st, cfg, targets, now)
 	if err != nil {
 		return err
 	}
-
 	printSummary(cmd, summary)
+
+	sinceUnix := now.Unix() - int64(cfg.Cluster.LookbackHours)*secondsPerHour
+	windowSeconds := int64(cfg.Cluster.WindowHours) * secondsPerHour
+	stats, err := cluster.Rebuild(st, cfg.Cluster.TitleJaccard, windowSeconds, sinceUnix)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "%d clusters (%d multi-source, largest %d)\n",
+		stats.Total, stats.MultiSource, stats.LargestSize)
 	return nil
 }
 
