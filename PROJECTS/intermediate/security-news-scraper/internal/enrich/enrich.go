@@ -14,7 +14,7 @@ import (
 const secondsPerHour = 3600
 
 type Clients struct {
-	NVD  *cve.NVDClient
+	Core cve.CVESource
 	KEV  *cve.KEVClient
 	EPSS *cve.EPSSClient
 }
@@ -51,7 +51,7 @@ func Run(ctx context.Context, st *store.Store, clients Clients, now time.Time, p
 
 	stats := Stats{Total: len(ids)}
 	for _, id := range ids {
-		nvdRes, err := clients.NVD.Fetch(ctx, id)
+		coreRes, err := clients.Core.Fetch(ctx, id)
 		if err != nil {
 			if ctx.Err() != nil {
 				return stats, ctx.Err()
@@ -61,16 +61,16 @@ func Run(ctx context.Context, st *store.Store, clients Clients, now time.Time, p
 		}
 
 		rec := store.CVE{ID: id, EnrichedAt: now.Unix()}
-		if nvdRes.Found {
+		if coreRes.Found {
 			rec.EnrichStatus = store.EnrichStatusOK
-			rec.Description = nvdRes.Description
-			rec.CVSSScore = nvdRes.CVSSScore
-			rec.CVSSVersion = nvdRes.CVSSVersion
-			rec.CVSSSeverity = nvdRes.CVSSSeverity
-			rec.CVSSVector = nvdRes.CVSSVector
-			rec.CWE = nvdRes.CWE
-			rec.NVDPublished = nvdRes.Published
-			rec.NVDModified = nvdRes.Modified
+			rec.Description = coreRes.Description
+			rec.CVSSScore = coreRes.CVSSScore
+			rec.CVSSVersion = coreRes.CVSSVersion
+			rec.CVSSSeverity = coreRes.CVSSSeverity
+			rec.CVSSVector = coreRes.CVSSVector
+			rec.CWE = coreRes.CWE
+			rec.NVDPublished = coreRes.Published
+			rec.NVDModified = coreRes.Modified
 		} else {
 			rec.EnrichStatus = store.EnrichStatusNotFound
 		}
@@ -92,7 +92,7 @@ func Run(ctx context.Context, st *store.Store, clients Clients, now time.Time, p
 			stats.Errors++
 			continue
 		}
-		if nvdRes.Found {
+		if coreRes.Found {
 			stats.Enriched++
 		} else {
 			stats.NotFound++

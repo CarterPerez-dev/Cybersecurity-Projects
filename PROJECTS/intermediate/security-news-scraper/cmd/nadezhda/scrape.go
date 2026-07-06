@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CarterPerez-dev/nadezhda/internal/cluster"
+	"github.com/CarterPerez-dev/nadezhda/internal/config"
+	"github.com/CarterPerez-dev/nadezhda/internal/enrich"
 	"github.com/CarterPerez-dev/nadezhda/internal/fetch"
 	"github.com/CarterPerez-dev/nadezhda/internal/ingest"
 	"github.com/CarterPerez-dev/nadezhda/internal/source"
@@ -21,6 +23,8 @@ import (
 
 const secondsPerHour = 3600
 
+const enrichBudget = 5 * time.Minute
+
 const (
 	statusNotModified = "304"
 	statusError       = "error"
@@ -28,7 +32,10 @@ const (
 	dash              = "-"
 )
 
-var scrapeSource string
+var (
+	scrapeSource   string
+	scrapeNoEnrich bool
+)
 
 var scrapeCmd = &cobra.Command{
 	Use:   "scrape",
@@ -38,6 +45,7 @@ var scrapeCmd = &cobra.Command{
 
 func init() {
 	scrapeCmd.Flags().StringVar(&scrapeSource, "source", "", "ingest only this source by name")
+	scrapeCmd.Flags().BoolVar(&scrapeNoEnrich, "no-enrich", false, "skip the keyless CVE enrichment pass")
 	rootCmd.AddCommand(scrapeCmd)
 }
 
@@ -88,7 +96,32 @@ func runScrape(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%d clusters (%d multi-source, largest %d)\n",
 		stats.Total, stats.MultiSource, stats.LargestSize)
+
+	if !scrapeNoEnrich {
+		enrichAfterScrape(ctx, cmd, cfg, st)
+	}
 	return nil
+}
+
+func enrichAfterScrape(ctx context.Context, cmd *cobra.Command, cfg config.Config, st *store.Store) {
+	out := cmd.OutOrStdout()
+	ectx, cancel := context.WithTimeout(ctx, enrichBudget)
+	defer cancel()
+
+	stats, err := enrich.Run(ectx, st, buildEnrichClients(cfg), time.Now(), cfg.Enrich.CacheTTLHours, cfg.Enrich.NegativeTTLHours)
+	if err != nil {
+		if done := stats.Enriched + stats.NotFound; done > 0 {
+			fmt.Fprintf(out, "enriched %d/%d CVEs before stopping: %v\n", done, stats.Total, err)
+		} else {
+			fmt.Fprintf(out, "enrich skipped: %v (news is unaffected)\n", err)
+		}
+		return
+	}
+	if stats.Total == 0 {
+		return
+	}
+	fmt.Fprintf(out, "enriched %d/%d CVEs (%d KEV, %d not found)\n",
+		stats.Enriched, stats.Total, stats.KEVHits, stats.NotFound)
 }
 
 func selectTargets(srcs []source.Source, only string) ([]source.Source, error) {

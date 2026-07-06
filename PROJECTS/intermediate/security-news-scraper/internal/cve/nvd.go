@@ -24,18 +24,6 @@ const (
 	langEnglish     = "en"
 )
 
-type NVDResult struct {
-	Found        bool
-	Description  string
-	CVSSScore    *float64
-	CVSSVersion  string
-	CVSSSeverity string
-	CVSSVector   string
-	CWE          string
-	Published    string
-	Modified     string
-}
-
 type NVDClient struct {
 	http        *http.Client
 	baseURL     string
@@ -58,7 +46,7 @@ func NewNVDClient(client *http.Client, baseURL, apiKey string) *NVDClient {
 	}
 }
 
-func (c *NVDClient) Fetch(ctx context.Context, cveID string) (NVDResult, error) {
+func (c *NVDClient) Fetch(ctx context.Context, cveID string) (CoreResult, error) {
 	endpoint := c.baseURL + "?" + url.Values{"cveId": {cveID}}.Encode()
 	header := http.Header{}
 	if c.apiKey != "" {
@@ -69,23 +57,23 @@ func (c *NVDClient) Fetch(ctx context.Context, cveID string) (NVDResult, error) 
 	for attempt := 0; attempt <= nvdMaxRetries; attempt++ {
 		if attempt > 0 {
 			if err := sleep(ctx, c.backoffBase*time.Duration(1<<(attempt-1))); err != nil {
-				return NVDResult{}, err
+				return CoreResult{}, err
 			}
 		}
 		if err := c.limiter.Wait(ctx); err != nil {
-			return NVDResult{}, err
+			return CoreResult{}, err
 		}
 		err := getJSON(ctx, c.http, endpoint, header, &env)
 		if err == nil {
 			break
 		}
 		if !retriable(err) || attempt == nvdMaxRetries {
-			return NVDResult{}, err
+			return CoreResult{}, err
 		}
 	}
 
 	if env.TotalResults == 0 || len(env.Vulnerabilities) == 0 {
-		return NVDResult{Found: false}, nil
+		return CoreResult{Found: false}, nil
 	}
 	return env.Vulnerabilities[0].CVE.toResult(), nil
 }
@@ -140,8 +128,8 @@ type nvdCVSSData struct {
 	BaseSeverity string  `json:"baseSeverity"`
 }
 
-func (v nvdCVE) toResult() NVDResult {
-	res := NVDResult{
+func (v nvdCVE) toResult() CoreResult {
+	res := CoreResult{
 		Found:       true,
 		Description: english(v.Descriptions),
 		Published:   v.Published,

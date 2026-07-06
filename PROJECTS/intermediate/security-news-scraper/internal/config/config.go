@@ -33,13 +33,13 @@ const (
 	defaultHalfLifeHours = 48
 	defaultVelocityNorm  = 0.5
 
-	defaultWeightRecency  = 0.20
-	defaultWeightCVSS     = 0.15
-	defaultWeightKEV      = 0.25
-	defaultWeightEPSS     = 0.15
-	defaultWeightVelocity = 0.15
-	defaultWeightSource   = 0.05
-	defaultWeightKeyword  = 0.05
+	defaultWeightRecency  = 0.30
+	defaultWeightVelocity = 0.20
+	defaultWeightKEV      = 0.12
+	defaultWeightCVSS     = 0.10
+	defaultWeightSource   = 0.10
+	defaultWeightKeyword  = 0.10
+	defaultWeightEPSS     = 0.08
 
 	defaultAIProvider   = "qwen"
 	defaultQwenBaseURL  = "http://localhost:11434/v1"

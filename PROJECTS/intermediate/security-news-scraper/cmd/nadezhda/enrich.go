@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/CarterPerez-dev/nadezhda/internal/config"
 	"github.com/CarterPerez-dev/nadezhda/internal/cve"
 	"github.com/CarterPerez-dev/nadezhda/internal/enrich"
 	"github.com/CarterPerez-dev/nadezhda/internal/store"
@@ -22,7 +23,8 @@ const nvdAPIKeyEnv = "NVD_API_KEY"
 
 var enrichCmd = &cobra.Command{
 	Use:   "enrich",
-	Short: "Enrich extracted CVEs with NVD, CISA KEV, and EPSS intelligence",
+	Short: "Refresh CVE intelligence (CVE List / NVD, CISA KEV, EPSS) for extracted CVEs",
+	Long:  "Refresh CVE intelligence for extracted CVEs. Keyless by default (CVE Program, CISA KEV, EPSS); uses NVD only when NVD_API_KEY is set. scrape already runs this automatically, so this command is for manually refreshing.",
 	RunE:  runEnrich,
 }
 
@@ -41,27 +43,39 @@ func runEnrich(cmd *cobra.Command, args []string) error {
 	}
 	defer st.Close()
 
-	httpClient := &http.Client{Timeout: time.Duration(cfg.Fetch.TimeoutSeconds) * time.Second}
-	apiKey := os.Getenv(nvdAPIKeyEnv)
-	if apiKey == "" {
-		apiKey = cfg.Enrich.NVDAPIKey
-	}
-	clients := enrich.Clients{
-		NVD:  cve.NewNVDClient(httpClient, cve.NVDEndpoint, apiKey),
-		KEV:  cve.NewKEVClient(httpClient, cve.KEVEndpoint),
-		EPSS: cve.NewEPSSClient(httpClient, cve.EPSSEndpoint),
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	stats, err := enrich.Run(ctx, st, clients, time.Now(), cfg.Enrich.CacheTTLHours, cfg.Enrich.NegativeTTLHours)
+	stats, err := enrich.Run(ctx, st, buildEnrichClients(cfg), time.Now(), cfg.Enrich.CacheTTLHours, cfg.Enrich.NegativeTTLHours)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(),
-		"enriched %d/%d CVEs (%d not in NVD, %d KEV, %d errors)\n",
+		"enriched %d/%d CVEs (%d not found, %d KEV, %d errors)\n",
 		stats.Enriched, stats.Total, stats.NotFound, stats.KEVHits, stats.Errors)
 	return nil
+}
+
+func buildEnrichClients(cfg config.Config) enrich.Clients {
+	httpClient := &http.Client{Timeout: time.Duration(cfg.Fetch.TimeoutSeconds) * time.Second}
+	return enrich.Clients{
+		Core: buildCoreSource(httpClient, nvdAPIKey(cfg)),
+		KEV:  cve.NewKEVClient(httpClient, cve.KEVEndpoint),
+		EPSS: cve.NewEPSSClient(httpClient, cve.EPSSEndpoint),
+	}
+}
+
+func buildCoreSource(httpClient *http.Client, apiKey string) cve.CVESource {
+	if apiKey != "" {
+		return cve.NewNVDClient(httpClient, cve.NVDEndpoint, apiKey)
+	}
+	return cve.NewCVEListClient(httpClient, cve.CVEListEndpoint)
+}
+
+func nvdAPIKey(cfg config.Config) string {
+	if k := os.Getenv(nvdAPIKeyEnv); k != "" {
+		return k
+	}
+	return cfg.Enrich.NVDAPIKey
 }

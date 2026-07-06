@@ -50,7 +50,7 @@ func TestRunEnrichesLog4Shell(t *testing.T) {
 	}
 
 	clients := Clients{
-		NVD:  cve.NewNVDClient(nvd.Client(), nvd.URL, ""),
+		Core: cve.NewNVDClient(nvd.Client(), nvd.URL, ""),
 		KEV:  cve.NewKEVClient(kev.Client(), kev.URL),
 		EPSS: cve.NewEPSSClient(epss.Client(), epss.URL),
 	}
@@ -97,7 +97,7 @@ func TestRunSkipsFreshAndMarksNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	clients := Clients{
-		NVD:  cve.NewNVDClient(nvd.Client(), nvd.URL, ""),
+		Core: cve.NewNVDClient(nvd.Client(), nvd.URL, ""),
 		KEV:  cve.NewKEVClient(kev.Client(), kev.URL),
 		EPSS: cve.NewEPSSClient(epss.Client(), epss.URL),
 	}
