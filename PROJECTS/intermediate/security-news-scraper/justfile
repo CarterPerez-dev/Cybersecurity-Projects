@@ -39,5 +39,18 @@ ollama-down:
 ollama-logs:
     docker compose -f internal/setup/ollama.compose.yml logs -f
 
+watch *args:
+    go run ./cmd/nadezhda watch {{args}}
+
+publish target="~/dev/nadezhda":
+    rsync -a --delete \
+      --exclude='.git/' --exclude='docs/' --exclude='/{{binary}}' \
+      --exclude='*.db' --exclude='*.db-wal' --exclude='*.db-shm' \
+      --exclude='/bin/' --exclude='*.test' --exclude='*.out' --exclude='*.prof' \
+      --exclude='testdata/kev/kev-full.json' \
+      ./ {{target}}/
+    @echo "synced this project -> {{target}} (docs/ + build artifacts excluded)"
+    @echo "review, then: cd {{target}} && git add -A && git commit && git push"
+
 clean:
     rm -f {{binary}} *.db *.db-wal *.db-shm

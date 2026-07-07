@@ -1,0 +1,45 @@
+# ©AngelaMos | 2026
+# .goreleaser.yaml
+
+version: 2
+
+project_name: nadezhda
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: nadezhda
+    main: ./cmd/nadezhda
+    binary: nadezhda
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/CarterPerez-dev/nadezhda/internal/version.Version={{ .Version }}
+
+archives:
+  - id: nadezhda
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: CarterPerez-dev
+    name: nadezhda
