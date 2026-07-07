@@ -4,11 +4,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/CarterPerez-dev/nadezhda/internal/ai"
 	"github.com/CarterPerez-dev/nadezhda/internal/rank"
 	"github.com/CarterPerez-dev/nadezhda/internal/store"
 	"github.com/CarterPerez-dev/nadezhda/internal/tui"
@@ -68,8 +70,48 @@ func runTUI(cmd *cobra.Command, args []string) error {
 				detail[v.ID] = full
 			}
 		}
-		return tui.Data{Scored: scored, CVEDetail: detail}, nil
+		notes := map[int64]ai.IdeationResult{}
+		if persisted, err := st.LatestAINotes(); err == nil {
+			for cid, n := range persisted {
+				var angles []string
+				_ = json.Unmarshal([]byte(n.AnglesJSON), &angles)
+				notes[cid] = ai.IdeationResult{Summary: n.Summary, Why: n.Why, Angles: angles, Format: n.Format}
+			}
+		}
+		return tui.Data{Scored: scored, CVEDetail: detail, Notes: notes}, nil
 	}
 
-	return tui.Run(loader)
+	var ideator tui.Ideator
+	if cfg.AI.Enabled {
+		provider, err := ai.Factory(cfg.AI)
+		if err != nil {
+			return err
+		}
+		ctx := cmd.Context()
+		ideator = func(c store.DigestCluster) (ai.IdeationResult, error) {
+			res, err := provider.Generate(ctx, ai.RequestFromCluster(c))
+			if err != nil {
+				return ai.IdeationResult{}, err
+			}
+			angles, err := json.Marshal(res.Angles)
+			if err != nil {
+				return ai.IdeationResult{}, err
+			}
+			note := store.AINote{
+				ClusterID:  c.ClusterID,
+				Provider:   provider.Name(),
+				Summary:    res.Summary,
+				Why:        res.Why,
+				AnglesJSON: string(angles),
+				Format:     res.Format,
+				CreatedAt:  time.Now().Unix(),
+			}
+			if err := st.InsertAINote(note); err != nil {
+				return ai.IdeationResult{}, fmt.Errorf("save note: %w", err)
+			}
+			return res, nil
+		}
+	}
+
+	return tui.Run(loader, ideator)
 }

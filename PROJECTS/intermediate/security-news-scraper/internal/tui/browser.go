@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+
+	"github.com/CarterPerez-dev/nadezhda/internal/setup"
 )
 
 func openURL(target string) error {
@@ -16,7 +18,9 @@ func openURL(target string) error {
 		return fmt.Errorf("refusing to open non-http url: %q", target)
 	}
 	name, args := openerCommand(target)
-	return exec.Command(name, args...).Start()
+	cmd := exec.Command(name, args...)
+	cmd.Env = setup.NonSecretEnviron()
+	return cmd.Start()
 }
 
 func openerCommand(target string) (string, []string) {

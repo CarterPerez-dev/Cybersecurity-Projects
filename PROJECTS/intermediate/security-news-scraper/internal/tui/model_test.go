@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/CarterPerez-dev/nadezhda/internal/ai"
 	"github.com/CarterPerez-dev/nadezhda/internal/rank"
 	"github.com/CarterPerez-dev/nadezhda/internal/store"
 )
@@ -81,11 +82,11 @@ func step(t *testing.T, m Model, msg tea.Msg) Model {
 
 func loadedModel(t *testing.T) Model {
 	t.Helper()
-	return step(t, New(nil, testNow()), dataMsg{sampleData()})
+	return step(t, New(nil, nil, testNow()), dataMsg{sampleData()})
 }
 
 func TestInitialStateIsLoading(t *testing.T) {
-	if m := New(nil, testNow()); m.state != stateLoading {
+	if m := New(nil, nil, testNow()); m.state != stateLoading {
 		t.Fatalf("initial state = %v, want stateLoading", m.state)
 	}
 }
@@ -101,7 +102,7 @@ func TestDataMsgTransitionsToList(t *testing.T) {
 }
 
 func TestErrMsgTransitionsToError(t *testing.T) {
-	m := step(t, New(nil, testNow()), errMsg{errors.New("wire down")})
+	m := step(t, New(nil, nil, testNow()), errMsg{errors.New("wire down")})
 	if m.state != stateError {
 		t.Fatalf("state = %v, want stateError", m.state)
 	}
@@ -188,7 +189,7 @@ func TestSpinnerTickIgnoredOutsideLoading(t *testing.T) {
 }
 
 func TestViewsRenderNonEmpty(t *testing.T) {
-	loading := New(nil, testNow())
+	loading := New(nil, nil, testNow())
 	if strings.TrimSpace(loading.View()) == "" {
 		t.Error("loading view is empty")
 	}
@@ -211,14 +212,14 @@ func TestViewsRenderNonEmpty(t *testing.T) {
 		t.Error("detail view missing severity label")
 	}
 
-	errv := step(t, New(nil, testNow()), errMsg{errors.New("boom")})
+	errv := step(t, New(nil, nil, testNow()), errMsg{errors.New("boom")})
 	if strings.TrimSpace(errv.View()) == "" {
 		t.Error("error view is empty")
 	}
 }
 
 func TestEmptyStoreRendersHint(t *testing.T) {
-	m := step(t, New(nil, testNow()), dataMsg{Data{}})
+	m := step(t, New(nil, nil, testNow()), dataMsg{Data{}})
 	if m.state != stateList {
 		t.Fatalf("state = %v, want stateList", m.state)
 	}
@@ -318,5 +319,87 @@ func TestOpenURLRejectsNonHTTP(t *testing.T) {
 		if err := openURL(bad); err == nil {
 			t.Errorf("openURL(%q) = nil, want refusal", bad)
 		}
+	}
+}
+
+func TestIdeateDisabledShowsHint(t *testing.T) {
+	m := loadedModel(t)
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = step(t, m, runeKey('i'))
+	if !m.statusErr || !strings.Contains(m.status, "nadezhda ai") {
+		t.Errorf("i with nil ideator: status=%q err=%v, want a setup hint", m.status, m.statusErr)
+	}
+	if m.generating {
+		t.Error("generating should stay false when ideator is nil")
+	}
+}
+
+func TestIdeateIgnoredInListView(t *testing.T) {
+	m := loadedModel(t)
+	m.ideator = func(c store.DigestCluster) (ai.IdeationResult, error) {
+		return ai.IdeationResult{Summary: "s", Angles: []string{"a"}, Format: "blog"}, nil
+	}
+	tm, cmd := m.Update(runeKey('i'))
+	m = toModel(t, tm)
+	if m.generating || cmd != nil {
+		t.Errorf("i in the list must be a no-op: generating=%v cmd=%v", m.generating, cmd)
+	}
+}
+
+func TestIdeateFlowStoresAndRenders(t *testing.T) {
+	m := loadedModel(t)
+	m.ideator = func(c store.DigestCluster) (ai.IdeationResult, error) {
+		return ai.IdeationResult{Summary: "s", Why: "w", Angles: []string{"angle-one", "angle-two"}, Format: "video"}, nil
+	}
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	tm, cmd := m.Update(runeKey('i'))
+	m = toModel(t, tm)
+	if !m.generating || cmd == nil {
+		t.Fatalf("after i: generating=%v cmd=%v", m.generating, cmd)
+	}
+
+	msg := m.ideateSelected()()
+	im, ok := msg.(ideatedMsg)
+	if !ok {
+		t.Fatalf("ideateSelected produced %T, want ideatedMsg", msg)
+	}
+	if im.clusterID != 1 || im.result.Summary != "s" {
+		t.Fatalf("ideatedMsg = %+v", im)
+	}
+
+	m = step(t, m, im)
+	if m.generating {
+		t.Error("generating still true after ideatedMsg")
+	}
+	if m.notes[1].Summary != "s" || len(m.notes[1].Angles) != 2 {
+		t.Errorf("note not stored: %+v", m.notes[1])
+	}
+
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	dv := m.View()
+	if !strings.Contains(dv, "AI IDEAS") || !strings.Contains(dv, "angle-one") {
+		t.Error("detail view missing the ideation section")
+	}
+}
+
+func TestIdeateErrorSetsStatus(t *testing.T) {
+	m := loadedModel(t)
+	m.ideator = func(c store.DigestCluster) (ai.IdeationResult, error) {
+		return ai.IdeationResult{}, errors.New("boom")
+	}
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = step(t, m, runeKey('i'))
+	msg := m.ideateSelected()()
+	em, ok := msg.(ideateErrMsg)
+	if !ok {
+		t.Fatalf("ideateSelected produced %T, want ideateErrMsg", msg)
+	}
+	m = step(t, m, em)
+	if m.generating {
+		t.Error("generating still true after ideateErrMsg")
+	}
+	if !m.statusErr {
+		t.Error("statusErr not set after ideate failure")
 	}
 }

@@ -91,9 +91,7 @@ func (m Model) listBody(capacity int) string {
 func (m Model) emptyBody(capacity int) string {
 	t := m.theme
 	msg := t.Muted.Render("no stories in the store yet — run ") +
-		t.KeyGlyph.Render("nadezhda scrape") +
-		t.Muted.Render(" then ") +
-		t.KeyGlyph.Render("nadezhda enrich")
+		t.KeyGlyph.Render("nadezhda scrape")
 	return lipgloss.Place(m.width, capacity, lipgloss.Center, lipgloss.Center, msg)
 }
 

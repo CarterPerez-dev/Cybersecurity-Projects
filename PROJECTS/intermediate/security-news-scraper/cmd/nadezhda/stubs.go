@@ -21,7 +21,6 @@ func init() {
 		short     string
 		milestone string
 	}{
-		{"ideate", "Generate content angles from ranked clusters via an AI provider", "milestone M6"},
 		{"watch", "Run as a daemon, re-ingesting on an interval", "milestone M7"},
 	}
 	for _, s := range stubs {

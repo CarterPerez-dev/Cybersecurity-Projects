@@ -48,6 +48,17 @@ func (m Model) renderDetailBody() string {
 			b.WriteString(m.renderCVE(v, w, indent))
 		}
 	}
+
+	if note, ok := m.notes[c.ClusterID]; ok {
+		b.WriteString(m.sectionHeader("AI IDEAS", w))
+		b.WriteString("\n")
+		b.WriteString(t.fg(colorMagenta).Bold(true).Render(strings.ToUpper(note.Format)) + "\n\n")
+		b.WriteString(m.wrapIndent(note.Summary, w, t.Text) + "\n\n")
+		b.WriteString(m.wrapIndent(note.Why, w, t.Muted) + "\n\n")
+		for i, a := range note.Angles {
+			b.WriteString(m.wrapIndent(fmt.Sprintf("%d. %s", i+1, a), w, t.Text) + "\n")
+		}
+	}
 	return strings.TrimRight(b.String(), "\n")
 }
 

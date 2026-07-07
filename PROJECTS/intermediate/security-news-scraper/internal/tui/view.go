@@ -135,7 +135,7 @@ func (m Model) detailView() string {
 		t.Muted.Render(fmt.Sprintf("story %d of %d", m.cursor+1, len(m.scored)))
 	head := m.spread(left, t.Meta.Render(scroll))
 	foot := m.spread(
-		m.keyHints(m.keys.Back, m.keys.Browser, m.keys.Down, m.keys.Up, m.keys.Quit),
+		m.keyHints(m.keys.Back, m.keys.Browser, m.keys.Ideate, m.keys.Down, m.keys.Up, m.keys.Quit),
 		m.statusText(),
 	)
 	return lipgloss.JoinVertical(lipgloss.Left,
@@ -148,6 +148,9 @@ func (m Model) detailView() string {
 }
 
 func (m Model) statusText() string {
+	if m.generating {
+		return m.spinner.View() + " " + m.theme.fg(colorCyan).Render(m.status)
+	}
 	if m.status == "" {
 		return ""
 	}
