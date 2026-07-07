@@ -1,0 +1,127 @@
+[project]
+name = "jwt-auditor"
+version = "0.1.0"
+description = "Decode and audit JSON Web Tokens for alg confusion, weak secrets, and unsafe claims."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+authors = [
+    { name = "Mohamed Elobeid" },
+]
+keywords = [
+    "jwt",
+    "security",
+    "json-web-token",
+    "hmac",
+    "cli",
+]
+dependencies = [
+    "typer>=0.15.0,<0.20.0",
+    "rich>=13.9.0,<15.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0,<9.0.0",
+    "pytest-cov>=6.0.0,<7.0.0",
+    "mypy>=1.13.0,<2.0.0",
+    "ruff>=0.8.0,<0.9.0",
+    "pylint>=3.3.0,<4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main"
+Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/jwt-auditor"
+
+[project.scripts]
+jwt-auditor = "jwt_auditor.main:app"
+
+[build-system]
+requires = [
+    "hatchling",
+]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/jwt_auditor",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = [
+    "src",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "B",
+    "C4",
+    "UP",
+    "SIM",
+    "PTH",
+    "RUF",
+    "S",
+    "N",
+]
+ignore = [
+    "E501",
+    "S101",
+    "N818",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",
+    "S105",
+    "S106",
+    "S107",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+]
+ignore_errors = true
+
+[tool.pylint.main]
+py-version = "3.12"
+jobs = 4
+
+[tool.pylint.messages_control]
+disable = [
+    "C0103",
+    "C0114",
+    "C0115",
+    "C0116",
+    "C0301",
+    "R0903",
+    "R0911",
+    "R0913",
+    "R0917",
+    "W0718",
+]
+
+[tool.pylint.format]
+max-line-length = 95
+
+[tool.pylint.design]
+max-attributes = 10
+max-args = 8
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+addopts = "-ra -q"
