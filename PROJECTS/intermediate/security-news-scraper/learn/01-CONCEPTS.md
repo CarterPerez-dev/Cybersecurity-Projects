@@ -27,7 +27,7 @@ The subtle part is *where* the score lives. In the CVE Program record for **Log4
 
 ### CWE: what kind of weakness is it
 
-Where CVSS scores severity, the Common Weakness Enumeration classifies the *kind* of flaw. CVE-2025-5777 is CWE-125, an out of bounds read. Log4Shell enriches to CWE-20, improper input validation. CWE is what lets you say "we keep shipping the same class of bug" across many CVEs, and it is a natural axis to filter or group on.
+Where CVSS scores severity, the Common Weakness Enumeration classifies the *kind* of flaw. CVE-2025-5777 is CWE-125, an out of bounds read. Log4Shell is CWE-502, deserialization of untrusted data. CWE is what lets you say "we keep shipping the same class of bug" across many CVEs, and it is a natural axis to filter or group on.
 
 ### CISA KEV: is it being exploited right now
 
@@ -71,7 +71,7 @@ score =  w_recency  * recency_decay(age)
 
 `recency_decay` is an exponential half life function, so a story loses half its recency weight every configured number of hours. Every weight lives in configuration, not in the code, so there are no magic numbers to hunt for and the model is fully tunable.
 
-The default weights are news first: recency and velocity together carry 70 percent, and the CVE signals (KEV, CVSS, EPSS) carry the remaining 30. This reflects a specific product decision. Nadezhda is a security *news* tool. A breach or a campaign with no CVE at all should not be buried beneath a routine patch note just because the patch note has a number attached. The CVE data is intelligence that enriches a story, not the reason the story matters.
+The default weights are news first: recency, velocity, source, and keyword together carry 70 percent, and the CVE signals (KEV, CVSS, EPSS) carry the remaining 30. This reflects a specific product decision. Nadezhda is a security *news* tool. A breach or a campaign with no CVE at all should not be buried beneath a routine patch note just because the patch note has a number attached. The CVE data is intelligence that enriches a story, not the reason the story matters.
 
 Because ranking is a pure function of stored inputs, the same corpus always produces the same order. That property is what lets the project assert its ranking with golden order tests: feed fixed inputs, expect one exact ordering.
 

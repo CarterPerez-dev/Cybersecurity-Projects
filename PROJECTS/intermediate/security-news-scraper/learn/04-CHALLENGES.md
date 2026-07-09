@@ -9,7 +9,7 @@ Ways to extend the project, ordered roughly from an afternoon to a serious under
 
 **Add a source.** The source list is `sources.yaml`, embedded by default. Add an entry with a name, feed URL, type, and weight, then run `nadezhda sources` to persist it and `nadezhda scrape` to pull it. Pick a feed that overlaps with the existing seven (say, a second general security outlet) and watch it start joining clusters. The source `weight` feeds ranking, so a source you trust more nudges its stories up.
 
-**Retune the ranking.** Every weight lives in `config`, under `rank.weights`. The defaults are news first (recency and velocity dominate). Flip that: crank `cvss`, `kev`, and `epss` up and `recency` down, scrape, and compare the top of `nadezhda digest`. You will see the list reorder toward raw severity. There is no code change here, which is the point: the model is data, not logic.
+**Retune the ranking.** Every weight lives in `config`, under `rank.weights`. The defaults are news first (recency and velocity are the heaviest weights). Flip that: crank `cvss`, `kev`, and `epss` up and `recency` down, scrape, and compare the top of `nadezhda digest`. You will see the list reorder toward raw severity. There is no code change here, which is the point: the model is data, not logic.
 
 **Add a keyword watchlist.** Set `watchlist` in config to the vendors and products you actually run. `matchesWatchlist` in `internal/rank` scores a cluster higher when a term appears in its titles or CVEs. Confirm it works by adding a vendor you know is in today's news and watching its stories climb.
 
