@@ -1,0 +1,22 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+# Dev-only docs (research / plans / context / handoffs) never ship to the public repo
+docs/
+
+# Rust build artifacts
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Fuzzing campaign working data
+/campaigns
+/corpus
+/crashes
+*.profraw
+*.profdata
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
