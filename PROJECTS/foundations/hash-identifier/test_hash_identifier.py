@@ -141,6 +141,41 @@ def test_django_pbkdf2_prefix_is_recognized() -> None:
     assert candidates[0].algorithm == "Django PBKDF2-SHA256"
 
 
+def test_kerberos_tgs_prefix_is_recognized() -> None:
+    """
+    Kerberoasting hashes start with `$krb5tgs$` and should be
+    reported as a Kerberos TGS-REP with HIGH confidence
+
+    Sample is a real-shaped RC4 (`etype 23`) service ticket hash,
+    the format Impacket's GetUserSPNs.py and Rubeus both emit.
+    identify() never decodes the ticket payload, so a short
+    fake tail after the two known `$`-delimited fields is enough
+    """
+    # $krb5tgs$<etype>$*<user>$<realm>$<spn>*$<checksum>$<edata2>
+    sample = "$krb5tgs$23$*user$REALM.COM$cifs/host.realm.com*$checksumhere$edata2here"
+    candidates = identify(sample)
+    assert candidates
+    assert candidates[0].algorithm == "Kerberos TGS-REP (Kerberoasting)"
+    assert candidates[0].confidence == "high"
+
+
+def test_kerberos_asrep_prefix_is_recognized() -> None:
+    """
+    AS-REP roasting hashes start with `$krb5asrep$` and should be
+    reported as a Kerberos AS-REP with HIGH confidence
+
+    Sample mirrors what Impacket's GetNPUsers.py and Rubeus's
+    `asreproast` output for an account with Kerberos pre-auth
+    disabled. As with TGS-REP, identify() only inspects the prefix
+    """
+    # $krb5asrep$<etype>$<user>@<realm>:<checksum>$<edata2>
+    sample = "$krb5asrep$23$user@REALM.COM:checksumhere$edata2here"
+    candidates = identify(sample)
+    assert candidates
+    assert candidates[0].algorithm == "Kerberos AS-REP (AS-REP Roasting)"
+    assert candidates[0].confidence == "high"
+
+
 def test_apr1_prefix_is_recognized() -> None:
     """
     Apache `.htpasswd` MD5 hashes start with $apr1$

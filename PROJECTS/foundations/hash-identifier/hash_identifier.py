@@ -177,8 +177,24 @@ PREFIX_RULES: list[tuple[str, str, str]] = [
     ("{SHA}", "LDAP SHA", "LDAP SHA-1 (base64 payload)"),
     ("{SMD5}", "LDAP SMD5", "LDAP salted MD5 (base64 payload)"),
     ("{MD5}", "LDAP MD5", "LDAP MD5 (base64 payload)"),
+
     ("{CRYPT}", "LDAP CRYPT", "LDAP wrapping a crypt(3) hash"),
+
+    # Kerberos — Active Directory attack hashes. Both are emitted by
+    # Impacket's GetUserSPNs.py / GetNPUsers.py and Rubeus in
+    # "hashcat" format. The digit right after the second `$` is the
+    # Kerberos encryption type (23 = RC4, 17 = AES128, 18 = AES256)
+    # and decides which hashcat -m mode to crack it with, but it does
+    # not change WHAT the hash is, so we match on the prefix alone
+    ("$krb5tgs$", "Kerberos TGS-REP (Kerberoasting)",
+     "service ticket hash from Kerberoasting; etype digit after $krb5tgs$ "
+     "(23=RC4, 17/18=AES) picks the hashcat mode"),
+    ("$krb5asrep$", "Kerberos AS-REP (AS-REP Roasting)",
+     "pre-auth-disabled account hash from AS-REP roasting; etype digit "
+     "after $krb5asrep$ (23=RC4, 17/18=AES) picks the hashcat mode"),
+
 ]
+
 
 
 # =============================================================================
