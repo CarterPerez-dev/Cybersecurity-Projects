@@ -37,6 +37,7 @@ Industry frameworks (NIST, ISO, MITRE), compliance standards (PCI-DSS, HIPAA, GD
 - [Hack The Box](https://www.hackthebox.com/) - Penetration testing labs
 - [HackTheBox Academy](https://academy.hackthebox.com/) - Structured learning paths
 - [Cybrary](https://www.cybrary.it) - Free cybersecurity courses
+- [Dark-Moon](https://github.com/ASCIT31/Dark-Moon): open source (GPL-3.0) autonomous AI pentest platform, self-hosted, for training safely on legal labs (OWASP Juice Shop, DVWA, kubernetes-goat, Hack The Box); covers web, API, Active Directory and Kubernetes. FREE
 - [CertGames](https://certgames.com/) - Practice questions, Learn lessons, guided projects, and roadmaps, all gamified. FREE
 
 ---
