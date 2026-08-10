@@ -29,12 +29,16 @@ class UnwrapResult(BaseModel):
 
 
 def _printable_ratio(text: str) -> float:
-    if not text:
+    considered = [
+        char for char in text if char not in config.ZERO_WIDTH_CHARS
+        and char not in config.BIDI_CONTROLS
+    ]
+    if not considered:
         return 0.0
     printable = sum(
-        1 for char in text if char.isprintable() or char in "\n\r\t"
+        1 for char in considered if char.isprintable() or char in "\n\r\t"
     )
-    return printable / len(text)
+    return printable / len(considered)
 
 
 def _looks_decoded(candidate: str) -> bool:

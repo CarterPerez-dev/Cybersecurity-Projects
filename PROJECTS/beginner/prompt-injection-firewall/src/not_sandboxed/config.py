@@ -16,7 +16,39 @@ LAYER_NORMALIZE: Final = "normalize"
 LAYER_INGRESS: Final = "ingress"
 LAYER_PROVENANCE: Final = "provenance"
 
+LAYER_EGRESS: Final = "egress"
+
 RULE_NONCE_FORGERY: Final = "nonce-forgery"
+RULE_CANARY_LEAK: Final = "canary-leak"
+RULE_URL_EGRESS: Final = "url-egress"
+
+SEPARATOR_CODEPOINTS: Final = (
+    0x0020,
+    0x0009,
+    0x000A,
+    0x000D,
+    0x002D,
+    0x002E,
+    0x005F,
+    0x007C,
+    0x002C,
+    0x003A,
+    0x003B,
+    0x002A,
+    0x007E,
+    0x0027,
+    0x0022,
+    0x0060,
+)
+SEPARATOR_CHARS: Final = frozenset(
+    chr(point) for point in SEPARATOR_CODEPOINTS
+)
+
+MAX_VARIANT_ROUNDS: Final = 4
+MAX_VARIANTS: Final = 96
+MIN_CANARY_LENGTH: Final = 8
+
+URL_PATTERN: Final = r"https?://[^\s\)\]\>\"']+"
 AUDIT_DIGEST_CHARS: Final = 16
 
 RULE_LAYER_ERROR: Final = "layer-error"
