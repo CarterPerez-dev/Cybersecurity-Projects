@@ -1,0 +1,22 @@
+# ©AngelaMos | 2026
+# justfile
+
+set shell := ["bash", "-uc"]
+
+default:
+    @just --list
+
+lint:
+    uv run ruff check .
+    uv run mypy src/ tests/
+
+format:
+    uv run yapf -r -i src/ tests/
+
+check-format:
+    uv run yapf -r -d src/ tests/
+
+test:
+    uv run pytest tests/ -v
+
+check: lint check-format test
