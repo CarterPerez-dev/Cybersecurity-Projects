@@ -74,6 +74,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "PLR2004", "S104", "S105", "S106"]
+"tests/normalize/*.py" = ["RUF001"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 12
