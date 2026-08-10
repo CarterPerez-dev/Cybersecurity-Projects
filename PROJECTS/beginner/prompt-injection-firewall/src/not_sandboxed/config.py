@@ -12,6 +12,43 @@ FENCE_OPEN: Final = "<<<UNTRUSTED-{nonce} origin={channel}:{ref}>>>"
 FENCE_CLOSE: Final = "<<<END-{nonce}>>>"
 
 LAYER_NORMALIZE: Final = "normalize"
+LAYER_INGRESS: Final = "ingress"
+
+RULE_TEMPLATE_MARKER: Final = "chat-template-marker"
+RULE_DATA_IMPERATIVE: Final = "data-imperative"
+
+CHAT_TEMPLATE_MARKERS: Final = (
+    "<|im_start|>",
+    "<|im_end|>",
+    "<|system|>",
+    "<|user|>",
+    "<|assistant|>",
+    "<|endoftext|>",
+    "[INST]",
+    "[/INST]",
+    "<<SYS>>",
+    "<</SYS>>",
+    "</system>",
+    "</s>",
+)
+
+DATA_IMPERATIVE_PATTERNS: Final = (
+    r"\b(?:ignore|disregard|forget|override)\b[^.\n]{0,40}"
+    r"\b(?:previous|prior|earlier|above|preceding|all)\b"
+    r"[^.\n]{0,40}"
+    r"\b(?:instruction|instructions|prompt|prompts|rule|rules|"
+    r"direction|directions)\b",
+    r"\byou\s+are\s+now\b",
+    r"\bfrom\s+now\s+on\b[^.\n]{0,40}\byou\b",
+    r"\b(?:reveal|disclose|print|output|repeat|show|leak|send)\b"
+    r"[^.\n]{0,40}"
+    r"\b(?:system\s+prompt|initial\s+prompt|your\s+instructions|"
+    r"the\s+secret|api\s+key|credentials?)\b",
+    r"\b(?:act|behave)\s+as\s+(?:if\s+you\s+are\s+)?an?\b",
+    r"\bpretend\s+(?:to\s+be|that\s+you)\b",
+    r"\b(?:do\s+not|don't|never)\s+tell\s+the\s+user\b",
+    r"\bnew\s+(?:instructions?|system\s+prompt)\s*:",
+)
 
 RULE_DECODE_BUDGET: Final = "decode-budget-exceeded"
 RULE_INPUT_TOO_LARGE: Final = "input-too-large"
