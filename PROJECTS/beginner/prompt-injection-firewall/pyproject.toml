@@ -13,6 +13,8 @@ dependencies = [
     "structlog>=25.0.0",
     "orjson>=3.10.0",
     "ruamel.yaml>=0.18.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
 ]
 
 [project.scripts]
@@ -33,6 +35,7 @@ dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
     "hypothesis>=6.130.0",
+    "httpx2>=2.10.0",
 ]
 
 [tool.ruff]

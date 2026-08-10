@@ -80,6 +80,26 @@ MIN_CANARY_LENGTH: Final = 8
 URL_PATTERN: Final = r"https?://[^\s\)\]\>\"']+"
 AUDIT_DIGEST_CHARS: Final = 16
 
+PROXY_TRUSTED_ROLES: Final = ("system", "developer")
+PROXY_SEMI_TRUSTED_ROLES: Final = ("user", "assistant")
+PROXY_UNTRUSTED_ROLES: Final = ("tool", "function")
+PROXY_TOOL_CHANNEL: Final = "tool"
+PROXY_UNKNOWN_TOOL_REF: Final = "unnamed"
+
+PROXY_WEAK_MODE_WARNING: Final = (
+    "not-sandboxed proxy: provenance is INFERRED from message roles. "
+    "Retrieved content pasted into a user message is NOT seen as "
+    "untrusted, which is what most RAG applications do. The library "
+    "API is the only mode where provenance is declared and correct."
+)
+
+PROXY_BLOCK_MESSAGE: Final = ("This request was refused by not-sandboxed.")
+PROXY_FINISH_REASON_BLOCKED: Final = "content_filter"
+PROXY_FINISH_REASON_OK: Final = "stop"
+PROXY_MODEL_NAME: Final = "not-sandboxed/guarded"
+PROXY_OBJECT_NAME: Final = "chat.completion"
+PROXY_VERDICT_FIELD: Final = "not_sandboxed"
+
 RULE_LAYER_ERROR: Final = "layer-error"
 RULE_LAYER_DISABLED: Final = "layer-disabled"
 
