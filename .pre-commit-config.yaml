@@ -99,6 +99,12 @@ repos:
         files: ^PROJECTS/beginner/linux-ebpf-security-tracer/
         exclude: (\.venv|__pycache__|\.pytest_cache)/
 
+      - id: ruff
+        name: ruff check (prompt-injection-firewall)
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^PROJECTS/beginner/prompt-injection-firewall/
+        exclude: (\.venv|__pycache__|\.pytest_cache|\.mypy_cache|\.hypothesis)/
+
       # Foundations projects
       - id: ruff
         name: ruff check (hash-identifier)
