@@ -1,0 +1,28 @@
+# ©AngelaMos | 2026
+# compose.yml
+
+name: not-sandboxed-arena
+
+services:
+  arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: not-sandboxed-arena-api
+    image: not-sandboxed-arena-api:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NS_ARENA_PORT:-43117}:8000"
+    networks:
+      - arena
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+networks:
+  arena:
+    internal: false

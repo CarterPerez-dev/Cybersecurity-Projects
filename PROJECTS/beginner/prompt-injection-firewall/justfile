@@ -23,3 +23,21 @@ bench:
     uv run python -m bench.runner
 
 check: lint check-format test
+
+arena:
+    docker compose -f compose.yml --env-file .env up -d --build
+
+arena-down:
+    docker compose -f compose.yml --env-file .env down
+
+arena-logs:
+    docker compose -f compose.yml --env-file .env logs -f
+
+arena-dev:
+    docker compose -f dev.compose.yml --env-file .env up --build
+
+arena-dev-down:
+    docker compose -f dev.compose.yml --env-file .env down
+
+harvest:
+    uv run python -m not_sandboxed.arena.harvest

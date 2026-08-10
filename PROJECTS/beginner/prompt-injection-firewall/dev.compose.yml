@@ -1,0 +1,32 @@
+# ©AngelaMos | 2026
+# dev.compose.yml
+
+name: not-sandboxed-arena-dev
+
+services:
+  arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: not-sandboxed-arena-dev-api
+    image: not-sandboxed-arena-dev-api:latest
+    command:
+      - sh
+      - -c
+      - "uv sync --frozen && exec uv run uvicorn
+         not_sandboxed.arena.app:build_arena --factory
+         --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      - CI=true
+    volumes:
+      - ./src:/app/src
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
+    ports:
+      - "127.0.0.1:${NS_ARENA_DEV_PORT:-43118}:8000"
+    networks:
+      - arena
+
+networks:
+  arena:
+    internal: false

@@ -7,6 +7,8 @@ import re
 from typing import Final
 
 from not_sandboxed import config
+from not_sandboxed.normalize.unicode import normalize_unicode
+from not_sandboxed.normalize.unwrap import unwrap
 from not_sandboxed.tools import AgentReply, ToolCallRequest
 
 
@@ -32,7 +34,13 @@ class MockAgent:
         """
         Obey every instruction found anywhere in the prompt, without
         caring which span it came from
+
+        The prompt is read through the same normalization a real
+        tokenizer applies, because a model that could not see a
+        tag-block payload would make the normalization layer look
+        like it was stopping an attack that never worked
         """
+        prompt = unwrap(normalize_unicode(prompt).text).text
         parts: list[str] = []
         calls: list[ToolCallRequest] = []
 

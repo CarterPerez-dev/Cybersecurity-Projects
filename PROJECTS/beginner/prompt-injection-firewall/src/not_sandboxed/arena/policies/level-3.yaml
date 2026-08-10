@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-3.yaml
+
+policy_id: level-3
+title: Ingress inspection
+teaches: Copy-pasted payloads and forged chat-template markers die here. Paraphrase still works.
+strict_data: true
+normalize_enabled: true
+ingress_enabled: true
+provenance_enabled: false
+toolauth_enabled: false
+egress_enabled: false
