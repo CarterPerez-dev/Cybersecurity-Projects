@@ -17,6 +17,35 @@ LAYER_INGRESS: Final = "ingress"
 LAYER_PROVENANCE: Final = "provenance"
 
 LAYER_EGRESS: Final = "egress"
+LAYER_TOOLAUTH: Final = "toolauth"
+
+EGRESS_LAYER_ORDER: Final = (
+    LAYER_TOOLAUTH,
+    LAYER_EGRESS,
+)
+
+RULE_TAINTED_ACTION: Final = "tainted-action"
+RULE_TOOL_UNKNOWN: Final = "tool-unknown"
+RULE_TOOL_ARGS_INVALID: Final = "tool-args-invalid"
+RULE_TOOL_NOT_ALLOWLISTED: Final = "tool-args-not-allowlisted"
+
+TOOLAUTH_INVARIANT_RULES: Final = (
+    RULE_TAINTED_ACTION,
+    RULE_TOOL_UNKNOWN,
+    RULE_TOOL_ARGS_INVALID,
+    RULE_TOOL_NOT_ALLOWLISTED,
+)
+
+AGENT_REVEAL_PATTERN: Final = (
+    r"\b(?:reveal|disclose|print|output|repeat|show|leak|send)\b"
+    r"[^.\n]{0,40}\bsecret\b"
+)
+AGENT_EMAIL_PATTERN: Final = (r"\bsend\s+(?:an\s+)?e-?mail\s+to\s+(\S+)")
+AGENT_DEFAULT_REPLY: Final = (
+    "Thanks for getting in touch. I have looked at your ticket "
+    "and will follow up shortly."
+)
+AGENT_DISCLOSURE_TEMPLATE: Final = "Of course, it is {value}"
 
 RULE_NONCE_FORGERY: Final = "nonce-forgery"
 RULE_CANARY_LEAK: Final = "canary-leak"

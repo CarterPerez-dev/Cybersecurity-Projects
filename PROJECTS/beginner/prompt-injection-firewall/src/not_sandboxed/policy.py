@@ -27,6 +27,8 @@ class Policy(BaseModel):
     provenance_enabled: bool = True
     toolauth_enabled: bool = True
     egress_enabled: bool = True
+    canaries: tuple[str, ...] = ()
+    allowed_hosts: tuple[str, ...] = ()
 
 
 def escalate(
