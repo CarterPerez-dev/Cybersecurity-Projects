@@ -1,0 +1,177 @@
+// ===================
+// © AngelaMos | 2026
+// arena.module.scss
+// ===================
+// Layout only. No colour, no type scale, no aesthetic decisions.
+// The visual language is Carter's call; every class below is a hook
+// waiting for it.
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  margin: 0;
+}
+
+.tagline {
+  margin: 0;
+}
+
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.level-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  cursor: pointer;
+}
+
+.level-number {
+  display: block;
+}
+
+.level-title {
+  display: block;
+}
+
+.teaches {
+  margin: 0;
+}
+
+.layers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.layers-heading {
+  margin: 0;
+}
+
+.layer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.layer {
+  display: inline-block;
+}
+
+.note {
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  display: block;
+}
+
+.hint {
+  margin: 0;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.counter {
+  align-self: flex-end;
+}
+
+.submit {
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.verdict-heading {
+  margin: 0;
+}
+
+.decisions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+
+  dd {
+    margin: 0;
+  }
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.finding-layer,
+.finding-rule,
+.finding-severity {
+  display: inline-block;
+}
+
+.outcome {
+  margin: 0;
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agent-heading {
+  margin: 0;
+}
+
+.agent-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  font-family: inherit;
+}

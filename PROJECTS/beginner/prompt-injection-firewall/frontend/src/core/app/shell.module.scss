@@ -1,0 +1,31 @@
+// ===================
+// © AngelaMos | 2026
+// shell.module.scss
+// ===================
+// Layout only. The visual language is decided later.
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  pre {
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+}
+
+.loading {
+  display: block;
+}

@@ -24,6 +24,19 @@ bench:
 
 check: lint check-format test
 
+ui-lint:
+    cd frontend && pnpm lint && pnpm lint:scss
+
+ui-typecheck:
+    cd frontend && pnpm typecheck
+
+ui-build:
+    cd frontend && pnpm build
+
+ui-check: ui-lint ui-typecheck ui-build
+
+check-all: check ui-check
+
 arena:
     docker compose -f compose.yml --env-file .env up -d --build
 
@@ -38,6 +51,14 @@ arena-dev:
 
 arena-dev-down:
     docker compose -f dev.compose.yml --env-file .env down
+
+tunnel:
+    docker compose -f compose.yml -f cloudflared.compose.yml \
+        --env-file .env up -d --build
+
+tunnel-down:
+    docker compose -f compose.yml -f cloudflared.compose.yml \
+        --env-file .env down
 
 harvest:
     uv run python -m not_sandboxed.arena.harvest

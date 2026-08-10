@@ -11,8 +11,6 @@ services:
     container_name: not-sandboxed-arena-api
     image: not-sandboxed-arena-api:latest
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:${NS_ARENA_PORT:-43117}:8000"
     networks:
       - arena
     read_only: true
@@ -22,7 +20,34 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/docker/vite.prod
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_APP_TITLE=${VITE_APP_TITLE:-not-sandboxed arena}
+    container_name: not-sandboxed-arena-nginx
+    image: not-sandboxed-arena-nginx:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NS_UI_PORT:-33572}:80"
+    depends_on:
+      - arena
+    networks:
+      - arena
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
 
 networks:
   arena:
-    internal: false
+    driver: bridge

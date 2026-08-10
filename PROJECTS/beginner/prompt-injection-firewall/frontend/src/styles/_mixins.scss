@@ -1,0 +1,42 @@
+// ===================
+// © AngelaMos | 2026
+// _mixins.scss
+// ===================
+
+@use 'sass:map';
+@use 'tokens' as *;
+
+$breakpoints: (
+  'xs': $breakpoint-xs,
+  'sm': $breakpoint-sm,
+  'md': $breakpoint-md,
+  'lg': $breakpoint-lg,
+  'xl': $breakpoint-xl,
+  '2xl': $breakpoint-2xl,
+);
+
+@mixin breakpoint-up($size) {
+  @media (min-width: map.get($breakpoints, $size)) { @content; }
+}
+
+@mixin breakpoint-down($size) {
+  @media (max-width: map.get($breakpoints, $size)) { @content; }
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

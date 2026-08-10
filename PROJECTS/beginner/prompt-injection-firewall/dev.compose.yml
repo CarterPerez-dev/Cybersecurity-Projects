@@ -22,11 +22,45 @@ services:
       - ./src:/app/src
       - ./pyproject.toml:/app/pyproject.toml
       - ./uv.lock:/app/uv.lock
+    networks:
+      - arena
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/vite.dev
+    container_name: not-sandboxed-arena-dev-ui
+    command:
+      - sh
+      - -c
+      - "pnpm install && exec pnpm dev --host 0.0.0.0"
+    environment:
+      - CI=true
+      - VITE_API_URL=${VITE_API_URL:-/api}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-not-sandboxed arena}
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    networks:
+      - arena
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: not-sandboxed-arena-dev-nginx
     ports:
-      - "127.0.0.1:${NS_ARENA_DEV_PORT:-43118}:8000"
+      - "127.0.0.1:${NS_UI_DEV_PORT:-61878}:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/dev.nginx:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - arena
     networks:
       - arena
 
 networks:
   arena:
-    internal: false
+    driver: bridge
+
+volumes:
+  frontend_modules:

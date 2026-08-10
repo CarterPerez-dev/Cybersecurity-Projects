@@ -1,0 +1,84 @@
+// ===================
+// © AngelaMos | 2026
+// _tokens.scss
+// ===================
+// Neutral baseline. No brand identity -- grayscale palette, system type, plain
+// spacing scale. Design on top of these; nothing here implies a look.
+
+// Spacing (8px base)
+$space-0: 0;
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.25rem;
+$space-6: 1.5rem;
+$space-8: 2rem;
+$space-10: 2.5rem;
+$space-12: 3rem;
+$space-16: 4rem;
+$space-20: 5rem;
+$space-24: 6rem;
+
+// Font sizes
+$font-size-xs: 0.75rem;
+$font-size-sm: 0.875rem;
+$font-size-base: 1rem;
+$font-size-lg: 1.125rem;
+$font-size-xl: 1.25rem;
+$font-size-2xl: 1.5rem;
+$font-size-3xl: 1.875rem;
+$font-size-4xl: 2.25rem;
+
+// Weights / line-height / radius
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.75;
+$radius-sm: 0.25rem;
+$radius-md: 0.5rem;
+$radius-lg: 0.75rem;
+$radius-full: 9999px;
+
+// Neutral grayscale
+$color-white: #fff;
+$color-black: #000;
+$color-gray-50:  #fafafa;
+$color-gray-100: #f4f4f5;
+$color-gray-200: #e4e4e7;
+$color-gray-300: #d4d4d8;
+$color-gray-400: #a1a1aa;
+$color-gray-500: #71717a;
+$color-gray-600: #52525b;
+$color-gray-700: #3f3f46;
+$color-gray-800: #27272a;
+$color-gray-900: #18181b;
+
+// Neutral semantic aliases
+$color-bg: $color-white;
+$color-surface: $color-gray-50;
+$color-border: $color-gray-200;
+$color-text: $color-gray-900;
+$color-text-muted: $color-gray-500;
+
+// Breakpoints
+$breakpoint-xs: 480px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+$breakpoint-2xl: 1536px;
+
+// Z-index
+$z-base: 1;
+$z-dropdown: 1000;
+$z-modal: 1300;
+$z-toast: 1400;
+
+// Motion
+$duration-fast: 150ms;
+$duration-normal: 250ms;
+$ease: cubic-bezier(0.4, 0, 0.2, 1);
