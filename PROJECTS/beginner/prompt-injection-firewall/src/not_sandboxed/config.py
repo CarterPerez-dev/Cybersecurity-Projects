@@ -17,6 +17,16 @@ LAYER_INGRESS: Final = "ingress"
 LAYER_PROVENANCE: Final = "provenance"
 
 RULE_NONCE_FORGERY: Final = "nonce-forgery"
+AUDIT_DIGEST_CHARS: Final = 16
+
+RULE_LAYER_ERROR: Final = "layer-error"
+RULE_LAYER_DISABLED: Final = "layer-disabled"
+
+LAYER_ORDER: Final = (
+    LAYER_NORMALIZE,
+    LAYER_INGRESS,
+    LAYER_PROVENANCE,
+)
 
 RULE_TEMPLATE_MARKER: Final = "chat-template-marker"
 RULE_DATA_IMPERATIVE: Final = "data-imperative"
