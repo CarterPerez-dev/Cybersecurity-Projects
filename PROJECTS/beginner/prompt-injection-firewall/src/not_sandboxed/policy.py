@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from pydantic import BaseModel, ConfigDict
 
+from not_sandboxed import config
 from not_sandboxed.verdict import Decision, Finding, Severity
 
 
@@ -26,6 +27,24 @@ class Policy(BaseModel):
     provenance_enabled: bool = True
     toolauth_enabled: bool = True
     egress_enabled: bool = True
+
+
+def escalate(
+    findings: Sequence[Finding],
+    policy: Policy,
+) -> list[Finding]:
+    """
+    Promote scored findings to hard violations where the policy says
+    untrusted content may carry no instructions at all
+    """
+    if not policy.strict_data:
+        return list(findings)
+
+    return [
+        finding.model_copy(update = {"invariant": True})
+        if finding.rule in config.STRICT_DATA_RULES else finding
+        for finding in findings
+    ]
 
 
 def decide(

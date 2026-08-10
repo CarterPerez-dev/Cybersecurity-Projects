@@ -7,15 +7,24 @@ from typing import Final
 
 
 NONCE_BYTES: Final = 8
+MIN_NONCE_BYTES: Final = 8
 
 FENCE_OPEN: Final = "<<<UNTRUSTED-{nonce} origin={channel}:{ref}>>>"
 FENCE_CLOSE: Final = "<<<END-{nonce}>>>"
 
 LAYER_NORMALIZE: Final = "normalize"
 LAYER_INGRESS: Final = "ingress"
+LAYER_PROVENANCE: Final = "provenance"
+
+RULE_NONCE_FORGERY: Final = "nonce-forgery"
 
 RULE_TEMPLATE_MARKER: Final = "chat-template-marker"
 RULE_DATA_IMPERATIVE: Final = "data-imperative"
+
+STRICT_DATA_RULES: Final = (
+    RULE_DATA_IMPERATIVE,
+    RULE_TEMPLATE_MARKER,
+)
 
 CHAT_TEMPLATE_MARKERS: Final = (
     "<|im_start|>",
