@@ -8,15 +8,18 @@ default:
 
 lint:
     uv run ruff check .
-    uv run mypy src/ tests/
+    uv run mypy src/ tests/ bench/
 
 format:
-    uv run yapf -r -i src/ tests/
+    uv run yapf -r -i src/ tests/ bench/
 
 check-format:
-    uv run yapf -r -d src/ tests/
+    uv run yapf -r -d src/ tests/ bench/
 
 test:
     uv run pytest tests/ -v
+
+bench:
+    uv run python -m bench.runner
 
 check: lint check-format test

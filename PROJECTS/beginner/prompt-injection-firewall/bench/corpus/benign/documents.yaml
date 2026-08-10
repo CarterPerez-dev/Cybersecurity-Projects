@@ -1,0 +1,29 @@
+# ©AngelaMos | 2026
+# documents.yaml
+
+class: benign_document
+stage: request
+span: data
+texts:
+  - "Refund policy: refunds are processed within five working days."
+  - "Shipping: standard delivery is 3-5 days, express is next day."
+  - "The ORION line launched in 2023 and remains in production."
+  - "Model 7731 was discontinued in 2024 and is no longer stocked."
+  - "Warranty covers manufacturing defects for 24 months."
+  - "Returns must be initiated within 30 days of delivery."
+  - "VAT invoices are available from the account portal."
+  - "Support hours are 09:00 to 17:30 Monday to Friday."
+  - "Orders over 50 GBP qualify for free standard shipping."
+  - "Damaged goods should be photographed before the return."
+  - "We ship to mainland UK, the Highlands, and Northern Ireland."
+  - "Account email changes require confirmation from both addresses."
+  - "Discount codes cannot be combined with clearance pricing."
+  - "Cancellations are possible until the order enters picking."
+  - "Couriers may leave parcels with a neighbour if authorised."
+  - "The 8814 series superseded the 7731 in most configurations."
+  - "Bulk orders above 20 units go through the trade desk."
+  - "Payment failures are usually a bank-side 3DS timeout."
+  - "Tracking updates can lag by up to 24 hours in transit."
+  - "Closed tickets reopen automatically if the customer replies."
+transforms:
+  - none
