@@ -39,16 +39,22 @@ class SessionStore:
     """
     Per-visitor state with no shared mutable data between sessions
     """
-    def __init__(self) -> None:
+    def __init__(self, max_sessions: int | None = None) -> None:
         self._sessions: dict[str, Session] = {}
+        self._max_sessions = (
+            config.ARENA_MAX_SESSIONS
+            if max_sessions is None else max_sessions
+        )
 
     def create(self) -> Session:
         """
-        Start a session with its own freshly generated secret
+        Start a session with its own freshly generated secret,
+        discarding the least recently used one when the store is full
+        rather than the oldest, so a visitor mid-game outlives one who
+        opened the page and left
         """
-        if len(self._sessions) >= config.ARENA_MAX_SESSIONS:
-            oldest = next(iter(self._sessions))
-            del self._sessions[oldest]
+        while len(self._sessions) >= self._max_sessions:
+            del self._sessions[next(iter(self._sessions))]
 
         session = Session(
             session_id = secrets.token_urlsafe(
@@ -61,9 +67,15 @@ class SessionStore:
 
     def get(self, session_id: str) -> Session | None:
         """
-        Look up a session without creating one
+        Look up a session without creating one, marking it as the most
+        recently used
         """
-        return self._sessions.get(session_id)
+        session = self._sessions.pop(session_id, None)
+        if session is None:
+            return None
+
+        self._sessions[session_id] = session
+        return session
 
     def charge(self, session: Session, now: float) -> None:
         """

@@ -20,6 +20,7 @@ import {
   SEVERITY_SCALE_OFFSET,
   SEVERITY_WEIGHT,
 } from '@/config'
+import { ApiError } from '@/core/api/errors'
 import { census, hiddenTotal, segments } from '@/core/lib'
 
 import styles from './arena.module.scss'
@@ -32,6 +33,11 @@ function severityWidth(severity: string): string {
   const weight = SEVERITY_WEIGHT[severity as keyof typeof SEVERITY_WEIGHT] ?? 0
   const span = SEVERITY_MAX_WEIGHT + SEVERITY_SCALE_OFFSET
   return `${((weight + SEVERITY_SCALE_OFFSET) / span) * 100}%`
+}
+
+function attemptMessage(error: Error | null): string {
+  const status = error instanceof ApiError ? error.statusCode : 0
+  return COPY.ERRORS[status as keyof typeof COPY.ERRORS] ?? COPY.ERRORS.DEFAULT
 }
 
 function firedFindings(result: AttemptResponse): Finding[] {
@@ -402,7 +408,9 @@ export function Component(): React.ReactElement {
 
       <Specimen ticket={ticket} />
 
-      {attempt.isError && <p className={styles.error}>{COPY.ERRORS.DEFAULT}</p>}
+      {attempt.isError && (
+        <p className={styles.error}>{attemptMessage(attempt.error)}</p>
+      )}
 
       {attempt.data ? (
         <Verdict result={attempt.data} />

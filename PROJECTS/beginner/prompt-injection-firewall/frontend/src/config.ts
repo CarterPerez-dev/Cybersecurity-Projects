@@ -179,7 +179,8 @@ export const COPY = {
   ERRORS: {
     [HTTP_STATUS.PAYLOAD_TOO_LARGE]: 'That ticket is too long.',
     [HTTP_STATUS.TOO_MANY_REQUESTS]: 'Too many attempts. Wait a moment.',
-    [HTTP_STATUS.NOT_FOUND]: 'Session expired. Reloading.',
+    [HTTP_STATUS.NOT_FOUND]:
+      'That session is gone. A fresh one is open — send the ticket again.',
     DEFAULT: 'Something broke on our side.',
   },
 } as const

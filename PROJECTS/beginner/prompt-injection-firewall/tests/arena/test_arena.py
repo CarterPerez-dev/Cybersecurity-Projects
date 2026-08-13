@@ -187,6 +187,32 @@ def test_unknown_level_is_refused() -> None:
     assert response.status_code == 404
 
 
+def test_eviction_discards_the_idle_session_not_the_playing_one() -> None:
+    store = SessionStore(max_sessions = 2)
+    playing = store.create()
+    idle = store.create()
+
+    assert store.get(playing.session_id) is not None
+
+    store.create()
+
+    assert store.get(playing.session_id) is not None
+    assert store.get(idle.session_id) is None
+
+
+def test_store_never_grows_past_its_ceiling() -> None:
+    store = SessionStore(max_sessions = 3)
+
+    created = [store.create() for _ in range(10)]
+
+    survivors = [
+        session for session in created
+        if store.get(session.session_id) is not None
+    ]
+
+    assert len(survivors) == 3
+
+
 def test_rate_limit_refuses_rather_than_throttles() -> None:
     store = SessionStore()
     session = store.create()

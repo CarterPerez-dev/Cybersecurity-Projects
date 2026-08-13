@@ -5,7 +5,38 @@
 name = "not-sandboxed"
 version = "0.1.0"
 description = "A prompt injection firewall that sandboxes effects, not prompts"
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.14"
+authors = [
+    { name = "Carter Perez", email = "carterperez@angelamos.com" },
+]
+maintainers = [
+    { name = "Carter Perez", email = "carterperez@angelamos.com" },
+]
+keywords = [
+    "prompt-injection",
+    "llm-security",
+    "ai-security",
+    "firewall",
+    "guardrails",
+    "owasp-llm01",
+    "agent-security",
+    "unicode-smuggling",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.10.0",
     "typer>=0.15.0",
@@ -17,8 +48,11 @@ dependencies = [
     "uvicorn>=0.34.0",
 ]
 
-[project.scripts]
-not-sandboxed = "not_sandboxed.cli:app"
+[project.urls]
+Homepage = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
+Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
+Documentation = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/prompt-injection-firewall"
+Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues"
 
 [build-system]
 requires = ["hatchling"]

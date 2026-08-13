@@ -1,18 +1,19 @@
 # =============================================================================
-# AngelaMos | 2026
+# ©AngelaMos | 2026
 # cloudflared.compose.yml
 # =============================================================================
 # Cloudflare Tunnel for production remote access
-# Usage: docker compose -f compose.yml -f cloudflared.compose.yml up -d
+# Usage: just tunnel
+# The tunnel's public hostname must route to http://nginx:80
 # =============================================================================
 
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: arena-ui-tunnel
-    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    container_name: not-sandboxed-arena-tunnel
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
     networks:
-      - app
+      - arena
     depends_on:
       nginx:
         condition: service_started
