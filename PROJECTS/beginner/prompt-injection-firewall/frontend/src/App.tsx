@@ -8,9 +8,10 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
+import { TOAST } from '@/config'
 import { queryClient } from '@/core/api'
 import { router } from '@/core/app/routers'
-import '@/core/app/toast.module.scss'
+import toastStyles from '@/core/app/toast.module.scss'
 
 export default function App(): React.ReactElement {
   return (
@@ -18,14 +19,13 @@ export default function App(): React.ReactElement {
       <div className="app">
         <RouterProvider router={router} />
         <Toaster
-          position="top-right"
-          duration={2000}
-          theme="dark"
+          position={TOAST.POSITION}
+          duration={TOAST.DURATION}
           toastOptions={{
-            style: {
-              background: 'hsl(0, 0%, 12.2%)',
-              border: '1px solid hsl(0, 0%, 18%)',
-              color: 'hsl(0, 0%, 98%)',
+            unstyled: true,
+            classNames: {
+              toast: toastStyles.toast,
+              title: toastStyles.toastTitle,
             },
           }}
         />

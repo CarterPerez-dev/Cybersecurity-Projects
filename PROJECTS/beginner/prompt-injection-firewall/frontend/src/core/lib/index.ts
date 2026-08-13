@@ -3,4 +3,5 @@
 // index.ts
 // ===================
 
+export * from './census'
 export * from './shell.ui.store'

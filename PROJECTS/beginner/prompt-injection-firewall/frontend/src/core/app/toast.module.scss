@@ -2,3 +2,22 @@
 // © AngelaMos | 2026
 // toast.module.scss
 // ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+@use '../../styles/mixins' as *;
+
+.toast {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: $space-3 $space-4;
+  color: $color-ink;
+  background-color: $color-paper-lit;
+  border: $rule-ink;
+  border-left: 4px solid $color-signal;
+}
+
+.toast-title {
+  @include plate-type($font-size-2xs);
+}

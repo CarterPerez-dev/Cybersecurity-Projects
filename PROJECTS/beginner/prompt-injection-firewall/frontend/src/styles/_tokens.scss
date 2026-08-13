@@ -2,10 +2,7 @@
 // © AngelaMos | 2026
 // _tokens.scss
 // ===================
-// Neutral baseline. No brand identity -- grayscale palette, system type, plain
-// spacing scale. Design on top of these; nothing here implies a look.
 
-// Spacing (8px base)
 $space-0: 0;
 $space-1: 0.25rem;
 $space-2: 0.5rem;
@@ -20,7 +17,7 @@ $space-16: 4rem;
 $space-20: 5rem;
 $space-24: 6rem;
 
-// Font sizes
+$font-size-2xs: 0.6875rem;
 $font-size-xs: 0.75rem;
 $font-size-sm: 0.875rem;
 $font-size-base: 1rem;
@@ -29,42 +26,54 @@ $font-size-xl: 1.25rem;
 $font-size-2xl: 1.5rem;
 $font-size-3xl: 1.875rem;
 $font-size-4xl: 2.25rem;
+$font-size-5xl: 3rem;
+$font-size-display: clamp(3.25rem, 11vw, 9.5rem);
+$font-size-numeral: clamp(2.5rem, 7vw, 5.5rem);
 
-// Weights / line-height / radius
 $font-weight-normal: 400;
 $font-weight-medium: 500;
 $font-weight-semibold: 600;
 $font-weight-bold: 700;
-$line-height-tight: 1.25;
+
+$line-height-flat: 0.86;
+$line-height-tight: 1.15;
 $line-height-normal: 1.5;
-$line-height-relaxed: 1.75;
-$radius-sm: 0.25rem;
-$radius-md: 0.5rem;
-$radius-lg: 0.75rem;
+$line-height-relaxed: 1.7;
+
+$tracking-plate: 0.14em;
+$tracking-label: 0.08em;
+$tracking-display: -0.035em;
+
+$radius-none: 0;
+$radius-sm: 0.125rem;
 $radius-full: 9999px;
 
-// Neutral grayscale
-$color-white: #fff;
-$color-black: #000;
-$color-gray-50:  #fafafa;
-$color-gray-100: #f4f4f5;
-$color-gray-200: #e4e4e7;
-$color-gray-300: #d4d4d8;
-$color-gray-400: #a1a1aa;
-$color-gray-500: #71717a;
-$color-gray-600: #52525b;
-$color-gray-700: #3f3f46;
-$color-gray-800: #27272a;
-$color-gray-900: #18181b;
+$color-paper: #e8e5db;
+$color-paper-lit: #f0eee6;
+$color-paper-sunk: #dedbd0;
+$color-ink: #16150f;
+$color-ink-soft: #3d3b31;
+$color-ink-faint: #7c7869;
+$color-ink-ghost: #b3ae9d;
+$color-rule: #c3bfb0;
+$color-rule-faint: #d5d1c4;
 
-// Neutral semantic aliases
-$color-bg: $color-white;
-$color-surface: $color-gray-50;
-$color-border: $color-gray-200;
-$color-text: $color-gray-900;
-$color-text-muted: $color-gray-500;
+$color-signal: #f04a23;
+$color-signal-sunk: #c93b17;
+$color-caution: #e9e70e;
+$color-live: #35c46a;
 
-// Breakpoints
+$color-bg: $color-paper;
+$color-surface: $color-paper-lit;
+$color-border: $color-rule;
+$color-text: $color-ink;
+$color-text-muted: $color-ink-faint;
+
+$hairline: 1px solid $color-rule;
+$hairline-faint: 1px solid $color-rule-faint;
+$rule-ink: 1px solid $color-ink;
+$plate-border: 2px solid $color-ink;
+
 $breakpoint-xs: 480px;
 $breakpoint-sm: 640px;
 $breakpoint-md: 768px;
@@ -72,13 +81,17 @@ $breakpoint-lg: 1024px;
 $breakpoint-xl: 1280px;
 $breakpoint-2xl: 1536px;
 
-// Z-index
+$measure-page: 1420px;
+$tick-size: 0.5rem;
+
 $z-base: 1;
 $z-dropdown: 1000;
 $z-modal: 1300;
 $z-toast: 1400;
 
-// Motion
+$duration-instant: 80ms;
 $duration-fast: 150ms;
 $duration-normal: 250ms;
-$ease: cubic-bezier(0.4, 0, 0.2, 1);
+$duration-slow: 600ms;
+$ease: cubic-bezier(0.2, 0, 0, 1);
+$ease-mechanical: steps(6, end);

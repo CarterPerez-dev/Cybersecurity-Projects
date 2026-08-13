@@ -5,6 +5,7 @@
 
 @use 'sass:map';
 @use 'tokens' as *;
+@use 'fonts' as *;
 
 $breakpoints: (
   'xs': $breakpoint-xs,
@@ -36,7 +37,86 @@ $breakpoints: (
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+@mixin plate-type($size: $font-size-2xs) {
+  font-family: $font-plate;
+  font-size: $size;
+  font-weight: $font-weight-normal;
+  letter-spacing: $tracking-plate;
+  text-transform: uppercase;
+  line-height: $line-height-tight;
+}
+
+@mixin label-type($size: $font-size-xs) {
+  font-family: $font-mono;
+  font-size: $size;
+  letter-spacing: $tracking-label;
+  text-transform: uppercase;
+  line-height: $line-height-tight;
+}
+
+@mixin display-type($size: $font-size-display) {
+  font-family: $font-display;
+  font-size: $size;
+  font-weight: $font-weight-bold;
+  letter-spacing: $tracking-display;
+  line-height: $line-height-flat;
+}
+
+@mixin inverted {
+  color: $color-paper-lit;
+  background-color: $color-ink;
+}
+
+@mixin corner-ticks($inset: 0, $length: $tick-size, $color: $color-ink) {
+  position: relative;
+
+  &::before,
+  &::after {
+    position: absolute;
+    width: $length;
+    height: $length;
+    content: '';
+    pointer-events: none;
+  }
+
+  &::before {
+    top: $inset;
+    left: $inset;
+    border-top: 1px solid $color;
+    border-left: 1px solid $color;
+  }
+
+  &::after {
+    right: $inset;
+    bottom: $inset;
+    border-right: 1px solid $color;
+    border-bottom: 1px solid $color;
+  }
+}
+
+@mixin dotted-field($color: $color-ink-ghost, $step: 6px) {
+  background-image: radial-gradient($color 0.5px, transparent 0.5px);
+  background-size: $step $step;
+}
+
+@mixin ruled-field($color: $color-rule-faint, $step: 4px) {
+  background-image: repeating-linear-gradient(
+    90deg,
+    $color 0,
+    $color 1px,
+    transparent 1px,
+    transparent $step
+  );
+}
+
+@mixin focus-plate {
+  &:focus-visible {
+    outline: 2px solid $color-signal;
+    outline-offset: 2px;
+  }
 }

@@ -2,12 +2,74 @@
 // © AngelaMos | 2026
 // shell.module.scss
 // ===================
-// Layout only. The visual language is decided later.
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+@use '../../styles/mixins' as *;
 
 .shell {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding: $space-4;
+
+  @include breakpoint-up('md') {
+    padding: $space-8;
+  }
+}
+
+.sheet {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: $measure-page;
+  margin: 0 auto;
+  border: $hairline;
+  background-color: $color-paper-lit;
+
+  @include corner-ticks(-1px, $space-4);
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-3;
+  padding: $space-3 $space-4;
+  border-bottom: $hairline;
+
+  @include breakpoint-up('sm') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  &:last-child {
+    border-top: $hairline;
+    border-bottom: 0;
+  }
+}
+
+.strip-cell {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.strip-cell-end {
+  @include breakpoint-up('sm') {
+    text-align: right;
+  }
+}
+
+.strip-key {
+  @include plate-type;
+
+  color: $color-ink;
+}
+
+.strip-value {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink-faint;
 }
 
 .content {
@@ -18,14 +80,26 @@
 .error {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: $space-3;
+  padding: $space-8 $space-4;
+  border-left: 3px solid $color-signal;
+}
 
-  pre {
-    white-space: pre-wrap;
-    overflow-x: auto;
-  }
+.error-heading {
+  @include display-type($font-size-2xl);
+}
+
+.error-body {
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  color: $color-ink-soft;
+  white-space: pre-wrap;
+  overflow-x: auto;
 }
 
 .loading {
-  display: block;
+  @include plate-type($font-size-xs);
+
+  padding: $space-12 $space-4;
+  color: $color-ink-faint;
 }
