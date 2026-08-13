@@ -6,13 +6,19 @@ unwrap.py
 import base64
 import binascii
 import quopri
+import re
 import urllib.parse
 from collections.abc import Callable
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
 from not_sandboxed import config
 from not_sandboxed.verdict import Finding, Severity
+
+
+_QUOPRI_ESCAPE: Final = re.compile(config.QUOPRI_ESCAPE_PATTERN)
+_QUOPRI_SOFT_BREAK: Final = re.compile(config.QUOPRI_SOFT_BREAK_PATTERN)
 
 
 class UnwrapResult(BaseModel):
@@ -103,8 +109,14 @@ def _try_percent(text: str) -> str | None:
     return candidate
 
 
+def _looks_quoted_printable(text: str) -> bool:
+    if _QUOPRI_SOFT_BREAK.search(text) is not None:
+        return True
+    return len(_QUOPRI_ESCAPE.findall(text)) >= config.MIN_QUOPRI_ESCAPES
+
+
 def _try_quoted_printable(text: str) -> str | None:
-    if "=" not in text:
+    if not _looks_quoted_printable(text):
         return None
     try:
         raw = quopri.decodestring(text.encode())
@@ -143,6 +155,43 @@ def _peel(text: str) -> str | None:
         if candidate and candidate != text and _looks_decoded(candidate):
             return candidate
     return None
+
+
+def _runs(text: str, alphabet: frozenset[str]) -> list[str]:
+    found: list[str] = []
+    current: list[str] = []
+
+    for char in text:
+        if char in alphabet:
+            current.append(char)
+            continue
+        if len(current) >= config.MIN_ENCODED_LENGTH:
+            found.append("".join(current))
+        current = []
+
+    if len(current) >= config.MIN_ENCODED_LENGTH:
+        found.append("".join(current))
+    return found
+
+
+def embedded_decodes(text: str) -> list[str]:
+    """
+    Decode every transport-encoded run sitting inside a larger text,
+    because the realistic injection is a blob pasted into prose and a
+    whole-span decoder never sees it
+    """
+    if len(text) > config.MAX_NORMALIZE_BYTES:
+        return []
+
+    decoded: list[str] = []
+    for alphabet in config.EMBEDDED_ALPHABETS:
+        for run in _runs(text, alphabet):
+            if len(decoded) >= config.MAX_EMBEDDED_RUNS:
+                return decoded
+            candidate = _peel(run)
+            if candidate is not None and candidate not in decoded:
+                decoded.append(candidate)
+    return decoded
 
 
 def unwrap(text: str) -> UnwrapResult:
@@ -196,6 +245,18 @@ def unwrap(text: str) -> UnwrapResult:
                 evidence = f"unwrapped {depth} layers",
             )
         )
+    else:
+        embedded = embedded_decodes(text)
+        if embedded:
+            findings.append(
+                Finding(
+                    layer = config.LAYER_NORMALIZE,
+                    rule = config.RULE_EMBEDDED_ENCODED,
+                    severity = Severity.MEDIUM,
+                    invariant = False,
+                    evidence = f"{len(embedded)} embedded run(s)",
+                )
+            )
 
     return UnwrapResult(
         text = working,

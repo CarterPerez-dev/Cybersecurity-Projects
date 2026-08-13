@@ -4,19 +4,22 @@ app.py
 """
 
 import logging
+import secrets
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from not_sandboxed import config
 from not_sandboxed.agent import Agent
 from not_sandboxed.agent.mock import MockAgent
+from not_sandboxed.audit import AuditLog, audit_log_from_env
 from not_sandboxed.context import Context
 from not_sandboxed.firewall import Firewall
 from not_sandboxed.policy import Policy
-from not_sandboxed.proxy.infer import infer_context
+from not_sandboxed.proxy.infer import ChatMessage, infer_context
 from not_sandboxed.tools import AgentReply, Tool
 from not_sandboxed.verdict import Decision, Verdict
 
@@ -29,8 +32,10 @@ class ChatRequest(BaseModel):
     The subset of the OpenAI chat completion request this proxy reads
     """
 
+    model_config = ConfigDict(extra = "allow")
+
     model: str = config.PROXY_MODEL_NAME
-    messages: list[dict[str, str]] = []
+    messages: list[ChatMessage] = []
 
 
 def _verdict_payload(verdict: Verdict) -> dict[str, Any]:
@@ -57,8 +62,13 @@ def _completion(
 ) -> dict[str,
           Any]:
     return {
+        "id":
+        f"{config.PROXY_ID_PREFIX}"
+        f"{secrets.token_hex(config.PROXY_ID_BYTES)}",
         "object":
         config.PROXY_OBJECT_NAME,
+        "created":
+        int(time.time()),
         "model":
         config.PROXY_MODEL_NAME,
         "choices": [
@@ -69,8 +79,14 @@ def _completion(
                     "content": text,
                 },
                 "finish_reason": finish_reason,
+                "logprobs": None,
             }
         ],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        },
         config.PROXY_VERDICT_FIELD:
         _verdict_payload(verdict),
     }
@@ -81,6 +97,7 @@ def build_app(
     registry: Mapping[str,
                       Tool] | None = None,
     upstream: Agent | None = None,
+    audit: AuditLog | None = None,
 ) -> FastAPI:
     """
     Build the OpenAI-compatible proxy, announcing on the way up that
@@ -92,12 +109,14 @@ def build_app(
     agent = upstream or MockAgent(
         secret = policy.canaries[0] if policy.canaries else ""
     )
+    log = audit or audit_log_from_env(config.PROXY_AUDIT_PATH_VAR)
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str]:
+    def healthz() -> dict[str, str | bool]:
         return {
             "policy_id": policy.policy_id,
             "mode": "inferred-provenance",
+            "audit": log.enabled,
         }
 
     @app.post("/v1/chat/completions")
@@ -106,6 +125,8 @@ def build_app(
         ctx = infer_context(request.messages)
 
         inbound = firewall.inspect(ctx)
+        log.write(inbound, ctx)
+
         if inbound.decision is Decision.BLOCK:
             return _completion(
                 config.PROXY_BLOCK_MESSAGE,
@@ -115,6 +136,8 @@ def build_app(
 
         reply = _ask(agent, firewall, ctx)
         outbound = firewall.inspect_egress(reply, ctx)
+        log.write(outbound, ctx)
+
         if outbound.decision is Decision.BLOCK:
             return _completion(
                 config.PROXY_BLOCK_MESSAGE,

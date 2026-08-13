@@ -5,8 +5,7 @@ provenance.py
 
 from not_sandboxed import config
 from not_sandboxed.context import Context, Trust
-from not_sandboxed.normalize.unicode import normalize_unicode
-from not_sandboxed.normalize.unwrap import unwrap
+from not_sandboxed.normalize.views import readings, strip_noise
 from not_sandboxed.policy import Policy
 from not_sandboxed.verdict import Finding, Severity
 
@@ -29,12 +28,12 @@ class ProvenanceLayer:
         nonce, which it has no legitimate way to know
         """
         findings: list[Finding] = []
+        needle = strip_noise(ctx.nonce).casefold()
 
         for index, span in enumerate(ctx.spans):
             if span.trust is not Trust.DATA:
                 continue
-            readable = unwrap(normalize_unicode(span.text).text).text
-            if ctx.nonce in readable or ctx.nonce in span.text:
+            if self._carries(span.text, needle):
                 findings.append(
                     Finding(
                         layer = config.LAYER_PROVENANCE,
@@ -47,3 +46,9 @@ class ProvenanceLayer:
                 )
 
         return findings
+
+    def _carries(self, text: str, needle: str) -> bool:
+        return any(
+            needle in strip_noise(reading).casefold()
+            for reading in readings(text, config.MAX_INGRESS_VARIANTS)
+        )

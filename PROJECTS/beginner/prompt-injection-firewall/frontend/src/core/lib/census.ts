@@ -20,35 +20,41 @@ export interface Segment {
   mark: CensusMark | null
 }
 
-interface Range {
-  LOW: number
-  HIGH: number
+export interface CodepointSets {
+  tag: readonly number[]
+  bidi: readonly number[]
+  zero_width: readonly number[]
 }
 
 const encoder = new TextEncoder()
 
-function inRange(code: number, range: Range): boolean {
-  return code >= range.LOW && code <= range.HIGH
+export const FALLBACK_CODEPOINTS: CodepointSets = {
+  tag: [CODEPOINT_CLASSES.TAG.LOW, CODEPOINT_CLASSES.TAG.HIGH],
+  bidi: CODEPOINT_CLASSES.BIDI,
+  zero_width: CODEPOINT_CLASSES.ZERO_WIDTH,
 }
 
-function inAnyRange(code: number, ranges: readonly Range[]): boolean {
-  return ranges.some((range) => inRange(code, range))
-}
-
-export function markOf(code: number): CensusMark | null {
-  if (inRange(code, CODEPOINT_CLASSES.TAG)) {
+export function markOf(
+  code: number,
+  sets: CodepointSets = FALLBACK_CODEPOINTS
+): CensusMark | null {
+  const [low, high] = sets.tag
+  if (low !== undefined && high !== undefined && code >= low && code <= high) {
     return CENSUS_MARKS.TAG
   }
-  if (inAnyRange(code, CODEPOINT_CLASSES.BIDI)) {
+  if (sets.bidi.includes(code)) {
     return CENSUS_MARKS.BIDI
   }
-  if (inAnyRange(code, CODEPOINT_CLASSES.ZERO_WIDTH)) {
+  if (sets.zero_width.includes(code)) {
     return CENSUS_MARKS.ZERO_WIDTH
   }
   return null
 }
 
-export function census(text: string): Census {
+export function census(
+  text: string,
+  sets: CodepointSets = FALLBACK_CODEPOINTS
+): Census {
   const counts: Census = {
     glyphs: 0,
     bytes: encoder.encode(text).length,
@@ -66,7 +72,7 @@ export function census(text: string): Census {
       counts.nonAscii += 1
     }
 
-    const mark = markOf(code)
+    const mark = markOf(code, sets)
     if (mark === CENSUS_MARKS.TAG) {
       counts.tag += 1
     } else if (mark === CENSUS_MARKS.BIDI) {
@@ -83,12 +89,15 @@ export function hiddenTotal(counts: Census): number {
   return counts.tag + counts.bidi + counts.zeroWidth
 }
 
-export function segments(text: string): Segment[] {
+export function segments(
+  text: string,
+  sets: CodepointSets = FALLBACK_CODEPOINTS
+): Segment[] {
   const output: Segment[] = []
   let offset = 0
 
   for (const character of text) {
-    const mark = markOf(character.codePointAt(0) ?? 0)
+    const mark = markOf(character.codePointAt(0) ?? 0, sets)
     const previous = output.at(-1)
 
     if (previous !== undefined && previous.mark === null && mark === null) {

@@ -9,8 +9,9 @@ import pytest
 
 from not_sandboxed import config
 from not_sandboxed.context import Context, Origin
-from not_sandboxed.firewall import Firewall
-from not_sandboxed.policy import Policy
+from not_sandboxed.firewall import Firewall, egress_surfaces
+from not_sandboxed.policy import Policy, PolicyError
+from not_sandboxed.tools import AgentReply, ToolCallRequest
 from not_sandboxed.verdict import Decision, Severity
 
 
@@ -153,3 +154,99 @@ def test_render_is_reachable_from_the_firewall() -> None:
     rendered = Firewall(Policy()).render(ctx)
 
     assert ctx.nonce in rendered
+
+
+def test_a_canary_the_matcher_cannot_use_is_refused_at_construction(
+) -> None:
+    with pytest.raises(PolicyError):
+        Firewall(Policy(canaries = ("sk-live",
+                                    )))
+
+
+def test_a_usable_canary_constructs_normally() -> None:
+    firewall = Firewall(Policy(canaries = ("VANTAGE-7731-ORION",
+                                           )))
+
+    assert firewall.egress.rejected == ()
+
+
+def test_tool_arguments_are_part_of_the_egress_surface() -> None:
+    reply = AgentReply(
+        text = "done",
+        tool_calls = (
+            ToolCallRequest(
+                name = "send_email",
+                args = {
+                    "to": "a@b.example",
+                    "body": {
+                        "html": "VANTAGE-7731-ORION"
+                    },
+                },
+            ),
+        ),
+    )
+
+    assert any(
+        "VANTAGE-7731-ORION" in surface
+        for surface in egress_surfaces(reply)
+    )
+
+
+def test_a_secret_nested_in_a_tool_argument_is_caught() -> None:
+    policy = Policy(canaries = ("VANTAGE-7731-ORION",
+                                ))
+    reply = AgentReply(
+        text = "done",
+        tool_calls = (
+            ToolCallRequest(
+                name = "send_email",
+                args = {"body": ["prefix",
+                                 "VANTAGE-7731-ORION"]},
+            ),
+        ),
+    )
+
+    verdict = Firewall(policy).inspect_egress(reply, Context().user("x"))
+
+    assert config.RULE_CANARY_LEAK in {f.rule for f in verdict.findings}
+
+
+def test_an_oversized_reply_fails_closed() -> None:
+    policy = Policy(canaries = ("VANTAGE-7731-ORION",
+                                ))
+    reply = AgentReply(text = "A" * (config.MAX_EGRESS_BYTES + 1))
+
+    verdict = Firewall(policy).inspect_egress(reply, Context().user("x"))
+
+    assert verdict.decision is Decision.BLOCK
+    assert config.RULE_OUTPUT_TOO_LARGE in {
+        f.rule
+        for f in verdict.findings
+    }
+
+
+def test_many_small_arguments_cannot_sum_past_the_budget() -> None:
+    policy = Policy(canaries = ("VANTAGE-7731-ORION",
+                                ))
+    chunk = "A" * (config.MAX_EGRESS_BYTES // 4)
+    reply = AgentReply(
+        text = chunk,
+        tool_calls = (
+            ToolCallRequest(
+                name = "send_email",
+                args = {
+                    "a": chunk,
+                    "b": chunk,
+                    "c": chunk,
+                    "d": chunk,
+                },
+            ),
+        ),
+    )
+
+    verdict = Firewall(policy).inspect_egress(reply, Context().user("x"))
+
+    assert config.RULE_OUTPUT_TOO_LARGE in {
+        f.rule
+        for f in verdict.findings
+    }

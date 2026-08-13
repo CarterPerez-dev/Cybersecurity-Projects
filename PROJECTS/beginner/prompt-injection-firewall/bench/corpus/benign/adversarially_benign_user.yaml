@@ -1,7 +1,13 @@
 # ©AngelaMos | 2026
-# adversarially_benign.yaml
+# adversarially_benign_user.yaml
 
-class: benign_adversarial
+# Instruction-shaped text a HUMAN typed about their own message.
+# Ingress never inspects USER spans, so this class proves the DATA
+# scoping holds. It cannot prove the imperative rule is precise --
+# that is what benign_adversarial_data measures, and the two numbers
+# are reported separately because pooling them hides the hard one.
+
+class: benign_adversarial_user
 stage: request
 span: user
 texts:

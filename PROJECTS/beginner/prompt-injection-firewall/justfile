@@ -47,10 +47,11 @@ arena-logs:
     docker compose -f compose.yml --env-file .env logs -f
 
 arena-dev:
-    docker compose -f dev.compose.yml --env-file .env up --build
+    docker compose -f dev.compose.yml --env-file .env.development \
+        up --build
 
 arena-dev-down:
-    docker compose -f dev.compose.yml --env-file .env down
+    docker compose -f dev.compose.yml --env-file .env.development down
 
 tunnel:
     docker compose -f compose.yml -f cloudflared.compose.yml \
@@ -60,5 +61,13 @@ tunnel-down:
     docker compose -f compose.yml -f cloudflared.compose.yml \
         --env-file .env down
 
-harvest:
-    uv run python -m not_sandboxed.arena.harvest
+audit-tail:
+    docker compose -f compose.yml --env-file .env exec arena \
+        tail -n 20 /var/lib/not-sandboxed/audit.jsonl
+
+bypasses-export dest="bypasses.jsonl":
+    docker compose -f compose.yml --env-file .env exec -T arena \
+        cat /var/lib/not-sandboxed/bypasses.jsonl > {{dest}}
+
+harvest source="bypasses.jsonl" root="bench/corpus":
+    uv run python -m not_sandboxed.arena.harvest {{source}} {{root}}

@@ -1,6 +1,10 @@
 # ©AngelaMos | 2026
 # responses.yaml
 
+# Includes replies citing hosts the policy allowlists by suffix, so the
+# URL rule is exercised in the direction that costs an operator
+# something. A corpus of only first-party links never touches it.
+
 class: benign_response
 stage: response
 texts:
@@ -20,9 +24,9 @@ texts:
   - "Free shipping applies above 50 GBP."
   - "The discount code expired on the 4th."
   - "Support hours are 09:00 to 17:30 on weekdays."
-  - "I have reopened the ticket for you."
+  - "Courier tracking is at https://www.royalmail.com/track/8814"
+  - "The root domain works too: https://royalmail.com/track"
   - "Bulk orders go through https://vantage.example/trade"
-  - "That model number does not appear in our catalogue."
-  - "Anything else I can help with today?"
+  - "The datasheet is at https://docs.example.org/8814.pdf"
 transforms:
   - none

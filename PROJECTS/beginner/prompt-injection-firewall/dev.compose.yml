@@ -18,10 +18,23 @@ services:
          --host 0.0.0.0 --port 8000 --reload"
     environment:
       - CI=true
+      - NS_AUDIT_PATH=${NS_AUDIT_PATH:-}
+      - NS_BYPASS_PATH=${NS_BYPASS_PATH:-}
     volumes:
       - ./src:/app/src
       - ./pyproject.toml:/app/pyproject.toml
       - ./uv.lock:/app/uv.lock
+      - arena_dev_state:/var/lib/not-sandboxed
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as r; r.urlopen('http://127.0.0.1:8000/healthz')"
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
     networks:
       - arena
 
@@ -54,8 +67,10 @@ services:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/dev.nginx:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - frontend
-      - arena
+      frontend:
+        condition: service_started
+      arena:
+        condition: service_healthy
     networks:
       - arena
 
@@ -65,3 +80,4 @@ networks:
 
 volumes:
   frontend_modules:
+  arena_dev_state:

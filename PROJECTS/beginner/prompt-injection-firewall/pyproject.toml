@@ -39,9 +39,6 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=2.10.0",
-    "typer>=0.15.0",
-    "rich>=14.0.0",
-    "structlog>=25.0.0",
     "orjson>=3.10.0",
     "ruamel.yaml>=0.18.0",
     "fastapi>=0.115.0",
@@ -70,6 +67,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "hypothesis>=6.130.0",
     "httpx2>=2.10.0",
+    "openai>=1.60.0",
 ]
 
 [tool.ruff]

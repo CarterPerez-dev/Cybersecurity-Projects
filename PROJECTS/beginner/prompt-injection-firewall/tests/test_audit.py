@@ -4,10 +4,13 @@ test_audit.py
 """
 
 import json
+from pathlib import Path
 from typing import Any
 
+import pytest
+
 from not_sandboxed import config
-from not_sandboxed.audit import audit_record
+from not_sandboxed.audit import AuditLog, audit_log_from_env, audit_record
 from not_sandboxed.context import Context, Origin
 from not_sandboxed.firewall import Firewall
 from not_sandboxed.policy import Policy
@@ -52,28 +55,43 @@ def test_record_names_every_finding_layer_and_rule() -> None:
     assert all(f["layer"] for f in record["findings"])
 
 
-def test_record_carries_span_trust_levels_and_origins() -> None:
+def test_record_carries_span_trust_levels_and_origin_channels() -> None:
     ctx = Context().system("s").user("hi").data(
         "doc",
         origin = TICKET,
     )
 
     record = _record(ctx)
+    trusts = [span["trust"] for span in record["spans"]]
+    origins = [span["origin"] for span in record["spans"]]
 
-    assert record["spans"] == [
-        {
-            "trust": "system",
-            "origin": None
-        },
-        {
-            "trust": "user",
-            "origin": None
-        },
-        {
-            "trust": "data",
-            "origin": "ticket:8814"
-        },
-    ]
+    assert trusts == ["system", "user", "data"]
+    assert origins[: 2] == [None, None]
+    assert origins[2] is not None
+    assert origins[2].startswith("ticket:")
+
+
+def test_the_origin_ref_is_digested_because_the_proxy_takes_it_from_the_body(
+) -> None:
+    ctx = Context().data(
+        "benign",
+        origin = Origin(channel = "tool",
+                        ref = CANARY),
+    )
+
+    raw = audit_record(Firewall(Policy()).inspect(ctx), ctx)
+
+    assert CANARY.encode() not in raw
+    assert b"tool:" in raw
+
+
+def test_the_same_origin_still_correlates_across_records() -> None:
+    ctx = Context().data("doc", origin = TICKET)
+
+    first = _record(ctx)["spans"][0]["origin"]
+    second = _record(ctx)["spans"][0]["origin"]
+
+    assert first == second
 
 
 def test_record_never_contains_span_text() -> None:
@@ -131,3 +149,59 @@ def test_record_never_contains_the_nonce() -> None:
     raw = audit_record(Firewall(Policy()).inspect(ctx), ctx)
 
     assert ctx.nonce.encode() not in raw
+
+
+def test_a_log_with_no_path_writes_nothing_and_says_so() -> None:
+    log = AuditLog()
+    ctx = Context().user("hi")
+
+    log.write(Firewall(Policy()).inspect(ctx), ctx)
+
+    assert log.enabled is False
+
+
+def test_a_configured_log_appends_one_line_per_verdict(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "nested" / "audit.jsonl"
+    log = AuditLog(destination)
+    ctx = Context().user("hi")
+    verdict = Firewall(Policy()).inspect(ctx)
+
+    log.write(verdict, ctx)
+    log.write(verdict, ctx)
+
+    assert log.enabled is True
+    assert destination.read_bytes().count(b"\n") == 2
+
+
+def test_a_written_record_still_carries_no_attacker_text(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "audit.jsonl"
+    log = AuditLog(destination)
+    ctx = Context().data(f"leak {CANARY} now", origin = TICKET)
+
+    log.write(Firewall(Policy()).inspect(ctx), ctx)
+
+    assert CANARY not in destination.read_text()
+
+
+def test_the_env_sink_is_disabled_when_the_variable_is_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(config.ARENA_AUDIT_PATH_VAR, raising = False)
+
+    assert audit_log_from_env(config.ARENA_AUDIT_PATH_VAR).enabled is False
+
+
+def test_the_env_sink_is_enabled_when_the_variable_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv(
+        config.ARENA_AUDIT_PATH_VAR,
+        str(tmp_path / "audit.jsonl"),
+    )
+
+    assert audit_log_from_env(config.ARENA_AUDIT_PATH_VAR).enabled is True

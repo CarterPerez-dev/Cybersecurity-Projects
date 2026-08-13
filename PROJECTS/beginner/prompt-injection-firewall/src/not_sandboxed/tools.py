@@ -5,7 +5,7 @@ tools.py
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, JsonValue
 
 
 class Effect(StrEnum):
@@ -41,7 +41,16 @@ class Tool(BaseModel):
     effects: frozenset[Effect] = frozenset()
     guards: frozenset[Guard] = frozenset()
     required_args: frozenset[str] = frozenset()
+    optional_args: frozenset[str] = frozenset()
     allowlists: dict[str, frozenset[str]] = {}
+    arg_schema: type[BaseModel] | None = None
+
+    @property
+    def permitted_args(self) -> frozenset[str]:
+        """
+        Every argument name this tool will accept, and no others
+        """
+        return self.required_args | self.optional_args
 
 
 class ToolCallRequest(BaseModel):
@@ -52,7 +61,8 @@ class ToolCallRequest(BaseModel):
     model_config = ConfigDict(frozen = True)
 
     name: str
-    args: dict[str, str] = {}
+    args: dict[str, JsonValue] = {}
+    user_confirmed: bool = False
 
 
 class AgentReply(BaseModel):
@@ -64,3 +74,19 @@ class AgentReply(BaseModel):
 
     text: str = ""
     tool_calls: tuple[ToolCallRequest, ...] = ()
+
+
+def render_arg(value: JsonValue) -> str:
+    """
+    Flatten one argument value to the text egress has to scan, because
+    a secret nested inside a list or an object still leaves
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(
+            f"{key} {render_arg(item)}" for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return " ".join(render_arg(item) for item in value)
+    return str(value)

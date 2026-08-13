@@ -677,3 +677,33 @@
   border-top: $rule-ink;
   border-bottom: $hairline;
 }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  border-top: $hairline;
+}
+
+.action {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-1 $space-3;
+  align-items: center;
+  padding: $space-3 $space-1;
+  border-bottom: $hairline;
+
+  @include breakpoint-up('md') {
+    grid-template-columns: 12rem 1fr;
+  }
+}
+
+.action-name {
+  @include plate-type($font-size-2xs);
+}
+
+.action-args {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $color-ink-soft;
+  overflow-x: auto;
+}

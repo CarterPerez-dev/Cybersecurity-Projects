@@ -8,7 +8,14 @@ from collections.abc import Sequence
 from pydantic import BaseModel, ConfigDict
 
 from not_sandboxed import config
+from not_sandboxed.tools import Effect
 from not_sandboxed.verdict import Decision, Finding, Severity
+
+
+class PolicyError(Exception):
+    """
+    Raised when a policy asks for a guarantee the firewall cannot keep
+    """
 
 
 class Policy(BaseModel):
@@ -29,6 +36,7 @@ class Policy(BaseModel):
     egress_enabled: bool = True
     canaries: tuple[str, ...] = ()
     allowed_hosts: tuple[str, ...] = ()
+    forbidden_effects: frozenset[Effect] = frozenset()
 
 
 def escalate(

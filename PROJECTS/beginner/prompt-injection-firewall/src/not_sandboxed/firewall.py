@@ -14,8 +14,8 @@ from not_sandboxed.layers.ingress import IngressLayer
 from not_sandboxed.layers.normalize import NormalizeLayer
 from not_sandboxed.layers.provenance import ProvenanceLayer
 from not_sandboxed.layers.toolauth import ToolAuthLayer
-from not_sandboxed.policy import Policy, decide, escalate
-from not_sandboxed.tools import AgentReply, Tool
+from not_sandboxed.policy import Policy, PolicyError, decide, escalate
+from not_sandboxed.tools import AgentReply, Tool, render_arg
 from not_sandboxed.verdict import Finding, Severity, Verdict
 
 
@@ -72,6 +72,14 @@ class Firewall:
             canaries = policy.canaries,
             allowed_hosts = policy.allowed_hosts,
         )
+
+        if self.egress.rejected:
+            raise PolicyError(
+                config.CANARY_REJECTED.format(
+                    count = len(self.egress.rejected),
+                    minimum = config.MIN_CANARY_LENGTH,
+                )
+            )
 
     def _enabled(self, name: str) -> bool:
         return bool(getattr(self.policy, f"{name}_enabled", True))
@@ -178,10 +186,22 @@ class Firewall:
             return [self._disabled(config.LAYER_EGRESS)]
 
         try:
-            findings = list(self.egress.inspect_text(reply.text))
-            for call in reply.tool_calls:
-                for value in call.args.values():
-                    findings.extend(self.egress.inspect_text(value))
+            surfaces = egress_surfaces(reply)
+            budget = sum(len(surface) for surface in surfaces)
+            if budget > config.MAX_EGRESS_BYTES:
+                return [
+                    Finding(
+                        layer = config.LAYER_EGRESS,
+                        rule = config.RULE_OUTPUT_TOO_LARGE,
+                        severity = Severity.CRITICAL,
+                        invariant = True,
+                        evidence = f"{budget} chars across the reply",
+                    )
+                ]
+
+            findings: list[Finding] = []
+            for surface in surfaces:
+                findings.extend(self.egress.inspect_text(surface))
         except Exception as error:
             return [self._layer_error(config.LAYER_EGRESS, error)]
         else:
@@ -192,3 +212,18 @@ class Firewall:
         Build the fenced prompt for this context
         """
         return render(ctx)
+
+
+def egress_surfaces(reply: AgentReply) -> tuple[str, ...]:
+    """
+    Every piece of a reply that leaves the boundary, which is the prose
+    and every tool argument value flattened to text
+    """
+    return (
+        reply.text,
+        *(
+            render_arg(value)
+            for call in reply.tool_calls
+            for value in call.args.values()
+        ),
+    )

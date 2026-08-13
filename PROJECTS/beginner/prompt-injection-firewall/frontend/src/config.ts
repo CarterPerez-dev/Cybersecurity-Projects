@@ -8,12 +8,14 @@ export const API_ENDPOINTS = {
     LEVELS: '/levels',
     SESSION: '/session',
     ATTEMPT: '/attempt',
+    CODEPOINTS: '/codepoints',
   },
 } as const
 
 export const QUERY_KEYS = {
   LEVELS: ['levels'] as const,
   SESSION: ['session'] as const,
+  CODEPOINTS: ['codepoints'] as const,
 } as const
 
 export const ROUTES = {
@@ -94,17 +96,18 @@ export const NUMERAL_PAD = 2
 
 export const SESSION_ID_HEAD = 8
 
+// The firewall is the source of truth for these sets and serves them
+// from /api/codepoints. What follows is only the pre-fetch fallback,
+// and it is kept identical to the backend tuples on purpose: two
+// independent definitions of "invisible" means the panel a player
+// reads and the layer that enforces disagree.
 export const CODEPOINT_CLASSES = {
   TAG: { LOW: 0xe0000, HIGH: 0xe007f },
   BIDI: [
-    { LOW: 0x202a, HIGH: 0x202e },
-    { LOW: 0x2066, HIGH: 0x2069 },
-    { LOW: 0x200e, HIGH: 0x200f },
+    0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067,
+    0x2068, 0x2069,
   ],
-  ZERO_WIDTH: [
-    { LOW: 0x200b, HIGH: 0x200d },
-    { LOW: 0xfeff, HIGH: 0xfeff },
-  ],
+  ZERO_WIDTH: [0x200b, 0x200c, 0x200d, 0x2060, 0xfeff],
   ASCII_HIGH: 0x7f,
 } as const
 
@@ -158,6 +161,8 @@ export const COPY = {
   SUBMITTING: 'Running…',
   AGENT_HEADING: 'What the agent produced',
   AGENT_EMPTY: 'The firewall blocked this before the agent replied.',
+  ACTION_HEADING: 'What the agent tried to do',
+  NO_ACTIONS: 'It requested no actions.',
   VERDICT_HEADING: 'Verdict',
   REQUEST_LABEL: 'request',
   EGRESS_LABEL: 'egress',

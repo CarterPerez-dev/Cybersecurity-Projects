@@ -8,8 +8,7 @@ from typing import Final
 
 from not_sandboxed import config
 from not_sandboxed.context import Context, Trust
-from not_sandboxed.normalize.unicode import normalize_unicode
-from not_sandboxed.normalize.unwrap import unwrap
+from not_sandboxed.normalize.views import readings
 from not_sandboxed.policy import Policy
 from not_sandboxed.verdict import Finding, Severity
 
@@ -52,36 +51,47 @@ class IngressLayer:
         text: str,
         index: int,
     ) -> list[Finding]:
-        readable = unwrap(normalize_unicode(text).text).text
+        readable = readings(text, config.MAX_INGRESS_VARIANTS)
         findings: list[Finding] = []
 
-        for marker in config.CHAT_TEMPLATE_MARKERS:
-            if marker in readable:
-                findings.append(
-                    Finding(
-                        layer = config.LAYER_INGRESS,
-                        rule = config.RULE_TEMPLATE_MARKER,
-                        severity = Severity.HIGH,
-                        invariant = False,
-                        span_index = index,
-                        evidence = marker,
-                    )
+        marker = self._first_marker(readable)
+        if marker is not None:
+            findings.append(
+                Finding(
+                    layer = config.LAYER_INGRESS,
+                    rule = config.RULE_TEMPLATE_MARKER,
+                    severity = Severity.HIGH,
+                    invariant = False,
+                    span_index = index,
+                    evidence = marker,
                 )
-                break
+            )
 
-        for pattern in _IMPERATIVES:
-            match = pattern.search(readable)
-            if match is not None:
-                findings.append(
-                    Finding(
-                        layer = config.LAYER_INGRESS,
-                        rule = config.RULE_DATA_IMPERATIVE,
-                        severity = Severity.MEDIUM,
-                        invariant = False,
-                        span_index = index,
-                        evidence = match.group(0),
-                    )
+        hit = self._first_imperative(readable)
+        if hit is not None:
+            findings.append(
+                Finding(
+                    layer = config.LAYER_INGRESS,
+                    rule = config.RULE_DATA_IMPERATIVE,
+                    severity = Severity.MEDIUM,
+                    invariant = False,
+                    span_index = index,
+                    evidence = hit,
                 )
-                break
+            )
 
         return findings
+
+    def _first_marker(self, readable: set[str]) -> str | None:
+        for marker in config.CHAT_TEMPLATE_MARKERS:
+            if any(marker in reading for reading in readable):
+                return marker
+        return None
+
+    def _first_imperative(self, readable: set[str]) -> str | None:
+        for pattern in _IMPERATIVES:
+            for reading in sorted(readable):
+                match = pattern.search(reading)
+                if match is not None:
+                    return match.group(0)
+        return None

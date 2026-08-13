@@ -5,6 +5,8 @@ toolauth.py
 
 from collections.abc import Iterable, Mapping
 
+from pydantic import ValidationError
+
 from not_sandboxed import config
 from not_sandboxed.context import Context
 from not_sandboxed.policy import Policy
@@ -52,12 +54,26 @@ class ToolAuthLayer:
             ]
 
         return [
+            *self._effect_findings(tool,
+                                   policy),
             *self._argument_findings(tool,
                                      request),
             *self._guard_findings(tool,
                                   request,
                                   ctx),
         ]
+
+    def _effect_findings(
+        self,
+        tool: Tool,
+        policy: Policy,
+    ) -> Iterable[Finding]:
+        forbidden = tool.effects & policy.forbidden_effects
+        if forbidden:
+            yield self._finding(
+                config.RULE_TOOL_EFFECT_FORBIDDEN,
+                f"{tool.name} carries {sorted(forbidden)}",
+            )
 
     def _argument_findings(
         self,
@@ -69,6 +85,32 @@ class ToolAuthLayer:
             yield self._finding(
                 config.RULE_TOOL_ARGS_INVALID,
                 f"{tool.name} missing {sorted(missing)}",
+            )
+
+        unexpected = request.args.keys() - tool.permitted_args
+        if unexpected:
+            yield self._finding(
+                config.RULE_TOOL_ARGS_UNEXPECTED,
+                f"{tool.name} unexpected {sorted(unexpected)}",
+            )
+
+        yield from self._schema_findings(tool, request)
+
+    def _schema_findings(
+        self,
+        tool: Tool,
+        request: ToolCallRequest,
+    ) -> Iterable[Finding]:
+        if tool.arg_schema is None:
+            return
+
+        try:
+            tool.arg_schema.model_validate(request.args)
+        except ValidationError as invalid:
+            yield self._finding(
+                config.RULE_TOOL_ARGS_INVALID,
+                f"{tool.name} failed schema with "
+                f"{invalid.error_count()} error(s)",
             )
 
     def _guard_findings(
@@ -88,10 +130,17 @@ class ToolAuthLayer:
                 f"{tool.name} downstream of {origins}",
             )
 
+        if (Guard.USER_CONFIRMED in tool.guards
+                and not request.user_confirmed):
+            yield self._finding(
+                config.RULE_TOOL_UNCONFIRMED,
+                f"{tool.name} requires explicit user confirmation",
+            )
+
         if Guard.ARGS_ALLOWLISTED in tool.guards:
             for key, allowed in tool.allowlists.items():
                 value = request.args.get(key)
-                if value is not None and value not in allowed:
+                if not isinstance(value, str) or value not in allowed:
                     yield self._finding(
                         config.RULE_TOOL_NOT_ALLOWLISTED,
                         f"{tool.name}.{key}",

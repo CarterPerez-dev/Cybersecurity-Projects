@@ -11,6 +11,9 @@ services:
     container_name: not-sandboxed-arena-api
     image: not-sandboxed-arena-api:latest
     restart: unless-stopped
+    environment:
+      - NS_AUDIT_PATH=${NS_AUDIT_PATH:-}
+      - NS_BYPASS_PATH=${NS_BYPASS_PATH:-}
     networks:
       - arena
     read_only: true
@@ -20,6 +23,18 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
+    volumes:
+      - arena_state:/var/lib/not-sandboxed
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as r; r.urlopen('http://127.0.0.1:8000/healthz')"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:
@@ -40,7 +55,8 @@ services:
     ports:
       - "127.0.0.1:${NS_UI_PORT:-33572}:80"
     depends_on:
-      - arena
+      arena:
+        condition: service_healthy
     networks:
       - arena
     deploy:
@@ -52,3 +68,6 @@ services:
 networks:
   arena:
     driver: bridge
+
+volumes:
+  arena_state:

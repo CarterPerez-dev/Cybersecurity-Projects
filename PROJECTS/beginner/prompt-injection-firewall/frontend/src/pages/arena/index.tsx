@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react'
 
-import { useAttempt, useLevels, useSession } from '@/api/hooks'
+import { useAttempt, useCodepoints, useLevels, useSession } from '@/api/hooks'
 import type { AttemptResponse, Finding, Level } from '@/api/types'
 import {
   ARENA,
@@ -21,7 +21,13 @@ import {
   SEVERITY_WEIGHT,
 } from '@/config'
 import { ApiError } from '@/core/api/errors'
-import { census, hiddenTotal, segments } from '@/core/lib'
+import {
+  type CodepointSets,
+  census,
+  FALLBACK_CODEPOINTS,
+  hiddenTotal,
+  segments,
+} from '@/core/lib'
 
 import styles from './arena.module.scss'
 
@@ -127,13 +133,19 @@ function CensusCell({
   )
 }
 
-function Specimen({ ticket }: { ticket: string }): React.ReactElement {
+function Specimen({
+  ticket,
+  sets,
+}: {
+  ticket: string
+  sets: CodepointSets
+}): React.ReactElement {
   const [revealed, setRevealed] = useState<boolean>(false)
-  const counts = useMemo(() => census(ticket), [ticket])
+  const counts = useMemo(() => census(ticket, sets), [ticket, sets])
   const hidden = hiddenTotal(counts)
   const parts = useMemo(
-    () => (revealed ? segments(ticket) : []),
-    [revealed, ticket]
+    () => (revealed ? segments(ticket, sets) : []),
+    [revealed, ticket, sets]
   )
 
   return (
@@ -217,9 +229,9 @@ function Findings({ findings }: { findings: Finding[] }): React.ReactElement {
 
   return (
     <ul className={styles.findings}>
-      {findings.map((finding) => (
+      {findings.map((finding, index) => (
         <li
-          key={`${finding.layer}-${finding.rule}`}
+          key={`${index}-${finding.layer}-${finding.rule}`}
           className={styles.finding}
           data-invariant={finding.invariant}
         >
@@ -290,6 +302,19 @@ function Verdict({ result }: { result: AttemptResponse }): React.ReactElement {
         <pre className={styles.agentText}>
           {result.agent_text || COPY.AGENT_EMPTY}
         </pre>
+        <h3 className={styles.subHeading}>{COPY.ACTION_HEADING}</h3>
+        {result.tool_calls.length === 0 ? (
+          <p className={styles.note}>{COPY.NO_ACTIONS}</p>
+        ) : (
+          <ul className={styles.actions}>
+            {result.tool_calls.map((call, index) => (
+              <li key={`${index}-${call.name}`} className={styles.action}>
+                <span className={styles.actionName}>{call.name}</span>
+                <span className={styles.actionArgs}>{call.args.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </section>
   )
@@ -302,6 +327,7 @@ export function Component(): React.ReactElement {
   const levels = useLevels()
   const session = useSession()
   const attempt = useAttempt()
+  const codepoints = useCodepoints()
 
   const current = useMemo(
     () => levels.data?.levels.find((entry) => entry.number === level),
@@ -406,7 +432,7 @@ export function Component(): React.ReactElement {
         </button>
       </form>
 
-      <Specimen ticket={ticket} />
+      <Specimen ticket={ticket} sets={codepoints.data ?? FALLBACK_CODEPOINTS} />
 
       {attempt.isError && (
         <p className={styles.error}>{attemptMessage(attempt.error)}</p>

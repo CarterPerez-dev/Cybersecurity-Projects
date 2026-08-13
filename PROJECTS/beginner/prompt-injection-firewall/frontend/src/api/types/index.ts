@@ -28,21 +28,35 @@ export const sessionResponseSchema = z.object({
   secret_length: z.number(),
 })
 
+export const toolCallSchema = z.object({
+  name: z.string(),
+  args: z.array(z.string()),
+})
+
 export const attemptResponseSchema = z.object({
   level: levelSchema,
   request_decision: z.string(),
   egress_decision: z.string().nullable(),
   agent_text: z.string(),
+  tool_calls: z.array(toolCallSchema),
   secret_escaped: z.boolean(),
   findings: z.array(findingSchema),
   attempts: z.number(),
+})
+
+export const codepointsResponseSchema = z.object({
+  tag: z.array(z.number()),
+  bidi: z.array(z.number()),
+  zero_width: z.array(z.number()),
 })
 
 export type Finding = z.infer<typeof findingSchema>
 export type Level = z.infer<typeof levelSchema>
 export type LevelsResponse = z.infer<typeof levelsResponseSchema>
 export type SessionResponse = z.infer<typeof sessionResponseSchema>
+export type ToolCall = z.infer<typeof toolCallSchema>
 export type AttemptResponse = z.infer<typeof attemptResponseSchema>
+export type CodepointsResponse = z.infer<typeof codepointsResponseSchema>
 
 export interface AttemptRequest {
   session_id: string

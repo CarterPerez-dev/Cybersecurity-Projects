@@ -71,7 +71,7 @@ def _layer() -> EgressLayer:
         canaries = (SECRET,
                     ),
         allowed_hosts = ("vantage.example",
-                         ),
+                         ".royalmail.com"),
     )
 
 
@@ -136,11 +136,73 @@ def test_plain_link_to_unlisted_host_is_blocked() -> None:
     assert config.RULE_URL_EGRESS in _rules(findings)
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "See HTTPS://attacker.example/c?d=1",
+        "See Https://attacker.example/c?d=1",
+        "See HTTP://attacker.example/c?d=1",
+    ],
+)
+def test_an_uppercase_scheme_is_still_a_url(text: str) -> None:
+    assert config.RULE_URL_EGRESS in _rules(_layer().inspect_text(text))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "![x](//attacker.example/p?d=1)",
+        "go to //collector.example/log?d=1",
+    ],
+)
+def test_a_protocol_relative_url_is_still_a_url(text: str) -> None:
+    assert config.RULE_URL_EGRESS in _rules(_layer().inspect_text(text))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Use the syntax //comment in your config file.",
+        "The share lives at //server/share",
+        "See // this is a note in the sample.",
+    ],
+)
+def test_a_bare_double_slash_in_prose_is_not_a_url(text: str) -> None:
+    assert _layer().inspect_text(text) == [], (
+        "matching a protocol-relative URL means matching '//', and "
+        "without a dotted authority every code comment in model "
+        "output becomes a CRITICAL egress violation"
+    )
+
+
 def test_allowlisted_host_is_permitted() -> None:
     findings = _layer(
     ).inspect_text("see https://vantage.example/orders/8814")
 
     assert findings == []
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["www.royalmail.com",
+     "royalmail.com",
+     "track.royalmail.com"],
+)
+def test_a_suffix_allowlist_permits_its_subdomains(host: str) -> None:
+    assert _layer().inspect_text(f"see https://{host}/track") == []
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["evilroyalmail.com",
+     "royalmail.com.attacker.example"],
+)
+def test_a_suffix_allowlist_does_not_permit_a_lookalike(
+    host: str,
+) -> None:
+    assert config.RULE_URL_EGRESS in _rules(
+        _layer().inspect_text(f"see https://{host}/track")
+    )
 
 
 def test_allowlisted_host_still_checked_for_canary() -> None:
@@ -184,7 +246,7 @@ def test_space_separated_canary_is_a_leak() -> None:
     assert config.RULE_CANARY_LEAK in _rules(findings)
 
 
-def test_a_canary_shorter_than_the_floor_is_refused() -> None:
+def test_a_canary_shorter_than_the_floor_is_rejected_not_dropped() -> None:
     layer = EgressLayer(
         canaries = ("abc",
                     ),
@@ -192,7 +254,50 @@ def test_a_canary_shorter_than_the_floor_is_refused() -> None:
     )
 
     assert layer.canaries == ()
-    assert layer.inspect_text("abc") == []
+    assert layer.rejected == ("abc",
+                              )
+
+
+def test_the_floor_is_measured_on_the_form_that_is_matched() -> None:
+    layer = EgressLayer(
+        canaries = ("S.E.C.R.E.T!",
+                    ),
+        allowed_hosts = (),
+    )
+
+    assert layer.canaries == ()
+    assert layer.rejected == ("S.E.C.R.E.T!",
+                              )
+    assert config.RULE_CANARY_LEAK not in _rules(
+        layer.inspect_text("I cannot share that secret with you.")
+    )
+
+
+def test_a_long_enough_canary_is_kept() -> None:
+    layer = EgressLayer(
+        canaries = (SECRET,
+                    ),
+        allowed_hosts = ()
+    )
+
+    assert layer.canaries == (SECRET,
+                              )
+    assert layer.rejected == ()
+
+
+def test_output_past_the_budget_fails_closed() -> None:
+    findings = _layer().inspect_text("A" * (config.MAX_EGRESS_BYTES + 1))
+
+    assert config.RULE_OUTPUT_TOO_LARGE in _rules(findings)
+    assert all(f.invariant for f in findings)
+
+
+def test_output_inside_the_budget_is_still_scanned() -> None:
+    padding = "A" * (config.MAX_EGRESS_BYTES - len(SECRET) - 1)
+
+    findings = _layer().inspect_text(f"{padding} {SECRET}")
+
+    assert config.RULE_CANARY_LEAK in _rules(findings)
 
 
 def test_variant_search_terminates_on_hostile_input() -> None:
