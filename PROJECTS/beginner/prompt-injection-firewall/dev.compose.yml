@@ -38,6 +38,7 @@ services:
       - CI=true
       - VITE_API_URL=${VITE_API_URL:-/api}
       - VITE_APP_TITLE=${VITE_APP_TITLE:-not-sandboxed arena}
+      - VITE_SITE_URL=${VITE_SITE_URL:-}
     volumes:
       - ./frontend:/app
       - frontend_modules:/app/node_modules

@@ -33,6 +33,7 @@ services:
       args:
         - VITE_API_URL=${VITE_API_URL:-/api}
         - VITE_APP_TITLE=${VITE_APP_TITLE:-not-sandboxed arena}
+        - VITE_SITE_URL=${VITE_SITE_URL:-}
     container_name: not-sandboxed-arena-nginx
     image: not-sandboxed-arena-nginx:latest
     restart: unless-stopped
