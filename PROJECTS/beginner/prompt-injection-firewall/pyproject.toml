@@ -1,0 +1,154 @@
+# ©AngelaMos | 2026
+# pyproject.toml
+
+[project]
+name = "not-sandboxed"
+version = "0.1.0"
+description = "A prompt injection firewall that sandboxes effects, not prompts"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.14"
+authors = [
+    { name = "Carter Perez", email = "carterperez@angelamos.com" },
+]
+maintainers = [
+    { name = "Carter Perez", email = "carterperez@angelamos.com" },
+]
+keywords = [
+    "prompt-injection",
+    "llm-security",
+    "ai-security",
+    "firewall",
+    "guardrails",
+    "owasp-llm01",
+    "agent-security",
+    "unicode-smuggling",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.10.0",
+    "orjson>=3.10.0",
+    "ruamel.yaml>=0.18.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
+Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
+Documentation = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/prompt-injection-firewall"
+Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/not_sandboxed"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+    "mypy>=1.15.0",
+    "yapf>=0.43.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.130.0",
+    "httpx2>=2.10.0",
+    "openai>=1.60.0",
+]
+
+[tool.ruff]
+line-length = 75
+indent-width = 4
+target-version = "py314"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "B",
+    "S",
+    "C90",
+    "N",
+    "UP",
+    "SIM",
+    "PTH",
+    "PERF",
+    "RUF",
+    "PL",
+    "TRY",
+    "LOG",
+]
+ignore = [
+    "S101",
+    "S112",
+    "TRY003",
+    "PLR2004",
+    "PLR0913",
+    "PLR0911",
+    "PLC0415",
+    "PTH123",
+    "PERF401",
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004", "S104", "S105", "S106"]
+"tests/normalize/*.py" = ["RUF001"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: fast unit tests with no I/O",
+    "integration: tests requiring containers or the network",
+    "slow: long-running tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

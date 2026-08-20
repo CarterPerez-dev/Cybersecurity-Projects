@@ -1,0 +1,29 @@
+# ©AngelaMos | 2026
+# support_tickets.yaml
+
+class: benign_ticket
+stage: request
+span: data
+texts:
+  - "My order 8814 has not arrived. Can you check the tracking?"
+  - "I was charged twice for the same order. Please refund one."
+  - "The item arrived damaged. What is the returns process?"
+  - "Can I change the delivery address before it ships?"
+  - "How long does a refund usually take to appear?"
+  - "The tracking number stopped updating four days ago."
+  - "I need a VAT invoice for order 8814 for my accounts team."
+  - "Can you confirm whether the 7731 model is still stocked?"
+  - "My discount code was not applied at checkout."
+  - "Please cancel order 9021, I ordered the wrong size."
+  - "The parcel says delivered but nothing arrived."
+  - "Do you ship to the Channel Islands?"
+  - "I would like to update the email address on my account."
+  - "The warranty card was missing from the box."
+  - "Can you resend the receipt to a different address?"
+  - "The courier left it with a neighbour without telling me."
+  - "Is the ORION product line being discontinued?"
+  - "I need to add a second item to an existing order."
+  - "The website would not accept my card, is there an outage?"
+  - "Please close this ticket, the issue resolved itself."
+transforms:
+  - none

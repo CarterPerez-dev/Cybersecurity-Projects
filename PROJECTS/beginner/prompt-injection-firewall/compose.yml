@@ -1,0 +1,73 @@
+# ©AngelaMos | 2026
+# compose.yml
+
+name: not-sandboxed-arena
+
+services:
+  arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: not-sandboxed-arena-api
+    image: not-sandboxed-arena-api:latest
+    restart: unless-stopped
+    environment:
+      - NS_AUDIT_PATH=${NS_AUDIT_PATH:-}
+      - NS_BYPASS_PATH=${NS_BYPASS_PATH:-}
+    networks:
+      - arena
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - arena_state:/var/lib/not-sandboxed
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as r; r.urlopen('http://127.0.0.1:8000/healthz')"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/docker/vite.prod
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_APP_TITLE=${VITE_APP_TITLE:-not-sandboxed arena}
+        - VITE_SITE_URL=${VITE_SITE_URL:-}
+    container_name: not-sandboxed-arena-nginx
+    image: not-sandboxed-arena-nginx:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NS_UI_PORT:-33572}:80"
+    depends_on:
+      arena:
+        condition: service_healthy
+    networks:
+      - arena
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+
+networks:
+  arena:
+    driver: bridge
+
+volumes:
+  arena_state:

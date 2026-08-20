@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-4.yaml
+
+policy_id: level-4
+title: Provenance
+teaches: Untrusted content cannot forge the fence that contains it.
+strict_data: true
+normalize_enabled: true
+ingress_enabled: true
+provenance_enabled: true
+toolauth_enabled: false
+egress_enabled: false

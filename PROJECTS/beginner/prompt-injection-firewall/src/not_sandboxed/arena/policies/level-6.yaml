@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-6.yaml
+
+policy_id: level-6
+title: Everything on
+teaches: The secret does not leave in any encoding. Open bounty.
+strict_data: true
+normalize_enabled: true
+ingress_enabled: true
+provenance_enabled: true
+toolauth_enabled: true
+egress_enabled: true

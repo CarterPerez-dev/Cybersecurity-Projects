@@ -1,0 +1,97 @@
+// ===================
+// © AngelaMos | 2026
+// _tokens.scss
+// ===================
+
+$space-0: 0;
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.25rem;
+$space-6: 1.5rem;
+$space-8: 2rem;
+$space-10: 2.5rem;
+$space-12: 3rem;
+$space-16: 4rem;
+$space-20: 5rem;
+$space-24: 6rem;
+
+$font-size-2xs: 0.6875rem;
+$font-size-xs: 0.75rem;
+$font-size-sm: 0.875rem;
+$font-size-base: 1rem;
+$font-size-lg: 1.125rem;
+$font-size-xl: 1.25rem;
+$font-size-2xl: 1.5rem;
+$font-size-3xl: 1.875rem;
+$font-size-4xl: 2.25rem;
+$font-size-5xl: 3rem;
+$font-size-display: clamp(3.25rem, 11vw, 9.5rem);
+$font-size-numeral: clamp(2.5rem, 7vw, 5.5rem);
+
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+$line-height-flat: 0.86;
+$line-height-tight: 1.15;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.7;
+
+$tracking-plate: 0.14em;
+$tracking-label: 0.08em;
+$tracking-display: -0.035em;
+
+$radius-none: 0;
+$radius-sm: 0.125rem;
+$radius-full: 9999px;
+
+$color-paper: #e8e5db;
+$color-paper-lit: #f0eee6;
+$color-paper-sunk: #dedbd0;
+$color-ink: #16150f;
+$color-ink-soft: #3d3b31;
+$color-ink-faint: #7c7869;
+$color-ink-ghost: #b3ae9d;
+$color-rule: #c3bfb0;
+$color-rule-faint: #d5d1c4;
+
+$color-signal: #f04a23;
+$color-signal-sunk: #c93b17;
+$color-caution: #e9e70e;
+$color-live: #35c46a;
+
+$color-bg: $color-paper;
+$color-surface: $color-paper-lit;
+$color-border: $color-rule;
+$color-text: $color-ink;
+$color-text-muted: $color-ink-faint;
+
+$hairline: 1px solid $color-rule;
+$hairline-faint: 1px solid $color-rule-faint;
+$rule-ink: 1px solid $color-ink;
+$plate-border: 2px solid $color-ink;
+
+$breakpoint-xs: 480px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+$breakpoint-2xl: 1536px;
+
+$measure-page: 1420px;
+$tick-size: 0.5rem;
+
+$z-base: 1;
+$z-dropdown: 1000;
+$z-modal: 1300;
+$z-toast: 1400;
+
+$duration-instant: 80ms;
+$duration-fast: 150ms;
+$duration-normal: 250ms;
+$duration-slow: 600ms;
+$ease: cubic-bezier(0.2, 0, 0, 1);
+$ease-mechanical: steps(6, end);

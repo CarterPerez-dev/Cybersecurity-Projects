@@ -1,0 +1,28 @@
+# =============================================================================
+# ©AngelaMos | 2026
+# cloudflared.compose.yml
+# =============================================================================
+# Cloudflare Tunnel for production remote access
+# Usage: just tunnel
+# The tunnel's public hostname must route to http://nginx:80
+# =============================================================================
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: not-sandboxed-arena-tunnel
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    networks:
+      - arena
+    depends_on:
+      nginx:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    restart: unless-stopped
