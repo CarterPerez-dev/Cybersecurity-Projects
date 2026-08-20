@@ -42,6 +42,9 @@ jobs:
           - name: c2-beacon-backend
             type: ruff
             path: PROJECTS/beginner/c2-beacon/backend
+          - name: prompt-injection-firewall
+            type: ruff
+            path: PROJECTS/beginner/prompt-injection-firewall
           # Python (ruff) - Intermediate
           - name: api-security-scanner-backend
             type: ruff
@@ -113,6 +116,9 @@ jobs:
           - name: ja3-ja4-tls-fingerprinting-frontend
             type: frontend
             path: PROJECTS/intermediate/ja3-ja4-tls-fingerprinting/frontend
+          - name: prompt-injection-firewall-frontend
+            type: frontend
+            path: PROJECTS/beginner/prompt-injection-firewall/frontend
           # Go
           - name: simple-vulnerability-scanner
             type: go
