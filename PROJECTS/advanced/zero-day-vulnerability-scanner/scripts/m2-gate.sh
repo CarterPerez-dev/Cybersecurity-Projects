@@ -1,0 +1,280 @@
+#!/usr/bin/env bash
+# ©AngelaMos | 2026
+# m2-gate.sh
+
+set -euo pipefail
+
+MAGMA_SRC="${MAGMA_ROOT:-/opt/magma}"
+ROOT="${LISDEX_M2_ROOT:-/opt/magma-work/m2}"
+CACHE="$ROOT/cache"
+WORK="$ROOT/gate"
+LISDEX="${LISDEX_BIN:-${CARGO_TARGET_DIR:-/cargo-target}/debug/lisdex}"
+JOBS="${LISDEX_JOBS:-$(nproc)}"
+
+MAGMA_TARGETS=(libpng libtiff libxml2 sqlite3 lua)
+REQUIRED_MAGMA=3
+
+PARSER_NAMES=(openjpeg libarchive)
+PARSER_URLS=(
+    "https://github.com/uclouvain/openjpeg.git"
+    "https://github.com/libarchive/libarchive.git"
+)
+REQUIRED_PARSERS=2
+
+PASSED_MAGMA=0
+PASSED_PARSERS=0
+FAILURES=0
+SUMMARY=()
+
+log() {
+    printf '\n[lisdex] %s\n' "$1"
+}
+
+die() {
+    printf '\n[lisdex] FATAL: %s\n' "$1" >&2
+    exit 1
+}
+
+record() {
+    SUMMARY+=("$1")
+}
+
+# Existence was never enough: it ties the gate to nothing, so a 10-minute run could grade a
+# binary from an older commit. Build what is about to be tested.
+cargo build -p lisdex || die "lisdex does not build"
+[ -x "$LISDEX" ] || die "lisdex binary missing at $LISDEX"
+[ -d "$MAGMA_SRC" ] || die "magma source missing at $MAGMA_SRC"
+
+if [ "${1:-}" = "reset" ]; then
+    log "removing cache and gate work tree"
+    rm -rf "$CACHE" "$WORK"
+fi
+
+mkdir -p "$CACHE"
+rm -rf "$WORK"
+mkdir -p "$WORK"
+
+log "stage 1/4: fetch magma target sources (pinned upstream, no canary patches)"
+for NAME in "${MAGMA_TARGETS[@]}"; do
+    TARGET="$CACHE/magma-$NAME"
+    if [ ! -d "$TARGET/repo" ]; then
+        printf '  fetching %s\n' "$NAME"
+        rm -rf "$TARGET"
+        cp -r "$MAGMA_SRC/targets/$NAME" "$TARGET"
+        rm -rf "$TARGET/repo"
+        if ! TARGET="$TARGET" bash "$TARGET/fetch.sh" >"$WORK/fetch-$NAME.log" 2>&1; then
+            printf '    FAIL  fetch failed, see %s\n' "$WORK/fetch-$NAME.log"
+            rm -rf "$TARGET"
+            continue
+        fi
+    fi
+    printf '  %-10s %s\n' "$NAME" "$TARGET/repo"
+done
+
+log "stage 2/4: auto-build magma targets"
+for NAME in "${MAGMA_TARGETS[@]}"; do
+    SOURCE="$CACHE/magma-$NAME/repo"
+    if [ ! -d "$SOURCE" ]; then
+        printf '  FAIL  %s (not fetched)\n' "$NAME"
+        record "FAIL  magma/$NAME  not fetched"
+        continue
+    fi
+    printf '  building %s\n' "$NAME"
+    START=$(date +%s)
+    if OUTPUT="$("$LISDEX" build "$SOURCE" --label "$NAME" --work "$WORK/$NAME" --jobs "$JOBS" 2>&1)"; then
+        ELAPSED=$(( $(date +%s) - START ))
+        BUILT="$(printf '%s' "$OUTPUT" | grep '^built ' || true)"
+        COUNTS="$(printf '%s' "$OUTPUT" | grep '^artifacts ' || true)"
+        printf '    PASS  %s (%ss)\n' "$BUILT" "$ELAPSED"
+        printf '          %s\n' "$COUNTS"
+        record "PASS  magma/$NAME  ${ELAPSED}s  $BUILT | $COUNTS"
+        PASSED_MAGMA=$((PASSED_MAGMA + 1))
+    else
+        ELAPSED=$(( $(date +%s) - START ))
+        REASON="$(printf '%s' "$OUTPUT" | grep '^degraded: ' | tail -1 || true)"
+        printf '    FAIL  %s (%ss)\n' "$NAME" "$ELAPSED"
+        printf '          %s\n' "${REASON:-no degradation reason reported}"
+        record "FAIL  magma/$NAME  ${ELAPSED}s  ${REASON:-unknown}"
+    fi
+done
+
+log "stage 3/4: auto-build real parser libraries"
+for INDEX in "${!PARSER_NAMES[@]}"; do
+    NAME="${PARSER_NAMES[$INDEX]}"
+    URL="${PARSER_URLS[$INDEX]}"
+    CACHED="$CACHE/parser-$NAME"
+    if [ ! -d "$CACHED" ]; then
+        printf '  cloning %s\n' "$NAME"
+        if ! git clone --depth 1 --quiet "$URL" "$CACHED" >"$WORK/clone-$NAME.log" 2>&1; then
+            printf '    FAIL  clone failed, see %s\n' "$WORK/clone-$NAME.log"
+            record "FAIL  parser/$NAME  clone failed"
+            continue
+        fi
+    fi
+    REVISION="$(git -C "$CACHED" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    printf '  building %s (%s)\n' "$NAME" "$REVISION"
+    START=$(date +%s)
+    if OUTPUT="$("$LISDEX" build "$CACHED" --label "$NAME" --work "$WORK/$NAME" --jobs "$JOBS" 2>&1)"; then
+        ELAPSED=$(( $(date +%s) - START ))
+        BUILT="$(printf '%s' "$OUTPUT" | grep '^built ' || true)"
+        COUNTS="$(printf '%s' "$OUTPUT" | grep '^artifacts ' || true)"
+        printf '    PASS  %s (%ss)\n' "$BUILT" "$ELAPSED"
+        printf '          %s\n' "$COUNTS"
+        record "PASS  parser/$NAME@$REVISION  ${ELAPSED}s  $BUILT | $COUNTS"
+        PASSED_PARSERS=$((PASSED_PARSERS + 1))
+    else
+        ELAPSED=$(( $(date +%s) - START ))
+        REASON="$(printf '%s' "$OUTPUT" | grep '^degraded: ' | tail -1 || true)"
+        printf '    FAIL  %s (%ss)\n' "$NAME" "$ELAPSED"
+        printf '          %s\n' "${REASON:-no degradation reason reported}"
+        record "FAIL  parser/$NAME  ${ELAPSED}s  ${REASON:-unknown}"
+    fi
+done
+
+log "stage 4/4: failures must degrade loudly, never silently"
+NO_BUILD="$WORK/unbuildable"
+mkdir -p "$NO_BUILD"
+printf 'this tree has no build system\n' > "$NO_BUILD/README.md"
+if OUTPUT="$("$LISDEX" build "$NO_BUILD" --work "$WORK/unbuildable-work" --jobs 1 2>&1)"; then
+    printf '    FAIL  a tree with no build system reported success\n'
+    FAILURES=$((FAILURES + 1))
+    record "FAIL  degradation  unbuildable tree reported success"
+else
+    if printf '%s' "$OUTPUT" | grep -q 'no supported build system detected'; then
+        printf '    PASS  unbuildable tree failed with a named reason\n'
+        record "PASS  degradation  unbuildable tree named its reason"
+    else
+        printf '    FAIL  failure was not explained:\n%s\n' "$OUTPUT"
+        FAILURES=$((FAILURES + 1))
+        record "FAIL  degradation  failure not explained"
+    fi
+fi
+
+BAZEL_TREE="$WORK/bazel-only"
+mkdir -p "$BAZEL_TREE"
+printf 'workspace(name = "x")\n' > "$BAZEL_TREE/WORKSPACE"
+if OUTPUT="$("$LISDEX" build "$BAZEL_TREE" --work "$WORK/bazel-work" --jobs 1 2>&1)"; then
+    printf '    FAIL  a bazel-only tree reported success\n'
+    FAILURES=$((FAILURES + 1))
+    record "FAIL  degradation  bazel tree reported success"
+else
+    if printf '%s' "$OUTPUT" | grep -qF 'note: bazel detected; lisdex plans no bazel build' \
+        && printf '%s' "$OUTPUT" | grep -qF 'the only one(s) present are bazel'; then
+        printf '    PASS  bazel is detected, named unsupported, and named as the cause\n'
+        record "PASS  degradation  bazel detected, named unsupported and named as the cause"
+    else
+        printf '    FAIL  bazel degradation was not explained:\n%s\n' "$OUTPUT"
+        FAILURES=$((FAILURES + 1))
+        record "FAIL  degradation  bazel not explained"
+    fi
+fi
+
+NEGATIVE="$WORK/negative-control"
+mkdir -p "$NEGATIVE"
+NATIVE_CC="$(command -v gcc || command -v cc || true)"
+if [ -z "$NATIVE_CC" ]; then
+    printf '    FAIL  no uninstrumented compiler available for the negative control\n'
+    FAILURES=$((FAILURES + 1))
+    record "FAIL  negative-control  no uninstrumented compiler present"
+else
+    cat > "$NEGATIVE/parser.c" <<'EOF'
+#include <stddef.h>
+int parse(const unsigned char *data, size_t size) {
+    unsigned char buffer[16];
+    size_t i;
+    for (i = 0; i < size && i < sizeof(buffer); i++) {
+        buffer[i] = data[i];
+    }
+    return size > 0 ? buffer[0] : 0;
+}
+EOF
+    {
+        printf 'all: libparser.a\n\n'
+        printf 'parser.o: parser.c\n'
+        printf '\t%s -O2 -c parser.c -o parser.o\n\n' "$NATIVE_CC"
+        printf 'libparser.a: parser.o\n'
+        printf '\tar rcs libparser.a parser.o\n\n'
+        printf 'clean:\n'
+        printf '\trm -f parser.o libparser.a\n'
+    } > "$NEGATIVE/Makefile"
+
+    if OUTPUT="$("$LISDEX" build "$NEGATIVE" --label hardcoded --work "$WORK/hardcoded-work" --jobs 1 2>&1)"; then
+        if printf '%s' "$OUTPUT" | grep -q 'via compile-commands-replay\|via compiler-shadow'; then
+            printf '    PASS  a hardcoded absolute-path compiler was defeated by a later tier\n'
+            record "PASS  control/hardcoded-cc  $(printf '%s' "$OUTPUT" | grep '^built ')"
+        else
+            printf '    FAIL  a hardcoded compiler was reported built by the wrong tier:\n%s\n' "$OUTPUT"
+            FAILURES=$((FAILURES + 1))
+            record "FAIL  control/hardcoded-cc  wrong tier claimed the build"
+        fi
+    else
+        printf '    FAIL  no tier defeated a hardcoded absolute-path compiler:\n%s\n' "$OUTPUT"
+        FAILURES=$((FAILURES + 1))
+        record "FAIL  control/hardcoded-cc  no tier defeated it"
+    fi
+
+    VENDORED="$WORK/vendored-blob"
+    mkdir -p "$VENDORED/prebuilt"
+    printf 'int vendored(void) { return 7; }\n' > "$VENDORED/vendor.c"
+    "$NATIVE_CC" -O2 -c "$VENDORED/vendor.c" -o "$VENDORED/prebuilt/vendor.o"
+    ar rcs "$VENDORED/prebuilt/libvendor.a" "$VENDORED/prebuilt/vendor.o"
+    rm -f "$VENDORED/vendor.c" "$VENDORED/prebuilt/vendor.o"
+    {
+        printf 'all: libvendor.a\n\n'
+        printf 'libvendor.a: prebuilt/libvendor.a\n'
+        printf '\tcp prebuilt/libvendor.a libvendor.a\n\n'
+        printf 'clean:\n'
+        printf '\trm -f libvendor.a\n'
+    } > "$VENDORED/Makefile"
+
+    if OUTPUT="$("$LISDEX" build "$VENDORED" --label vendored --work "$WORK/vendored-work" --jobs 1 2>&1)"; then
+        printf '    FAIL  a prebuilt uninstrumented archive was reported as instrumented\n'
+        printf '%s\n' "$OUTPUT"
+        FAILURES=$((FAILURES + 1))
+        record "FAIL  control/vendored-blob  uninstrumented archive reported as built"
+    elif printf '%s' "$OUTPUT" | grep -q 'address sanitizer symbols: found 0'; then
+        if [ -f "$WORK/vendored-work/sources/vendored/libvendor.a" ]; then
+            printf '    PASS  a real archive that cannot be instrumented was rejected by symbol inspection\n'
+            record "PASS  control/vendored-blob  uninstrumented archive rejected"
+        else
+            printf '    FAIL  the vendored control never produced an archive, so it proved nothing\n'
+            FAILURES=$((FAILURES + 1))
+            record "FAIL  control/vendored-blob  no archive was produced"
+        fi
+    else
+        printf '    FAIL  rejection was not attributed to missing instrumentation:\n%s\n' "$OUTPUT"
+        FAILURES=$((FAILURES + 1))
+        record "FAIL  control/vendored-blob  wrong rejection reason"
+    fi
+fi
+
+printf '\n'
+printf '================ M2 GATE SUMMARY ================\n'
+for LINE in "${SUMMARY[@]}"; do
+    printf '  %s\n' "$LINE"
+done
+printf '\n'
+printf '  magma targets built  : %d / %d required (%d attempted)\n' \
+    "$PASSED_MAGMA" "$REQUIRED_MAGMA" "${#MAGMA_TARGETS[@]}"
+printf '  real parsers built   : %d / %d required (%d attempted)\n' \
+    "$PASSED_PARSERS" "$REQUIRED_PARSERS" "${#PARSER_NAMES[@]}"
+printf '  degradation failures : %d\n' "$FAILURES"
+printf '\n'
+
+if [ "$PASSED_MAGMA" -lt "$REQUIRED_MAGMA" ]; then
+    printf '[lisdex] M2 GATE FAILED: only %d magma target(s) auto-built\n' "$PASSED_MAGMA"
+    exit 1
+fi
+if [ "$PASSED_PARSERS" -lt "$REQUIRED_PARSERS" ]; then
+    printf '[lisdex] M2 GATE FAILED: only %d real parser(s) auto-built\n' "$PASSED_PARSERS"
+    exit 1
+fi
+if [ "$FAILURES" -ne 0 ]; then
+    printf '[lisdex] M2 GATE FAILED: %d degradation check(s) failed\n' "$FAILURES"
+    exit 1
+fi
+
+printf '[lisdex] M2 GATE PASSED\n'
+printf '[lisdex]   instrumentation was verified by symbol inspection of the built\n'
+printf '[lisdex]   libraries, not by build exit codes\n'
+exit 0

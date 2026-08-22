@@ -1,0 +1,269 @@
+# Challenges and Extensions
+
+Ordered roughly by effort. Each one is a real gap, not a made-up exercise, and
+several are things lisdex deliberately does not do.
+
+## Warm-up
+
+### 1. Add a format to the dictionary selector
+
+`dictionary::select` matches seed magic bytes to AFL++'s shipped dictionaries.
+Add one it does not know: WebP (`RIFF....WEBP`), or AVIF, or a format your target
+uses.
+
+The interesting part is the cap. `afl-fuzz` fatals on a fifth `-x`, so if a
+corpus contains five recognized formats something must be dropped. What is the
+right thing to drop? Frequency in the corpus, or the format with the largest
+dictionary, or the one whose magic appears in the most seeds?
+
+### 2. Teach the classifier a new sanitizer
+
+lisdex handles ASAN and UBSan. Add LeakSanitizer, or MemorySanitizer.
+
+Before you write the parser, run the sanitizer and capture real output. The
+research for this project prescribed six ASAN regexes; when they were finally
+executed against real reports, **three matched nothing** and a fourth reported
+the column number as the line number. Write the test against a capture, not
+against the documentation.
+
+### 3. Make the console show the crash input
+
+The dashboard serves the sanitizer report but not the reproducer bytes. Add a
+hexdump panel.
+
+Watch the layering: the bytes live on `Crash`, and the wire DTO in
+`lisdex-dashboard/wire.rs` is built from `Snapshot`. If you find yourself adding
+`lisdex-core` to the dashboard's dependencies, stop and put it on the model
+instead.
+
+## Real work
+
+### 4. A second target library, end to end
+
+Take lisdex through a library it has never seen. libjpeg-turbo, libwebp,
+libarchive, or DjVuLibre.
+
+Expect to fail at the build ladder. That is the honest state of automated
+building. When it fails, the useful question is *which* injection point the
+project defeated, and whether the fix generalizes or is a one-off.
+
+Success criterion: a harness that survives all four oracles, and a campaign
+whose coverage curve climbs for at least an hour.
+
+### 5. Make the null-dereference rule match Chromium's
+
+Chromium's rule for whether a null dereference is security relevant reads
+"consistent, small, fixed offset". lisdex implements two of those three, and the
+gap left is a genuinely different question from the one it already answers.
+
+*Small* is `FaultAddress::of`: a fault below 32 KiB is a null dereference plus a
+struct offset, not a wild pointer. *Fixed* is `group_is_security_relevant`, which
+folds the fault addresses of every crash in a bug group: if the same bug lands at
+`0x10` on one input and `0x4000` on another, the offset moves with the input, so
+it is attacker-influenced and gets filed as security even though every individual
+address is small. Note which way the old gap failed - permissive, filing a moving
+offset as non-security.
+
+What is left is *consistency across runs of the same input*, which is a different
+signal entirely. An address that moves when you re-run one unchanged input is not
+attacker-controlled arithmetic; it suggests something is being computed from
+uninitialized memory. Implementing it means executing each crash more than once
+and comparing, so think about what that costs on a pile of 200 crashes, and
+whether the answer would change any advisory lisdex currently emits.
+
+Fair warning from the shipped version: on both real libpng campaigns the
+group-consistency rule changes **nothing**, because every canary faults at the
+process PID, far beyond the boundary, so no group is entirely near-null. A
+correctness fix with no measured effect on the corpus you have is still worth
+making when the gap fails in the unsafe direction, but you should know going in
+that you will not see a number move.
+
+### 6. Target-level provenance beyond Magma
+
+This one is half done in the shipped code, and the half that is missing is the
+interesting half.
+
+lisdex records a `tree_provenance` on every campaign by scanning the target
+binary's symbols for Magma's canary runtime, and refuses disclosure for anything
+from a benchmark tree whatever the stack shows. But that detector knows exactly
+one benchmark suite. Point lisdex at a target built from an OSS-Fuzz corpus, from
+FuzzBench, or from an ARVO reproducer and it will happily call the tree `field`.
+
+Generalize it. What is the signal for "this build is not the library as its
+maintainers ship it"? Symbol names are one answer and a narrow one. Build
+metadata, a recorded source provenance, and a checksum against an upstream
+release tarball are all better and all harder.
+
+Two things worth knowing before you start, both measured on the shipped code:
+
+- The obvious way to test this is to build Magma without `MAGMA_FATAL_CANARIES`
+  so the canary logs instead of killing the process, expecting execution to
+  continue into the real corruption and produce a crash with no canary frame on
+  the stack. It does not work on libpng. A 600-second campaign against that build
+  ran 62.6 million executions to the same edge coverage and found **zero**
+  crashes, and replaying 83 known-crashing inputs against it produced **zero**
+  faults where the fatal build produced 83. A canary condition is a *precondition
+  detector*, not the corruption itself.
+- Replaying crashes at scale needs `ASAN_OPTIONS=symbolize=0`. With the default,
+  every execution stalls in the in-process symbolizer and emits a truncated
+  report with no function names at all, so any grep over the frames silently
+  matches nothing and hands you a confident null result.
+
+### 7. Survival analysis for time-to-first-crash
+
+If you change the ranking function, or the dictionary policy, or the power
+schedule, how do you know it helped?
+
+Klees et al. (CCS 2018) is the standard answer and most fuzzing work still
+ignores it: 30 trials, a Mann-Whitney U test, and a stated effect size. One run
+of each is not evidence, because fuzzing variance across seeds is enormous.
+
+**`lisdex bench` now ships**, so the starting point is written for you:
+
+```
+lisdex bench --arm before=./a --arm after=./b --seeds ./seeds \
+             --work /tmp/bench --trials 30 --duration 3600
+```
+
+It runs both arms from identical seeds, reports median with first and third
+quartile (never a mean and a standard deviation, per Klees Finding 4), and
+applies Mann-Whitney U with the tie correction plus a Vargha-Delaney A12 effect
+size. Below 20 trials it prints the distributions and then **refuses to issue a
+verdict at all**, because Schloegel et al. (S&P 2024) showed the test is
+mathematically unable to reject at alpha=0.05 beneath that floor. Run it against
+the same binary twice and watch how far apart two identical arms land.
+
+The honest gap is what it does with a trial that never crashed. Right now
+`--metric time-to-first-crash` simply drops those trials and reports how many
+were censored. That is defensible but it throws away information, and it biases
+against exactly the arm you most want to detect: a build that crashes rarely but
+catastrophically. The statistically correct treatment of a censored observation
+is survival analysis - a Kaplan-Meier estimator over the trial durations, and a
+log-rank test instead of Mann-Whitney U.
+
+Implement that. The hard part is not the estimator, it is deciding what a
+"censored at 3600s" trial means when another arm's trial ran 3600s and crashed
+at 3599s, and then defending your choice in the output where a reader can argue
+with it.
+
+## Research-scale
+
+### 8. Answer a refusal that no amount of argument-guessing can fix
+
+Read this one for the shape of the argument, because the obvious target is gone.
+
+The producer chain used to be the biggest single win available: 58% of harness
+refusals were entry points needing an opaque context built by another call, like
+`png_read_info` needing a `png_structp` from `png_create_read_struct`. That
+machinery is now shipped -- `vocabulary.producers`, `choose_producer` ranking by
+polarity then affinity then arity, and `handle_key` de-aliasing typedefs onto
+their record. Re-censused across 14 trees and 244 refusals, the opaque-context
+class is **0%**. It did not shrink; it disappeared.
+
+Which is why the interesting part is what replaced it at the top:
+
+| refusal | share | what it means |
+|---|---|---|
+| `CorpusNeverBound` | 35.5% | the assembled body never reads the fuzzer's bytes |
+| `UnsizedTextParam` | 20.7% | a `char *` with no length beside it |
+| `UnsupportedShape` | 11.6% | `FILE *`, `void *client_data`, `wchar_t`, filenames |
+| `NoProducer` | 4.5% | what used to be 58% |
+
+`CorpusNeverBound` is the challenge, and it is a different kind of problem. It is
+a **post-condition on what an assembled harness does**, not a missing value: the
+harness compiles, runs, and never touches the input. You cannot fix it by trying
+harder to guess an argument, because the remedy is a different entry point or a
+different call order -- structure, not values. That is also why it is the one
+class where a language model has no obvious job: there is no blank to fill in.
+
+Pick it up and you are choosing between teaching the ranked source ladder to
+propose alternative call orders, and detecting the condition early enough to fall
+back before the oracle burns a compile on it. Measure which refusals your change
+converts, and expect a chunk of the 35.5% to be entry points that genuinely
+should be refused.
+
+### 9. Structure-aware mutation
+
+Dictionaries and cmplog get you past magic bytes and checksums. They do not get
+you past a format where a length field must agree with the actual chunk size,
+because a random mutation breaks the agreement and the parser rejects the file
+before reaching anything interesting.
+
+The general solution is a grammar or a custom mutator that understands
+"chunk = length ++ type ++ data ++ crc" and mutates the data while fixing up the
+length and the CRC. AFL++ supports custom mutators.
+
+The measurable question: does a PNG-aware mutator reach deeper into
+`pngrutil.c` than cmplog alone, and by how much? Use the answer from challenge 7
+to find out honestly.
+
+### 10. An honest coverage-over-time comparison against OSS-Fuzz
+
+lisdex's positioning claim is that it works on struct-based entry points that
+other harness generators decline. OGHarn's authors name libPNG, libVPX and
+libAOM as unsupported for exactly that reason.
+
+Test the claim. Take a library that OSS-Fuzz *does* cover, run lisdex against it,
+and compare coverage after a fixed budget against the OSS-Fuzz harness. Expect to
+lose, because the OSS-Fuzz harness was hand-written by someone who knows the
+library. The useful result is *by how much*, and whether the gap is in the
+harness or in the campaign.
+
+### 11. Assemble a stream for a library that will not take one as an argument
+
+lisdex drives entry points that receive their bytes as a parameter. openjpeg
+never offers one: `opj_read_header(opj_stream_t *, opj_codec_t *, opj_image_t **)`
+takes no buffer, and the ranker is being honest when it grades that `NoDataInput`.
+The library's own fuzz target builds the stream instead — a `MemFile` struct, then
+`opj_stream_set_read_function`, `opj_stream_set_seek_function` and
+`opj_stream_set_user_data_length`, and only then a decode.
+
+The interesting part is where the callback's *role* comes from. You cannot read it
+off the type. libtiff declares one typedef for two different jobs —
+
+```c
+typedef tmsize_t (*TIFFReadWriteProc)(thandle_t, void *, tmsize_t);
+```
+
+— and hands it to `TIFFClientOpen` as both `readproc` and `writeproc`, so no
+type-level rule can ever separate them. openjpeg is friendlier: the role is in the
+*setter's* name, `set_read_function` against `set_seek_function`, which is the kind
+of signal `naming.rs` already reasons about.
+
+So build it for openjpeg, not for libtiff, and let the ladder replay the author's
+call order rather than inventing one. The oracles decide whether you succeeded: a
+stream adapter that lies — a size callback reporting more bytes than the read
+callback will deliver — makes the parser read uninitialised memory and reports a
+crash your harness manufactured. `judge_execution` rejects anything that crashes on
+a valid seed, and `judge_inter_seed_divergence` rejects anything that ignores the
+corpus. Getting past both is the whole exercise.
+
+Do not bother with libtiff. Its maintainers fuzz it through a C++ `std::istream`
+via `TIFFStreamOpen`, which is a different capability again.
+
+## What Not To Build
+
+Two things that look like obvious improvements and are not.
+
+**A separate MSAN campaign path.** AFL++ ships SAND (`-w` plus
+`AFL_LLVM_ONLY_FSRV`), which routes only interesting inputs to sanitizer-only
+forkservers. It is a pre-filter that trades recall for throughput, and the only
+miss rate its authors publish for the cheap abstraction is about 15%. lisdex's
+bottleneck is not throughput, and multiplying builds makes the auto-build wall
+worse. Fuzzing an MSAN build is already just
+`lisdex fuzz --target <msan build>`.
+
+**Filling in the advisory fields lisdex refuses.** Version ranges, CVSS, and
+attacker reachability are left null on purpose. They are required *keys*, typed
+string-or-null, and both CVE and GHSA accept an unknown. An incomplete record is
+recoverable; a record with an invented affected-version range sends maintainers
+and downstream consumers chasing something that was never measured.
+
+## If You Only Do One
+
+Do challenge 4. Take lisdex at a library it has never seen and get to a working
+harness.
+
+Everything else in this document is an improvement to a pipeline you understand.
+That one teaches you where the pipeline actually breaks, which is not where the
+architecture diagram suggests.

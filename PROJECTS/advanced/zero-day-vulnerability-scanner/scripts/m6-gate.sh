@@ -1,0 +1,546 @@
+#!/usr/bin/env bash
+# ©AngelaMos | 2026
+# m6-gate.sh
+
+set -euo pipefail
+
+# shellcheck source=scripts/magma-guard.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/magma-guard.sh"
+
+WORK="${MAGMA_WORK:-/opt/magma-work}"
+OUT_ROOT="$WORK/out/libpng"
+SEEDS="$WORK/libpng/corpus/libpng_read_fuzzer"
+GATE="$WORK/m6"
+FINDINGS="$GATE/findings"
+DB="$GATE/lisdex.sqlite"
+DISTILLED="$GATE/distilled"
+GATE_LOG="$GATE/stage.log"
+CAMPAIGN_LOG="$GATE/campaign.log"
+RESUME_LOG="$GATE/resume.log"
+LISDEX_BIN="${CARGO_TARGET_DIR:-/cargo-target}/debug/lisdex"
+TARGET="$OUT_ROOT/afl/lisdex_libpng_read"
+CMPLOG="$OUT_ROOT/cmplog/lisdex_libpng_read"
+GATE_DURATION="${LISDEX_M6_DURATION:-180}"
+GATE_JOBS="${LISDEX_M6_JOBS:-4}"
+DICT_DIR="/AFLplusplus/dictionaries"
+
+MAX_DICTIONARIES=4
+
+FAILURES=0
+
+log() { printf '\n[m6] %s\n' "$1"; }
+die() { printf '\n[m6] FAIL: %s\n' "$1" >&2; exit 1; }
+pass() { printf '  PASS  %s\n' "$1"; }
+fail() { printf '  FAIL  %s\n' "$1"; FAILURES=$((FAILURES + 1)); }
+
+if [ "${1:-}" = "reset" ]; then
+    log "resetting $GATE"
+    rm -rf "$GATE"
+fi
+
+[ -x "$TARGET" ] || die "magma libpng not built; run: just magma-libpng"
+require_harness_current "$OUT_ROOT"
+[ -x "$CMPLOG" ] || die "cmplog target missing at $CMPLOG"
+[ -d "$SEEDS" ] || die "seed corpus missing at $SEEDS"
+[ -d "$DICT_DIR" ] || die "AFL++ dictionaries missing at $DICT_DIR"
+
+mkdir -p "$GATE"
+
+log "stage 1/9: build lisdex"
+cargo build -p lisdex
+[ -x "$LISDEX_BIN" ] || die "lisdex binary not found at $LISDEX_BIN"
+
+log "stage 2/9: the campaign layer answers for itself"
+# The end-to-end campaign below cannot isolate the dictionary selector from the
+# instance planner from the curve parser: they all feed one run. Each owns tests
+# no other mechanism can satisfy.
+if cargo test -p lisdex-fuzz > "$GATE_LOG" 2>&1; then
+    pass "lisdex-fuzz unit and integration tests"
+else
+    fail "lisdex-fuzz tests (see $GATE_LOG)"
+fi
+
+log "stage 3/9: a sustained multi-core campaign with a dictionary it chose itself"
+rm -rf "$FINDINGS" "$DB"
+"$LISDEX_BIN" fuzz --target "$TARGET" --cmplog "$CMPLOG" --seeds "$SEEDS" \
+    --findings "$FINDINGS" --db "$DB" --duration "$GATE_DURATION" \
+    --jobs "$GATE_JOBS" > "$CAMPAIGN_LOG" 2>&1 \
+    || die "campaign failed (see $CAMPAIGN_LOG)"
+
+INSTANCES="$(find "$FINDINGS" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+if [ "$INSTANCES" -eq "$GATE_JOBS" ]; then
+    pass "$INSTANCES instances ran under one findings directory"
+else
+    fail "expected $GATE_JOBS instances, found $INSTANCES"
+fi
+
+if [ -d "$FINDINGS/main" ]; then
+    pass "exactly one main instance, which is what the secondaries sync through"
+else
+    fail "no main instance directory; -M was never passed"
+fi
+
+SECONDARIES="$(find "$FINDINGS" -mindepth 1 -maxdepth 1 -type d -name 'secondary*' | wc -l)"
+if [ "$SECONDARIES" -eq "$((GATE_JOBS - 1))" ]; then
+    pass "$SECONDARIES secondaries alongside it"
+else
+    fail "expected $((GATE_JOBS - 1)) secondaries, found $SECONDARIES"
+fi
+
+if grep -q 'dictionary         png' "$CAMPAIGN_LOG"; then
+    pass "the seed corpus was recognised as PNG with no flag given"
+else
+    fail "the dictionary was not selected from the corpus (see $CAMPAIGN_LOG)"
+fi
+
+# Each instance's own afl-fuzz output is the independent witness here: lisdex
+# printing that it chose png.dict proves only what lisdex believes.
+INSTANCE_LOGS="$(find "$FINDINGS" -maxdepth 1 -name '*.log' | sort)"
+INSTANCE_LOG_COUNT="$(printf '%s\n' "$INSTANCE_LOGS" | grep -c . || true)"
+if [ "$INSTANCE_LOG_COUNT" -eq "$GATE_JOBS" ]; then
+    pass "every instance kept its own afl-fuzz output rather than discarding it"
+else
+    fail "expected $GATE_JOBS instance logs, found $INSTANCE_LOG_COUNT"
+fi
+
+CONFIRMED=0
+OVER_CAP=0
+for instance_log in $INSTANCE_LOGS; do
+    if grep -q "Loading extra dictionary from '$DICT_DIR/png.dict'" "$instance_log"; then
+        CONFIRMED=$((CONFIRMED + 1))
+    fi
+    loaded="$(grep -c "Loading extra dictionary" "$instance_log" || true)"
+    if [ "$loaded" -gt "$MAX_DICTIONARIES" ]; then
+        OVER_CAP=$((OVER_CAP + 1))
+    fi
+done
+if [ "$CONFIRMED" -eq "$GATE_JOBS" ]; then
+    pass "all $CONFIRMED instances report loading that exact file, independently of what lisdex printed"
+else
+    fail "only $CONFIRMED of $GATE_JOBS instances loaded the dictionary lisdex selected"
+fi
+if [ "$OVER_CAP" -eq 0 ]; then
+    pass "no instance loaded more than the $MAX_DICTIONARIES dictionaries afl-fuzz accepts"
+else
+    fail "$OVER_CAP instance(s) loaded more than $MAX_DICTIONARIES dictionaries"
+fi
+
+log "stage 4/9: the campaign recorded a coverage curve and execs/s"
+CURVE="$("$LISDEX_BIN" coverage --findings "$FINDINGS" 2>&1)"
+printf '%s\n' "$CURVE" > "$GATE/curve.txt"
+if printf '%s' "$CURVE" | grep -q 'curve_instance     main'; then
+    pass "the curve is read from the main instance and says so"
+else
+    fail "the curve did not come from the main instance (see $GATE/curve.txt)"
+fi
+
+CURVE_SECONDS="$(printf '%s' "$CURVE" | awk '/curve_seconds/ {print $2}')"
+if [ -n "$CURVE_SECONDS" ] && [ "$CURVE_SECONDS" -gt 0 ]; then
+    pass "the curve spans ${CURVE_SECONDS}s of campaign time"
+else
+    fail "the curve recorded no elapsed time"
+fi
+
+PEAK="$(printf '%s' "$CURVE" | awk '/curve_peak_edges/ {print $2}')"
+if [ -n "$PEAK" ] && [ "$PEAK" -gt 0 ]; then
+    pass "peak coverage $PEAK edges"
+else
+    fail "the curve recorded no coverage"
+fi
+
+if grep -qE '^execs_per_sec +[0-9]' "$CAMPAIGN_LOG"; then
+    pass "execs/s recorded"
+else
+    fail "no execs/s recorded"
+fi
+
+SAMPLES="$("$LISDEX_BIN" coverage --findings "$FINDINGS" --samples | wc -l)"
+if [ "$SAMPLES" -gt 1 ]; then
+    pass "the curve exports $((SAMPLES - 1)) samples as CSV for plotting"
+else
+    fail "the CSV export carried no sample"
+fi
+
+log "stage 5/9: the corpus distils, and resuming continues rather than restarting"
+rm -rf "$DISTILLED"
+if "$LISDEX_BIN" corpus --target "$TARGET" --input "$FINDINGS/main/queue" \
+    --output "$DISTILLED" > "$GATE/corpus.txt" 2>&1; then
+    BEFORE="$(awk '/corpus_before/ {print $2}' "$GATE/corpus.txt")"
+    AFTER="$(awk '/corpus_after/ {print $2}' "$GATE/corpus.txt")"
+    if [ -n "$AFTER" ] && [ "$AFTER" -gt 0 ] && [ "$AFTER" -le "$BEFORE" ]; then
+        pass "queue of $BEFORE distilled to $AFTER inputs, and the result is not empty"
+    else
+        fail "distillation produced $AFTER inputs from $BEFORE"
+    fi
+else
+    fail "corpus distillation failed (see $GATE/corpus.txt)"
+fi
+
+if "$LISDEX_BIN" fuzz --target "$TARGET" --seeds "$SEEDS" --findings "$FINDINGS" \
+    --db "$DB" --duration 30 --jobs "$GATE_JOBS" --resume > "$RESUME_LOG" 2>&1; then
+    RESUMED_SECONDS="$("$LISDEX_BIN" coverage --findings "$FINDINGS" | awk '/curve_seconds/ {print $2}')"
+    if [ "$RESUMED_SECONDS" -gt "$CURVE_SECONDS" ]; then
+        pass "resuming carried the campaign clock from ${CURVE_SECONDS}s to ${RESUMED_SECONDS}s instead of restarting it"
+    else
+        fail "after resuming the curve still spans ${RESUMED_SECONDS}s, so the campaign started over"
+    fi
+else
+    fail "resume failed (see $RESUME_LOG)"
+fi
+
+if "$LISDEX_BIN" fuzz --target "$TARGET" --seeds "$SEEDS" --findings "$GATE/never-ran" \
+    --db "$GATE/never.sqlite" --duration 10 --resume > "$GATE/noresume.txt" 2>&1; then
+    fail "resuming a directory that never ran was accepted"
+else
+    if grep -q 'holds no previous instance' "$GATE/noresume.txt"; then
+        pass "resuming a directory that never ran is refused, and the message says why"
+    else
+        fail "resume of an empty directory failed for the wrong reason (see $GATE/noresume.txt)"
+    fi
+fi
+
+log "stage 6/9: the memory sanitizer is a SEPARATE second build, and it finds what address misses"
+# MSAN and ASAN cannot coexist in one binary, which is the whole reason the design
+# calls for a second build. Two things have to hold: lisdex must actually PRODUCE an
+# MSAN artifact when asked, and that artifact must catch a class the ASAN build does
+# not. Measured while writing this stage: an uninitialised STACK read is folded away
+# at -O1 and above, so a probe built that way reports nothing and the check would be
+# inert at exactly the optimisation level real builds use. The probe below reads heap
+# memory through a noinline function with the pointer escaping to a global, which
+# survives -O0 through -O3.
+MSAN_DIR="$GATE/msan"
+rm -rf "$MSAN_DIR"
+mkdir -p "$MSAN_DIR"
+cat > "$MSAN_DIR/probe.c" <<'PROBE'
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static unsigned char *g_buf;
+__attribute__((noinline)) static int read_one(const unsigned char *p, size_t i) {
+  return p[i];
+}
+int main(int argc, char **argv) {
+  size_t n = (size_t)argc * 64;
+  g_buf = (unsigned char *)malloc(n);
+  if (!g_buf) { return 0; }
+  memset(g_buf, 0, 8);
+  int v = read_one(g_buf, 40);
+  int rc = (v == 0x5a) ? 3 : 0;
+  printf("done %d %s\n", rc, argv[0]);
+  free(g_buf);
+  return rc;
+}
+PROBE
+
+MSAN_SRC="$MSAN_DIR/lib"
+mkdir -p "$MSAN_SRC"
+cp "$MSAN_DIR/probe.c" "$MSAN_SRC/probe.c"
+cat > "$MSAN_SRC/Makefile" <<'MAKE'
+all: libprobe.a
+probe.o: probe.c
+	$(CC) $(CFLAGS) -c -o probe.o probe.c
+libprobe.a: probe.o
+	$(AR) rcs libprobe.a probe.o
+MAKE
+
+if "$LISDEX_BIN" build "$MSAN_SRC" --work "$MSAN_DIR/work" --sanitizer memory \
+    > "$MSAN_DIR/build.log" 2>&1; then
+    pass "lisdex build --sanitizer memory completed"
+else
+    fail "lisdex could not produce an MSAN build (see $MSAN_DIR/build.log)"
+fi
+
+MSAN_LIB="$(find "$MSAN_DIR/work" -name 'libprobe.a' 2>/dev/null | head -1)"
+if [ -n "$MSAN_LIB" ]; then
+    MSAN_SYMS="$(llvm-nm "$MSAN_LIB" 2>/dev/null | grep -c '__msan' || true)"
+    ASAN_SYMS="$(llvm-nm "$MSAN_LIB" 2>/dev/null | grep -c '__asan' || true)"
+    if [ "$MSAN_SYMS" -gt 0 ] && [ "$ASAN_SYMS" -eq 0 ]; then
+        pass "the MSAN artifact carries $MSAN_SYMS msan symbol(s) and $ASAN_SYMS asan symbol(s): a separate second build"
+    else
+        fail "MSAN artifact has msan=$MSAN_SYMS asan=$ASAN_SYMS; a second build must carry one and not the other"
+    fi
+else
+    fail "no libprobe.a under $MSAN_DIR/work"
+fi
+
+# The other direction, so a build that silently ignored --sanitizer cannot pass:
+# the DEFAULT build of the same source must be the mirror image.
+if "$LISDEX_BIN" build "$MSAN_SRC" --work "$MSAN_DIR/work-asan" \
+    > "$MSAN_DIR/build-asan.log" 2>&1; then
+    ASAN_LIB="$(find "$MSAN_DIR/work-asan" -name 'libprobe.a' 2>/dev/null | head -1)"
+    A_MSAN="$(llvm-nm "$ASAN_LIB" 2>/dev/null | grep -c '__msan' || true)"
+    A_ASAN="$(llvm-nm "$ASAN_LIB" 2>/dev/null | grep -c '__asan' || true)"
+    if [ "$A_ASAN" -gt 0 ] && [ "$A_MSAN" -eq 0 ]; then
+        pass "the default build is the mirror image: asan=$A_ASAN msan=$A_MSAN"
+    else
+        fail "default build has asan=$A_ASAN msan=$A_MSAN, so --sanitizer changed nothing"
+    fi
+else
+    fail "the default build of the probe failed (see $MSAN_DIR/build-asan.log)"
+fi
+
+# Detection differential. This arm asserts the TOOLCHAIN property that makes a second
+# build worth building at all - MSAN reports a class ASAN cannot - and it drives
+# afl-clang-fast directly, so it does NOT exercise lisdex's own flag. The lisdex-side
+# claim is carried by the two artifact checks above, which are what redden if
+# --sanitizer stops doing anything.
+AFL_USE_MSAN=1 AFL_QUIET=1 afl-clang-fast -g -O2 -o "$MSAN_DIR/probe_msan" \
+    "$MSAN_DIR/probe.c" > "$MSAN_DIR/cc-msan.log" 2>&1 || true
+AFL_USE_ASAN=1 AFL_USE_UBSAN=1 AFL_QUIET=1 afl-clang-fast -g -O2 -o "$MSAN_DIR/probe_asan" \
+    "$MSAN_DIR/probe.c" > "$MSAN_DIR/cc-asan.log" 2>&1 || true
+
+MSAN_HIT=0
+ASAN_HIT=0
+if [ -x "$MSAN_DIR/probe_msan" ]; then
+    MSAN_HIT="$("$MSAN_DIR/probe_msan" 2>&1 | grep -c 'use-of-uninitialized-value' || true)"
+fi
+if [ -x "$MSAN_DIR/probe_asan" ]; then
+    ASAN_HIT="$("$MSAN_DIR/probe_asan" 2>&1 | grep -c 'use-of-uninitialized-value' || true)"
+fi
+
+if [ "$MSAN_HIT" -gt 0 ] && [ "$ASAN_HIT" -eq 0 ]; then
+    pass "the MSAN profile reports an uninitialised read the ASAN profile does not ($MSAN_HIT vs $ASAN_HIT)"
+else
+    fail "detection differential broken: msan=$MSAN_HIT asan=$ASAN_HIT; an MSAN build that finds nothing ASAN misses is not worth a second build"
+fi
+
+# Negative control: an initialised probe must NOT be reported, or the check above
+# would pass on a sanitizer that fires unconditionally.
+cat > "$MSAN_DIR/clean.c" <<'CLEAN'
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static unsigned char *g_buf;
+__attribute__((noinline)) static int read_one(const unsigned char *p, size_t i) {
+  return p[i];
+}
+int main(int argc, char **argv) {
+  size_t n = (size_t)argc * 64;
+  g_buf = (unsigned char *)malloc(n);
+  if (!g_buf) { return 0; }
+  memset(g_buf, 0, n);
+  int v = read_one(g_buf, 40);
+  int rc = (v == 0x5a) ? 3 : 0;
+  printf("done %d %s\n", rc, argv[0]);
+  free(g_buf);
+  return rc;
+}
+CLEAN
+AFL_USE_MSAN=1 AFL_QUIET=1 afl-clang-fast -g -O2 -o "$MSAN_DIR/clean_msan" \
+    "$MSAN_DIR/clean.c" > "$MSAN_DIR/cc-clean.log" 2>&1 || true
+CLEAN_HIT=1
+if [ -x "$MSAN_DIR/clean_msan" ]; then
+    CLEAN_HIT="$("$MSAN_DIR/clean_msan" 2>&1 | grep -c 'use-of-uninitialized-value' || true)"
+fi
+if [ "$CLEAN_HIT" -eq 0 ]; then
+    pass "a fully initialised probe is NOT reported, so the differential is not a sanitizer that always fires"
+else
+    fail "MSAN reported an initialised read ($CLEAN_HIT), so the detection check proves nothing"
+fi
+
+log "stage 7/9: a comparative claim is impossible below the statistical power floor"
+# Klees et al. CCS 2018 Finding 1: a single trial can reverse the conclusion. Schloegel
+# et al. S&P 2024 add that below ~20 trials Mann-Whitney U at alpha=0.05 cannot reject
+# whatever the data. Both halves are checked, because a tool that ALWAYS refuses would
+# pass the refusal check on its own.
+BENCH="$GATE/bench"
+BENCH_TRIALS="${LISDEX_M6_BENCH_TRIALS:-20}"
+BENCH_SECS="${LISDEX_M6_BENCH_SECS:-3}"
+rm -rf "$BENCH"
+mkdir -p "$BENCH"
+
+if cargo test -p lisdex-core --test mannwhitney_reference > "$GATE/mw.log" 2>&1; then
+    pass "the Mann-Whitney U implementation agrees with the scipy reference on every case"
+else
+    fail "the statistics disagree with the scipy reference (see $GATE/mw.log)"
+fi
+
+set +e
+"$LISDEX_BIN" bench --arm a="$TARGET" --arm b="$TARGET" --seeds "$SEEDS" \
+    --work "$BENCH/n1" --trials 1 --duration "$BENCH_SECS" > "$BENCH/n1.txt" 2>&1
+N1_STATUS=$?
+set -e
+if [ "$N1_STATUS" -ne 0 ] && grep -q 'NO VERDICT' "$BENCH/n1.txt" \
+    && ! grep -q 'VERDICT significant' "$BENCH/n1.txt"; then
+    pass "a single trial per arm yields NO VERDICT and exits $N1_STATUS"
+else
+    fail "an n=1 run produced a comparative claim or exited 0 (see $BENCH/n1.txt)"
+fi
+
+set +e
+"$LISDEX_BIN" bench --arm a="$TARGET" --arm b="$TARGET" --seeds "$SEEDS" \
+    --work "$BENCH/powered" --trials "$BENCH_TRIALS" --duration "$BENCH_SECS" \
+    > "$BENCH/powered.txt" 2>&1
+POWERED_STATUS=$?
+set -e
+if [ "$POWERED_STATUS" -eq 0 ] && grep -q 'mann-whitney' "$BENCH/powered.txt"; then
+    pass "$BENCH_TRIALS trials per arm DO produce a verdict, so the refusal above is not a tool that always refuses"
+else
+    fail "a powered run produced no verdict (see $BENCH/powered.txt)"
+fi
+
+# The scientific control: the two arms are the SAME binary, so a correct test must not
+# call them different. A significant result here would mean the test reports noise.
+if grep -q 'VERDICT not significant' "$BENCH/powered.txt"; then
+    pass "comparing a build against itself is NOT significant, which is the only correct answer"
+else
+    fail "the same binary was reported as significantly different from itself (see $BENCH/powered.txt)"
+fi
+
+# Klees Finding 4: quartiles, never mean and standard deviation.
+if grep -q 'median=' "$BENCH/powered.txt" && grep -q 'q1=' "$BENCH/powered.txt" \
+    && ! grep -qi 'stddev\|std dev' "$BENCH/powered.txt"; then
+    pass "the report states median and quartiles rather than a mean and a deviation"
+else
+    fail "the bench report does not carry quartiles (see $BENCH/powered.txt)"
+fi
+
+log "stage 8/9: the campaign still triages to the canary ground truth"
+# `lisdex crashes` prints one row per crash; the campaign itself prints the
+# grouping, which is the number that says harvesting crossed every instance.
+BUGS="$(awk '/^distinct_bugs/ {print $2}' "$CAMPAIGN_LOG")"
+KEYED="$("$LISDEX_BIN" crashes --db "$DB" --campaign 1 2>/dev/null | grep -c 'stack_hash' || true)"
+if [ -n "$BUGS" ] && [ "$BUGS" -gt 0 ]; then
+    pass "$BUGS distinct bug(s) keyed from $KEYED crashes across $GATE_JOBS instances"
+else
+    fail "a multi-core campaign produced no keyed bug, so its crashes were not harvested across instances"
+fi
+
+log "stage 9/9: an interrupted campaign keeps its crashes, and an orphaned one can be imported"
+# B5, measured before it was fixed: SIGINT killed lisdex outright, `harvest` never ran, five
+# crash files already on disk were unreachable and the campaign row stayed at `fuzzing` forever.
+# The signal MUST be sent with its default disposition restored - a shell sets SIGINT to SIG_IGN
+# for background jobs and that is inherited across fork and exec, so a bash-launched campaign
+# cannot receive it and this whole stage would pass without testing anything.
+INT_DIR="$GATE/interrupt"
+rm -rf "$INT_DIR"
+mkdir -p "$INT_DIR"
+python3 - "$LISDEX_BIN" "$TARGET" "$SEEDS" "$INT_DIR" > "$GATE/interrupt.txt" 2>&1 <<'PY'
+import glob, os, signal, sqlite3, subprocess, sys, time
+
+lisdex, target, seeds, work = sys.argv[1:5]
+
+def child_setup():
+    os.setsid()
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+def campaign(tag):
+    log = open(f"{work}/{tag}.log", "w")
+    return subprocess.Popen(
+        [lisdex, "fuzz", "--target", target, "--seeds", seeds,
+         "--findings", f"{work}/{tag}", "--db", f"{work}/{tag}.sqlite"],
+        stdout=log, stderr=log, preexec_fn=child_setup)
+
+def wait_for_crash(tag, proc):
+    for _ in range(180):
+        if glob.glob(f"{work}/{tag}/*/crashes/id:*"):
+            return True
+        if proc.poll() is not None:
+            return False
+        time.sleep(1)
+    return False
+
+def rows(db):
+    if not os.path.exists(db):
+        return 0
+    con = sqlite3.connect(db)
+    try:
+        return con.execute("SELECT COUNT(*) FROM crashes").fetchone()[0]
+    finally:
+        con.close()
+
+proc = campaign("interrupted")
+if not wait_for_crash("interrupted", proc):
+    print("SETUP_FAILED no crash appeared to interrupt over")
+    raise SystemExit(0)
+# The liveness guard: if the signal were ignored the process would keep running and every
+# assertion below would be about a campaign that was never interrupted at all.
+if int(open(f"/proc/{proc.pid}/status").read().split("SigIgn:")[1].split()[0], 16) & 0x2:
+    print("SETUP_FAILED SIGINT is ignored, so this stage cannot interrupt anything")
+    raise SystemExit(0)
+os.killpg(proc.pid, signal.SIGINT)
+code = proc.wait(timeout=120)
+disk = len(glob.glob(f"{work}/interrupted/*/crashes/id:*"))
+print(f"INTERRUPT exit={code} disk={disk} rows={rows(f'{work}/interrupted.sqlite')}")
+
+proc = campaign("orphaned")
+if wait_for_crash("orphaned", proc):
+    os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
+    time.sleep(2)
+    os.system("pkill -9 afl-fuzz 2>/dev/null; true")
+    orphan_disk = len(glob.glob(f"{work}/orphaned/*/crashes/id:*"))
+    orphan_rows = rows(f"{work}/orphaned.sqlite")
+    run = subprocess.run([lisdex, "import", "--findings", f"{work}/orphaned",
+                          "--target", target, "--db", f"{work}/recovered.sqlite"],
+                         capture_output=True, text=True)
+    print(f"ORPHAN disk={orphan_disk} rows={orphan_rows} "
+          f"import_exit={run.returncode} recovered={rows(f'{work}/recovered.sqlite')}")
+else:
+    print("SETUP_FAILED no crash appeared to orphan")
+
+missing = subprocess.run([lisdex, "import", "--findings", f"{work}/never-existed",
+                          "--target", target, "--db", f"{work}/never.sqlite"],
+                         capture_output=True, text=True)
+print(f"MISSING import_exit={missing.returncode}")
+PY
+cat "$GATE/interrupt.txt"
+
+if grep -q 'SETUP_FAILED' "$GATE/interrupt.txt"; then
+    fail "the interrupt stage never got a campaign into the state it tests: \
+$(grep SETUP_FAILED "$GATE/interrupt.txt" | head -1)"
+else
+    INT_LINE="$(grep '^INTERRUPT ' "$GATE/interrupt.txt")"
+    INT_EXIT="$(echo "$INT_LINE" | grep -oE 'exit=-?[0-9]+' | cut -d= -f2)"
+    INT_DISK="$(echo "$INT_LINE" | grep -oE 'disk=[0-9]+' | cut -d= -f2)"
+    INT_ROWS="$(echo "$INT_LINE" | grep -oE 'rows=[0-9]+' | cut -d= -f2)"
+    # Without the handler this is exit=-2: killed BY SIGINT, before harvest ever ran.
+    if [ "$INT_EXIT" = "0" ]; then
+        pass "an interrupted campaign exits 0 instead of dying of the signal"
+    else
+        fail "an interrupted campaign exited $INT_EXIT; SIGINT still kills lisdex (B5)"
+    fi
+    if [ "$INT_DISK" -gt 0 ] && [ "$INT_ROWS" = "$INT_DISK" ]; then
+        pass "all $INT_DISK crash file(s) on disk were harvested before stopping"
+    else
+        fail "$INT_DISK crash file(s) on disk but $INT_ROWS persisted; Ctrl-C loses crashes (B5)"
+    fi
+
+    ORPHAN_LINE="$(grep '^ORPHAN ' "$GATE/interrupt.txt")"
+    ORPHAN_DISK="$(echo "$ORPHAN_LINE" | grep -oE 'disk=[0-9]+' | cut -d= -f2)"
+    ORPHAN_ROWS="$(echo "$ORPHAN_LINE" | grep -oE ' rows=[0-9]+' | cut -d= -f2)"
+    RECOVERED="$(echo "$ORPHAN_LINE" | grep -oE 'recovered=[0-9]+' | cut -d= -f2)"
+    # Isolates import from the handler: SIGKILL cannot be caught, so no handler can save this
+    # campaign and the only way the rows appear is that import read them back off disk.
+    if [ "$ORPHAN_DISK" -gt 0 ] && [ "$ORPHAN_ROWS" = "0" ]; then
+        pass "a SIGKILLed campaign leaves $ORPHAN_DISK crash file(s) and persists none, so import has real work"
+    else
+        fail "the orphan control is vacuous: disk=$ORPHAN_DISK already-persisted=$ORPHAN_ROWS"
+    fi
+    if [ "$RECOVERED" = "$ORPHAN_DISK" ]; then
+        pass "lisdex import recovered all $RECOVERED of them into a fresh database"
+    else
+        fail "import recovered $RECOVERED of $ORPHAN_DISK orphaned crash file(s)"
+    fi
+fi
+# The refusing direction, or import would "succeed" on a path the user mistyped.
+if grep -q '^MISSING import_exit=1$' "$GATE/interrupt.txt"; then
+    pass "importing a directory that does not exist is refused"
+else
+    fail "import accepted a findings directory that does not exist"
+fi
+
+log "RESULT"
+if [ "$FAILURES" -eq 0 ]; then
+    printf '\n[m6] M6 EXIT GATE PASSED\n'
+    printf '  CHECK 1  a sustained multi-core campaign runs one main and N secondaries\n'
+    printf '  CHECK 2  the format dictionary is chosen from the corpus, and afl-fuzz confirms loading it\n'
+    printf '  CHECK 3  coverage curve and execs/s are recorded, and exportable\n'
+    printf '  CHECK 4  the corpus distils, and resuming continues the clock rather than restarting it\n'
+    printf '  CHECK 5  the memory sanitizer builds as a SEPARATE second artifact and reports a class address misses\n'
+    printf '  CHECK 6  no comparative claim is available below the power floor, and a powered run still yields one\n'
+    printf '  CHECK 7  an interrupted campaign harvests its crashes, and an orphaned one imports back\n'
+    exit 0
+fi
+printf '\n[m6] M6 EXIT GATE FAILED: %s check(s)\n' "$FAILURES" >&2
+exit 1

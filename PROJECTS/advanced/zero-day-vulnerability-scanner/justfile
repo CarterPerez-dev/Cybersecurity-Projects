@@ -1,0 +1,152 @@
+# ©AngelaMos | 2026
+# justfile
+
+set shell := ["bash", "-uc"]
+
+default:
+    @just --list
+
+build:
+    cargo build --workspace
+
+test:
+    cargo test --workspace
+
+clippy:
+    cargo clippy --workspace --all-targets -- -D warnings
+
+fmt:
+    cargo fmt
+
+fmt-check:
+    cargo fmt --check
+
+lint: fmt-check clippy
+
+check: lint test
+
+dev-build:
+    docker compose -f dev.compose.yml build
+
+dev-up:
+    docker compose -f dev.compose.yml up -d
+
+dev-down:
+    docker compose -f dev.compose.yml down
+
+dev-nuke:
+    docker compose -f dev.compose.yml down -v --remove-orphans
+
+dev-sh:
+    docker compose -f dev.compose.yml exec toolchain bash
+
+dev-run CMD:
+    docker compose -f dev.compose.yml exec toolchain bash -c {{quote(CMD)}}
+
+dev-test:
+    docker compose -f dev.compose.yml exec toolchain cargo test --workspace
+
+dev-verify:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/verify-toolchain.sh
+
+magma-libpng:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/build-magma-libpng.sh
+
+magma-libpng-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/build-magma-libpng.sh reset
+
+m1-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m1-gate.sh
+
+m2-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m2-gate.sh
+
+m2-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m2-gate.sh reset
+
+m3-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m3-gate.sh
+
+m3-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m3-gate.sh reset
+
+m4-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m4-gate.sh
+
+m4-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m4-gate.sh reset
+
+m5-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m5-gate.sh
+
+m5-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m5-gate.sh reset
+
+m6-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m6-gate.sh
+
+m6-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m6-gate.sh reset
+
+m7-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m7-gate.sh
+
+m7-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m7-gate.sh reset
+
+m8-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m8-gate.sh
+
+m8-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m8-gate.sh reset
+
+# Binds 0.0.0.0 INSIDE the container because docker forwards a published port to
+# the container's eth0, never to its loopback. Exposure is clamped on the host
+# side instead: dev.compose.yml publishes 127.0.0.1:${LISDEX_CONSOLE_PORT}, so
+# the console is still unreachable from anywhere but this machine.
+ollama-up:
+    docker compose -f ollama.compose.yml up -d
+
+ollama-down:
+    docker compose -f ollama.compose.yml down
+
+# Pulls the one model that satisfies 14-32B + Q6 + a permissive licence
+# (doc 03 D5: Codestral is MNPL non-production, the cloud-labelled models
+# need an account, so qwen2.5-coder Apache-2.0 is what survives).
+ollama-model:
+    docker compose -f ollama.compose.yml exec ollama ollama pull qwen2.5-coder:14b-instruct-q6_K
+
+console DB FINDINGS:
+    docker compose -f dev.compose.yml exec toolchain \
+        /cargo-target/debug/lisdex serve --db {{DB}} --findings {{FINDINGS}} \
+        --host 0.0.0.0 --port 47119
+
+m9-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m9-gate.sh
+
+m9-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m9-gate.sh reset
+
+m10-gate:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m10-gate.sh
+
+m10-gate-reset:
+    docker compose -f dev.compose.yml exec toolchain bash scripts/m10-gate.sh reset
+
+# One-way mirror of this project into the standalone repo install.sh clones.
+# This tree stays canonical; the mirror is a copy. docs/ is dev-only and never ships.
+publish target="~/dev/CURRENT/lisdex":
+    @test -d {{target}} || { echo "no checkout at {{target}} - clone git@github.com:CarterPerez-dev/lisdex.git there first"; exit 1; }
+    rsync -a --delete \
+      --exclude='.git/' \
+      --exclude='docs/' \
+      --exclude='target/' \
+      --exclude='campaigns/' --exclude='corpus/' --exclude='crashes/' \
+      --exclude='*.profraw' --exclude='*.profdata' \
+      --exclude='*.rs.bk' --exclude='Cargo.lock.bak' \
+      --exclude='.env' --exclude='.env.*' \
+      ./ {{target}}/
+    @echo "mirrored -> {{target}} (docs/, target/ and campaign data excluded)"
+    @test ! -d {{target}}/docs || { echo "REFUSING: docs/ reached the mirror"; exit 1; }
+    @test -f {{target}}/LICENSE || { echo "REFUSING: no LICENSE in the mirror"; exit 1; }
+    @echo "review, then: cd {{target}} && git add -A && git commit && git push"

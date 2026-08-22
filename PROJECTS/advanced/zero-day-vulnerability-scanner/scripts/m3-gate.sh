@@ -1,0 +1,1158 @@
+#!/usr/bin/env bash
+# ©AngelaMos | 2026
+# m3-gate.sh
+
+set -uo pipefail
+
+WORK="${LISDEX_M3_WORK:-/opt/lisdex-m3}"
+SRC="$WORK/src"
+OUT="$WORK/out"
+# The container exports CARGO_TARGET_DIR, so ./target/debug/lisdex is a path cargo
+# never writes. This gate read a binary from it that was two days stale, which is
+# how a green M3 gate came to say nothing about the code under test.
+LISDEX="${LISDEX_BIN:-${CARGO_TARGET_DIR:-/cargo-target}/debug/lisdex}"
+
+PASS=0
+FAIL=0
+
+banner() {
+    echo ""
+    echo "==============================================================="
+    echo "  $*"
+    echo "==============================================================="
+}
+
+ok() {
+    echo "  PASS  $*"
+    PASS=$((PASS + 1))
+}
+
+bad() {
+    echo "  FAIL  $*"
+    FAIL=$((FAIL + 1))
+}
+
+if [ "${1:-}" = "reset" ]; then
+    rm -rf "$WORK"
+    echo "m3 gate work directory removed: $WORK"
+    exit 0
+fi
+
+cargo build -p lisdex || {
+    echo "  FAIL  lisdex does not build"
+    exit 1
+}
+[ -x "$LISDEX" ] || {
+    echo "  FAIL  lisdex binary not found at $LISDEX"
+    exit 1
+}
+
+mkdir -p "$SRC" "$OUT"
+
+# B56's lesson, applied here too: some rules have no end-to-end control that isolates them,
+# so the crate's own tests ARE a gate stage. Without this, a rule can be gutted in a way no
+# ranking assertion can see.
+banner "0. THE SURFACE CRATE'S OWN TESTS"
+if cargo test -p lisdex-surface --lib >"$OUT/unit.txt" 2>&1; then
+    ok "lisdex-surface unit tests pass ($(grep -oE '[0-9]+ passed' "$OUT/unit.txt" | head -1))"
+else
+    bad "lisdex-surface unit tests fail: $(grep -E '^test .*FAILED|panicked' "$OUT/unit.txt" | head -1)"
+fi
+
+clone() {
+    local name="$1"
+    local url="$2"
+    local ref="$3"
+    local dir="$SRC/$name"
+    local current
+    if [ ! -d "$dir/.git" ]; then
+        echo "cloning $name ($ref)"
+        git clone --depth 1 --branch "$ref" "$url" "$dir" >/dev/null 2>&1 \
+            || git clone --depth 1 "$url" "$dir" >/dev/null 2>&1
+    fi
+    current="$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+    if [ "$current" != "$ref" ]; then
+        echo "  FAIL  $name is checked out at '$current' but this gate measures '$ref'" >&2
+        echo "        every number below would describe a different library" >&2
+        echo "        run: just m3-gate-reset" >&2
+        exit 1
+    fi
+}
+
+# libpng is cloned at libpng16 deliberately: the default branch (libpng18) ships
+# no contrib/oss-fuzz at all, so a default clone reports zero in-tree harnesses.
+clone libpng     https://github.com/pnggroup/libpng.git      libpng16
+clone libtiff    https://gitlab.com/libtiff/libtiff.git      master
+clone openjpeg   https://github.com/uclouvain/openjpeg.git   master
+clone libarchive https://github.com/libarchive/libarchive.git master
+# lz4 and brotli are the two libraries whose every real decoder is refused for reasons the
+# ladder does not touch, so they are where a fall-through is visible at all.
+clone lz4        https://github.com/lz4/lz4.git              dev
+clone brotli     https://github.com/google/brotli.git        master
+
+# libpng's png.h includes pnglibconf.h, which is NOT in the repository - it is
+# produced by the build. libpng ships scripts/pnglibconf.h.prebuilt for exactly
+# this case and its own configure copies it. Do the same, so the gate measures a
+# tree lisdex can legitimately analyse rather than one that silently resolves
+# pnglibconf.h from a system-installed libpng in /usr/include.
+if [ -f "$SRC/libpng/scripts/pnglibconf.h.prebuilt" ]; then
+    cp "$SRC/libpng/scripts/pnglibconf.h.prebuilt" "$SRC/libpng/pnglibconf.h"
+    echo "seeded libpng/pnglibconf.h from the shipped prebuilt config"
+fi
+
+analyse() {
+    local name="$1"
+    shift
+    "$LISDEX" surface "$SRC/$name" --json "$@" >"$OUT/$name.json" 2>"$OUT/$name.err"
+}
+
+rank_of() {
+    python3 - "$1" "$2" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+order = [c["name"] for c in data["ranking"]["candidates"]]
+print(order.index(sys.argv[2]) + 1 if sys.argv[2] in order else 0)
+PY
+}
+
+excluded_as() {
+    python3 - "$1" "$2" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+found = {e["name"]: e["reason"] for e in data["ranking"]["excluded"]}
+print(found.get(sys.argv[2], "NOT-EXCLUDED"))
+PY
+}
+
+count_of() {
+    python3 - "$1" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+print(len(data["ranking"]["candidates"]))
+PY
+}
+
+require_ranked_within() {
+    local file="$1" fn="$2" limit="$3" position
+    position="$(rank_of "$file" "$fn")"
+    if [ "$position" -gt 0 ] && [ "$position" -le "$limit" ]; then
+        ok "$fn ranks $position (required: top $limit)"
+    else
+        bad "$fn ranks ${position} (required: top $limit; 0 means absent)"
+    fi
+}
+
+require_ranked_outside() {
+    local file="$1" fn="$2" floor="$3" position
+    position="$(rank_of "$file" "$fn")"
+    # A control that is absent from the ranking entirely must FAIL, not pass.
+    # Otherwise any change that starts excluding it turns this assertion into a
+    # no-op while the gate stays green - the negative control needs its own floor.
+    if [ "$position" -eq 0 ]; then
+        bad "NEGATIVE CONTROL $fn is absent from the ranking; the control proves nothing"
+    elif [ "$position" -gt "$floor" ]; then
+        ok "NEGATIVE CONTROL $fn ranks $position (required: worse than $floor)"
+    else
+        bad "NEGATIVE CONTROL $fn ranks $position (required: worse than $floor)"
+    fi
+}
+
+require_excluded_as() {
+    local file="$1" fn="$2" reason="$3" got
+    got="$(excluded_as "$file" "$fn")"
+    if [ "$got" = "$reason" ]; then
+        ok "$fn excluded as $reason"
+    else
+        bad "$fn excluded as $got (required: $reason)"
+    fi
+}
+
+banner "M3 GATE - parser entry-point discovery and ranking"
+
+banner "1. self-contained-header targets rank with no build at all"
+for target in libpng libarchive; do
+    if analyse "$target"; then
+        total="$(count_of "$OUT/$target.json")"
+        if [ "$total" -gt 0 ]; then
+            ok "$target produced $total ranked candidates point-and-run"
+        else
+            bad "$target produced an empty ranking"
+        fi
+    else
+        bad "$target analysis failed: $(head -1 "$OUT/$target.err")"
+    fi
+done
+
+banner "1b. targets needing a build-generated config header analyse point-and-run (B26)"
+# libtiff needs tiffconf.h and openjpeg needs opj_config.h, both produced by their build.
+# This stage used to assert they FAILED with an actionable diagnosis; B26 made them work
+# with no flags by running the configure step ONLY when the tree ships a template for a
+# header nothing has generated. Measured: libtiff 6 -> 223 declarations, openjpeg 13 -> 89,
+# ~3.8s each including configure.
+#
+# B68's finding still holds and is still asserted below: `lisdex build` produces NO install
+# prefix, so the fallback diagnosis must name `--include` and never "install prefix".
+for target in libtiff openjpeg; do
+    if analyse "$target"; then
+        DECLARED="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['declared'])" \
+            "$OUT/$target.json" 2>/dev/null || echo 0)"
+        if [ "${DECLARED:-0}" -ge 50 ]; then
+            ok "$target analysed with no flags and no prior build ($DECLARED declarations)"
+        else
+            bad "$target analysed but reported only $DECLARED declarations, so the config header did not land"
+        fi
+    else
+        bad "$target still needs a manual build: $(head -1 "$OUT/$target.err")"
+    fi
+done
+
+# The refusal is still the FLOOR. A tree that declares a generated header but whose build
+# cannot be configured must fall back to the actionable diagnosis rather than to a partial
+# surface - otherwise the recovery above would be hiding the failure it replaced.
+UNCONFIGURABLE="$WORK/b26-unconfigurable"
+rm -rf "$UNCONFIGURABLE"
+mkdir -p "$UNCONFIGURABLE/include"
+printf '#cmakedefine HAVE_THING 1\n' >"$UNCONFIGURABLE/include/gen_config.h.cmake.in"
+printf '#include "gen_config.h"\nint gen_parse(const unsigned char *d, unsigned long n);\n' \
+    >"$UNCONFIGURABLE/include/gen.h"
+if "$LISDEX" surface "$UNCONFIGURABLE" >"$OUT/b26-unconfigurable.err" 2>&1; then
+    bad "a tree with an ungeneratable config header was analysed anyway"
+elif grep -q -- "--include" "$OUT/b26-unconfigurable.err" \
+    && ! grep -q -- "install prefix" "$OUT/b26-unconfigurable.err"; then
+    ok "a tree whose configure cannot run still refuses with a diagnosis naming --include"
+else
+    bad "the fallback diagnosis was lost: $(head -1 "$OUT/b26-unconfigurable.err")"
+fi
+rm -rf "$UNCONFIGURABLE"
+
+banner "2. NEGATIVE CONTROLS - a ranker that name-matches must fail here"
+require_ranked_outside "$OUT/libpng.json" png_sig_cmp 10
+require_ranked_outside "$OUT/libarchive.json" archive_read_support_format_zip 20
+require_ranked_outside "$OUT/libarchive.json" archive_read_support_filter_gzip 20
+require_ranked_outside "$OUT/libpng.json" png_read_update_info 5
+
+banner "3. encoder-side and lifecycle functions never reach the candidate list"
+require_excluded_as "$OUT/libpng.json" png_write_png Producer
+require_excluded_as "$OUT/libpng.json" png_create_read_struct Lifecycle
+require_excluded_as "$OUT/libpng.json" png_destroy_read_struct Lifecycle
+require_excluded_as "$OUT/libpng.json" png_set_read_fn Lifecycle
+require_excluded_as "$OUT/libarchive.json" archive_write_data Producer
+
+banner "4. ground-truth entry points rank in the cold-start surface"
+require_ranked_within "$OUT/libpng.json" png_image_begin_read_from_memory 10
+require_ranked_within "$OUT/libpng.json" png_read_png 10
+require_ranked_within "$OUT/libpng.json" png_process_data 15
+require_ranked_within "$OUT/libpng.json" png_read_info 20
+require_ranked_within "$OUT/libarchive.json" archive_read_open_memory 10
+# archive_read_open takes three callbacks, so it grades CustomStream (0.4) against
+# archive_read_open_memory's CastBuffer (0.8) and ranks below it by design - the
+# in-memory sibling needs no callback synthesis at all and ranks 1. 30 is the
+# measured position, kept tight so a real regression past it still fails.
+require_ranked_within "$OUT/libarchive.json" archive_read_open 30
+# B25's own severity criterion, kept as the thing that must not come back: these three land
+# in the BOTTOM 20% of the ranking whenever the call graph drops indirect dispatch, because
+# every one of them reaches the format readers only through a->format->read_header. Measured
+# at 6, 26 and 27 of 159 with dispatch resolved, against 147, 132 and 154 without it.
+require_ranked_within "$OUT/libarchive.json" archive_read_next_header 20
+require_ranked_within "$OUT/libarchive.json" archive_read_data 40
+require_ranked_within "$OUT/libarchive.json" archive_read_data_block 40
+
+banner "5. the harness-aware mode changes the answer"
+analyse libpng --frontier
+warm_png="$(rank_of "$OUT/libpng.json" png_process_data)"
+analyse libpng
+cold_png="$(rank_of "$OUT/libpng.json" png_process_data)"
+if [ "$warm_png" -gt 0 ] && [ "$cold_png" -gt 0 ] && [ "$warm_png" -ne "$cold_png" ]; then
+    ok "in-tree harnesses move png_process_data from cold rank $cold_png to warm rank $warm_png"
+else
+    bad "harness awareness had no effect (cold=$cold_png warm=$warm_png)"
+fi
+
+# B30. CPATH puts a directory on the compiler's default search path without lisdex ever
+# being told about it, which is exactly the shape of a system-installed copy of the target.
+# Three assertions, because two were not enough: an audit found that moving pnglibconf.h out
+# of the tree changes TWO things at once - the include resolves foreign AND no file of that
+# name remains - so a rule with a "the tree owns something by that name" escape hatch passed
+# both halves while silently reintroducing B30. Assertion 2 separates those variables.
+banner "B30 FOREIGN INCLUDE"
+# The copy keeps the name libpng and lives OUTSIDE $SRC: the project token is derived from
+# the directory, so a copy called libpng-b30 is a different project as far as ownership is
+# concerned, and a fake clone sitting beside the real ones invites being mistaken for one.
+FOREIGN="$WORK/foreign"
+B30ROOT="$WORK/b30"
+B30SRC="$B30ROOT/libpng"
+rm -rf "$FOREIGN" "$B30ROOT"
+mkdir -p "$FOREIGN" "$B30ROOT"
+cp -r "$SRC/libpng" "$B30SRC"
+mv "$B30SRC/pnglibconf.h" "$FOREIGN/pnglibconf.h"
+# The foreign copy must DIFFER from the tree's own. A byte-identical one produces an
+# identical ranking when wrongly accepted, so the control could only ever detect location.
+grep -v 'PNG_SIMPLIFIED_READ_SUPPORTED' "$FOREIGN/pnglibconf.h" >"$FOREIGN/trimmed.h"
+mv "$FOREIGN/trimmed.h" "$FOREIGN/pnglibconf.h"
+
+if CPATH="$FOREIGN" "$LISDEX" surface "$B30SRC" >"$OUT/b30-foreign.txt" 2>&1; then
+    bad "libpng was analysed against a pnglibconf.h outside its own source tree"
+elif grep -q "lies outside the source tree" "$OUT/b30-foreign.txt"; then
+    ok "an include resolving outside the source tree is refused and named"
+else
+    bad "libpng was refused, but not by the foreign-include check"
+fi
+
+# libpng cannot express this one - every header it discovers sits at the root, which is also
+# the quoted search path, so a shadow copy there would simply resolve. Synthesise a tree that
+# OWNS a header of the same basename in a subdirectory the walk finds but the include does
+# not reach. The shipped rule matches the whole sub-path and refuses; a rule that matches on
+# basename alone excuses it and analyses the foreign copy. Both halves above pass either way,
+# so without this the gate cannot tell those two rules apart.
+# No header at the root, so discovery walks the tree and BOTH files land in the header set -
+# with one at the root it stops there and the shadow is never seen, which silently disarms
+# this assertion.
+SHADOW="$B30ROOT/lisdex"
+SHADOW_FOREIGN="$B30ROOT/shadow-foreign"
+mkdir -p "$SHADOW/api" "$SHADOW/sub" "$SHADOW_FOREIGN"
+printf 'typedef unsigned char LISDEX_BYTE;\n' >"$SHADOW/sub/lisdexconf.h"
+printf 'typedef unsigned short LISDEX_BYTE;\n' >"$SHADOW_FOREIGN/lisdexconf.h"
+printf '#include "lisdexconf.h"\nint lisdex_parse(LISDEX_BYTE *d, unsigned long n);\n' \
+    >"$SHADOW/api/api.h"
+if CPATH="$SHADOW_FOREIGN" "$LISDEX" surface "$SHADOW" >"$OUT/b30-shadow.txt" 2>&1; then
+    bad "a same-basename header elsewhere in the tree excused the foreign copy that resolved"
+elif grep -q "lies outside the source tree" "$OUT/b30-shadow.txt"; then
+    ok "owning the same basename elsewhere does not excuse the copy that actually resolved"
+else
+    bad "the synthetic tree was refused, but not by the foreign-include check: \
+$(head -1 "$OUT/b30-shadow.txt")"
+fi
+
+cp "$SRC/libpng/pnglibconf.h" "$B30SRC/pnglibconf.h"
+if CPATH="$FOREIGN" "$LISDEX" surface "$B30SRC" >"$OUT/b30-intree.txt" 2>&1; then
+    ok "the same tree owning its own pnglibconf.h still analyses with the foreign copy reachable"
+else
+    bad "the foreign-include check rejects a tree that resolves its own config: \
+$(head -1 "$OUT/b30-intree.txt")"
+fi
+rm -rf "$FOREIGN" "$B30ROOT"
+
+# M5 step 4. Every assertion here is a behaviour that was measured WRONG at 4e23a80a and is
+# named with the library it was measured on, so a regression says which library to open.
+banner "M5 RANKED SOURCE LADDER"
+
+plan_of() {
+    local name="$1"
+    "$LISDEX" harness "$SRC/$name" --out "$OUT/ladder-$name" --plan-only --top 30 \
+        >"$OUT/ladder-$name.txt" 2>&1
+    cat "$OUT/ladder-$name.txt"
+}
+
+# The single line the whole B66 entry is about: `archive_read_open_memory` returned
+# ARCHIVE_FATAL ("No formats registered") at full exec rate with a bitmap that never grew
+# past handle plumbing, because nothing registered a format first.
+LADDER_ARCHIVE="$(plan_of libarchive)"
+REPLAY="$(echo "$LADDER_ARCHIVE" | grep "PLANS   archive_read_open_memory" | head -1)"
+if echo "$REPLAY" | grep -q "archive_read_support_format"; then
+    ok "libarchive replays the author's format registration before archive_read_open_memory"
+else
+    bad "libarchive registers no format, so the reader returns ARCHIVE_FATAL (B66): $REPLAY"
+fi
+if echo "$REPLAY" | grep -q "archive_read_support_filter"; then
+    ok "libarchive replays the author's filter registration too"
+else
+    bad "libarchive replays no filter registration: $REPLAY"
+fi
+# Isolates the binding rule from the run rule: `archive_read_free` is plumbing-shaped and
+# sits inside the opening run of several targets, and `archive_read_set_options` takes a
+# string. Neither may be replayed, and replaying the free would tear the handle down first.
+#
+# Both names are DOUBLY unreachable on this target and this assertion was measured vacuous:
+# the seek fuzzer's run breaks at `archive_read_set_read_callback` long before its
+# `archive_read_free` at position 13, and `emitted` would skip that free anyway because the
+# plan schedules it. Gutting `is_teardown` left the whole gate green - the unit test
+# `a_destructor_in_the_opening_run_is_never_replayed_as_setup` is what actually covers that
+# guard. Kept as the regression statement it always was, now with the liveness guard that
+# stops it passing on the empty replay a broken run rule produces.
+if [ -z "$REPLAY" ]; then
+    bad "no replay line to assert against, so the teardown assertion would pass vacuously"
+elif echo "$REPLAY" | grep -qE "archive_read_free|archive_read_set_options"; then
+    bad "libarchive replayed a teardown or a string-taking call as setup: $REPLAY"
+else
+    ok "only handle-taking registrations are replayed, no teardown and no string-taking call"
+fi
+# The live negative control for the run rule, and the one the clause above cannot be. With
+# `is_plumbing` gutted to always return true the run walks past the callback setters it
+# cannot bind and reaches the author's OWN opener: the replay becomes the six registrations
+# plus `archive_read_open1`, which would open the archive a second time before ours ever
+# runs. Measured, so this reddens alone when the break rule is loosened.
+if echo "$REPLAY" | grep -q "archive_read_open1"; then
+    bad "the run walked past the callback setters and replayed a second opener: $REPLAY"
+else
+    ok "the replay stops at the first call it cannot bind, so no second opener is replayed"
+fi
+
+# A harness that never passes the corpus to the library is a constant program: every seed
+# drives the same code and any crash it reports is one we manufactured.
+# `archive_read_data(struct archive *, void *, size_t)` graded StreamDriven (its handle is a
+# stream record), so admissibility passed it; the out-param promotion then gave it an
+# allocated buffer and a capacity, and it PLANNED and EMITTED at rank 1 with the six format
+# registrations in front of it and no `data` anywhere in the file. It has to REFUSE so the
+# ranking falls through to the entry point that does take the bytes.
+if echo "$LADDER_ARCHIVE" | grep -q "refused archive_read_data"; then
+    ok "libarchive refuses archive_read_data, which resolves every argument but binds no corpus"
+else
+    bad "archive_read_data was not refused: \
+$(echo "$LADDER_ARCHIVE" | grep 'archive_read_data' | head -1)"
+fi
+# Isolates the corpus test from a blanket StreamDriven or out-param ban: the SAME handle and
+# the SAME stream record must still plan when one argument really is the fuzzer's input.
+if echo "$LADDER_ARCHIVE" | grep -q "PLANS   archive_read_open_memory"; then
+    ok "the same handle still plans archive_read_open_memory, which does take the corpus"
+else
+    bad "the corpus test over-refused and took libarchive's ground-truth entry with it"
+fi
+# The end-to-end control: whatever libarchive ships must reference the corpus in its BODY.
+# Grepping the whole file matches the LLVMFuzzerTestOneInput signature and passes vacuously.
+ARCH_OUT="$OUT/corpus-libarchive"
+rm -rf "$ARCH_OUT"
+if "$LISDEX" harness "$SRC/libarchive" --out "$ARCH_OUT" --no-verify >/dev/null 2>&1 \
+    && EMITTED="$(find "$ARCH_OUT" -maxdepth 1 -name '*.c' | head -1)" \
+    && [ -n "$EMITTED" ] \
+    && grep -v "LLVMFuzzerTestOneInput" "$EMITTED" | grep -qE "\bdata\b|lisdex_cursor|lisdex_text"; then
+    ok "the harness libarchive ships passes the corpus to the library ($(basename "$EMITTED"))"
+else
+    bad "libarchive shipped a harness that ignores its input: $(basename "${EMITTED:-none}")"
+fi
+
+# The fall-through B46 named, still live at 4e23a80a: with every real decoder refused for an
+# unrelated reason, the loop kept walking down the ranking and emitted a configurator.
+LADDER_LZ4="$(plan_of lz4)"
+if echo "$LADDER_LZ4" | grep "PLANS" | head -1 | grep -q "LZ4_loadDictHC"; then
+    bad "lz4 still synthesizes the COMPRESSOR's dictionary loader"
+else
+    ok "lz4 does not fall through to LZ4_loadDictHC on an LZ4_streamHC_t"
+fi
+# Isolates the direction verdict on a real tree: lz4 ships 11 targets and only two of them
+# are pure decoders. A summed read-minus-write score picked round_trip_stream_fuzzer.c,
+# which makes 49 calls and compresses first.
+if echo "$LADDER_LZ4" | grep -q "^call order.*decompress.*fuzzer"; then
+    ok "lz4's call order comes from a decompress target, not a compress or round-trip one"
+else
+    bad "lz4 took its call order from the wrong direction: \
+$(echo "$LADDER_LZ4" | grep '^call order')"
+fi
+
+# B73. A leftover extent is refused because its meaning is not header-visible, but
+# `targetOutputSize` bounds a buffer the HARNESS allocated, and lz4's own decompress_fuzzer.c
+# passes exactly the capacity for it. Censused before the fix: 23 integrals reach that arm
+# across 306 candidates on seven trees, and this is the ONLY one that binds.
+if echo "$LADDER_LZ4" | grep -q "PLANS   LZ4_decompress_safe_partial "; then
+    ok "lz4's partial decoder plans, taking the output capacity the authors pass"
+else
+    bad "LZ4_decompress_safe_partial is still refused: \
+$(echo "$LADDER_LZ4" | grep 'LZ4_decompress_safe_partial ')"
+fi
+# The paired negative, on two trees, because widening the rule to "bind every leftover" is
+# the failure that matters and it would look like reach. libarchive's `read_size` is a block
+# size, and libpng's `num_to_check` IS the buffer's own missing length - `png_sig_cmp(sig,
+# start, num_to_check)` leaves `sig` unclaimed, so a number invented there is read straight
+# off the end of the corpus. The two HALVES of the rule have no isolating control on any real
+# tree - no candidate in the set has both a leftover extent and a sized output buffer except
+# lz4's - so they are isolated by unit tests, which m4-gate runs as its stage 2.
+if echo "$LADDER_ARCHIVE" | grep -q "refused archive_read_open_memory2 - config read_size" \
+    && plan_of libpng | grep -q "refused png_sig_cmp - config num_to_check"; then
+    ok "a leftover extent that names no output quantity is still refused on two trees"
+else
+    bad "the output-capacity allow widened into block sizes and element counts"
+fi
+
+LADDER_BROTLI="$(plan_of brotli)"
+if echo "$LADDER_BROTLI" | grep "PLANS" | head -1 | grep -q "BrotliDecoderAttachDictionary"; then
+    bad "brotli still synthesizes a dictionary configurator"
+else
+    ok "brotli does not fall through to BrotliDecoderAttachDictionary"
+fi
+# Isolates the file-opening key. brotli ships TWO files carrying the LibFuzzer entry symbol
+# and `run_decode_fuzzer.c` is a main() that fopens a path and calls the real one; it is
+# longer, so it won the tier on every later key.
+if echo "$LADDER_BROTLI" | grep -q "^call order.*c/fuzz/decode_fuzzer.c"; then
+    ok "brotli's call order comes from the fuzz target, not from the runner beside it"
+else
+    bad "brotli took its call order from a runner: \
+$(echo "$LADDER_BROTLI" | grep '^call order')"
+fi
+
+# B72. Two readable buffers in one signature are two inputs and the fuzzer supplies one.
+# `LZ4_decompress_safe_usingDict(src, dst, srcSize, dstCapacity, dictStart, dictSize)` used to
+# take `lisdex_text` for BOTH `src` and `dictStart` with `size` as both extents. Not a
+# memory-safety lie - both reads are in bounds - but not what the authors do: their own
+# decompress_fuzzer.c memsets the dictionary and says in a comment that its contents do not
+# matter, so what the harness must reproduce is a DISTINCT buffer of a declared size.
+LZ4_EMIT="$OUT/aux-lz4"
+rm -rf "$LZ4_EMIT"
+if "$LISDEX" harness "$SRC/lz4" --out "$LZ4_EMIT" --no-verify >/dev/null 2>&1 \
+    && LZ4_C="$(find "$LZ4_EMIT" -maxdepth 1 -name '*.c' | head -1)" && [ -n "$LZ4_C" ]; then
+    ENTRY_CALL="$(grep 'LZ4_decompress' "$LZ4_C" | grep -v '^//' | tail -1)"
+    # `grep -c` counts LINES, so it returns 1 for a call that passes the same pointer twice
+    # on one line - which is the whole defect. Count OCCURRENCES.
+    CORPUS_ARGS="$(grep -o 'lisdex_text' <<<"$ENTRY_CALL" | wc -l)"
+    if [ "$CORPUS_ARGS" -eq 1 ]; then
+        ok "lz4's dictionary is its own buffer, not a second copy of the corpus pointer"
+    else
+        bad "the same corpus pointer is passed twice (B72): $ENTRY_CALL"
+    fi
+    # Isolates DISTINCTNESS from the corpus test: the primary buffer must still be the
+    # corpus. `src` and `dictStart` are the same type, so a rule keyed on the signature's
+    # own strongest-buffer pick would have swapped them and fuzzed the dictionary slot.
+    if grep -q 'LZ4_decompress[A-Za-z_0-9]*(lisdex_text' "$LZ4_C"; then
+        ok "and the FIRST readable buffer is still the one holding the corpus"
+    else
+        bad "the corpus and the dictionary were swapped: $ENTRY_CALL"
+    fi
+    if grep -q "memset(lisdex_aux, 0, LISDEX_AUX_CAPACITY);" "$LZ4_C" \
+        && [ "$(grep -c 'free(lisdex_aux);' "$LZ4_C")" -ge 1 ]; then
+        ok "the auxiliary buffer is zeroed like the authors' dictionary and freed"
+    else
+        bad "the auxiliary buffer is not zeroed or not freed, so LSAN blames the library"
+    fi
+else
+    bad "lz4 emitted nothing to check for B72"
+fi
+
+# B51(b). The upward call-sequence search: the parent for oracle 3b comes from appending the
+# next call the AUTHOR made, never from truncating the setup in front of the entry point.
+#
+# The population was censused over all seven analysable trees before this was built and it is
+# ZERO: no candidate that plans has a tail this rule can copy. libjpeg-turbo's
+# `tj3DecompressHeader` is the only entry point whose own author sequence continues past it with
+# anything, and the next call is `tj3Get(handle, TJPARAM_...)` - a constant the headers do not
+# state. So the accepting direction has NO real tree and has to be asserted on a synthetic one,
+# exactly as B30's second assertion is. The rejecting direction is asserted on libarchive, whose
+# real tail leads with a call that cannot bind.
+banner "M5 UPWARD CALL-SEQUENCE SEARCH"
+
+UPTREE="$WORK/upward/mylib"
+rm -rf "$WORK/upward"
+mkdir -p "$UPTREE/include" "$UPTREE/fuzz"
+cat >"$UPTREE/include/mylib.h" <<'MYLIB_H'
+#include <stddef.h>
+
+struct mylib;
+
+struct mylib *mylib_new(void);
+int mylib_open_memory(struct mylib *m, const void *buff, size_t size);
+int mylib_read_data(struct mylib *m, void *out, size_t len);
+void mylib_free(struct mylib *m);
+MYLIB_H
+cat >"$UPTREE/fuzz/mylib_fuzzer.c" <<'MYLIB_FUZZ'
+#include <stdint.h>
+
+#include "mylib.h"
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    struct mylib *m = mylib_new();
+    char out[64];
+
+    mylib_open_memory(m, data, size);
+    mylib_read_data(m, out, sizeof out);
+    mylib_free(m);
+    return 0;
+}
+MYLIB_FUZZ
+UPPLAN="$OUT/upward-plan.txt"
+"$LISDEX" harness "$UPTREE" --out "$OUT/upward-out" --plan-only --top 10 >"$UPPLAN" 2>&1
+if grep -q 'extending \["mylib_read_data"\]' "$UPPLAN"; then
+    ok "the author's next call over the handle we hold is appended above the entry point"
+else
+    bad "no upward step was found on a tree built to offer exactly one: $(cat "$UPPLAN")"
+fi
+# `mylib_read_data` binds an out buffer and a capacity the HARNESS owns, which is the only
+# argument shape a step may have besides a handle. It is not a candidate in its own right - it
+# takes no input - so this is reach the entry-point ranking cannot reach by itself.
+if grep -q 'PLANS   mylib_read_data' "$UPPLAN"; then
+    bad "mylib_read_data planned as an entry point, so this asserts nothing about the climb"
+else
+    ok "and it is a call that cannot stand alone as an entry point"
+fi
+# The teardown ends the sequence. Appending past `mylib_free` would hand every later step a
+# handle the plan had already freed, which is a crash inside the library that we manufactured.
+if grep -q 'mylib_free' "$UPPLAN"; then
+    bad "the author's teardown was appended as a step: $(grep extending "$UPPLAN")"
+else
+    ok "the climb stops at the author's own teardown"
+fi
+# The measured gap, on a real tree: libarchive's tail is `archive_read_next_header,
+# archive_entry_pathname, archive_entry_size, archive_read_data`.
+#
+# This assertion used to be "libarchive appends NOTHING", on the ground that
+# `archive_read_next_header` takes `struct archive_entry **` and could not bind. B81 made that
+# binding real - the library allocates the entry and writes its address into a slot the harness
+# declares as a NULL local - and B83 gave the candidate a tail to read at all, so the premise is
+# gone and the assertion is now the specific climb rather than its absence.
+#
+# What must NOT change is what the old assertion was protecting: `archive_read_data` may never
+# be appended. `archive_entry_pathname` needs the entry the STEP declared rather than anything
+# the plan holds, so the climb stops there - and appending `read_data` past it would read from a
+# stream whose header was never read, which is B66's semantically dead harness arriving through
+# the mechanism meant to add depth. Both halves are asserted, because "it climbed" and "it did
+# not climb too far" are different claims and only one of them is about B83.
+if echo "$LADDER_ARCHIVE" | grep -q 'extending \["archive_read_next_header"\]'; then
+    ok "libarchive climbs to the author's next call, which only binds because the library fills it"
+else
+    bad "libarchive did not append the one call its author's target makes next: \
+$(echo "$LADDER_ARCHIVE" | grep -E 'extending|PLANS   archive_read_open_memory' | head -1)"
+fi
+# Scoped to the `extending` line alone. The plan log also carries
+# `refused archive_read_data - ...`, so grepping the whole of it matched the REFUSAL and made
+# this fail while the climb was correct - a control that reads the wrong line asserts nothing
+# about the right one.
+if echo "$LADDER_ARCHIVE" | grep extending | grep -q "archive_read_data"; then
+    bad "libarchive appended a step across a call it cannot copy: \
+$(echo "$LADDER_ARCHIVE" | grep extending | head -1)"
+else
+    ok "and stops before archive_read_data, which no call it can copy has made reachable"
+fi
+rm -rf "$WORK/upward"
+
+# B81. A double pointer is two opposite obligations wearing one shape. `unsigned char **planes`
+# is an array the CALLER allocates and the library reads, which is the B67 refusal and stays
+# refused. `struct filllib_entry **entry` is the reverse: the LIBRARY allocates the entry and
+# writes its address into a slot, so the harness owns nothing but the NULL local it passes the
+# address of. Canonical types are the only thing that separates them - libpng's `png_bytep *`
+# spells a record and IS `unsigned char **`.
+#
+# ONE tree carries both, differing in nothing but the inner pointee, which is what makes the
+# refusing assertion a control rather than a demonstration. Censused over all seven analysable
+# trees before the rule was written: 49 double-pointer parameters reach `bind` across ten
+# tree-runs and exactly 4 verdicts move, none of them into PLANS - so the accepting direction has
+# no real tree and is asserted here, exactly as B51(b)'s is.
+banner "M5 LIBRARY-FILLED OUT-PARAMS"
+
+FILLTREE="$WORK/filled/filllib"
+rm -rf "$WORK/filled"
+mkdir -p "$FILLTREE/include" "$FILLTREE/fuzz"
+cat >"$FILLTREE/include/filllib.h" <<'FILL_H'
+#include <stddef.h>
+
+struct filllib;
+struct filllib_entry;
+
+struct filllib *filllib_new(void);
+int filllib_open_memory(struct filllib *f, const void *buff, size_t size,
+                        struct filllib_entry **first);
+int filllib_next_entry(struct filllib *f, struct filllib_entry **entry);
+int filllib_read_planes(struct filllib *f, unsigned char **planes);
+void filllib_free(struct filllib *f);
+FILL_H
+cat >"$FILLTREE/fuzz/filllib_fuzzer.c" <<'FILL_FUZZ'
+#include <stdint.h>
+
+#include "filllib.h"
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    struct filllib *f = filllib_new();
+    struct filllib_entry *entry = NULL;
+    unsigned char *planes[3];
+
+    filllib_open_memory(f, data, size, &entry);
+    filllib_next_entry(f, &entry);
+    filllib_read_planes(f, planes);
+    filllib_free(f);
+    return 0;
+}
+FILL_FUZZ
+FILLPLAN="$OUT/filled-plan.txt"
+"$LISDEX" harness "$FILLTREE" --out "$OUT/filled-out" --plan-only --top 10 \
+    >"$FILLPLAN" 2>&1
+if grep -q 'extending \["filllib_next_entry"\]' "$FILLPLAN"; then
+    ok "a step whose out-param the library fills is copied into the climb"
+else
+    bad "the record out-param still stops the climb: $(cat "$FILLPLAN")"
+fi
+# The refusing direction, and the whole reason the rule asks about the INNER type. Same tree,
+# same handle, one call later - the only difference is that the caller must allocate this one.
+if ! grep 'extending' "$FILLPLAN" | grep -q 'filllib_read_planes'; then
+    ok "and a buffer the caller must size is still refused, so the climb stops there"
+else
+    bad "an out-param the caller must allocate was appended: $(grep extending "$FILLPLAN")"
+fi
+# The reach is from the CLIMB, not from the ranking: the step carries no corpus of its own, so
+# nothing but an extension can ever reach it.
+if grep -q 'PLANS   filllib_next_entry' "$FILLPLAN"; then
+    bad "filllib_next_entry planned as an entry point, so the climb assertion proves nothing"
+else
+    ok "and the step cannot stand alone as an entry point, so only the climb reaches it"
+fi
+# The emitted C, because a plan that says AddressOf and a harness that compiles are different
+# claims. `--no-verify` cannot climb, so this reads the ENTRY POINT's own filled out-param.
+FILL_EMIT="$OUT/filled-emit"
+rm -rf "$FILL_EMIT"
+if "$LISDEX" harness "$FILLTREE" --out "$FILL_EMIT" --no-verify >/dev/null 2>&1 \
+    && FILL_C="$(find "$FILL_EMIT" -maxdepth 1 -name '*.c' | head -1)" && [ -n "$FILL_C" ]; then
+    if grep -qE 'struct filllib_entry \* ?lisdex_filled = NULL;' "$FILL_C" \
+        && grep -q 'filllib_open_memory(.*&lisdex_filled)' "$FILL_C"; then
+        ok "the harness declares the NULL local itself and passes its address, nothing more"
+    else
+        bad "the emitted C does not own the slot it hands over: \
+$(grep -n 'filllib_open_memory\|lisdex_filled' "$FILL_C" | head -3)"
+    fi
+else
+    bad "the library-filled tree emitted nothing to check for B81"
+fi
+rm -rf "$WORK/filled"
+
+# B82. B67 refuses an out-param with no extent because the size is knowledge the caller is
+# expected to hold and inventing it manufactures the overflow. A library that ships a MACRO
+# computing that size has the knowledge in its own header, and libpng's own example writes
+# `malloc(PNG_IMAGE_SIZE(image))` on the line above `png_image_finish_read`.
+#
+# Three trees, each differing from the first by exactly ONE #define, because two rules are new
+# and each has to be shown to be doing work ALONE: the affinity rule (a macro naming this
+# record's size exists) and the arity filter (it takes only the record, not a second number the
+# caller owns). Censused over ten tree-runs before the rule was written: of 30 refused
+# byte-sized parameters with no extent, exactly 2 have a macro that answers - both on libpng's
+# `png_image_finish_read` - so the accepting direction has no real tree yet and is asserted here.
+banner "M5 MACRO-STATED CAPACITY"
+
+sizelib_tree() {
+    local root="$1"
+    local sizers="$2"
+    rm -rf "$root"
+    mkdir -p "$root/include" "$root/fuzz"
+    cat >"$root/include/sizelib.h" <<SIZE_H
+#include <stddef.h>
+
+typedef struct sizelib_image {
+    void *opaque;
+    unsigned int version;
+    unsigned int width;
+    unsigned int height;
+} sizelib_image;
+
+#define SIZELIB_IMAGE_VERSION 1
+$sizers
+
+int sizelib_begin_read(sizelib_image *image, const void *memory, size_t size);
+int sizelib_finish_read(sizelib_image *image, void *buffer);
+SIZE_H
+    cat >"$root/fuzz/sizelib_fuzzer.c" <<'SIZE_FUZZ'
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "sizelib.h"
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    sizelib_image image;
+    void *buffer;
+
+    memset(&image, 0, sizeof image);
+    image.version = SIZELIB_IMAGE_VERSION;
+    sizelib_begin_read(&image, data, size);
+    buffer = malloc(SIZELIB_IMAGE_SIZE(image));
+    sizelib_finish_read(&image, buffer);
+    free(buffer);
+    return 0;
+}
+SIZE_FUZZ
+}
+
+SIZEROOT="$WORK/sized"
+rm -rf "$SIZEROOT"
+sizelib_tree "$SIZEROOT/stated" \
+    '#define SIZELIB_IMAGE_SIZE(image) ((image).width * (image).height)'
+SIZEPLAN="$OUT/sized-plan.txt"
+"$LISDEX" harness "$SIZEROOT/stated" --out "$OUT/sized-out" --plan-only --top 10 \
+    >"$SIZEPLAN" 2>&1
+if grep -q 'extending \["sizelib_finish_read"\]' "$SIZEPLAN"; then
+    ok "a buffer whose size the header's own macro states is allocated and the climb copies it"
+else
+    bad "the macro-stated capacity did not reach the climb: $(cat "$SIZEPLAN")"
+fi
+# The isolating control for the AFFINITY rule, and the one that keeps B67 whole. Identical
+# tree, identical signature, identical record - one #define removed. This is `png_read_image`
+# and `tj3Decompress8`, which must stay refused for exactly the reason B67 gives.
+sizelib_tree "$SIZEROOT/silent" '/* no macro states the size */'
+"$LISDEX" harness "$SIZEROOT/silent" --out "$OUT/sized-silent-out" --plan-only --top 10 \
+    >"$OUT/sized-silent.txt" 2>&1
+if grep 'extending' "$OUT/sized-silent.txt" | grep -q 'sizelib_finish_read'; then
+    bad "an out-param no macro states the size of was still bound: \
+$(grep extending "$OUT/sized-silent.txt")"
+else
+    ok "and with no macro naming it the same out-param still refuses, so B67 is intact"
+fi
+# The isolating control for the ARITY filter. `PNG_IMAGE_BUFFER_SIZE(image, row_stride)` is
+# real, is named for exactly this parameter, and is useless: the second argument is the number
+# the caller owns, so applying it means inventing that number. Dropped rather than zeroed.
+sizelib_tree "$SIZEROOT/two-arg" \
+    '#define SIZELIB_IMAGE_SIZE(image, row_stride) ((image).height * (row_stride))'
+"$LISDEX" harness "$SIZEROOT/two-arg" --out "$OUT/sized-two-out" --plan-only --top 10 \
+    >"$OUT/sized-two.txt" 2>&1
+if grep 'extending' "$OUT/sized-two.txt" | grep -q 'sizelib_finish_read'; then
+    bad "a macro needing a number the caller owns was applied anyway: \
+$(grep extending "$OUT/sized-two.txt")"
+else
+    ok "and a macro that needs a second argument states nothing, so the climb stops"
+fi
+# The isolating control for the AFFINITY half, which the silent tree above cannot give: here a
+# macro DOES state a size and takes exactly one argument, and it is about a different record.
+# Without the affinity test any `*_SIZE` in the header would answer for any buffer in the tree,
+# and libpng ships nine of them.
+sizelib_tree "$SIZEROOT/foreign" \
+    '#define OTHERLIB_FRAME_SIZE(frame) ((frame).width * (frame).height)'
+"$LISDEX" harness "$SIZEROOT/foreign" --out "$OUT/sized-foreign-out" --plan-only --top 10 \
+    >"$OUT/sized-foreign.txt" 2>&1
+if grep 'extending' "$OUT/sized-foreign.txt" | grep -q 'sizelib_finish_read'; then
+    bad "a size macro belonging to another record was applied anyway: \
+$(grep extending "$OUT/sized-foreign.txt")"
+else
+    ok "and a size macro with no affinity to this record answers for nothing"
+fi
+# The reach is from the CLIMB, not from the ranking. It has to be: the macro reads fields the
+# library writes, so as an entry point it would read a zeroed record and state zero - and a
+# zero-byte buffer handed to a decoder is the manufactured crash wearing the header's authority.
+if grep -q 'PLANS   sizelib_finish_read' "$SIZEPLAN"; then
+    bad "sizelib_finish_read planned as an entry point, where the macro can only read zeros"
+else
+    ok "and the sized call cannot stand alone as an entry point, so only the climb reaches it"
+fi
+rm -rf "$SIZEROOT"
+
+# B84. A step binds against the PARENT's local map and had no context resolution of its own, so
+# a call needing a record the entry point never took refused however declarable that record was.
+# That is `png_image_finish_read`'s `background`, and it is what left libpng's climb stopped with
+# every other parameter bound.
+#
+# Four trees, each differing from the first by exactly ONE declaration, because three rules are
+# new: a record the library RETURNS is a handle and stays refused; a record with a DESTRUCTOR is
+# refused because a step has nowhere to schedule the teardown; and a Config pinned to zero is
+# still the invented constant an upward step may not copy unless a macro states it.
+banner "M5 A STEP'S OWN CONTEXT"
+
+ctxlib_tree() {
+    local root="$1"
+    local extra="$2"
+    local stride="$3"
+    rm -rf "$root"
+    mkdir -p "$root/include" "$root/fuzz"
+    cat >"$root/include/ctxlib.h" <<CTX_H
+#include <stddef.h>
+
+typedef struct ctxlib_image {
+    void *opaque;
+    unsigned int version;
+    unsigned int width;
+} ctxlib_image;
+
+typedef struct ctxlib_color {
+    unsigned char red;
+} ctxlib_color;
+
+#define CTXLIB_IMAGE_VERSION 1
+#define CTXLIB_IMAGE_SIZE(image) ((image).width)
+$stride
+$extra
+
+int ctxlib_begin_read(ctxlib_image *image, const void *memory, size_t size);
+int ctxlib_finish_read(ctxlib_image *image, const ctxlib_color *background, void *buffer,
+                       int row_stride);
+CTX_H
+    cat >"$root/fuzz/ctxlib_fuzzer.c" <<'CTX_FUZZ'
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "ctxlib.h"
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    ctxlib_image image;
+    ctxlib_color background;
+    void *buffer;
+
+    memset(&image, 0, sizeof image);
+    memset(&background, 0, sizeof background);
+    image.version = CTXLIB_IMAGE_VERSION;
+    ctxlib_begin_read(&image, data, size);
+    buffer = malloc(CTXLIB_IMAGE_SIZE(image));
+    ctxlib_finish_read(&image, &background, buffer, 0);
+    free(buffer);
+    return 0;
+}
+CTX_FUZZ
+}
+
+CTXROOT="$WORK/stepctx"
+STRIDE='#define CTXLIB_IMAGE_ROW_STRIDE(image) ((image).width)'
+SLOT='unsigned ctxlib_get_palette(ctxlib_image *i, ctxlib_color **palette);'
+rm -rf "$CTXROOT"
+ctxlib_tree "$CTXROOT/slotted" "$SLOT" "$STRIDE"
+CTXPLAN="$OUT/stepctx-plan.txt"
+"$LISDEX" harness "$CTXROOT/slotted" --out "$OUT/stepctx-out" --plan-only --top 10 \
+    >"$CTXPLAN" 2>&1
+if grep -q 'extending \["ctxlib_finish_read"\]' "$CTXPLAN"; then
+    ok "a step declares the context the entry point never took, and the climb copies the call"
+else
+    bad "the step's own context did not reach the climb: $(cat "$CTXPLAN")"
+fi
+# The isolating control for the RETURNED rule, and the one that keeps every real handle out.
+# Same tree, same signature - one declaration added, and now the library hands the record back.
+# This is `gzFile_s` from `gzopen` and `WebPMux` from `WebPMuxNew`, whose header struct is a
+# prefix of what the library actually allocates.
+ctxlib_tree "$CTXROOT/returned" \
+    "$SLOT
+ctxlib_color *ctxlib_color_new(void);" "$STRIDE"
+"$LISDEX" harness "$CTXROOT/returned" --out "$OUT/stepctx-ret-out" --plan-only --top 10 \
+    >"$OUT/stepctx-ret.txt" 2>&1
+if grep 'extending' "$OUT/stepctx-ret.txt" | grep -q 'ctxlib_finish_read'; then
+    bad "a record the library returns was declared on the stack anyway: \
+$(grep extending "$OUT/stepctx-ret.txt")"
+else
+    ok "and a record the library hands back from a constructor is still refused"
+fi
+# The isolating control for the DESTRUCTOR rule. A step has nowhere to schedule a teardown, so
+# declaring a record something must free would be a LeakSanitizer report inside the target on
+# every replay - D15's forged crash arriving through the mechanism meant to add depth.
+ctxlib_tree "$CTXROOT/owned" \
+    "$SLOT
+void ctxlib_color_free(ctxlib_color *c);" "$STRIDE"
+"$LISDEX" harness "$CTXROOT/owned" --out "$OUT/stepctx-own-out" --plan-only --top 10 \
+    >"$OUT/stepctx-own.txt" 2>&1
+if grep 'extending' "$OUT/stepctx-own.txt" | grep -q 'ctxlib_finish_read'; then
+    bad "a record with a destructor was declared where nothing can free it: \
+$(grep extending "$OUT/stepctx-own.txt")"
+else
+    ok "and a record something must free is refused, because a step cannot schedule a teardown"
+fi
+# The isolating control for the STATED NUMBER. Same tree, the stride macro removed: `row_stride`
+# falls back to a pinned zero, which is the invented constant D32 measured four bad steps from
+# on libjpeg-turbo - `tj3Set(ctx, 0, 0)` where the author wrote `TJPARAM_SCANLIMIT, 500`.
+ctxlib_tree "$CTXROOT/unstated" "$SLOT" '/* no macro states the stride */'
+"$LISDEX" harness "$CTXROOT/unstated" --out "$OUT/stepctx-zero-out" --plan-only --top 10 \
+    >"$OUT/stepctx-zero.txt" 2>&1
+if grep 'extending' "$OUT/stepctx-zero.txt" | grep -q 'ctxlib_finish_read'; then
+    bad "a Config nothing states was pinned to zero and copied into the climb: \
+$(grep extending "$OUT/stepctx-zero.txt")"
+else
+    ok "and a Config no macro states is still a pinned zero the climb refuses to copy"
+fi
+rm -rf "$CTXROOT"
+
+# The negative control the ladder must REFUSE to help: a tree with nothing to mine has no
+# authored floor, so the ranking alone decides and no setup is invented.
+BARE="$WORK/ladder-bare"
+rm -rf "$BARE"
+mkdir -p "$BARE/include" "$BARE/src"
+cp "$SRC/libarchive/libarchive/archive.h" "$BARE/include/archive.h" 2>/dev/null
+if "$LISDEX" harness "$BARE" --out "$OUT/ladder-bare-out" --plan-only --top 5 \
+    >"$OUT/ladder-bare.txt" 2>&1; then
+    if grep -q "call order: none" "$OUT/ladder-bare.txt" \
+        && ! grep -q "replaying \[\"" "$OUT/ladder-bare.txt"; then
+        ok "a tree with no fuzz target and no consumer replays nothing and says so"
+    else
+        bad "the ladder invented a sequence for a tree with nothing to mine: \
+$(head -2 "$OUT/ladder-bare.txt")"
+    fi
+else
+    ok "a tree with no fuzz target and no consumer replays nothing and says so"
+fi
+rm -rf "$BARE"
+
+banner "B31 A STATIC NAME MEANS ONE FUNCTION PER FILE, NOT ONE PER TREE"
+# Two assertions, pointing opposite ways, because the two failure modes are opposite and a
+# single one alibis the other. Keying nodes on the bare name merges bodies that are not the
+# same function (libarchive: 71 names, 107 bodies, 912 danger discarded). Keying them on the
+# TRANSLATION UNIT rather than the definition site splits a body that IS the same function
+# (openjpeg: `opj_int_ceildiv` is one `static` in a header that 30 units each see). Neither
+# assertion carries a threshold, so upstream drift in the cloned trees cannot move them.
+B31ROOT="$WORK/b31"
+B31SRC="$B31ROOT/collide"
+rm -rf "$B31ROOT"
+mkdir -p "$B31SRC/include"
+cat >"$B31SRC/include/collide.h" <<'EOF'
+#ifndef COLLIDE_H
+#define COLLIDE_H
+#include <stddef.h>
+int entry_large(const unsigned char *data, size_t size);
+int entry_small(const unsigned char *data, size_t size);
+int entry_left(const unsigned char *data, size_t size);
+int entry_right(const unsigned char *data, size_t size);
+#endif
+EOF
+cat >"$B31SRC/shared.h" <<'EOF'
+#ifndef COLLIDE_SHARED_H
+#define COLLIDE_SHARED_H
+#include <stddef.h>
+static int shared_helper(const unsigned char *d, size_t n)
+{
+    int total = 0;
+    size_t i;
+    for (i = 0; i < n; i++) {
+        if (d[i] > 8) { total++; }
+    }
+    return total;
+}
+#endif
+EOF
+# a_ and z_ prefixes fix the walk order: the large body is parsed FIRST, so under bare-name
+# keying it is the one that survives and entry_small inherits complexity it does not have.
+cat >"$B31SRC/a_large.c" <<'EOF'
+#include "collide.h"
+static int helper(const unsigned char *d, size_t n)
+{
+    int total = 0;
+    size_t i;
+    for (i = 0; i < n; i++) {
+        if (d[i] == 1) { total += 1; }
+        if (d[i] == 2) { total += 2; }
+        if (d[i] == 3) { total += 3; }
+        if (d[i] == 4) { total += 4; }
+    }
+    return total;
+}
+int entry_large(const unsigned char *data, size_t size) { return helper(data, size); }
+EOF
+cat >"$B31SRC/z_small.c" <<'EOF'
+#include "collide.h"
+static int helper(const unsigned char *d, size_t n) { return n > 0 ? d[0] : 0; }
+int entry_small(const unsigned char *data, size_t size) { return helper(data, size); }
+EOF
+cat >"$B31SRC/left.c" <<'EOF'
+#include "collide.h"
+#include "shared.h"
+int entry_left(const unsigned char *data, size_t size) { return shared_helper(data, size); }
+EOF
+cat >"$B31SRC/right.c" <<'EOF'
+#include "collide.h"
+#include "shared.h"
+int entry_right(const unsigned char *data, size_t size) { return shared_helper(data, size); }
+EOF
+
+accumulated_of() {
+    python3 - "$1" "$2" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+for candidate in data["ranking"]["candidates"]:
+    if candidate["name"] == sys.argv[2]:
+        print(candidate["complexity"]["accumulated"])
+        break
+else:
+    print(-1)
+PY
+}
+
+defined_of() {
+    python3 - "$1" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1]))["defined"])
+PY
+}
+
+# B38. The field was published as `own` while carrying `graph.danger()` - own cyclomatic PLUS
+# loops, nested loops and maximum nesting - so the artifact named a different metric than it
+# held. Asserted on the serialized JSON rather than on the Rust struct, because the artifact is
+# the thing other people read and a struct-level test would pass on a field serde renames.
+# The candidate count is the liveness guard: an empty ranking would satisfy every `all()` below.
+complexity_keys_of() {
+    python3 - "$1" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+candidates = data["ranking"]["candidates"]
+if not candidates:
+    print("VACUOUS")
+    raise SystemExit(0)
+named = all("danger" in c["complexity"] for c in candidates)
+stale = any("own" in c["complexity"] for c in candidates)
+# Read through .get so a renamed field is DIAGNOSED rather than raising a KeyError: a crash here
+# printed nothing at all, and the gate failed with an empty reason instead of naming the field.
+sane = all(
+    c["complexity"]["accumulated"] >= c["complexity"].get("danger", 0) for c in candidates
+)
+print(f"n={len(candidates)} named={named} stale={stale} sane={sane}")
+PY
+}
+
+B38_KEYS="$(complexity_keys_of "$OUT/libpng.json")"
+if [ "$B38_KEYS" = "VACUOUS" ]; then
+    bad "libpng ranked nothing, so the complexity-field assertion would pass on an empty list"
+elif echo "$B38_KEYS" | grep -q 'named=True' && echo "$B38_KEYS" | grep -q 'stale=False' \
+    && echo "$B38_KEYS" | grep -q 'sane=True'; then
+    ok "every candidate publishes complexity.danger, none publishes the mislabelled own ($B38_KEYS)"
+else
+    bad "the published complexity fields are wrong: $B38_KEYS"
+fi
+
+# The fixture holds exactly seven bodies: four entry points, a_large's helper, z_small's
+# helper, and the one shared_helper the header gives both left.c and right.c. That count is
+# a three-way discriminator and the reason this stage does not compare left against right -
+# splitting one shared body per unit yields two nodes of IDENTICAL danger, so accumulated
+# stays equal on both sides and the comparison could never see it.
+B31_EXPECTED_BODIES=7
+if "$LISDEX" surface "$B31SRC" --json >"$OUT/b31.json" 2>"$OUT/b31.err"; then
+    B31_LARGE="$(accumulated_of "$OUT/b31.json" entry_large)"
+    B31_SMALL="$(accumulated_of "$OUT/b31.json" entry_small)"
+    B31_BODIES="$(defined_of "$OUT/b31.json")"
+    if [ "$B31_LARGE" -lt 0 ] || [ "$B31_SMALL" -lt 0 ]; then
+        bad "the b31 fixture did not rank entry_large and entry_small (see $OUT/b31.json)"
+    elif [ "$B31_LARGE" -gt "$B31_SMALL" ]; then
+        ok "a same-named static in two files stays two bodies (large $B31_LARGE > small $B31_SMALL)"
+    else
+        bad "two unrelated statics named helper were merged (large $B31_LARGE, small $B31_SMALL)"
+    fi
+    if [ "$B31_BODIES" -eq "$B31_EXPECTED_BODIES" ]; then
+        ok "the fixture graph holds $B31_BODIES bodies, one per definition site"
+    elif [ "$B31_BODIES" -lt "$B31_EXPECTED_BODIES" ]; then
+        bad "only $B31_BODIES of $B31_EXPECTED_BODIES bodies survived; a name-keyed graph \
+discards the helper that sorts second"
+    else
+        bad "$B31_BODIES bodies for $B31_EXPECTED_BODIES definition sites; keying on the \
+translation unit splits the one body the shared header gives both units"
+    fi
+else
+    bad "surface refused the b31 fixture: $(head -1 "$OUT/b31.err")"
+fi
+rm -rf "$B31ROOT"
+
+banner "B29 RANKING MEASURED AGAINST AN UNINFORMED ORDERING"
+# The band assertions above check six hand-picked functions. They cannot say whether the
+# ORDERING carries information, because a ranking that put those six first and everything
+# else at random would pass all of them. This scores the cold-start ranking against the
+# entry points each project's OWN fuzz harnesses call, and against a shuffled ordering of
+# the same candidates facing the same labels.
+#
+# Cold start matters: with harness reachability seeded, the ranker would be scored against
+# its own input. `rank-eval` forces ignore_harnesses, so the ordering never sees the
+# harnesses the labels come from.
+RANKEVAL="$OUT/rank-eval.txt"
+if "$LISDEX" rank-eval "$SRC/libpng" "$SRC/libarchive" "$SRC/lz4" "$SRC/brotli" \
+    >"$RANKEVAL" 2>&1; then
+    LIS_MRR="$(awk '/^  MRR/ {print $3}' "$RANKEVAL")"
+    SHUF_MRR="$(awk '/^  MRR/ {print $5}' "$RANKEVAL")"
+    if [ -n "$LIS_MRR" ] && [ -n "$SHUF_MRR" ]; then
+        # The baseline must be NON-ZERO, or "lisdex beat it" is satisfied by a baseline
+        # that never finds anything and the comparison proves nothing.
+        if awk "BEGIN{exit !($SHUF_MRR > 0)}"; then
+            ok "the shuffled baseline finds labels too (MRR $SHUF_MRR), so the comparison is live"
+        else
+            bad "the shuffled baseline scored 0, so it cannot discriminate anything"
+        fi
+        if awk "BEGIN{exit !($LIS_MRR > $SHUF_MRR)}"; then
+            ok "the ranking beats an uninformed ordering on MRR ($LIS_MRR vs $SHUF_MRR)"
+        else
+            bad "the ranking is no better than a shuffle of its own candidates ($LIS_MRR vs $SHUF_MRR)"
+        fi
+    else
+        bad "rank-eval produced no MRR line (see $RANKEVAL)"
+    fi
+else
+    bad "rank-eval failed (see $RANKEVAL)"
+fi
+
+banner "RESULT"
+echo "  passed: $PASS"
+echo "  failed: $FAIL"
+if [ "$FAIL" -eq 0 ]; then
+    echo ""
+    echo "  M3 GATE GREEN"
+    exit 0
+fi
+echo ""
+echo "  M3 GATE RED"
+exit 1

@@ -1,0 +1,54 @@
+# ©AngelaMos | 2026
+# Cargo.toml
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "AGPL-3.0"
+authors = ["Carter Perez <carterperez@angelamos.com>"]
+
+[workspace.dependencies]
+thiserror = "2"
+signal-hook = { version = "0.4", default-features = false }
+libcasr = { version = "=2.13.1", default-features = false }
+clang = { version = "2.0.0", features = ["clang_10_0", "runtime"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "3", features = ["json"] }
+ratatui = "0.30"
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+tokio = { version = "1", default-features = false, features = ["rt", "net", "time"] }
+lisdex-core = { path = "crates/lisdex-core" }
+lisdex-fuzz = { path = "crates/lisdex-fuzz" }
+lisdex-ingest = { path = "crates/lisdex-ingest" }
+lisdex-build = { path = "crates/lisdex-build" }
+lisdex-surface = { path = "crates/lisdex-surface" }
+lisdex-harness = { path = "crates/lisdex-harness" }
+lisdex-llm = { path = "crates/lisdex-llm" }
+lisdex-triage = { path = "crates/lisdex-triage" }
+lisdex-report = { path = "crates/lisdex-report" }
+lisdex-monitor = { path = "crates/lisdex-monitor" }
+lisdex-tui = { path = "crates/lisdex-tui" }
+lisdex-dashboard = { path = "crates/lisdex-dashboard" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+
+[profile.release]
+lto = true
+codegen-units = 1

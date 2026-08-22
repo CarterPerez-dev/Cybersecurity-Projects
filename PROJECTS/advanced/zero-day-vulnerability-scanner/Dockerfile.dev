@@ -1,0 +1,63 @@
+# ©AngelaMos | 2026
+# Dockerfile.dev
+
+FROM aflplusplus/aflplusplus:v5.02c
+
+ARG RUST_VERSION=1.97.0
+ARG MAGMA_COMMIT=75d1ae7b180443a778b8830c79176ca5f93642ac
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LLVM_BIN=/usr/lib/llvm-20/bin
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV CARGO_TARGET_DIR=/cargo-target
+ENV PATH=/usr/local/cargo/bin:/usr/lib/llvm-20/bin:$PATH
+ENV MAGMA_ROOT=/opt/magma
+ENV MAGMA_WORK=/opt/magma-work
+ENV AFL_PATH=/usr/local/lib/afl
+ENV LISDEX_AFL_DRIVER=/usr/local/lib/afl/libAFLDriver.a
+ENV LIBCLANG_PATH=/usr/lib/llvm-20/lib
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        autoconf \
+        automake \
+        autoconf-archive \
+        libtool \
+        gettext \
+        gtk-doc-tools \
+        pkg-config \
+        zlib1g-dev \
+        libreadline-dev \
+        liblzma-dev \
+        tcl \
+        libclang-20-dev \
+        bison \
+        flex \
+        gperf \
+        nasm \
+        bear \
+        cmake \
+        meson \
+        ninja-build \
+        curl \
+        ca-certificates \
+        git \
+        make \
+        patch \
+        xxd \
+        sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --profile minimal \
+            --default-toolchain "$RUST_VERSION" \
+            --component rustfmt --component clippy \
+    && chmod -R a+w "$CARGO_HOME" "$RUSTUP_HOME"
+
+RUN git clone https://github.com/HexHive/magma.git "$MAGMA_ROOT" \
+    && git -C "$MAGMA_ROOT" checkout "$MAGMA_COMMIT" \
+    && mkdir -p "$MAGMA_WORK"
+
+RUN mkdir -p "$CARGO_TARGET_DIR"
+
+WORKDIR /work
