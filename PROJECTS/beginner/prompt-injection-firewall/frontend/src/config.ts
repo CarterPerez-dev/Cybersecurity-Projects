@@ -74,7 +74,6 @@ export const LAYER_ORDER = [
 
 export const DECISION = {
   ALLOW: 'allow',
-  SANITIZE: 'sanitize',
   BLOCK: 'block',
 } as const
 

@@ -51,6 +51,9 @@ Repository = "https://github.com/CarterPerez-dev/Cybersecurity-Projects"
 Documentation = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/beginner/prompt-injection-firewall"
 Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues"
 
+[project.scripts]
+not-sandboxed = "not_sandboxed.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

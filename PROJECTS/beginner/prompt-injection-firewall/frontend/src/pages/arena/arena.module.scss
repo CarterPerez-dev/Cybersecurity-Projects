@@ -551,14 +551,6 @@
     color: $color-signal;
   }
 
-  &[data-decision='sanitize'] {
-    color: $color-ink;
-    text-decoration: underline;
-    text-decoration-thickness: 3px;
-    text-underline-offset: 0.14em;
-    text-decoration-color: $color-caution;
-  }
-
   &[data-unreached='true'] {
     font-size: $font-size-lg;
     color: $color-ink-ghost;

@@ -7,8 +7,6 @@ from enum import IntEnum, StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
-from not_sandboxed.context import Context
-
 
 class Severity(IntEnum):
     """
@@ -29,7 +27,6 @@ class Decision(StrEnum):
     """
 
     ALLOW = "allow"
-    SANITIZE = "sanitize"
     BLOCK = "block"
 
 
@@ -60,7 +57,6 @@ class Verdict(BaseModel):
     findings: tuple[Finding, ...] = ()
     policy_id: str = ""
     elapsed_ms: float = 0.0
-    sanitized: Context | None = None
 
     @property
     def blocked_by(self) -> tuple[Finding, ...]:

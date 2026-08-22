@@ -196,6 +196,39 @@ HARVEST_EMPTY: Final = "no bypass candidates recorded"
 HARVEST_WROTE: Final = "wrote {count} candidate(s) to {target}"
 HARVEST_USAGE: Final = ("usage: {program} <bypasses.jsonl> <corpus-root>")
 
+CLI_PROGRAM: Final = "not-sandboxed"
+CLI_DESCRIPTION: Final = (
+    "A prompt injection firewall that enforces structural invariants "
+    "around an untrusted model instead of guessing at its input"
+)
+CLI_EPILOG: Final = (
+    "Exit status is 0 when the verdict allows and 1 when it blocks, "
+    "so this composes in a shell pipeline"
+)
+CLI_TRUST_CHOICES: Final = ("data", "user", "system")
+CLI_DEFAULT_TRUST: Final = "data"
+CLI_DEFAULT_CHANNEL: Final = "stdin"
+CLI_DEFAULT_REF: Final = "-"
+CLI_DEFAULT_HOST: Final = "127.0.0.1"
+CLI_PROXY_PORT: Final = 39441
+CLI_ARENA_PORT: Final = 33572
+
+CLI_VERDICT_LINE: Final = "{decision}  ({elapsed:.2f} ms, policy {policy})"
+CLI_FINDING_LINE: Final = "  {mark} {layer}/{rule}  {severity}"
+CLI_INVARIANT_MARK: Final = "!"
+CLI_SCORED_MARK: Final = "~"
+CLI_NO_FINDINGS: Final = "  nothing fired"
+CLI_EMPTY_INPUT: Final = "no input; pass text as an argument or on stdin"
+CLI_BENCH_UNAVAILABLE: Final = (
+    "the benchmark and its corpus are not part of the installed "
+    "package; run it from a source checkout with `just bench`"
+)
+CLI_INGRESS_CAVEAT: Final = (
+    "ingress is scored and incomplete by construction; a blocked "
+    "verdict here means a rule matched, and an allowed verdict does "
+    "not mean the text is safe"
+)
+
 RULE_LAYER_ERROR: Final = "layer-error"
 RULE_LAYER_DISABLED: Final = "layer-disabled"
 
