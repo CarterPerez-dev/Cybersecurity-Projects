@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-5.yaml
+
+policy_id: level-5
+title: Tool authorization
+teaches: The agent may still be fooled, but a tainted context cannot take an action.
+strict_data: true
+normalize_enabled: true
+ingress_enabled: true
+provenance_enabled: true
+toolauth_enabled: true
+egress_enabled: false

@@ -12,6 +12,7 @@ from dlp_scanner.network.pcap import PacketInfo
 
 
 def _make_packet(
+    *,
     src_ip: str = "192.168.1.1",
     dst_ip: str = "10.0.0.1",
     src_port: int = 12345,

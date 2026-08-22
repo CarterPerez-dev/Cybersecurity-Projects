@@ -1,0 +1,22 @@
+# ©AngelaMos | 2025
+# .stylelintignore
+
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+out/
+
+# JS/TS files
+**/*.js
+**/*.jsx
+**/*.ts
+**/*.tsx
+
+# Generated files
+*.min.css
+
+# Error system styles - ignore from linting
+src/core/app/_toastStyles.scss

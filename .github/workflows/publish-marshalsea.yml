@@ -1,0 +1,117 @@
+# =============================================================================
+# AngelaMos | 2026
+# publish-marshalsea.yml
+# =============================================================================
+
+name: Publish marshalsea to RubyGems
+
+on:
+  push:
+    tags:
+      - 'marshalsea-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_DIR: PROJECTS/beginner/deserialization-gadget-lab
+
+jobs:
+  test:
+    name: Test on Ruby ${{ matrix.ruby }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        ruby: ['3.4', '4.0']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby ${{ matrix.ruby }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: PROJECTS/beginner/deserialization-gadget-lab
+
+      - name: Run the suites
+        working-directory: PROJECTS/beginner/deserialization-gadget-lab
+        run: |
+          for suite in test/marshal/parser_test.rb test/scanner_test.rb test/chains_test.rb \
+                       test/marshal/boundary_detector_test.rb test/marshal/load_guard_test.rb \
+                       test/psych/inspector_test.rb test/corpus_test.rb; do
+            echo "::group::${suite}"
+            ruby -Ilib -Itest "${suite}"
+            echo "::endgroup::"
+          done
+
+      - name: Run the standalone controls
+        working-directory: PROJECTS/beginner/deserialization-gadget-lab
+        run: ruby -Ilib -Itest test/control_check.rb
+
+      - name: Confirm the declared floor matches this matrix
+        working-directory: PROJECTS/beginner/deserialization-gadget-lab
+        run: |
+          floor=$(ruby -e 'print Gem::Specification.load("marshalsea.gemspec").required_ruby_version.to_s')
+          echo "gemspec declares ${floor}, tested on ${{ matrix.ruby }}"
+          test "${floor}" = ">= 3.4" || {
+            echo "::error::gemspec floor ${floor} no longer matches the tested matrix"
+            exit 1
+          }
+
+  release:
+    name: Push marshalsea to RubyGems
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/marshalsea-v')
+    runs-on: ubuntu-latest
+    environment:
+      name: rubygems
+      url: https://rubygems.org/gems/marshalsea
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+          working-directory: PROJECTS/beginner/deserialization-gadget-lab
+
+      - name: Confirm the tag matches the gem version
+        working-directory: PROJECTS/beginner/deserialization-gadget-lab
+        run: |
+          version=$(ruby -e 'require "./lib/marshalsea/version"; print Marshalsea::VERSION')
+          expected="marshalsea-v${version}"
+          echo "tag=${GITHUB_REF_NAME} gemspec=${expected}"
+          if [ "${GITHUB_REF_NAME}" != "${expected}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match ${expected}"
+            exit 1
+          fi
+
+      - name: Audit what the manifest would ship
+        working-directory: PROJECTS/beginner/deserialization-gadget-lab
+        run: |
+          version=$(ruby -e 'require "./lib/marshalsea/version"; print Marshalsea::VERSION')
+          rm -rf tmp/release && mkdir -p tmp/release
+          ruby -e 'puts Gem::Specification.load("marshalsea.gemspec").files' >tmp/release/declared.txt
+          tar -T tmp/release/declared.txt -cf - | tar -C tmp/release -xf -
+          cp marshalsea.gemspec tmp/release/
+          ( cd tmp/release && gem build --strict marshalsea.gemspec )
+          ruby scripts/audit_gem.rb \
+            "tmp/release/marshalsea-${version}.gem" . ">= 3.4" tmp/release/extract |
+            tee tmp/release/audit.txt
+          if grep -q '=false$' tmp/release/audit.txt; then
+            echo "::error::the declared manifest would ship a gem that fails its own audit"
+            exit 1
+          fi
+
+      - name: Release to RubyGems with trusted publishing and attestation
+        uses: rubygems/release-gem@v1
+        with:
+          working-directory: PROJECTS/beginner/deserialization-gadget-lab

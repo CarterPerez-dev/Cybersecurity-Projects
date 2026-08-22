@@ -1,0 +1,24 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+# Dev-only docs
+docs/
+
+# Ruby build + dependency artifacts
+*.gem
+/pkg/
+/tmp/
+/.bundle/
+/vendor/bundle/
+Gemfile.lock
+.rspec_status
+
+# Lab working data
+/payloads/
+/loot/
+*.marshal
+*.bin
+
+# Local env
+.env
+tmp/

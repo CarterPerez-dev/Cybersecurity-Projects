@@ -42,6 +42,9 @@ jobs:
           - name: c2-beacon-backend
             type: ruff
             path: PROJECTS/beginner/c2-beacon/backend
+          - name: prompt-injection-firewall
+            type: ruff
+            path: PROJECTS/beginner/prompt-injection-firewall
           # Python (ruff) - Intermediate
           - name: api-security-scanner-backend
             type: ruff
@@ -113,6 +116,9 @@ jobs:
           - name: ja3-ja4-tls-fingerprinting-frontend
             type: frontend
             path: PROJECTS/intermediate/ja3-ja4-tls-fingerprinting/frontend
+          - name: prompt-injection-firewall-frontend
+            type: frontend
+            path: PROJECTS/beginner/prompt-injection-firewall/frontend
           # Go
           - name: simple-vulnerability-scanner
             type: go
@@ -187,9 +193,27 @@ jobs:
       with:
         python-version: '3.12'
 
+    # Ruff is pinned to the rev in .pre-commit-config.yaml rather than
+    # hardcoded here, so bumping the hook bumps CI in the same commit.
+    # An unpinned `pip install ruff` silently adopts newly-stabilized
+    # rules and fails code the local hook just passed.
+    - name: Resolve pinned ruff version
+      if: matrix.type == 'ruff'
+      id: ruff_version
+      run: |
+        version=$(grep -A1 'astral-sh/ruff-pre-commit' \
+          "$GITHUB_WORKSPACE/.pre-commit-config.yaml" \
+          | grep -oP 'rev:\s*v\K[0-9]+\.[0-9]+\.[0-9]+')
+        if [[ -z "$version" ]]; then
+          echo "Could not resolve ruff rev from .pre-commit-config.yaml"
+          exit 1
+        fi
+        echo "Pinned ruff version: $version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
     - name: Install ruff
       if: matrix.type == 'ruff'
-      run: pip install ruff
+      run: pip install "ruff==${{ steps.ruff_version.outputs.version }}"
 
     # Biome / Frontend Setup
     - name: Setup Node.js

@@ -39,6 +39,7 @@ class DetectorRegistry:
     """
     def __init__(
         self,
+        *,
         enable_patterns: list[str] | None = None,
         disable_patterns: list[str] | None = None,
         allowlist_values: frozenset[str] | None = None,

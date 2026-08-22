@@ -475,6 +475,7 @@ class DatabaseScanner:
         self,
         matches: list[DetectorMatch],
         text: str,
+        *,
         table_name: str,
         uri: str,
         result: ScanResult,

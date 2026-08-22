@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-2.yaml
+
+policy_id: level-2
+title: Normalization only
+teaches: Invisible payloads become visible. Tag-block and bidi smuggling stop working.
+strict_data: true
+normalize_enabled: true
+ingress_enabled: false
+provenance_enabled: false
+toolauth_enabled: false
+egress_enabled: false

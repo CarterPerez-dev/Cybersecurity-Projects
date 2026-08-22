@@ -1,0 +1,53 @@
+// ===================
+// © AngelaMos | 2026
+// styles.scss
+// ===================
+
+@forward 'styles/tokens';
+@forward 'styles/fonts';
+@forward 'styles/mixins';
+
+@use 'styles/reset';
+@use 'styles/tokens' as *;
+@use 'styles/fonts' as *;
+@use 'styles/mixins' as *;
+
+$grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.34'/%3E%3C/svg%3E");
+
+body {
+  font-family: $font-display;
+  font-size: $font-size-base;
+  color: $color-text;
+  background-color: $color-bg;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: $z-base;
+  background-image: $grain;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  content: '';
+}
+
+::selection {
+  color: $color-paper-lit;
+  background-color: $color-ink;
+}
+
+#root {
+  position: relative;
+  z-index: $z-base;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}

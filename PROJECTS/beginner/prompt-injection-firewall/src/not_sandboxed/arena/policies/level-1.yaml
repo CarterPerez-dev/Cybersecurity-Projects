@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# level-1.yaml
+
+policy_id: level-1
+title: No firewall
+teaches: The unprotected baseline. The agent obeys anything it reads.
+strict_data: false
+normalize_enabled: false
+ingress_enabled: false
+provenance_enabled: false
+toolauth_enabled: false
+egress_enabled: false

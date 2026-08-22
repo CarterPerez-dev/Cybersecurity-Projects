@@ -1,0 +1,709 @@
+// ===================
+// © AngelaMos | 2026
+// arena.module.scss
+// ===================
+
+@use '../../styles/tokens' as *;
+@use '../../styles/fonts' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+.masthead {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-6;
+  padding: $space-8 $space-4 $space-6;
+  overflow: hidden;
+
+  @include breakpoint-up('md') {
+    padding: $space-12 $space-8 $space-8;
+  }
+
+  @include breakpoint-up('lg') {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    align-items: end;
+  }
+}
+
+.masthead-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.masthead-meta {
+  display: flex;
+  flex-direction: column;
+  border-top: $rule-ink;
+}
+
+.meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $space-3;
+  padding: $space-2 0;
+  border-bottom: $hairline;
+}
+
+.meta-key {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.meta-value {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink;
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  @include display-type;
+
+  margin-left: -0.06em;
+  color: $color-ink;
+  text-transform: lowercase;
+  overflow-wrap: anywhere;
+}
+
+.tagline {
+  @include label-type($font-size-sm);
+
+  max-width: 46ch;
+  margin-top: $space-4;
+  color: $color-ink-soft;
+  text-transform: none;
+}
+
+.masthead-rule {
+  height: $space-6;
+
+  @include ruled-field($color-rule, 5px);
+
+  @include breakpoint-up('lg') {
+    grid-column: 1 / -1;
+  }
+}
+
+.plate-heading {
+  @include plate-type($font-size-2xs);
+
+  padding-bottom: $space-3;
+  color: $color-ink;
+  border-bottom: $rule-ink;
+}
+
+.sub-heading {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.config {
+  display: flex;
+  flex-direction: column;
+  gap: $space-5;
+  padding: $space-6 $space-4;
+  border-top: $hairline;
+
+  @include breakpoint-up('md') {
+    padding: $space-8;
+  }
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0;
+  border: $hairline;
+}
+
+.level-plate {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  min-height: 7.5rem;
+  padding: $space-3;
+  color: $color-ink;
+  text-align: left;
+  background-color: transparent;
+  border-right: $hairline;
+  border-bottom: $hairline;
+  transition: background-color $duration-fast $ease,
+    color $duration-fast $ease;
+
+  @include focus-plate;
+
+  &:hover {
+    background-color: $color-paper-sunk;
+  }
+
+  &[data-selected='true'] {
+    @include inverted;
+
+    &:hover {
+      background-color: $color-ink;
+    }
+  }
+}
+
+.level-number {
+  @include display-type($font-size-3xl);
+
+  line-height: 1;
+}
+
+.level-title {
+  @include label-type($font-size-2xs);
+
+  margin-top: auto;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.level-bars {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+}
+
+.level-bar {
+  flex: 1;
+  background-color: currentColor;
+  opacity: 0.18;
+
+  &[data-on='true'] {
+    opacity: 1;
+  }
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-6;
+
+  @include breakpoint-up('lg') {
+    grid-template-columns: 1.15fr 1fr;
+  }
+}
+
+.teaches {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.teaches-label {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.teaches-text {
+  font-family: $font-display;
+  font-size: $font-size-xl;
+  line-height: $line-height-tight;
+  letter-spacing: $tracking-display;
+  color: $color-ink;
+
+  @include breakpoint-up('md') {
+    font-size: $font-size-2xl;
+  }
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.rail-heading {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  border-top: $hairline;
+}
+
+.rail-item {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-2 $space-1;
+  border-bottom: $hairline;
+  color: $color-ink-ghost;
+
+  &[data-active='true'] {
+    color: $color-ink;
+    background-color: $color-paper-sunk;
+  }
+}
+
+.rail-index {
+  @include label-type($font-size-2xs);
+}
+
+.rail-name {
+  @include plate-type($font-size-xs);
+
+  letter-spacing: $tracking-label;
+
+  [data-active='false'] & {
+    text-decoration: line-through;
+  }
+}
+
+.note {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  line-height: $line-height-relaxed;
+  color: $color-ink-faint;
+  max-width: 62ch;
+
+  &[data-tone='loud'] {
+    padding-left: $space-3;
+    color: $color-ink;
+    border-left: 2px solid $color-signal;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-6 $space-4;
+  border-top: $hairline;
+  background-color: $color-paper;
+
+  @include breakpoint-up('md') {
+    padding: $space-8;
+  }
+}
+
+.form-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $space-4;
+  padding-bottom: $space-3;
+  border-bottom: $rule-ink;
+}
+
+.label {
+  @include plate-type($font-size-2xs);
+}
+
+.counter {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.hint {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $color-ink-soft;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 11rem;
+  padding: $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  color: $color-ink;
+  resize: vertical;
+  background-color: $color-paper-lit;
+  border: $rule-ink;
+  border-radius: $radius-none;
+
+  @include focus-plate;
+}
+
+.submit {
+  align-self: flex-start;
+  padding: $space-3 $space-8;
+  color: $color-paper-lit;
+  background-color: $color-ink;
+  border: $plate-border;
+  transition: background-color $duration-fast $ease,
+    color $duration-fast $ease;
+
+  @include plate-type($font-size-2xs);
+  @include focus-plate;
+
+  &:hover:not(:disabled) {
+    color: $color-ink;
+    background-color: $color-signal;
+    border-color: $color-signal;
+  }
+
+  &:disabled {
+    color: $color-ink-ghost;
+    cursor: not-allowed;
+    background-color: transparent;
+    border-color: $color-rule;
+  }
+}
+
+.specimen {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  padding: $space-6 $space-4;
+  border-top: $hairline;
+
+  @include breakpoint-up('md') {
+    padding: $space-8;
+  }
+}
+
+.specimen-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $space-4;
+}
+
+.ghost-button {
+  padding: $space-2 $space-3;
+  color: $color-ink-soft;
+  border: $hairline;
+  transition: color $duration-fast $ease,
+    border-color $duration-fast $ease;
+
+  @include plate-type($font-size-2xs);
+  @include focus-plate;
+
+  &:hover,
+  &[data-on='true'] {
+    color: $color-ink;
+    border-color: $color-ink;
+  }
+}
+
+.census-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-top: $hairline;
+  border-left: $hairline;
+
+  @include breakpoint-up('sm') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include breakpoint-up('lg') {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.census-cell {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  padding: $space-3;
+  border-right: $hairline;
+  border-bottom: $hairline;
+
+  &[data-hot='true'] {
+    background-color: $color-caution;
+  }
+}
+
+.census-value {
+  @include display-type($font-size-2xl);
+
+  font-variant-numeric: tabular-nums;
+}
+
+.census-label {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink-faint;
+
+  [data-hot='true'] & {
+    color: $color-ink;
+  }
+}
+
+.reveal {
+  padding: $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  line-height: 2;
+  color: $color-ink-soft;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background-color: $color-paper-lit;
+  border: $hairline;
+
+  @include dotted-field($color-rule-faint, 5px);
+}
+
+.reveal-mark {
+  padding: 0 $space-1;
+  margin: 0 1px;
+  font-size: $font-size-2xs;
+  letter-spacing: $tracking-label;
+  color: $color-paper-lit;
+  text-transform: uppercase;
+  background-color: $color-ink;
+
+  &[data-mark='TAG'] {
+    color: $color-ink;
+    background-color: $color-caution;
+  }
+
+  &[data-mark='BIDI'] {
+    background-color: $color-signal;
+  }
+}
+
+.error {
+  padding: $space-3 $space-4;
+  margin: 0 $space-4;
+  color: $color-paper-lit;
+  background-color: $color-signal;
+
+  @include plate-type($font-size-2xs);
+}
+
+.awaiting {
+  padding: $space-12 $space-4;
+  color: $color-ink-ghost;
+  text-align: center;
+  border-top: $hairline;
+
+  @include plate-type($font-size-2xs);
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: $space-5;
+  padding: $space-6 $space-4 $space-10;
+  border-top: $rule-ink;
+
+  @include breakpoint-up('md') {
+    padding: $space-8 $space-8 $space-12;
+  }
+}
+
+.verdict-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $space-4;
+}
+
+.attempts {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.decisions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-top: $hairline;
+  border-left: $hairline;
+
+  @include breakpoint-up('sm') {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.decision {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-4;
+  border-right: $hairline;
+  border-bottom: $hairline;
+}
+
+.decision-key {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.decision-value {
+  @include display-type($font-size-3xl);
+
+  text-transform: lowercase;
+
+  &[data-decision='block'] {
+    color: $color-signal;
+  }
+
+  &[data-decision='sanitize'] {
+    color: $color-ink;
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 0.14em;
+    text-decoration-color: $color-caution;
+  }
+
+  &[data-unreached='true'] {
+    font-size: $font-size-lg;
+    color: $color-ink-ghost;
+  }
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  border-top: $hairline;
+}
+
+.finding {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-1 $space-3;
+  align-items: center;
+  padding: $space-3 $space-1;
+  border-bottom: $hairline;
+
+  @include breakpoint-up('md') {
+    grid-template-columns: 7rem 1fr 8rem 5rem 5rem;
+  }
+}
+
+.finding-layer {
+  @include plate-type($font-size-2xs);
+}
+
+.finding-rule {
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  color: $color-ink-soft;
+  overflow-wrap: anywhere;
+}
+
+.finding-track {
+  display: block;
+  height: 0.75rem;
+  background-color: $color-paper-sunk;
+}
+
+.finding-fill {
+  display: block;
+  height: 100%;
+  background-color: $color-ink;
+
+  [data-invariant='true'] & {
+    background-color: $color-signal;
+  }
+}
+
+.finding-severity {
+  @include label-type($font-size-2xs);
+
+  color: $color-ink-faint;
+}
+
+.finding-flag {
+  @include label-type($font-size-2xs);
+
+  color: $color-signal;
+}
+
+.seal {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-6 $space-4;
+  border: $plate-border;
+
+  @include breakpoint-up('md') {
+    padding: $space-8;
+  }
+
+  &[data-escaped='true'] {
+    @include inverted;
+
+    border-color: $color-ink;
+  }
+}
+
+.seal-label {
+  @include plate-type($font-size-2xs);
+
+  color: $color-ink-faint;
+
+  [data-escaped='true'] & {
+    color: $color-signal;
+  }
+}
+
+.seal-text {
+  @include display-type($font-size-numeral);
+
+  [data-escaped='true'] & {
+    color: $color-paper-lit;
+  }
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.agent-text {
+  padding: $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  color: $color-ink;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  background-color: $color-paper;
+  border-top: $rule-ink;
+  border-bottom: $hairline;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  border-top: $hairline;
+}
+
+.action {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-1 $space-3;
+  align-items: center;
+  padding: $space-3 $space-1;
+  border-bottom: $hairline;
+
+  @include breakpoint-up('md') {
+    grid-template-columns: 12rem 1fr;
+  }
+}
+
+.action-name {
+  @include plate-type($font-size-2xs);
+}
+
+.action-args {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $color-ink-soft;
+  overflow-x: auto;
+}
