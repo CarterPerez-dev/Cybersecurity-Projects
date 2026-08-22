@@ -16,7 +16,7 @@
 version: 2
 
 updates:
-
+# TODO change to uv
   # ── Python (pip ecosystem) ────────────────────────────────────────────────
   # Covers pyproject.toml, requirements.txt, setup.py.
   # Use "pip" even if you use uv — Dependabot reads the manifest format,
