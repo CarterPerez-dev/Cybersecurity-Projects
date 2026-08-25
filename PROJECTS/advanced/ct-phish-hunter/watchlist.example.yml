@@ -1,0 +1,19 @@
+# watchlist.example.yml
+#
+# Brands glasswatch should watch for impersonation. Copy this file to
+# watchlist.yml and edit it, or point --watchlist at your own copy.
+#
+# Two entry forms:
+#   - a bare domain string, core_name guessed as the label before the TLD
+#   - a mapping with an explicit core_name, needed for multi-part
+#     suffixes like .co.uk where the naive guess would grab "co" instead
+#     of the real brand name
+
+brands:
+  - acmebank.example
+  - name: Acme Cloud
+    domain: acmecloud.example
+    core_name: acmecloud
+  - name: Shopwave UK
+    domain: shopwave.co.example
+    core_name: shopwave

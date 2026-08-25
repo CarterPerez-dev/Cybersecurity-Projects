@@ -1,7 +1,7 @@
 <div align="center">
   <img width="260" height="260" alt="Kali-dragon-icon svg" src="https://github.com/user-attachments/assets/d911b71f-6ad9-45b7-9513-237f83377023" alt="Kali Linux Icon"/>
   <h1 align="center">Cybersecurity Projects 🐉</h1>
-  <p align="center">70 Cybersecurity Projects, Certification Roadmaps & Resources</p>
+  <p align="center">71 Cybersecurity Projects, Certification Roadmaps & Resources</p>
 </div>
 
 <div align="center">
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/github/issues/CarterPerez-dev/Cybersecurity-Projects" alt="issues"/>
   <img src="https://img.shields.io/github/license/CarterPerez-dev/Cybersecurity-Projects" alt="license"/>
   <br/>
-  <img src="https://img.shields.io/badge/Cybersecurity-70_Projects-darkblue" alt="projects"/>
+  <img src="https://img.shields.io/badge/Cybersecurity-71_Projects-darkblue" alt="projects"/>
   <img src="https://img.shields.io/badge/Security-Learning_Resources-darkred" alt="resources"/>
 </div>
 
@@ -25,7 +25,7 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-42/70-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-43/71-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
@@ -161,6 +161,7 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 | **["Monitor the Situation" Dashboard](./PROJECTS/advanced/monitor-the-situation-dashboard)**<br>Real-time cyber threat situational awareness | ![3-4w](https://img.shields.io/badge/⏱️_3--4w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Threat intel feeds • EPSS/KEV/CVE velocity • BGP hijacks • WebSocket fan-out • 3D globe SOC view<br>[Source Code](./PROJECTS/advanced/monitor-the-situation-dashboard) \| [Docs](./PROJECTS/advanced/monitor-the-situation-dashboard/learn)<br>[![iminthewalls.com](https://img.shields.io/badge/iminthewalls.com-8B5CF6?style=flat&logo=googlechrome&logoColor=white)](https://iminthewalls.com/) |
 | **[Honeypot Network](./PROJECTS/advanced/honeypot-network)**<br>Multi-service honeypot deployment & analysis | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Honeypot deployment • Attacker behavior analysis • IOC extraction • MITRE mapping<br>[Source Code](./PROJECTS/advanced/honeypot-network) \| [Docs](./PROJECTS/advanced/honeypot-network/learn)<br>[![honeypot-network.carterperez-dev.com](https://img.shields.io/badge/honeypot--network.carterperez--dev.com-8B5CF6?style=flat&logo=googlechrome&logoColor=white)](https://honeypot-network.carterperez-dev.com/) |
 | **[Supply Chain Security Analyzer](./SYNOPSES/advanced/Supply.Chain.Security.Analyzer.md)**<br>Dependency vulnerability analysis | ![2-3w](https://img.shields.io/badge/⏱️_2--3w-blue) ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | Supply chain security • Dependency analysis • Malicious packages<br>[Learn More](./SYNOPSES/advanced/Supply.Chain.Security.Analyzer.md) |
+| **[glasswatch](./PROJECTS/advanced/ct-phish-hunter)**<br>Certificate Transparency phishing hunter | ![1w](https://img.shields.io/badge/⏱️_1w-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Advanced](https://img.shields.io/badge/●_Advanced-red) | RFC 6962 CT log protocol from scratch • Merkle leaf/precert parsing • Unicode confusables skeletonization • Homoglyph/typosquat/combosquat scoring<br>[Source Code](./PROJECTS/advanced/ct-phish-hunter) \| [Docs](./PROJECTS/advanced/ct-phish-hunter/learn) |
 
 ---
 
