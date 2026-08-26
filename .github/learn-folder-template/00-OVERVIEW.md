@@ -81,7 +81,7 @@ Expected output: [describe what success looks like]
 1. **Understand the concepts** - Read [01-CONCEPTS.md](./01-CONCEPTS.md) to learn the security fundamentals
 2. **Study the architecture** - Read [02-ARCHITECTURE.md](./02-ARCHITECTURE.md) to see how it's designed
 3. **Walk through the code** - Read [03-IMPLEMENTATION.md](./03-IMPLEMENTATION.md) for implementation details
-4. **Extend the project** - Read [04-CHALLENGES.md](./04-CHALLENGES.md) for ideas to build on
+4. **Extend the project** - Read [04-CHALLENGES.md](./04-CHALLENGES.md) for ideas to build on.
 
 ## Common Issues
 
