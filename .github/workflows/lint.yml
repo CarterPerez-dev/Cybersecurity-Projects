@@ -30,9 +30,6 @@ jobs:
           - name: dns-lookup
             type: ruff
             path: PROJECTS/beginner/dns-lookup
-          - name: metadata-scrubber-tool
-            type: ruff
-            path: PROJECTS/beginner/metadata-scrubber-tool
           - name: network-traffic-analyzer
             type: ruff
             path: PROJECTS/beginner/network-traffic-analyzer/python
