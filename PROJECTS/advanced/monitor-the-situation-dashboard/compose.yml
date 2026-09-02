@@ -1,14 +1,14 @@
 # ©AngelaMos | 2026
 # compose.yml
 
-name: ${APP_NAME:-monitor}
+name: situation-monitor-prod
 
 services:
   nginx:
     build:
       context: .
       dockerfile: conf/docker/prod/vite.docker
-    container_name: ${APP_NAME:-monitor}-nginx
+    container_name: situation-monitor-prod-nginx
     ports:
       - "${NGINX_HOST_PORT:-8432}:80"
     depends_on:
@@ -31,7 +31,7 @@ services:
     build:
       context: .
       dockerfile: conf/docker/prod/go.docker
-    container_name: ${APP_NAME:-monitor}-backend
+    container_name: situation-monitor-prod-backend
     expose:
       - "8080"
     env_file:
@@ -65,7 +65,7 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    container_name: ${APP_NAME:-monitor}-postgres
+    container_name: situation-monitor-prod-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-monitor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -92,8 +92,8 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ${APP_NAME:-monitor}-redis
-    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    container_name: situation-monitor-prod-redis
+    command: redis-server --appendonly no --save 300 10 ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     volumes:
       - redisdata:/data
     networks:

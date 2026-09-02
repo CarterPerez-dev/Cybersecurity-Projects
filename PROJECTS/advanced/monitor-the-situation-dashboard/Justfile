@@ -106,7 +106,7 @@ install:
 
 [group('db')]
 migrate *ARGS:
-    docker compose --env-file .env.prod -f compose.yml exec backend sh -c 'goose -dir /migrations postgres "$DATABASE_URL" up' {{ARGS}}
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml exec backend sh -c 'goose -dir /migrations postgres "$DATABASE_URL" up' {{ARGS}}
 
 [group('db')]
 migrate-dev *ARGS:
@@ -134,27 +134,27 @@ redis-cli:
 
 [group('docker')]
 up *ARGS:
-    docker compose --env-file .env.prod -f compose.yml up {{ARGS}}
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml up {{ARGS}}
 
 [group('docker')]
 start *ARGS:
-    docker compose --env-file .env.prod -f compose.yml up -d --build {{ARGS}}
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml up -d --build {{ARGS}}
 
 [group('docker')]
 down *ARGS:
-    docker compose --env-file .env.prod -f compose.yml down {{ARGS}}
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml down {{ARGS}}
 
 [group('docker')]
 logs *SERVICE:
-    docker compose --env-file .env.prod -f compose.yml logs -f {{SERVICE}}
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml logs -f {{SERVICE}}
 
 [group('docker')]
 ps:
-    docker compose --env-file .env.prod -f compose.yml ps
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml ps
 
 [group('docker')]
 build-prod:
-    docker compose --env-file .env.prod -f compose.yml build
+    docker compose --env-file .env.prod -f compose.yml -f cloudflared.compose.yml build
 
 # =============================================================================
 # Docker (development)
