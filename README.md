@@ -20,7 +20,8 @@
   </a>
 </div>
 
-<p align="center"><a href="https://www.instagram.com/carterperez.dev/"><img src="./.github/assets/instagram-handle.svg" width="120" height="20" alt="@carterperez.dev on Instagram"/></a></p>
+  <br/>
+<p align="center"><a href="https://www.instagram.com/carterperez.dev/"><img src="./.github/assets/instagram-handle.svg" width="155" height="45" alt="@carterperez.dev on Instagram"/></a></p>
 
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
