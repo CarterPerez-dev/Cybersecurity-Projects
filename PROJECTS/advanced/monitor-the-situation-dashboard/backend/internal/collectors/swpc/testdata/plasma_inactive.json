@@ -1,0 +1,18 @@
+[
+  {
+    "time_tag": "2026-09-02T10:41:00",
+    "active": false,
+    "source": "ACE",
+    "proton_speed": 391.71,
+    "proton_temperature": 33258,
+    "proton_density": 2.18
+  },
+  {
+    "time_tag": "2026-09-02T10:40:06",
+    "active": false,
+    "source": "IMAP",
+    "proton_speed": 396.68,
+    "proton_temperature": 34110,
+    "proton_density": 2.31
+  }
+]
