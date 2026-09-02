@@ -1,26 +1,42 @@
 [
-  [
-    "time_tag",
-    "density",
-    "speed",
-    "temperature"
-  ],
-  [
-    "2026-05-02 08:20:00.000",
-    "2.94",
-    "450.6",
-    "93030"
-  ],
-  [
-    "2026-05-02 08:21:00.000",
-    "2.90",
-    "448.0",
-    "96988"
-  ],
-  [
-    "2026-05-02 08:22:00.000",
-    "2.65",
-    "452.1",
-    "84580"
-  ]
+  {
+    "time_tag": "2026-09-02T10:41:00",
+    "active": false,
+    "source": "ACE",
+    "proton_speed": 391.71,
+    "proton_temperature": 33258,
+    "proton_density": 2.18
+  },
+  {
+    "time_tag": "2026-09-02T10:40:06",
+    "active": false,
+    "source": "IMAP",
+    "proton_speed": 396.68,
+    "proton_temperature": 34110,
+    "proton_density": 2.31
+  },
+  {
+    "time_tag": "2026-09-02T10:40:00",
+    "active": true,
+    "source": "SOLAR1",
+    "proton_speed": 391.3,
+    "proton_temperature": 31004,
+    "proton_density": 2.09
+  },
+  {
+    "time_tag": "2026-09-02T10:39:00",
+    "active": true,
+    "source": "SOLAR1",
+    "proton_speed": null,
+    "proton_temperature": null,
+    "proton_density": null
+  },
+  {
+    "time_tag": "2026-09-02T10:38:00",
+    "active": true,
+    "source": "SOLAR1",
+    "proton_speed": 388.4,
+    "proton_temperature": 30115,
+    "proton_density": 2.02
+  }
 ]

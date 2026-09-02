@@ -1,12 +1,12 @@
 # ©AngelaMos | 2026
 # dev.compose.yml
 
-name: ${APP_NAME:-monitor}-dev
+name: monitor-dev
 
 services:
   nginx:
     image: nginx:1.27-alpine
-    container_name: ${APP_NAME:-monitor}-nginx-dev
+    container_name: monitor-dev-nginx
     ports:
       - "${NGINX_HOST_PORT:-8432}:80"
     volumes:
@@ -26,7 +26,7 @@ services:
     build:
       context: .
       dockerfile: conf/docker/dev/go.docker
-    container_name: ${APP_NAME:-monitor}-backend-dev
+    container_name: monitor-dev-backend
     ports:
       - "${BACKEND_HOST_PORT:-5432}:8080"
     volumes:
@@ -61,7 +61,7 @@ services:
     build:
       context: .
       dockerfile: conf/docker/dev/vite.docker
-    container_name: ${APP_NAME:-monitor}-frontend-dev
+    container_name: monitor-dev-frontend
     ports:
       - "${FRONTEND_HOST_PORT:-3432}:5173"
     volumes:
@@ -75,7 +75,7 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    container_name: ${APP_NAME:-monitor}-postgres-dev
+    container_name: monitor-dev-postgres
     ports:
       - "${POSTGRES_HOST_PORT:-4432}:5432"
     environment:
@@ -96,10 +96,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ${APP_NAME:-monitor}-redis-dev
+    container_name: monitor-dev-redis
     ports:
       - "${REDIS_HOST_PORT:-6432}:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-monitor}
+    command: redis-server --appendonly no --save 300 10 --requirepass ${REDIS_PASSWORD:-monitor}
     volumes:
       - redisdata-dev:/data
     networks:

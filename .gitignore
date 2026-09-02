@@ -5,9 +5,11 @@
 .env
 .angelusvigil/
 .worktrees/
+.claude/
 DEMO-TRACKER.md
 
 /docs/
+/nadezhda.db
 
 # Python virtualenvs and caches
 .venv/

@@ -35,29 +35,108 @@ func newFakeServer(t *testing.T, route, fixture string) *httptest.Server {
 	return srv
 }
 
-func TestClient_FetchPlasmaDecodesRowArray(t *testing.T) {
-	srv := newFakeServer(t, "plasma-5-minute", "plasma.json")
+func TestClient_FetchPlasmaDecodesObjectArray(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_wind_1m", "plasma.json")
 	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	rows, err := c.FetchPlasma(ctx)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(rows), 1)
+	require.Len(t, rows, 2)
 	require.False(t, rows[0].TimeTag.IsZero())
 	require.NotEmpty(t, rows[0].Density)
 	require.NotEmpty(t, rows[0].Speed)
+	require.Equal(t, "391.3", rows[len(rows)-1].Speed)
+	require.Equal(t, "2.09", rows[len(rows)-1].Density)
+	require.NotEqual(
+		t,
+		"391.71",
+		rows[len(rows)-1].Speed,
+		"must not read the inactive ACE spacecraft",
+	)
 }
 
-func TestClient_FetchMagDecodesRowArray(t *testing.T) {
-	srv := newFakeServer(t, "mag-5-minute", "mag.json")
+func TestClient_FetchPlasmaIgnoresInactiveSpacecraft(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_wind_1m", "plasma.json")
+	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	rows, err := c.FetchPlasma(ctx)
+	require.NoError(t, err)
+	for _, r := range rows {
+		require.NotEqual(t, "391.71", r.Speed)
+		require.NotEqual(t, "396.68", r.Speed)
+	}
+}
+
+func TestClient_FetchPlasmaErrorsWhenNoActiveSpacecraft(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_wind_1m", "plasma_inactive.json")
+	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := c.FetchPlasma(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "active spacecraft")
+}
+
+func TestClient_FetchPlasmaReturnsAscendingSoLastRowIsNewest(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_wind_1m", "plasma.json")
+	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	rows, err := c.FetchPlasma(ctx)
+	require.NoError(t, err)
+	require.Greater(t, len(rows), 1)
+	for i := 1; i < len(rows); i++ {
+		require.True(
+			t,
+			rows[i].TimeTag.After(rows[i-1].TimeTag),
+			"rows must be ascending: index %d is not after %d", i, i-1,
+		)
+	}
+}
+
+func TestClient_FetchMagDecodesObjectArray(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_mag_1m", "mag.json")
 	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	rows, err := c.FetchMag(ctx)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(rows), 1)
+	require.Len(t, rows, 2)
+	require.Equal(t, "1.32", rows[len(rows)-1].BzGSM)
+	require.Equal(t, "5.56", rows[len(rows)-1].Bt)
+	require.Equal(t, "316.47", rows[len(rows)-1].LonGSM)
+	require.Equal(t, "13.64", rows[len(rows)-1].LatGSM)
+	require.NotEqual(
+		t,
+		"-1.07",
+		rows[len(rows)-1].BzGSM,
+		"must not read the inactive ACE spacecraft",
+	)
+}
+
+func TestClient_FetchMagReturnsAscendingSoLastRowIsNewest(t *testing.T) {
+	srv := newFakeServer(t, "rtsw_mag_1m", "mag.json")
+	c := swpc.NewClient(swpc.ClientConfig{BaseURL: srv.URL})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	rows, err := c.FetchMag(ctx)
+	require.NoError(t, err)
+	require.Greater(t, len(rows), 1)
+	for i := 1; i < len(rows); i++ {
+		require.True(
+			t,
+			rows[i].TimeTag.After(rows[i-1].TimeTag),
+			"rows must be ascending: index %d is not after %d", i, i-1,
+		)
+	}
 }
 
 func TestClient_FetchKpDecodesObjectArray(t *testing.T) {

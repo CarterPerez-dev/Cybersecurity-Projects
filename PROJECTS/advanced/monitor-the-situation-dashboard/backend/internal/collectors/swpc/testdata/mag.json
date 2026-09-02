@@ -1,38 +1,57 @@
 [
-  [
-    "time_tag",
-    "bx_gsm",
-    "by_gsm",
-    "bz_gsm",
-    "lon_gsm",
-    "lat_gsm",
-    "bt"
-  ],
-  [
-    "2026-05-02 08:20:00.000",
-    "0.36",
-    "0.12",
-    "4.41",
-    "18.07",
-    "85.10",
-    "4.43"
-  ],
-  [
-    "2026-05-02 08:21:00.000",
-    "-0.32",
-    "-0.19",
-    "4.50",
-    "210.52",
-    "85.21",
-    "4.52"
-  ],
-  [
-    "2026-05-02 08:22:00.000",
-    "-0.63",
-    "0.12",
-    "4.53",
-    "168.89",
-    "81.97",
-    "4.57"
-  ]
+  {
+    "time_tag": "2026-09-02T10:40:00",
+    "active": false,
+    "source": "ACE",
+    "bt": 5.19,
+    "bx_gsm": -3.72,
+    "by_gsm": 3.46,
+    "bz_gsm": -1.07,
+    "theta_gsm": -11.94,
+    "phi_gsm": 137.13
+  },
+  {
+    "time_tag": "2026-09-02T10:40:00",
+    "active": false,
+    "source": "IMAP",
+    "bt": 5.44,
+    "bx_gsm": 3.81,
+    "by_gsm": -3.66,
+    "bz_gsm": 1.36,
+    "theta_gsm": 14.42,
+    "phi_gsm": 316.11
+  },
+  {
+    "time_tag": "2026-09-02T10:40:00",
+    "active": true,
+    "source": "SOLAR1",
+    "bt": 5.56,
+    "bx_gsm": 3.91,
+    "by_gsm": -3.72,
+    "bz_gsm": 1.32,
+    "theta_gsm": 13.64,
+    "phi_gsm": 316.47
+  },
+  {
+    "time_tag": "2026-09-02T10:39:00",
+    "active": true,
+    "source": "SOLAR1",
+    "bt": null,
+    "bx_gsm": null,
+    "by_gsm": null,
+    "bz_gsm": null,
+    "theta_gsm": null,
+    "phi_gsm": null
+  },
+  {
+    "time_tag": "2026-09-02T10:38:00",
+    "active": true,
+    "source": "SOLAR1",
+    "bt": 4.98,
+    "bx_gsm": 3.49,
+    "by_gsm": -3.41,
+    "bz_gsm": 1.53,
+    "theta_gsm": 17.15,
+    "phi_gsm": 315.71
+  }
 ]
