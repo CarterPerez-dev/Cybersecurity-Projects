@@ -68,7 +68,7 @@ dependencies = [
     # cryptography: provides AES-256-GCM, the actual encryption that
     # scrambles vault contents. Maintained by the Python Cryptographic
     # Authority — the gold-standard library, audited and trusted.
-    "cryptography>=48.0.0",
+    "cryptography>=50.0.0",
 
     # typer: builds nice CLIs from regular Python functions.
     # Lets us write `add`, `get`, `list` commands with auto-generated help.
