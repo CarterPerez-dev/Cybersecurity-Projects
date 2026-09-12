@@ -20,6 +20,9 @@
 [![Tests](https://img.shields.io/badge/tests-314-8B5CF6?style=flat)](#build-and-test)
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL_v3-purple.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
+---
+[![Website Demo](https://img.shields.io/badge/website-notsandboxed%2Ecom-008000?style=flat)](https://notsandboxed.com)
+
 > A prompt injection firewall that gives up on reading the attacker's mind and enforces structure around the model instead. Untrusted text is fenced behind a per-request nonce it cannot guess, the model's tool calls are authorized by the firewall rather than requested-and-granted, and registered secrets are matched on the way out through a closure over every reversible encoding. Text inspection ships too, scored and labelled best-effort, because it catches the copy-pasted eighty percent. It runs keyless and offline, ships an OpenAI-compatible proxy, and includes a six-level arena where each level is a firewall configuration so you can feel which layer stopped you.
 
 ## Why ingress filtering cannot be the answer
