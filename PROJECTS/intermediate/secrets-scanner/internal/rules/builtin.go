@@ -41,7 +41,13 @@ var builtinRules = []*types.Rule{
 		ID:          "aws-access-key-id",
 		Description: "AWS Access Key ID",
 		Severity:    types.SeverityCritical,
-		Keywords:    []string{"AKIA"},
+		// Every prefix the pattern accepts needs a keyword. The
+		// pre-filter gates the regex, so a prefix listed only in the
+		// pattern is unreachable: ASIA is an STS session credential
+		// and was never scanned for.
+		Keywords: []string{
+			"AKIA", "ABIA", "ACCA", "ASIA",
+		},
 		Pattern: regexp.MustCompile(
 			`\b((?:AKIA|ABIA|ACCA|ASIA)[0-9A-Z]{16})\b`,
 		),
@@ -569,7 +575,9 @@ var builtinRules = []*types.Rule{
 		ID:          "generic-token",
 		Description: "Token in Assignment",
 		Severity:    types.SeverityMedium,
-		Keywords:    []string{"token", "auth_token", "access_token"},
+		Keywords: []string{
+			"token", "auth_token", "access_token", "bearer",
+		},
 		Pattern: regexp.MustCompile(
 			`(?i)(?:token|auth_token|access_token|bearer)\s*` +
 				`[:=]\s*['"]([^'"]{16,})['"]`,
@@ -674,7 +682,13 @@ var builtinRules = []*types.Rule{
 		ID:          "newrelic-license-key",
 		Description: "New Relic License Key",
 		Severity:    types.SeverityMedium,
-		Keywords:    []string{"newrelic", "new_relic", "license_key"},
+		// The pattern also accepts the "nr" prefix with an "insert"
+		// key, which none of the vendor keywords reach. One keyword
+		// per separator spelling keeps the gate narrow.
+		Keywords: []string{
+			"newrelic", "new_relic", "license_key",
+			"insert_key", "insert-key", "insert key",
+		},
 		Pattern: regexp.MustCompile(
 			`(?i)(?:new[\s_-]*relic|nr)[\s_-]*(?:license|insert)` +
 				`[\s_-]*key\s*[:=]\s*['"]?([a-f0-9]{40})['"]?\b`,

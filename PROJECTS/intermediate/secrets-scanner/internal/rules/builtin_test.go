@@ -511,6 +511,27 @@ func TestBuiltinKeywordMatches(t *testing.T) {
 			content: "DATABASE_URL=postgres://user:pass@host/db",
 			wantIDs: []string{"postgres-connection"},
 		},
+		"aws sts session credential": { //nolint:gosec
+			content: "found ASIAIOSFODNN7EXAMPLE in config",
+			wantIDs: []string{"aws-access-key-id"},
+		},
+		"aws bearer token credential": { //nolint:gosec
+			content: "found ABIAIOSFODNN7EXAMPLE in config",
+			wantIDs: []string{"aws-access-key-id"},
+		},
+		"aws certificate credential": { //nolint:gosec
+			content: "found ACCAIOSFODNN7EXAMPLE in config",
+			wantIDs: []string{"aws-access-key-id"},
+		},
+		"bearer assignment": { //nolint:gosec
+			content: `bearer = "abcdefghijklmnopqrst"`,
+			wantIDs: []string{"generic-token"},
+		},
+		"new relic insert key": { //nolint:gosec
+			content: "nr_insert_key = " +
+				"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+			wantIDs: []string{"newrelic-license-key"},
+		},
 	}
 
 	for name, tc := range tests {
