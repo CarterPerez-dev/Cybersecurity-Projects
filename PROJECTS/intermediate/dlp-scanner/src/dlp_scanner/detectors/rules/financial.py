@@ -9,8 +9,15 @@ import re
 from dlp_scanner.detectors.base import DetectionRule
 
 
+# PCI DSS defines a PAN as 13 to 19 digits. Visa issues 16-digit
+# numbers, 19-digit numbers on some co-branded products, and legacy
+# 13-digit numbers written without separators. Matching only the
+# 16-digit form let the other two walk past a scanner that claims
+# PCI DSS coverage; luhn_check already accepts 13 digits or more.
 VISA_PATTERN = re.compile(
-    r"\b4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}\b"
+    r"\b4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
+    r"(?:[-\s]?[0-9]{3})?\b"
+    r"|\b4[0-9]{12}\b"
 )
 
 MASTERCARD_PATTERN = re.compile(

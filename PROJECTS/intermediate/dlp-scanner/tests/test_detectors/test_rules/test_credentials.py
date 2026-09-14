@@ -121,3 +121,94 @@ class TestGenericAPIKey:
     )
     def test_generic_api_keys_match(self, text: str) -> None:
         assert (GENERIC_API_KEY_PATTERN.search(text) is not None)
+
+
+class TestUnsignedJWT:
+    def test_alg_none_token_matches(self) -> None:
+        """
+        An alg=none token has an empty signature segment but still
+        carries the full payload in clear base64url.
+        """
+        token = (
+            "eyJhbGciOiJub25lIn0"
+            ".eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+        )
+        assert (JWT_PATTERN.search(token) is not None)
+
+    def test_signed_token_still_matches(self) -> None:
+        token = (
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0"
+            ".dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+        )
+        assert (JWT_PATTERN.search(token) is not None)
+
+
+class TestStripeRestrictedKey:
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "rk_live_" + "a" * 24,
+            "rk_test_" + "b" * 24,
+        ],
+    )
+    def test_restricted_keys_match(self, key: str) -> None:
+        """
+        A restricted key is a live API credential with a narrower
+        scope, not a lesser secret.
+        """
+        assert (STRIPE_KEY_PATTERN.search(key) is not None)
+
+    def test_unknown_prefix_still_rejected(self) -> None:
+        assert (
+            STRIPE_KEY_PATTERN.search("zk_live_" + "c" * 24) is None
+        )
+
+
+class TestSlackAppAndRefreshTokens:
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "xapp-1-" + "a" * 30,
+            "xoxe-" + "b" * 30,
+        ],
+    )
+    def test_app_and_refresh_tokens_match(self, token: str) -> None:
+        """
+        xapp- authenticates the app over Socket Mode and xoxe- is the
+        rotation refresh token; both grant access.
+        """
+        assert (SLACK_TOKEN_PATTERN.search(token) is not None)
+
+    def test_unknown_prefix_still_rejected(self) -> None:
+        assert (
+            SLACK_TOKEN_PATTERN.search("xoxz-123456789012345") is None
+        )
+
+
+class TestEncryptedAndPGPPrivateKeys:
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+            "-----BEGIN PGP PRIVATE KEY BLOCK-----",
+        ],
+    )
+    def test_additional_private_key_headers_match(
+        self,
+        header: str,
+    ) -> None:
+        """
+        A passphrase-protected PKCS#8 key is the form most private
+        keys are stored in, and a PGP block uses its own wording.
+        """
+        assert (PRIVATE_KEY_PATTERN.search(header) is not None)
+
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "-----BEGIN PUBLIC KEY-----",
+            "-----BEGIN CERTIFICATE-----",
+        ],
+    )
+    def test_non_private_headers_rejected(self, header: str) -> None:
+        assert (PRIVATE_KEY_PATTERN.search(header) is None)

@@ -97,6 +97,32 @@ class TestNHSCheck:
         assert nhs_check("abcdefghij") is False
 
 
+class TestVisaPANLengths:
+    """
+    PCI DSS defines a PAN as 13 to 19 digits, and Visa issues all
+    three lengths.
+    """
+
+    @pytest.mark.parametrize(
+        "pan",
+        [
+            "4222222222222",
+            "4532015112830366",
+            "4111111111111111111",
+            "4111 1111 1111 1111",
+        ],
+    )
+    def test_visa_lengths_match(self, pan: str) -> None:
+        assert VISA_PATTERN.search(pan) is not None
+
+    @pytest.mark.parametrize(
+        "value",
+        ["412345678901", "5555555555554444", "378282246310005"],
+    )
+    def test_non_visa_values_rejected(self, value: str) -> None:
+        assert VISA_PATTERN.search(value) is None
+
+
 class TestCreditCardPatterns:
     def test_visa_pattern_matches(self) -> None:
         assert VISA_PATTERN.search("4532015112830366") is not None

@@ -21,15 +21,25 @@ GITHUB_OAUTH_PATTERN = re.compile(r"\bgho_[a-zA-Z0-9]{36}\b")
 
 GITHUB_APP_PATTERN = re.compile(r"\bghs_[a-zA-Z0-9]{36}\b")
 
+# The signature segment is optional: an alg=none token carries a
+# trailing dot and an empty third segment. Those still expose the full
+# payload, and the unsigned algorithm is itself worth surfacing.
 JWT_PATTERN = re.compile(
-    r"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"
+    r"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]*"
 )
 
+# rk_ is Stripe's restricted key prefix. A restricted key is still a
+# live API credential, only with a narrower scope.
 STRIPE_KEY_PATTERN = re.compile(
-    r"\b(?:sk|pk)_(?:test|live)_[a-zA-Z0-9]{24,}\b"
+    r"\b(?:sk|pk|rk)_(?:test|live)_[a-zA-Z0-9]{24,}\b"
 )
 
-SLACK_TOKEN_PATTERN = re.compile(r"\bxox[baprs]-[a-zA-Z0-9\-]{10,48}\b")
+# xoxe is Slack's token-rotation refresh prefix and xapp- is the
+# app-level token used for Socket Mode; both authenticate as the app.
+SLACK_TOKEN_PATTERN = re.compile(
+    r"\b(?:xox[baprse]-[a-zA-Z0-9\-]{10,48}"
+    r"|xapp-[0-9]-[a-zA-Z0-9\-]{10,60})\b"
+)
 
 GENERIC_API_KEY_PATTERN = re.compile(
     r"(?i)(?:api[_\-]?key|apikey|api[_\-]?token|access[_\-]?key|secret[_\-]?key)"
@@ -38,8 +48,12 @@ GENERIC_API_KEY_PATTERN = re.compile(
     r"['\"]?"
 )
 
+# ENCRYPTED covers PKCS#8 keys protected by a passphrase, which is the
+# form most private keys are stored in, and PGP blocks use their own
+# header wording.
 PRIVATE_KEY_PATTERN = re.compile(
-    r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+    r"-----BEGIN (?:(?:RSA|EC|DSA|OPENSSH|ENCRYPTED) )?PRIVATE KEY-----"
+    r"|-----BEGIN PGP PRIVATE KEY BLOCK-----"
 )
 
 API_KEY_CONTEXT = [
