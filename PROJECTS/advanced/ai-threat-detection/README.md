@@ -22,18 +22,6 @@
 
 > AI-powered threat detection engine that analyzes nginx access logs using a 3-model ML ensemble to classify HTTP traffic as benign or malicious in real time.
 
-<p align="center">
-  <a href="https://youtu.be/H8WZYS8c78g">
-    <img src="https://img.shields.io/badge/Watch_on-YouTube-FF0000?logo=youtube&logoColor=white" alt="Watch on YouTube">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/H8WZYS8c78g">
-    <img src="https://img.youtube.com/vi/H8WZYS8c78g/maxresdefault.jpg" alt="Video Thumbnail" width="800">
-  </a>
-</p>
-
 *Learn docs located here: [Learn](https://github.com/CarterPerez-dev/Cybersecurity-Projects/edit/main/PROJECTS/advanced/ai-threat-detection/learn/)*
 
 ## What It Does
