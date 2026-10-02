@@ -21,18 +21,6 @@ README.md
 
 > Operator-grade real-time situational awareness dashboard. Eleven live feeds across cyber, world, and finance — fused into a single 3D-globe SOC view with WebSocket delivery and configurable alerting.
 
-<p align="center">
-  <a href="https://youtu.be/4Iv5jKbXbH4">
-    <img src="https://img.shields.io/badge/Watch_on-YouTube-FF0000?logo=youtube&logoColor=white" alt="Watch on YouTube">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/4Iv5jKbXbH4">
-    <img src="https://img.youtube.com/vi/4Iv5jKbXbH4/maxresdefault.jpg" alt="Video Thumbnail" width="800">
-  </a>
-</p>
-
 *The Learn docs are here: [learn modules](#learn).*
 
 > The phrase "monitoring the situation" is a Twitter/X meme from June 2025. This is the version that actually monitors the situation.
