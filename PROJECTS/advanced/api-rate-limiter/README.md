@@ -15,19 +15,6 @@
 
 > Enterprise rate limiting for FastAPI using HTTP 420 "Enhance Your Calm".
 
-<p align="center">
-  <a href="https://youtu.be/mIeVcpwWP2Q">
-    <img src="https://img.shields.io/badge/Watch_on-YouTube-FF0000?logo=youtube&logoColor=white" alt="Watch on YouTube">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/mIeVcpwWP2Q">
-    <img src="https://img.youtube.com/vi/mIeVcpwWP2Q/maxresdefault.jpg" alt="Video Thumbnail" width="800">
-  </a>
-</p>
-
-
 *Learning Docs are here: [learn modules](#learn).*
 
 ## What It Does
