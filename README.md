@@ -165,7 +165,7 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 ---
 
 ## Big Thanks to all the sponsors! 🩵
-- [CoolCat-108](@CoolCat-108)
+- [@CoolCat-108](https://github.com/CoolCat-108)
 
 
 ## Learn More
