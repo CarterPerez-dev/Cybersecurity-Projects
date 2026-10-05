@@ -16,15 +16,12 @@ server {
     access_log /var/log/nginx/access.log main_timed buffer=32k flush=5s;
     error_log /var/log/nginx/error.log warn;
 
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    include /etc/nginx/security-headers.conf;
 
     location /health {
         access_log off;
         return 200 "healthy\n";
+        include /etc/nginx/security-headers.conf;
         add_header Content-Type text/plain;
     }
 
@@ -54,6 +51,7 @@ server {
 
     location /assets/ {
         expires 1y;
+        include /etc/nginx/security-headers.conf;
         add_header Cache-Control "public, immutable";
         access_log off;
         try_files $uri =404;
@@ -61,11 +59,13 @@ server {
 
     location ~* \.(jpg|jpeg|png|gif|ico|svg|webp|avif|woff|woff2|ttf|eot|otf)$ {
         expires 1y;
+        include /etc/nginx/security-headers.conf;
         add_header Cache-Control "public, immutable";
         access_log off;
     }
 
     location / {
+        include /etc/nginx/security-headers.conf;
         add_header Cache-Control "no-cache, must-revalidate";
         try_files $uri $uri/ /index.html;
     }
