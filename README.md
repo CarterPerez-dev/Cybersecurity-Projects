@@ -164,6 +164,10 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 
 ---
 
+## Big Thanks to all the sponsors! 🩵
+- [CoolCat-108](@CoolCat-108)
+
+
 ## Learn More
 
 **[Certification Roadmaps](./ROADMAPS/README.md)** - Career paths for SOC Analyst, Pentester, Security Engineer, GRC Analyst, and 6 more tracks
