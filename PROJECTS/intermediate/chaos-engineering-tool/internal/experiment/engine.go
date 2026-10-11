@@ -125,6 +125,7 @@ func (e Engine) measureBaseline(
 	)
 
 	observation.ConsultedWhat = spec.ConsultedWhat
+	observation.Unsupportable = spec.Unsupportable
 	observation.Consulted = e.consulted(spec) - consultedBefore
 
 	return observation

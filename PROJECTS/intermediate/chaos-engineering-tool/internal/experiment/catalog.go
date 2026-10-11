@@ -81,6 +81,10 @@ type Shape struct {
 	Consulted     func() int64
 	ConsultedWhat string
 
+	// Unsupportable names the check whose absence is itself the finding, which
+	// turns a never-consulted endpoint into UNSUPPORTED rather than a void run.
+	Unsupportable string
+
 	// IdleFor asks the engine for the idleness discriminator.
 	IdleFor time.Duration
 
@@ -251,6 +255,7 @@ func Build(
 		HeldCaveat:    shape.HeldCaveat,
 		Consulted:     shape.Consulted,
 		ConsultedWhat: shape.ConsultedWhat,
+		Unsupportable: shape.Unsupportable,
 		IdleFor:       shape.IdleFor,
 		Act:           shape.Act,
 		ActDetail:     shape.ActDetail,

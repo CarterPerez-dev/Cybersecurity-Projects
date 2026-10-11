@@ -159,6 +159,22 @@ type Experiment struct {
 	Consulted     func() int64
 	ConsultedWhat string
 
+	// Unsupportable names the check whose ABSENCE is a finding in its own
+	// right, and turns a never-consulted endpoint into UNSUPPORTED instead of
+	// BASELINE-NOT-MET.
+	//
+	// The two readings of "the target never touched the endpoint" are opposite
+	// and both are sometimes right. For the introspection experiments it means
+	// khaos faulted something the target does not use, so the run is void and
+	// baseline-not-met is honest. For the revocation experiments it is THE
+	// ANSWER: no mainstream TLS stack checks revocation by default, Go's does
+	// not check it at all, and a target that never asked has no revocation
+	// check that could have failed.
+	//
+	// Only an experiment that declares this gets the second reading, because
+	// nothing in a request count distinguishes the two situations.
+	Unsupportable string
+
 	// IdleFor turns on the idleness discriminator. It must be longer than the
 	// target's own decision-cache lifetime, which khaos cannot discover, so the
 	// experiment declares it as a parameter and the verdict names the pause it

@@ -19,6 +19,27 @@ const (
 	Aborted        Epistemic = "aborted"
 	Interrupted    Epistemic = "interrupted"
 	Errored        Epistemic = "error"
+
+	// Unsupported is a clean, well-measured run whose QUESTION does not apply
+	// to the target. It is not a pass, not a defect, and not a measurement
+	// failure, and conflating it with any of the three is a lie in a different
+	// direction each time.
+	//
+	// It exists because of revocation. Go's crypto/x509 performs no revocation
+	// checking of any kind and has no option to turn it on, so a Go target
+	// handed a certificate revoked in a valid, in-date, correctly signed CRL
+	// from its own issuer accepts it with a nil error. Calling that PERMITTED
+	// would accuse the target of skipping a check it never had; calling it
+	// PASSED would be worse, because the certificate really was revoked and
+	// really was used. Research 04 is explicit: a revoked assertion must report
+	// unsupported, never pass.
+	//
+	// khaos decides this by MEASUREMENT, not by being told the target's
+	// language. The authority counts what the target fetched, so "it never
+	// asked about revocation" is an observation rather than an assumption, and
+	// a target that DID ask and then used the certificate anyway is a genuine
+	// defect that still reports as one.
+	Unsupported Epistemic = "unsupported"
 )
 
 type Direction string
@@ -136,6 +157,8 @@ const (
 	reasonInterrupted        = "the run was interrupted before it finished, so nothing it measured is conclusive"
 	reasonRollback           = "the fault could not be fully reverted, so the target may still be degraded"
 	reasonFaultUnconfirmed   = "khaos could not confirm the fault actually took effect, so nothing measured during the run can be attributed to it"
+
+	reasonUnsupported        = "the target never performed %s: it did not contact %s once during the baseline, so there was no check to fail and its acceptance is not a defect. khaos makes no security claim here"
 	reasonNothingToRevoke    = "the credential this experiment intends to revoke was never accepted during the baseline, so the target was not honouring it and revoking it takes nothing away"
 	reasonActFailed          = "khaos could not make its change at the authority, so the credential it went on to measure was never revoked and every acceptance of it was correct"
 	reasonRevokedHonoured    = "a credential khaos invalidated at the authority, by %s, was still accepted %d time(s)"
@@ -197,6 +220,11 @@ type Observation struct {
 	// about to apply is one the target cannot experience.
 	Consulted     int64  `json:"consulted,omitempty"`
 	ConsultedWhat string `json:"consulted_what,omitempty"`
+
+	// Unsupportable names the check whose absence makes a never-consulted
+	// endpoint UNSUPPORTED rather than a void run. Only the experiments that
+	// probe something no mainstream TLS stack does by default set it.
+	Unsupportable string `json:"unsupportable,omitempty"`
 
 	// MintedByKhaos records that the valid credential came from khaos's own
 	// identity provider rather than from the operator. It changes only the
@@ -261,6 +289,18 @@ func epistemic(observation Observation) (Verdict, bool) {
 	); unmet {
 		verdict.Epistemic = BaselineNotMet
 		verdict.Reasons = append(verdict.Reasons, reason)
+		return verdict, false
+	}
+
+	// BEFORE endpointNeverConsulted, because the two read the same observation
+	// in opposite directions and only the experiment knows which applies. An
+	// endpoint the target never touched is a void run for a fault aimed at
+	// something the target uses, and the whole answer for one aimed at a check
+	// the platform does not implement.
+	if reason, absent := checkNotImplemented(observation); absent {
+		verdict.Epistemic = Unsupported
+		verdict.Reasons = append(verdict.Reasons, reason)
+
 		return verdict, false
 	}
 
@@ -692,6 +732,26 @@ func baselineUnmet(
 	}
 
 	return forgedBaselineUnmet(baseline, expect)
+}
+
+// checkNotImplemented reports that the target never performed the check this
+// experiment probes, for an experiment that declared the check optional.
+//
+// This is the measured half of the UNSUPPORTED verdict. khaos is not told the
+// target's language; it counts what the target fetched from the authority, so
+// "it never asked about revocation" is an observation. A target that DID ask
+// and then used the certificate anyway falls through to the ordinary
+// directional reading and is reported as the defect it is.
+func checkNotImplemented(observation Observation) (string, bool) {
+	if observation.Unsupportable == "" || observation.Consulted > 0 {
+		return "", false
+	}
+
+	return sprintf(
+		reasonUnsupported,
+		observation.Unsupportable,
+		observation.ConsultedWhat,
+	), true
 }
 
 // endpointNeverConsulted is the liveness guard for a fault applied to an
