@@ -102,11 +102,13 @@ func (a *Authority) Listen(addr string) error {
 		return fmt.Errorf(errBindFailed, ErrListener, addr, err)
 	}
 
-	a.listener.revocation = listener
-	a.listener.revSrv = &http.Server{
+	server := &http.Server{
 		Handler:           a.routes(),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
+
+	a.listener.revocation = listener
+	a.listener.revSrv = server
 
 	if a.listener.base == "" {
 		a.listener.base = schemeHTTP + listener.Addr().String()
@@ -114,9 +116,12 @@ func (a *Authority) Listen(addr string) error {
 
 	a.listener.wg.Add(1)
 
+	// The goroutine serves the LOCAL, not the field. Reading a.listener.revSrv
+	// in here is a data race against shutdown, which nils it under the mutex
+	// this goroutine does not hold, and `go test -race` catches it.
 	go func() {
 		defer a.listener.wg.Done()
-		_ = a.listener.revSrv.Serve(listener)
+		_ = server.Serve(listener)
 	}()
 
 	return nil
@@ -143,8 +148,7 @@ func (a *Authority) ListenTLS(addr string) error {
 		return fmt.Errorf(errBindFailed, ErrListener, addr, err)
 	}
 
-	a.listener.dependency = listener
-	a.listener.depSrv = &http.Server{
+	server := &http.Server{
 		Handler:           a.dependencyRoutes(),
 		ReadHeaderTimeout: readHeaderTimeout,
 		TLSConfig: &tls.Config{
@@ -153,11 +157,15 @@ func (a *Authority) ListenTLS(addr string) error {
 		},
 	}
 
+	a.listener.dependency = listener
+	a.listener.depSrv = server
+
 	a.listener.wg.Add(1)
 
+	// Serves the LOCAL, for the same reason Listen does.
 	go func() {
 		defer a.listener.wg.Done()
-		_ = a.listener.depSrv.ServeTLS(listener, "", "")
+		_ = server.ServeTLS(listener, "", "")
 	}()
 
 	return nil
