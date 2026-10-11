@@ -14,11 +14,16 @@
 # Export every variable defined here as an environment variable for
 # the recipes that just runs.
 set export
-# On Linux/macOS, run recipe lines with bash and -u (error on
-# unset variables) and -c (read commands from a string).
+# Run recipe lines with bash and -u (error on unset variables) and -c
+# (read commands from a string). This applies on every platform,
+# including Windows, on purpose. The `run` recipe below is a bash
+# shebang script and the `clean` recipe uses `rm -rf`, so this project
+# needs bash regardless. Setting `windows-shell` to PowerShell would
+# only split the justfile in two: some recipes bash, some PowerShell,
+# and `rm -rf` silently failing on the PowerShell half.
+# Windows users: run these commands from Git Bash (ships with Git for
+# Windows) or WSL, and everything below behaves identically to Linux.
 set shell := ["bash", "-uc"]
-# On Windows, fall back to PowerShell with no logo / non-interactive.
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 # Make recipe arguments available to shebang scripts as `$1`, `$2`,
 # `$@`, and `$#`. Without this, shebang recipes only see args via the
 # textual `{{args}}` substitution, which is unsafe for inputs that
@@ -48,10 +53,10 @@ setup:
     # for us). Without this, dev tools like pytest do not get installed.
     uv sync --all-extras
     @echo ""
-    @echo "✓ Setup complete!"
+    @echo "Setup complete."
     @echo ""
     @echo "Try it out:"
-    @echo "  just run 5f4dcc3b5aa765d61d8327deb882cf99"
+    @echo "  just run -- 5f4dcc3b5aa765d61d8327deb882cf99"
     @echo "  just test"
 
 # Install runtime dependencies only (no dev tools)
@@ -89,7 +94,7 @@ lint:
     @echo "=== Mypy ==="
     uv run mypy hash_identifier.py
     @echo ""
-    @echo "✓ All linters passed"
+    @echo "All linters passed."
 
 # Auto-format every Python file with yapf
 [group('test')]
@@ -97,7 +102,7 @@ format:
     @echo "Formatting code with yapf..."
     # -i = in place. Edits the files directly instead of printing diffs.
     uv run yapf -i hash_identifier.py test_hash_identifier.py
-    @echo "✓ Code formatted"
+    @echo "Code formatted."
 
 # Auto-fix what ruff can fix on its own (unused imports, etc.)
 [group('test')]
@@ -109,14 +114,21 @@ fix:
 # Run the CLI
 # =============================================================================
 
-# Run hashid — pass the hash to identify after `--`
-# Example:  just run 5f4dcc3b5aa765d61d8327deb882cf99
-#           just run '$2b$12$abcdefghijklmnopqrstuv'
+# Example:  just run -- 5f4dcc3b5aa765d61d8327deb882cf99
+#           just run -- '$2b$12$abcdefghijklmnopqrstuv'
+#
 # [no-exit-message] silences just's "Recipe `run` failed with exit
 # code N" line when hashid exits non-zero. hashid uses exit 1 to mean
 # "no candidates matched" — a legitimate result, not a failure. The
 # exit code itself is still propagated to whoever invoked just, so
 # CI use cases keep working.
+#
+# NOTE: the single comment line below is what `just --list` prints as
+# this recipe's description. just uses the LAST unbroken run of comment
+# lines above a recipe, so the blank line above it is load-bearing:
+# without it the menu would show the tail of this paragraph instead.
+
+# Identify a hash. Pass the hash after `--`
 [group('run')]
 [no-exit-message]
 run *args:
@@ -159,7 +171,7 @@ clean:
     rm -rf .mypy_cache .ruff_cache .pytest_cache
     rm -rf *.egg-info build dist
     rm -rf .coverage htmlcov
-    @echo "✓ Cleaned"
+    @echo "Cleaned."
 
 # Lock the exact dependency versions to uv.lock
 [group('utility')]
@@ -181,9 +193,9 @@ update:
 [group('ci')]
 all: setup lint test
     @echo ""
-    @echo "✓ Setup, lint, and tests all passed"
+    @echo "Setup, lint, and tests all passed."
 
 # Lint + test only — what CI runs after dependencies are installed
 [group('ci')]
 ci: lint test
-    @echo "✓ CI checks passed"
+    @echo "CI checks passed."
