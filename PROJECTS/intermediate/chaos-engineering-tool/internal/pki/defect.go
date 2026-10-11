@@ -348,9 +348,17 @@ func (a *Authority) overDeep(
 func (a *Authority) selfSigned(
 	template *x509.Certificate,
 ) (*Chain, error) {
+	// CertSign because Go refuses to let a non-CA certificate sign anything,
+	// including itself. CRLSign because this leaf is its OWN issuer, so it is
+	// also the thing that has to sign the CRL covering it, and
+	// CreateRevocationList refuses an issuer without that bit.
+	//
+	// Omitting CRLSign made the CRL endpoint answer 500 for this trap, which
+	// reached the client as "no usable revocation answer was obtained" -- a
+	// refusal caused by khaos rather than by the fault. The matrix caught it.
 	template.IsCA = true
 	template.BasicConstraintsValid = true
-	template.KeyUsage |= x509.KeyUsageCertSign
+	template.KeyUsage |= x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 
 	key, err := newKey(StrongBits)
 	if err != nil {

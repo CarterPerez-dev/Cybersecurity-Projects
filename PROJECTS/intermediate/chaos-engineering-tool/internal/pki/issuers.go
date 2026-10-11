@@ -81,7 +81,22 @@ func (a *Authority) buildNotACA(from, until time.Time) error {
 		NotAfter:              until,
 		IsCA:                  false,
 		BasicConstraintsValid: true,
-		KeyUsage:              x509.KeyUsageDigitalSignature,
+
+		// CRLSign despite IsCA being false, because this certificate is still
+		// the issuer of the leaf it signs and therefore still the thing that
+		// signs the CRL covering it. CreateRevocationList refuses an issuer
+		// without the bit, and without it the CRL endpoint answered 500 and the
+		// client refused for khaos's reason instead of the fault's.
+		//
+		// The fault is unaffected: IsCA is still false, which is the defect.
+		KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCRLSign,
+
+		// Set BY HAND, because Go computes a SubjectKeyId automatically only
+		// while creating a CA certificate and this one is deliberately not a
+		// CA. CreateRevocationList reads the identifier from the parsed issuer
+		// and refuses an issuer without one, so a CRL for this chain could not
+		// be minted at all and the endpoint answered 500.
+		SubjectKeyId: []byte(nameNotACA),
 	}
 
 	key, err := newKey(StrongBits)
@@ -134,39 +149,29 @@ func (a *Authority) buildDeepInter(from, until time.Time) error {
 	return err
 }
 
-// buildResponders mints the two OCSP signers: one the CA delegated by giving it
-// the OCSPSigning extended key usage, and one it never signed at all.
+// buildResponders mints the ONE OCSP signer khaos needs to hold: a certificate
+// the CA never issued.
 //
-// The undelegated signer is what OCSPWrongSigner answers with. It is a
-// self-signed certificate rather than one under the rogue CA, so that a client
-// which happens to trust the rogue root (because CASwap ran earlier in the same
-// session) still cannot be fooled by it.
+// There is no delegated responder here any more. Every honest response is
+// signed by the chain's own issuer, acting as its own responder, which RFC 6960
+// section 2.6 permits and which is the only arrangement that is consistent with
+// EVERY chain this authority serves. A single delegated responder cannot be,
+// because seven traps serve a chain under a different CA entirely, and the
+// matrix caught six of them being refused for khaos's own mismatch.
+//
+// The undelegated signer stays, because OCSPWrongSigner is the fault that
+// exercises delegation from the other side. It is self-signed rather than
+// issued by the rogue hierarchy, so a client that happens to trust the rogue
+// root -- because CASwap ran earlier in the same session -- still cannot be
+// fooled by it.
 func (a *Authority) buildResponders(from, until time.Time) error {
-	delegated, err := caTemplate(nameResponder, from, until)
-	if err != nil {
-		return err
-	}
-
-	delegated.IsCA = false
-	delegated.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageOCSPSigning}
-
-	delegatedKey, err := newKey(StrongBits)
-	if err != nil {
-		return err
-	}
-
-	if a.responder, err = issue(
-		delegated,
-		a.inter,
-		delegatedKey,
-	); err != nil {
-		return err
-	}
-
 	rogue, err := caTemplate(nameUndelegated, from, until)
 	if err != nil {
 		return err
 	}
+
+	rogue.IsCA = false
+	rogue.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageOCSPSigning}
 
 	rogueKey, err := newKey(StrongBits)
 	if err != nil {

@@ -159,11 +159,17 @@ func assertCRLRevokesAndIsStale(
 
 	list := servedCRL(t, a)
 
-	// Both halves. A stale CRL that revokes nothing finds nothing, because the
-	// target has no reason to refuse and the freshness hole is never reached.
-	if !revokes(list, chain.Leaf.SerialNumber.String()) {
+	// The list must NOT revoke the leaf. This assertion was inverted in the
+	// first draft and the matrix proved it wrong: a stale list that also
+	// revokes the serial is caught by a client that ignores freshness, because
+	// it still reaches the serial scan, so the broken client and the correct
+	// one behave identically and the fault measures nothing.
+	//
+	// The fault is a three-week-old list that predates the revocation. The
+	// staleness is the whole finding.
+	if revokes(list, chain.Leaf.SerialNumber.String()) {
 		t.Fatal(
-			"the stale CRL does not revoke the leaf, so a target checking freshness has nothing to be wrong about",
+			"the stale CRL also revokes the leaf, which makes a freshness-ignoring client refuse for the right answer by accident and the fault inert",
 		)
 	}
 

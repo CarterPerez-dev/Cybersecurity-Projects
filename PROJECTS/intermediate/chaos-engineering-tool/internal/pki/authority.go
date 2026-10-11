@@ -21,7 +21,6 @@ const (
 	nameEKULimited  = "khaos client-auth-only intermediate"
 	nameNotACA      = "khaos issuer that is not a CA"
 	nameDeepInter   = "khaos over-deep intermediate"
-	nameResponder   = "khaos ocsp responder"
 	nameUndelegated = "khaos undelegated responder"
 
 	// constrainedDomain is what the name-constrained CA is permitted to issue
@@ -97,7 +96,6 @@ type Authority struct {
 	constrained *pair
 	ekuLimited  *pair
 	notACA      *pair
-	responder   *pair
 	undelegated *pair
 
 	// deepInter sits under deepCapped, whose MaxPathLen is zero. BOTH have to

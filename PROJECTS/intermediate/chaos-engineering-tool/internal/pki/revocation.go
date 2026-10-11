@@ -81,6 +81,17 @@ func (a *Authority) staple(
 	case StapleAbsent:
 		chain.Staple = nil
 
+	case OCSPTryLater, OCSPUnreachable, CRLUnreachable:
+		// NOTHING is stapled. These three faults are about an answer the client
+		// cannot OBTAIN, and a stapled Good is an answer obtained for free: the
+		// client would read it, be satisfied, and never contact the endpoint
+		// khaos broke. The fault would be completely unreachable.
+		//
+		// The matrix caught exactly this. Nine modes, including the correct
+		// one, accepted ocsp-try-later and ocsp-unreachable because the staple
+		// answered first.
+		chain.Staple = nil
+
 	case OCSPRevoked, OCSPStale, OCSPWrongSerial, OCSPWrongSigner,
 		OCSPUnknown:
 		// The responder faults also staple what they would have answered, so a
@@ -131,7 +142,19 @@ func (a *Authority) CRLFor(
 		template.NextUpdate = now.Add(-window)
 	}
 
-	if trap.Kind == RevokedViaCRL || trap.Kind == StaleCRL {
+	// Only RevokedViaCRL lists the serial. StaleCRL deliberately does NOT, and
+	// that is the difference between the two faults.
+	//
+	// The first draft had the stale list also revoke the leaf, which made the
+	// fault catch nothing: a client that ignores freshness still reaches the
+	// serial scan, still finds the entry, and still refuses, so the broken
+	// client behaved exactly like the correct one. The matrix caught it.
+	//
+	// The real scenario is a three-week-old list that PREDATES the revocation.
+	// A correct client refuses because a list it cannot trust is not an answer;
+	// a client that skips step five reads "not listed" as "not revoked" and
+	// accepts. That differential is the whole fault.
+	if trap.Kind == RevokedViaCRL {
 		template.RevokedCertificateEntries = []x509.RevocationListEntry{{
 			SerialNumber:   chain.Leaf.SerialNumber,
 			RevocationTime: now.Add(-clockSlack),
@@ -160,17 +183,22 @@ func (a *Authority) ocspFor(
 	chain *Chain,
 	now time.Time,
 ) ([]byte, error) {
-	signer := a.responder
-
-	// The responder certificate has to be EMBEDDED in the response, and
-	// x/crypto only embeds it when template.Certificate is non-nil
-	// (ocsp.go:783). Without it, ParseResponse falls through to verifying the
-	// response signature directly against the ISSUER key, which khaos did not
-	// sign with, and every delegated answer comes back
-	// `bad OCSP signature: crypto/rsa: verification error`.
+	// The chain's OWN issuer signs, acting as its own responder, which RFC 6960
+	// section 2.6 permits alongside a delegated one.
 	//
-	// That failure mode is indistinguishable from the OCSPWrongSigner fault
-	// landing, so omitting this made four traps look like they were working.
+	// A single delegated responder cannot work here, and the matrix proved it.
+	// Seven of these traps serve a chain under a DIFFERENT CA -- the rogue
+	// hierarchy, a non-CA issuer, an over-deep intermediate, or the leaf
+	// itself -- and a response signed by a responder delegated by the honest
+	// intermediate does not verify against any of them. Six traps were being
+	// refused for `the stapled response is not a usable OCSP response`, which
+	// is khaos's own mismatch wearing the wrong-signer fault's clothes.
+	//
+	// Signing with the chain's issuer is always consistent with the chain by
+	// construction. The delegation path is still exercised, from the other
+	// side, by OCSPWrongSigner.
+	signer := &pair{cert: chain.Issuer, key: chain.issuerKey}
+
 	template := ocsp.Response{
 		Status:       ocsp.Good,
 		SerialNumber: chain.Leaf.SerialNumber,
@@ -211,11 +239,19 @@ func (a *Authority) ocspFor(
 		// Good, fresh, correctly signed, for this serial.
 	}
 
-	// AFTER the switch, because OCSPWrongSigner changes who signs. Embedding
-	// the delegated certificate alongside a signature made by the undelegated
-	// key would be rejected for a mismatch between the two rather than for the
-	// delegation that is the actual fault, and those are different findings.
-	template.Certificate = signer.cert
+	// Embedded ONLY for the wrong-signer fault, and only after the switch has
+	// decided who signs.
+	//
+	// x/crypto embeds the responder certificate just when template.Certificate
+	// is non-nil (ocsp.go:783), and ParseResponse branches on whether one is
+	// present: with a certificate it checks the response against that and that
+	// against the issuer, and without one it checks the response against the
+	// issuer directly. The issuer signs its own responses here, so leaving this
+	// nil is what makes them verify. Setting it for the undelegated signer is
+	// what makes that response fail at the SECOND check, which is the fault.
+	if signer != nil && signer.cert != chain.Issuer {
+		template.Certificate = signer.cert
+	}
 
 	der, err := ocsp.CreateResponse(
 		chain.Issuer,
@@ -231,31 +267,25 @@ func (a *Authority) ocspFor(
 }
 
 // ocspGood is the honest response, and the control for every responder fault.
+// Signed by the chain's own issuer for the same reason ocspFor is.
 func (a *Authority) ocspGood(
 	chain *Chain,
 	now, until time.Time,
 ) ([]byte, error) {
 	der, err := ocsp.CreateResponse(
 		chain.Issuer,
-		a.responder.cert,
+		chain.Issuer,
 		ocsp.Response{
 			Status:       ocsp.Good,
 			SerialNumber: chain.Leaf.SerialNumber,
 			ThisUpdate:   now.Add(-clockSlack),
 			NextUpdate:   until,
-			Certificate:  a.responder.cert,
 		},
-		a.responder.key,
+		chain.issuerKey,
 	)
 	if err != nil {
 		return nil, fmt.Errorf(errOCSPGen, ErrMint, err)
 	}
 
 	return der, nil
-}
-
-// Responder is the certificate khaos signs OCSP responses with, which a client
-// needs in order to check the signature at all.
-func (a *Authority) Responder() *x509.Certificate {
-	return a.responder.cert
 }
