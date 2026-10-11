@@ -1,0 +1,12 @@
+# ©AngelaMos | 2026
+# .gitignore
+
+docs/
+dist/
+/khaos
+*.db
+*.sqlite
+*.prom
+
+.env
+.env.development

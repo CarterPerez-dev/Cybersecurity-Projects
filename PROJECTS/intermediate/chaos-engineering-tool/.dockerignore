@@ -1,0 +1,8 @@
+# ©AngelaMos | 2026
+# .dockerignore
+
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/

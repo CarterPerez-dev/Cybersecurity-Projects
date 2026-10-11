@@ -1,0 +1,114 @@
+# ©AngelaMos | 2026
+# compose.yml
+
+name: khaos-range
+
+services:
+  idp:
+    container_name: khaos-range-idp
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["idp"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    networks: [range]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "healthcheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+    restart: "no"
+
+  gateway:
+    container_name: khaos-range-gateway
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_GATEWAY_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks: [range]
+    restart: "no"
+
+  # The same gateway, reaching the same identity provider, but addressing it
+  # through khaos's own in-process fault proxy on the host instead of directly.
+  # It is a SECOND service rather than a rewiring of the first so that the
+  # Docker-native tier keeps being measured on a direct path: an experiment that
+  # pauses a container is not measuring the Docker-native tier if its traffic
+  # runs through a proxy. Running the same experiment against both and comparing
+  # is what proves the proxy tier adds nothing of its own.
+  gateway-proxied:
+    container_name: khaos-range-gateway-proxied
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://host.docker.internal:${KHAOS_RANGE_PROXY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_PROXIED_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks: [range]
+    restart: "no"
+
+  # The third gateway, and the only one whose identity provider is khaos itself
+  # rather than the idp container. khaos cannot make a correct provider mint an
+  # `alg: none` token or withdraw its own signing key on command, so the whole
+  # JWT family needs a target that resolves keys from khaos's in-process
+  # provider. It is a THIRD service for the same reason the proxied one is a
+  # second: repointing an existing gateway would change what the suites that
+  # already measure it are asserting.
+  #
+  # It verifies JWTs locally AND introspects opaque credentials, because the two
+  # strategies have different outage shapes and the family spans both.
+  gateway-verifier:
+    container_name: khaos-range-gateway-verifier
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["verifier"]
+    environment:
+      KHAOS_RANGE_ISSUER: "http://host.docker.internal:${KHAOS_RANGE_IDP_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+      KHAOS_RANGE_KEY_TTL: "${KHAOS_RANGE_KEY_TTL:-1s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_VERIFIER_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks: [range]
+    restart: "no"
+
+networks:
+  range:
+    name: khaos-range

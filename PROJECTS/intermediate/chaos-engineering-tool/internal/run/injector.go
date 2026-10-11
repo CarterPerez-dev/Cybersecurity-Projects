@@ -1,0 +1,85 @@
+// ©AngelaMos | 2026
+// injector.go
+
+package run
+
+import (
+	"context"
+
+	"github.com/CarterPerez-dev/khaos/internal/dockerx"
+)
+
+type Resolver interface {
+	Accept(ctx context.Context, name string, filter dockerx.Filter, guard dockerx.Guard) (dockerx.Target, error)
+}
+
+// Injector adapts a Session to the experiment engine, so the engine never
+// touches Docker, a journal or a lease and stays testable without a daemon.
+type Injector struct {
+	Session  *Session
+	Resolver Resolver
+	Filter   dockerx.Filter
+	Guard    dockerx.Guard
+	Progress Progress
+
+	applied []appliedFault
+}
+
+type appliedFault struct {
+	kind   string
+	target dockerx.Target
+}
+
+func (i *Injector) Inject(ctx context.Context, kind, target string) error {
+	guard := i.Guard
+
+	planned, err := i.Resolver.Accept(ctx, target, i.Filter, guard)
+	if err != nil {
+		return err
+	}
+
+	guard.ExpectedID = planned.ID
+
+	confirmed, err := i.Resolver.Accept(ctx, target, i.Filter, guard)
+	if err != nil {
+		return err
+	}
+
+	if err := i.Session.Inject(ctx, kind, confirmed); err != nil {
+		return err
+	}
+
+	i.applied = append(i.applied, appliedFault{kind: kind, target: confirmed})
+
+	return nil
+}
+
+// Confirm reads the fault back from the daemon. An injection the API accepted
+// is not the same as a fault that took effect, and a run that measures an
+// unconfirmed fault is indistinguishable from a run with no fault at all,
+// which reads as a pass.
+// The method reported is the one each mutation actually measured, not a constant
+// naming the technique. A run record that says how the fault was confirmed is
+// auditable; one that says only that something was confirmed is not.
+func (i *Injector) Confirm(ctx context.Context) (string, error) {
+	first := ""
+
+	for _, fault := range i.applied {
+		method, err := i.Session.Confirm(ctx, fault.kind, fault.target)
+		if err != nil {
+			return "", err
+		}
+		if method == "" {
+			return "", nil
+		}
+		if first == "" {
+			first = method
+		}
+	}
+
+	return first, nil
+}
+
+func (i *Injector) Revert(ctx context.Context) error {
+	return i.Session.RevertAll(ctx, i.Progress)
+}

@@ -1,0 +1,67 @@
+# ©AngelaMos | 2026
+# justfile
+
+set shell := ["bash", "-cu"]
+
+binary := "khaos"
+
+default:
+    @just --list
+
+build:
+    go build -o {{binary}} ./cmd/{{binary}}
+
+run *args:
+    go run ./cmd/{{binary}} {{args}}
+
+banner: build
+    ./{{binary}} banner
+
+test:
+    go test ./...
+
+race:
+    go test -race ./...
+
+vet:
+    go vet ./...
+
+fmt:
+    gofmt -w .
+
+lint: vet
+    test -z "$(gofmt -l .)"
+
+tidy:
+    go mod tidy
+
+tidy-check:
+    go mod tidy -diff
+
+check: lint tidy-check test colors
+
+gate: check race smoke survive range-gate proxy-gate identity-gate family-gate
+
+colors: build
+    ./scripts/colors.sh
+
+smoke: build
+    ./scripts/smoke.sh
+
+survive: build
+    ./scripts/survive.sh
+
+range-gate: build
+    ./scripts/range.sh
+
+proxy-gate: build
+    ./scripts/proxy.sh
+
+identity-gate: build
+    ./scripts/identity.sh
+
+family-gate: build
+    ./scripts/family.sh
+
+clean:
+    rm -f {{binary}}
