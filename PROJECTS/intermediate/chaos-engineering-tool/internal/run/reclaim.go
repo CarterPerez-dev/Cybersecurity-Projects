@@ -23,7 +23,9 @@ type Reclaimed struct {
 	Err    error
 }
 
-var ErrOtherDaemon = errors.New("that fault belongs to a different Docker daemon")
+var ErrOtherDaemon = errors.New(
+	"that fault belongs to a different Docker daemon",
+)
 
 const errOtherDaemon = "%w: it was applied on %s and khaos is attached to %s; point khaos at that daemon and reclaim there"
 
@@ -73,7 +75,10 @@ func reclaimWith(
 ) Sweep {
 	outstanding, damage := journal.Outstanding(log.Path())
 
-	sweep := Sweep{Results: make([]Reclaimed, 0, len(outstanding)), Damage: damage}
+	sweep := Sweep{
+		Results: make([]Reclaimed, 0, len(outstanding)),
+		Damage:  damage,
+	}
 
 	for i := len(outstanding) - 1; i >= 0; i-- {
 		record := outstanding[i]
@@ -93,8 +98,14 @@ func reclaimWith(
 		// An empty daemon on the record is ambiguous rather than matching. It
 		// predates this field or the daemon would not identify itself, and
 		// settling it on a guess is the same irreversible mistake.
-		if mismatch := daemonMismatch(record, attachedDaemon(env)); mismatch != nil {
-			sweep.Results = append(sweep.Results, Reclaimed{Record: record, Err: mismatch})
+		if mismatch := daemonMismatch(
+			record,
+			attachedDaemon(env),
+		); mismatch != nil {
+			sweep.Results = append(
+				sweep.Results,
+				Reclaimed{Record: record, Err: mismatch},
+			)
 			continue
 		}
 

@@ -69,9 +69,13 @@ func TestAcceptedAfterRejectedCountsOrderNotTotals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := streamOf(tc.dispositions...).AcceptedAfterRejected()
 			if got != tc.want {
-				t.Fatalf("got %d, want %d; this is the test that distinguishes "+
-					"'a credential it had already refused was later honoured' from "+
-					"'something succeeded at some point'", got, tc.want)
+				t.Fatalf(
+					"got %d, want %d; this is the test that distinguishes "+
+						"'a credential it had already refused was later honoured' from "+
+						"'something succeeded at some point'",
+					got,
+					tc.want,
+				)
 			}
 		})
 	}
@@ -105,8 +109,11 @@ func TestWindowLengthIsThePairedCount(t *testing.T) {
 	w.Record(Outcome{Credential: Invalid, Disposition: Rejected})
 
 	if w.Len() != 1 {
-		t.Fatalf("Len() = %d, want 1; a window is only as long as its shorter stream, because "+
-			"a verdict needs both halves of the pair", w.Len())
+		t.Fatalf(
+			"Len() = %d, want 1; a window is only as long as its shorter stream, because "+
+				"a verdict needs both halves of the pair",
+			w.Len(),
+		)
 	}
 }
 
@@ -117,7 +124,11 @@ func TestRecordRoutesByCredential(t *testing.T) {
 	w.Record(Outcome{Credential: Invalid, Disposition: Rejected})
 
 	if w.Valid.Len() != 1 || w.Invalid.Len() != 1 {
-		t.Fatalf("valid=%d invalid=%d, want 1 and 1", w.Valid.Len(), w.Invalid.Len())
+		t.Fatalf(
+			"valid=%d invalid=%d, want 1 and 1",
+			w.Valid.Len(),
+			w.Invalid.Len(),
+		)
 	}
 
 	if w.Valid.Outcomes[0].Disposition != Accepted {
@@ -141,10 +152,16 @@ func TestRejectedAfterCountsTheTargetGivingUp(t *testing.T) {
 			// cache for the first seconds of an outage and then starts
 			// refusing. Asking only whether it ever served calls that a clean
 			// survival.
-			name:         "served from cache, then refused",
-			seed:         true,
-			dispositions: []Disposition{Accepted, Accepted, Rejected, Rejected, Rejected},
-			want:         3,
+			name: "served from cache, then refused",
+			seed: true,
+			dispositions: []Disposition{
+				Accepted,
+				Accepted,
+				Rejected,
+				Rejected,
+				Rejected,
+			},
+			want: 3,
 		},
 		{
 			name:         "served throughout",
@@ -170,7 +187,10 @@ func TestRejectedAfterCountsTheTargetGivingUp(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := Stream{Credential: Valid}
 			for _, d := range tc.dispositions {
-				s.Outcomes = append(s.Outcomes, Outcome{Credential: Valid, Disposition: d})
+				s.Outcomes = append(
+					s.Outcomes,
+					Outcome{Credential: Valid, Disposition: d},
+				)
 			}
 
 			if got := s.RejectedAfter(tc.seed); got != tc.want {
@@ -188,8 +208,11 @@ func TestProbeFailuresAreNotChargedToTheTarget(t *testing.T) {
 	}}
 
 	if s.Countable() != 2 {
-		t.Fatalf("Countable() = %d, want 2; khaos's own failure is not a target outcome and "+
-			"must not enter any rate", s.Countable())
+		t.Fatalf(
+			"Countable() = %d, want 2; khaos's own failure is not a target outcome and "+
+				"must not enter any rate",
+			s.Countable(),
+		)
 	}
 
 	if ProbeFailed.Answered() {
@@ -199,16 +222,24 @@ func TestProbeFailuresAreNotChargedToTheTarget(t *testing.T) {
 
 // The bounded-stale pattern is a PASS, and a plain count of acceptances reports
 // it as a bypass. These are the three shapes that have to separate.
-func TestAcceptedSinceLastRefusalSeparatesABoundedCacheFromABrokenOne(t *testing.T) {
+func TestAcceptedSinceLastRefusalSeparatesABoundedCacheFromABrokenOne(
+	t *testing.T,
+) {
 	cases := []struct {
 		name     string
 		sequence []Disposition
 		want     int
 	}{
 		{
-			name:     "a bounded cache lapses and stays lapsed",
-			sequence: []Disposition{Accepted, Accepted, Rejected, Rejected, Rejected},
-			want:     0,
+			name: "a bounded cache lapses and stays lapsed",
+			sequence: []Disposition{
+				Accepted,
+				Accepted,
+				Rejected,
+				Rejected,
+				Rejected,
+			},
+			want: 0,
 		},
 		{
 			name:     "a cache with no expiry never lapses",
@@ -216,9 +247,15 @@ func TestAcceptedSinceLastRefusalSeparatesABoundedCacheFromABrokenOne(t *testing
 			want:     4,
 		},
 		{
-			name:     "a cache that re-populates after refusing is its own bug",
-			sequence: []Disposition{Accepted, Rejected, Rejected, Accepted, Accepted},
-			want:     2,
+			name: "a cache that re-populates after refusing is its own bug",
+			sequence: []Disposition{
+				Accepted,
+				Rejected,
+				Rejected,
+				Accepted,
+				Accepted,
+			},
+			want: 2,
 		},
 		{
 			name:     "a target that refused throughout",
@@ -241,11 +278,18 @@ func TestAcceptedSinceLastRefusalSeparatesABoundedCacheFromABrokenOne(t *testing
 		t.Run(each.name, func(t *testing.T) {
 			stream := Stream{Credential: Revoked}
 			for _, disposition := range each.sequence {
-				stream.Outcomes = append(stream.Outcomes, Outcome{Disposition: disposition})
+				stream.Outcomes = append(
+					stream.Outcomes,
+					Outcome{Disposition: disposition},
+				)
 			}
 
 			if got := stream.AcceptedSinceLastRefusal(); got != each.want {
-				t.Fatalf("AcceptedSinceLastRefusal() = %d, want %d", got, each.want)
+				t.Fatalf(
+					"AcceptedSinceLastRefusal() = %d, want %d",
+					got,
+					each.want,
+				)
 			}
 		})
 	}
@@ -262,24 +306,48 @@ func TestAcceptedSinceLastRefusalDisagreesWithAPlainCount(t *testing.T) {
 	}}
 
 	if bounded.Count(Accepted) == bounded.AcceptedSinceLastRefusal() {
-		t.Fatal("the order-sensitive count agrees with the plain count on a bounded cache, " +
-			"so nothing distinguishes the defensible pattern from the broken one")
+		t.Fatal(
+			"the order-sensitive count agrees with the plain count on a bounded cache, " +
+				"so nothing distinguishes the defensible pattern from the broken one",
+		)
 	}
 }
 
 // The case AcceptedSinceLastRefusal destroys. Enforcement resumed, the
 // invalidated credential got through anyway, and a later refusal erased it.
-func TestAcceptedDespiteLapseKeepsAReacceptanceALaterRefusalWouldErase(t *testing.T) {
+func TestAcceptedDespiteLapseKeepsAReacceptanceALaterRefusalWouldErase(
+	t *testing.T,
+) {
 	cases := []struct {
 		name         string
 		sequence     []Disposition
 		despiteLapse int
 		sinceRefusal int
 	}{
-		{"never lapsed", []Disposition{Accepted, Accepted, Accepted, Accepted}, 4, 4},
-		{"lapsed and stayed lapsed", []Disposition{Accepted, Accepted, Rejected, Rejected}, 0, 0},
-		{"came back after a lapse", []Disposition{Rejected, Accepted, Rejected}, 1, 0},
-		{"came back and stayed", []Disposition{Accepted, Rejected, Rejected, Accepted, Accepted}, 2, 2},
+		{
+			"never lapsed",
+			[]Disposition{Accepted, Accepted, Accepted, Accepted},
+			4,
+			4,
+		},
+		{
+			"lapsed and stayed lapsed",
+			[]Disposition{Accepted, Accepted, Rejected, Rejected},
+			0,
+			0,
+		},
+		{
+			"came back after a lapse",
+			[]Disposition{Rejected, Accepted, Rejected},
+			1,
+			0,
+		},
+		{
+			"came back and stayed",
+			[]Disposition{Accepted, Rejected, Rejected, Accepted, Accepted},
+			2,
+			2,
+		},
 		{"refused throughout", []Disposition{Rejected, Rejected}, 0, 0},
 		{"empty", nil, 0, 0},
 	}
@@ -290,15 +358,24 @@ func TestAcceptedDespiteLapseKeepsAReacceptanceALaterRefusalWouldErase(t *testin
 		t.Run(each.name, func(t *testing.T) {
 			stream := Stream{Credential: Revoked}
 			for _, d := range each.sequence {
-				stream.Outcomes = append(stream.Outcomes, Outcome{Disposition: d})
+				stream.Outcomes = append(
+					stream.Outcomes,
+					Outcome{Disposition: d},
+				)
 			}
 
 			if got := stream.AcceptedDespiteLapse(); got != each.despiteLapse {
-				t.Fatalf("AcceptedDespiteLapse() = %d, want %d", got, each.despiteLapse)
+				t.Fatalf(
+					"AcceptedDespiteLapse() = %d, want %d",
+					got,
+					each.despiteLapse,
+				)
 			}
 
 			if stream.AcceptedSinceLastRefusal() != each.sinceRefusal {
-				t.Fatalf("the older count changed behaviour; this test pins the difference")
+				t.Fatalf(
+					"the older count changed behaviour; this test pins the difference",
+				)
 			}
 
 			if each.despiteLapse != each.sinceRefusal {
@@ -310,6 +387,8 @@ func TestAcceptedDespiteLapseKeepsAReacceptanceALaterRefusalWouldErase(t *testin
 	// The two must disagree somewhere, or replacing one with the other fixed
 	// nothing and this whole test is decoration.
 	if !disagreed {
-		t.Fatal("AcceptedDespiteLapse never differs from AcceptedSinceLastRefusal across these cases")
+		t.Fatal(
+			"AcceptedDespiteLapse never differs from AcceptedSinceLastRefusal across these cases",
+		)
 	}
 }

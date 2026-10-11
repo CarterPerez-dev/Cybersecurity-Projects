@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-
-	"github.com/CarterPerez-dev/khaos/internal/probe"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
 const (
@@ -110,17 +110,27 @@ func TestAControlThatFailsClosedIsReportedAsDenied(t *testing.T) {
 	result := runAgainst(t, &service{failOpen: false})
 
 	if result.Verdict.Direction != Denied {
-		t.Fatalf("direction = %s, want %s (%s)", result.Verdict.Direction, Denied,
-			strings.Join(result.Verdict.Reasons, "; "))
+		t.Fatalf(
+			"direction = %s, want %s (%s)",
+			result.Verdict.Direction,
+			Denied,
+			strings.Join(result.Verdict.Reasons, "; "),
+		)
 	}
 
 	if result.Verdict.Defect {
-		t.Fatal("failing closed was flagged as a defect for a control whose declared defect is failing open")
+		t.Fatal(
+			"failing closed was flagged as a defect for a control whose declared defect is failing open",
+		)
 	}
 
 	if result.Verdict.Epistemic != Deviated {
-		t.Fatalf("epistemic = %s, want %s; refusing legitimate traffic is a deviation even though "+
-			"it is the safe direction", result.Verdict.Epistemic, Deviated)
+		t.Fatalf(
+			"epistemic = %s, want %s; refusing legitimate traffic is a deviation even though "+
+				"it is the safe direction",
+			result.Verdict.Epistemic,
+			Deviated,
+		)
 	}
 }
 
@@ -128,13 +138,19 @@ func TestAControlThatFailsOpenIsCaughtAndFlaggedADefect(t *testing.T) {
 	result := runAgainst(t, &service{failOpen: true})
 
 	if result.Verdict.Direction != Permitted {
-		t.Fatalf("direction = %s, want %s (%s)", result.Verdict.Direction, Permitted,
-			strings.Join(result.Verdict.Reasons, "; "))
+		t.Fatalf(
+			"direction = %s, want %s (%s)",
+			result.Verdict.Direction,
+			Permitted,
+			strings.Join(result.Verdict.Reasons, "; "),
+		)
 	}
 
 	if !result.Verdict.Defect {
-		t.Fatal("a control that started honouring a credential it had been rejecting was not " +
-			"flagged as a defect")
+		t.Fatal(
+			"a control that started honouring a credential it had been rejecting was not " +
+				"flagged as a defect",
+		)
 	}
 
 	if !result.Verdict.Conclusive {
@@ -166,9 +182,11 @@ func TestTheProbeReadsTheBodyAndClassifiesByStatus(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(tc.status)
-			}))
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(tc.status)
+				}),
+			)
 			defer server.Close()
 
 			spec, err := Build(NameDependencyOutage, map[string]string{
@@ -182,11 +200,20 @@ func TestTheProbeReadsTheBodyAndClassifiesByStatus(t *testing.T) {
 
 			outcome := spec.Probes.Valid.Run(context.Background())
 			if outcome.Disposition.String() != tc.want {
-				t.Fatalf("status %d classified as %s, want %s", tc.status, outcome.Disposition, tc.want)
+				t.Fatalf(
+					"status %d classified as %s, want %s",
+					tc.status,
+					outcome.Disposition,
+					tc.want,
+				)
 			}
 
 			if outcome.Status != tc.status {
-				t.Fatalf("recorded status %d, want %d", outcome.Status, tc.status)
+				t.Fatalf(
+					"recorded status %d, want %d",
+					outcome.Status,
+					tc.status,
+				)
 			}
 		})
 	}
@@ -205,19 +232,27 @@ func TestAnUnreachableEndpointIsNotMistakenForARejection(t *testing.T) {
 	outcome := spec.Probes.Invalid.Run(context.Background())
 
 	if outcome.Disposition != probe.Unavailable {
-		t.Fatalf("a connection failure was classified as %s; reading it as a rejection would "+
-			"make an outage look like a control doing its job", outcome.Disposition)
+		t.Fatalf(
+			"a connection failure was classified as %s; reading it as a rejection would "+
+				"make an outage look like a control doing its job",
+			outcome.Disposition,
+		)
 	}
 }
 
 func TestARedirectingGatewayIsNamedNotBlamed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.TrimPrefix(r.Header.Get("Authorization"), bearer) != goodToken {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.TrimPrefix(
+				r.Header.Get("Authorization"),
+				bearer,
+			) != goodToken {
+				http.Redirect(w, r, "/login", http.StatusFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
 	defer server.Close()
 
 	spec, err := Build(NameDependencyOutage, map[string]string{
@@ -240,13 +275,20 @@ func TestARedirectingGatewayIsNamedNotBlamed(t *testing.T) {
 	}
 
 	if result.Verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s, want %s", result.Verdict.Epistemic, BaselineNotMet)
+		t.Fatalf(
+			"epistemic = %s, want %s",
+			result.Verdict.Epistemic,
+			BaselineNotMet,
+		)
 	}
 
 	joined := strings.Join(result.Verdict.Reasons, " ")
 	if !strings.Contains(joined, "redirect") {
-		t.Fatalf("khaos refused to run against a redirecting gateway without naming the redirect "+
-			"as the cause: %q", joined)
+		t.Fatalf(
+			"khaos refused to run against a redirecting gateway without naming the redirect "+
+				"as the cause: %q",
+			joined,
+		)
 	}
 
 	if !strings.Contains(joined, "--url") {
@@ -256,12 +298,20 @@ func TestARedirectingGatewayIsNamedNotBlamed(t *testing.T) {
 
 func TestABaselineBlipDoesNotFabricateABypass(t *testing.T) {
 	baseline := healthyBaseline()
-	baseline.Invalid = stream(probe.Invalid,
-		probe.Rejected, probe.Accepted, probe.Rejected, probe.Rejected, probe.Rejected)
+	baseline.Invalid = stream(
+		probe.Invalid,
+		probe.Rejected,
+		probe.Accepted,
+		probe.Rejected,
+		probe.Rejected,
+		probe.Rejected,
+	)
 
 	clean := probe.Window{
-		Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-		Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
+		Invalid: stream(
+			probe.Invalid,
+			repeat(probe.Rejected, MinimumPaired)...),
 	}
 
 	verdict := Judge(Observation{
@@ -272,8 +322,10 @@ func TestABaselineBlipDoesNotFabricateABypass(t *testing.T) {
 	}, authPolarity)
 
 	if verdict.Direction == Permitted {
-		t.Fatal("one flaky acceptance during the BASELINE was reported as a credential being " +
-			"honoured during the fault; the fault window was spotless")
+		t.Fatal(
+			"one flaky acceptance during the BASELINE was reported as a credential being " +
+				"honoured during the fault; the fault window was spotless",
+		)
 	}
 }
 
@@ -291,9 +343,12 @@ func TestAProvenBypassIsReportedEvenOnThinEvidence(t *testing.T) {
 	}, authPolarity)
 
 	if verdict.Direction != Permitted {
-		t.Fatalf("direction = %s; a credential the target had already refused being honoured even "+
-			"once is PROOF of a bypass, and burying it as thin evidence loses the finding "+
-			"khaos exists to produce", verdict.Direction)
+		t.Fatalf(
+			"direction = %s; a credential the target had already refused being honoured even "+
+				"once is PROOF of a bypass, and burying it as thin evidence loses the finding "+
+				"khaos exists to produce",
+			verdict.Direction,
+		)
 	}
 
 	if !verdict.Defect {
@@ -306,8 +361,12 @@ func TestACleanRunOnThinEvidenceIsNotConclusive(t *testing.T) {
 		FaultConfirmed: true,
 		Baseline:       healthyBaseline(),
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Rejected, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
@@ -317,7 +376,11 @@ func TestACleanRunOnThinEvidenceIsNotConclusive(t *testing.T) {
 	}
 
 	if verdict.Conclusive {
-		t.Fatalf("a clean result on %d samples was called conclusive; the absence of a bypass "+
-			"needs a sample-size argument that %d does not supply", MinimumPaired, MinimumPaired)
+		t.Fatalf(
+			"a clean result on %d samples was called conclusive; the absence of a bypass "+
+				"needs a sample-size argument that %d does not supply",
+			MinimumPaired,
+			MinimumPaired,
+		)
 	}
 }

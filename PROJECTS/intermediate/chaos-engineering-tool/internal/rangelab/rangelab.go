@@ -210,6 +210,9 @@ func composePath() (string, error) {
 // named volumes and reports success. khaos's own "set KHAOS_RANGE_DIR" error
 // message is what teaches an operator to set that variable.
 func VerifyOwned(path string) error {
+	// This read IS the ownership guard. Refusing to open an operator-supplied
+	// path here would mean khaos could never check whether it owns one.
+	//nolint:gosec // reading it is the whole point of this function
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf(errUnreadable, ErrNotOurs, path, err)
@@ -217,7 +220,13 @@ func VerifyOwned(path string) error {
 
 	declared := declaredProject(raw)
 	if declared != ProjectName {
-		return fmt.Errorf(errForeign, ErrNotOurs, path, orNone(declared), ProjectName)
+		return fmt.Errorf(
+			errForeign,
+			ErrNotOurs,
+			path,
+			orNone(declared),
+			ProjectName,
+		)
 	}
 
 	return nil
@@ -246,9 +255,15 @@ func orNone(declared string) string {
 
 func FreePort() (int, error) {
 	for range portTries {
+		// A candidate, not a secret: the next statement actually binds it, and
+		// an unpredictable guess is no likelier to be free than any other.
+		//nolint:gosec // a bind candidate, immediately tested
 		port := portFloor + rand.IntN(portCeil-portFloor)
 
-		listener, err := net.Listen("tcp", net.JoinHostPort(loopback, strconv.Itoa(port)))
+		listener, err := net.Listen(
+			"tcp",
+			net.JoinHostPort(loopback, strconv.Itoa(port)),
+		)
 		if err != nil {
 			continue
 		}
@@ -282,7 +297,11 @@ func (l Lab) ProxiedProtectedURL() string {
 	return l.ProxiedGatewayURL() + protectedPath
 }
 
-func (l Lab) Up(ctx context.Context, out io.Writer, failMode, cacheTTL string) error {
+func (l Lab) Up(
+	ctx context.Context,
+	out io.Writer,
+	failMode, cacheTTL string,
+) error {
 	environ := append(os.Environ(),
 		EnvGatewayPort+"="+strconv.Itoa(l.Port),
 		EnvProxiedPort+"="+strconv.Itoa(l.ProxiedPort),
@@ -293,7 +312,15 @@ func (l Lab) Up(ctx context.Context, out io.Writer, failMode, cacheTTL string) e
 		EnvCacheTTL+"="+cacheTTL,
 	)
 
-	if err := l.compose(ctx, out, environ, "up", "--build", "--detach", "--wait"); err != nil {
+	if err := l.compose(
+		ctx,
+		out,
+		environ,
+		"up",
+		"--build",
+		"--detach",
+		"--wait",
+	); err != nil {
 		return err
 	}
 
@@ -314,10 +341,24 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvIdPPort+"="+strconv.Itoa(teardownPort),
 	)
 
-	return l.compose(ctx, out, environ, "down", "--volumes", "--remove-orphans", "--rmi", "local")
+	return l.compose(
+		ctx,
+		out,
+		environ,
+		"down",
+		"--volumes",
+		"--remove-orphans",
+		"--rmi",
+		"local",
+	)
 }
 
-func (l Lab) compose(ctx context.Context, out io.Writer, environ []string, args ...string) error {
+func (l Lab) compose(
+	ctx context.Context,
+	out io.Writer,
+	environ []string,
+	args ...string,
+) error {
 	// The project name is passed explicitly as well as declared in the file, so
 	// no edit to the file can make these commands act on another project.
 	full := append([]string{
@@ -328,6 +369,7 @@ func (l Lab) compose(ctx context.Context, out io.Writer, environ []string, args 
 
 	var stderr bytes.Buffer
 
+	//nolint:gosec // khaos driving its own compose file as the operator
 	cmd := exec.CommandContext(ctx, dockerBinary, full...)
 	cmd.Dir = l.Dir
 	cmd.Env = environ
@@ -384,7 +426,12 @@ func (l Lab) awaitReady(ctx context.Context) error {
 // IssueToken asks the range for a credential its gateway will accept, so an
 // experiment against the range needs no flags at all.
 func (l Lab) IssueToken(ctx context.Context) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, l.GatewayURL()+tokenPath, nil)
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		l.GatewayURL()+tokenPath,
+		nil,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -419,10 +466,23 @@ var ErrNoToken = errors.New("the range identity provider did not issue a token")
 const GatewayInternalPort = 8080
 
 type PortReader interface {
-	Targets(ctx context.Context, filter dockerx.Filter) ([]dockerx.Target, error)
-	PublishedPort(ctx context.Context, containerID string, internal int) (int, error)
-	ContainerEnv(ctx context.Context, containerID string) (map[string]string, error)
-	NetworkAddress(ctx context.Context, containerID, networkName string) (string, error)
+	Targets(
+		ctx context.Context,
+		filter dockerx.Filter,
+	) ([]dockerx.Target, error)
+	PublishedPort(
+		ctx context.Context,
+		containerID string,
+		internal int,
+	) (int, error)
+	ContainerEnv(
+		ctx context.Context,
+		containerID string,
+	) (map[string]string, error)
+	NetworkAddress(
+		ctx context.Context,
+		containerID, networkName string,
+	) (string, error)
 	BridgeGateway(ctx context.Context) (string, error)
 }
 
@@ -462,7 +522,11 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return lab, nil
 	}
 
-	if lab.ProxiedPort, err = reader.PublishedPort(ctx, proxied.ID, GatewayInternalPort); err != nil {
+	if lab.ProxiedPort, err = reader.PublishedPort(
+		ctx,
+		proxied.ID,
+		GatewayInternalPort,
+	); err != nil {
 		return Lab{}, err
 	}
 
@@ -478,11 +542,19 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return lab, nil
 	}
 
-	if lab.VerifierPort, err = reader.PublishedPort(ctx, verifierGateway.ID, GatewayInternalPort); err != nil {
+	if lab.VerifierPort, err = reader.PublishedPort(
+		ctx,
+		verifierGateway.ID,
+		GatewayInternalPort,
+	); err != nil {
 		return Lab{}, err
 	}
 
-	if lab.Issuer, lab.IdPPort, err = issuerOf(ctx, reader, verifierGateway.ID); err != nil {
+	if lab.Issuer, lab.IdPPort, err = issuerOf(
+		ctx,
+		reader,
+		verifierGateway.ID,
+	); err != nil {
 		return Lab{}, err
 	}
 
@@ -500,7 +572,11 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 // `host.docker.internal`, so khaos's own listener address is never the issuer
 // the target expects, and minting under it would get every token refused on
 // `iss` for a reason that has nothing to do with the trap under test.
-func issuerOf(ctx context.Context, reader PortReader, containerID string) (string, int, error) {
+func issuerOf(
+	ctx context.Context,
+	reader PortReader,
+	containerID string,
+) (string, int, error) {
 	environ, err := reader.ContainerEnv(ctx, containerID)
 	if err != nil {
 		return "", 0, err
@@ -508,17 +584,34 @@ func issuerOf(ctx context.Context, reader PortReader, containerID string) (strin
 
 	issuer := environ[EnvIssuer]
 	if issuer == "" {
-		return "", 0, fmt.Errorf(errNoIssuer, ErrRangeIncomplete, VerifierGatewayName, EnvIssuer)
+		return "", 0, fmt.Errorf(
+			errNoIssuer,
+			ErrRangeIncomplete,
+			VerifierGatewayName,
+			EnvIssuer,
+		)
 	}
 
 	parsed, err := url.Parse(issuer)
 	if err != nil {
-		return "", 0, fmt.Errorf(errBadIssuer, ErrRangeIncomplete, VerifierGatewayName, issuer, err)
+		return "", 0, fmt.Errorf(
+			errBadIssuer,
+			ErrRangeIncomplete,
+			VerifierGatewayName,
+			issuer,
+			err,
+		)
 	}
 
 	port, err := strconv.Atoi(parsed.Port())
 	if err != nil || port <= 0 {
-		return "", 0, fmt.Errorf(errBadIssuer, ErrRangeIncomplete, VerifierGatewayName, issuer, err)
+		return "", 0, fmt.Errorf(
+			errBadIssuer,
+			ErrRangeIncomplete,
+			VerifierGatewayName,
+			issuer,
+			err,
+		)
 	}
 
 	return strings.TrimSuffix(issuer, "/"), port, nil
@@ -543,9 +636,16 @@ func (l Lab) VerifierProtectedURL() string {
 // reaches a host listener there, a listener on the target network's own gateway
 // is unreachable, and binding only loopback leaves the provider dead to every
 // container.
-func (l Lab) IdPEndpoint(ctx context.Context, reader PortReader) (string, string, error) {
+func (l Lab) IdPEndpoint(
+	ctx context.Context,
+	reader PortReader,
+) (string, string, error) {
 	if l.IdPPort == 0 || l.Issuer == "" {
-		return "", "", fmt.Errorf(errNoVerifierGateway, ErrRangeIncomplete, VerifierGatewayName)
+		return "", "", fmt.Errorf(
+			errNoVerifierGateway,
+			ErrRangeIncomplete,
+			VerifierGatewayName,
+		)
 	}
 
 	gatewayIP, err := reader.BridgeGateway(ctx)
@@ -561,7 +661,11 @@ func (l Lab) IdPEndpoint(ctx context.Context, reader PortReader) (string, string
 // the only authority on where that gateway will actually look for the proxy, and
 // khaos has to bind the port the target is already addressing, not the port khaos
 // would have picked.
-func proxyPortOf(ctx context.Context, reader PortReader, containerID string) (int, error) {
+func proxyPortOf(
+	ctx context.Context,
+	reader PortReader,
+	containerID string,
+) (int, error) {
 	environ, err := reader.ContainerEnv(ctx, containerID)
 	if err != nil {
 		return 0, err
@@ -569,17 +673,34 @@ func proxyPortOf(ctx context.Context, reader PortReader, containerID string) (in
 
 	upstream := environ[EnvUpstream]
 	if upstream == "" {
-		return 0, fmt.Errorf(errNoUpstream, ErrRangeIncomplete, ProxiedGatewayName, EnvUpstream)
+		return 0, fmt.Errorf(
+			errNoUpstream,
+			ErrRangeIncomplete,
+			ProxiedGatewayName,
+			EnvUpstream,
+		)
 	}
 
 	parsed, err := url.Parse(upstream)
 	if err != nil {
-		return 0, fmt.Errorf(errBadUpstream, ErrRangeIncomplete, ProxiedGatewayName, upstream, err)
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			ProxiedGatewayName,
+			upstream,
+			err,
+		)
 	}
 
 	port, err := strconv.Atoi(parsed.Port())
 	if err != nil || port <= 0 {
-		return 0, fmt.Errorf(errBadUpstream, ErrRangeIncomplete, ProxiedGatewayName, upstream, err)
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			ProxiedGatewayName,
+			upstream,
+			err,
+		)
 	}
 
 	return port, nil
@@ -595,7 +716,10 @@ func proxyPortOf(ctx context.Context, reader PortReader, containerID string) (in
 // khaos too, so the change khaos needs to make at the authority could not be made
 // at all, and the research is explicit that the revocation has to be real while
 // the target cannot see it.
-func (l Lab) AuthorityURL(ctx context.Context, reader PortReader) (string, error) {
+func (l Lab) AuthorityURL(
+	ctx context.Context,
+	reader PortReader,
+) (string, error) {
 	targets, err := reader.Targets(ctx, dockerx.Filter{Project: ProjectName})
 	if err != nil {
 		return "", err
@@ -611,7 +735,10 @@ func (l Lab) AuthorityURL(ctx context.Context, reader PortReader) (string, error
 			return "", err
 		}
 
-		return "http://" + net.JoinHostPort(address, strconv.Itoa(GatewayInternalPort)), nil
+		return "http://" + net.JoinHostPort(
+			address,
+			strconv.Itoa(GatewayInternalPort),
+		), nil
 	}
 
 	return "", ErrNoRange
@@ -625,9 +752,16 @@ func (l Lab) AuthorityURL(ctx context.Context, reader PortReader) (string, error
 // gateway is unreachable, and binding that one address leaves the proxy dead on
 // loopback and dead on the host's LAN address. A wildcard bind would put a fault
 // proxy for a deliberately vulnerable stack on the operator's network.
-func (l Lab) ProxyEndpoint(ctx context.Context, reader PortReader) (string, string, error) {
+func (l Lab) ProxyEndpoint(
+	ctx context.Context,
+	reader PortReader,
+) (string, string, error) {
 	if l.ProxyPort == 0 {
-		return "", "", fmt.Errorf(errNoProxiedGateway, ErrRangeIncomplete, ProxiedGatewayName)
+		return "", "", fmt.Errorf(
+			errNoProxiedGateway,
+			ErrRangeIncomplete,
+			ProxiedGatewayName,
+		)
 	}
 
 	gatewayIP, err := reader.BridgeGateway(ctx)
@@ -659,6 +793,10 @@ func (l Lab) ProxyEndpoint(ctx context.Context, reader PortReader) (string, stri
 	return "", "", ErrNoRange
 }
 
-var ErrRangeIncomplete = errors.New("the running range is missing the part this experiment needs")
+var ErrRangeIncomplete = errors.New(
+	"the running range is missing the part this experiment needs",
+)
 
-var ErrNoRange = errors.New("no running khaos range was found; start one with `khaos range up`, or point khaos at your own stack instead")
+var ErrNoRange = errors.New(
+	"no running khaos range was found; start one with `khaos range up`, or point khaos at your own stack instead",
+)

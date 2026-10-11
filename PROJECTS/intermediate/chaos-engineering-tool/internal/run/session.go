@@ -26,9 +26,13 @@ const (
 	detailTakenAway  = "another process reverted this fault before this run finished with it"
 )
 
-var ErrFaultsTakenAway = errors.New("every fault this run was holding was reverted by something else, so the run no longer controls what it is measuring")
+var ErrFaultsTakenAway = errors.New(
+	"every fault this run was holding was reverted by something else, so the run no longer controls what it is measuring",
+)
 
-var ErrRevertFailed = errors.New("one or more faults could not be reverted; run `khaos reclaim` once the cause is fixed")
+var ErrRevertFailed = errors.New(
+	"one or more faults could not be reverted; run `khaos reclaim` once the cause is fixed",
+)
 
 type Progress func(record journal.Record, err error)
 
@@ -45,11 +49,20 @@ type Session struct {
 	mutations []journal.Record
 }
 
-func NewSession(env inject.Env, log *journal.Journal, ttl time.Duration) *Session {
+func NewSession(
+	env inject.Env,
+	log *journal.Journal,
+	ttl time.Duration,
+) *Session {
 	return newSessionWith(env, log, ttl, inject.Lookup)
 }
 
-func newSessionWith(env inject.Env, log *journal.Journal, ttl time.Duration, lookup Registry) *Session {
+func newSessionWith(
+	env inject.Env,
+	log *journal.Journal,
+	ttl time.Duration,
+	lookup Registry,
+) *Session {
 	return &Session{
 		env:    env,
 		log:    log,
@@ -78,7 +91,11 @@ func (s *Session) Lease() *lease.Lease {
 	return s.lease
 }
 
-func (s *Session) Inject(ctx context.Context, kind string, target dockerx.Target) error {
+func (s *Session) Inject(
+	ctx context.Context,
+	kind string,
+	target dockerx.Target,
+) error {
 	mutator, err := s.lookup(kind)
 	if err != nil {
 		return err
@@ -180,6 +197,10 @@ func (s *Session) RevertAll(ctx context.Context, progress Progress) error {
 	}
 
 	if firstErr != nil {
+		// ErrRevertFailed is what callers branch on, and khaos's exit policy
+		// ranks it above every other outcome. The first underlying failure is
+		// diagnostic text for the operator, not a second identity to match.
+		//nolint:errorlint // %v is deliberate
 		return fmt.Errorf("%w: %v", ErrRevertFailed, firstErr)
 	}
 
@@ -210,7 +231,10 @@ func (s *Session) remember(record journal.Record) {
 	s.mutations = append(s.mutations, record)
 }
 
-func (s *Session) renewable(expiry time.Time, stillOutstanding map[string]bool) ([]journal.Record, int) {
+func (s *Session) renewable(
+	expiry time.Time,
+	stillOutstanding map[string]bool,
+) ([]journal.Record, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -252,7 +276,12 @@ func (s *Session) outstanding() []journal.Record {
 	return out
 }
 
-func Revert(ctx context.Context, env inject.Env, log *journal.Journal, record journal.Record) error {
+func Revert(
+	ctx context.Context,
+	env inject.Env,
+	log *journal.Journal,
+	record journal.Record,
+) error {
 	return revertWith(ctx, env, log, record, inject.Lookup)
 }
 
@@ -287,7 +316,11 @@ func revertWith(
 	return log.Append(record)
 }
 
-func (s *Session) Confirm(ctx context.Context, kind string, target dockerx.Target) (string, error) {
+func (s *Session) Confirm(
+	ctx context.Context,
+	kind string,
+	target dockerx.Target,
+) (string, error) {
 	mutator, err := s.lookup(kind)
 	if err != nil {
 		return "", err

@@ -78,7 +78,10 @@ func NewHTTP(options HTTPOptions) *HTTPProbe {
 				// a probe that resumes passes against a certificate that has
 				// since expired. A nil cache is what actually disables it:
 				// crypto/tls only stores and loads sessions when one is set.
-				TLSClientConfig:   &tls.Config{ClientSessionCache: nil, MinVersion: tls.VersionTLS12},
+				TLSClientConfig: &tls.Config{
+					ClientSessionCache: nil,
+					MinVersion:         tls.VersionTLS12,
+				},
 				DisableKeepAlives: true,
 				// Setting TLSClientConfig disables automatic HTTP/2 unless this
 				// is set, and h2 connection reuse is itself a fail-open khaos
@@ -102,9 +105,19 @@ func (p *HTTPProbe) Credential() Credential {
 
 func (p *HTTPProbe) Describe() string {
 	if p.options.Mint != nil {
-		return fmt.Sprintf(describeHTTPMint, p.options.Method, p.options.URL, p.options.Credential)
+		return fmt.Sprintf(
+			describeHTTPMint,
+			p.options.Method,
+			p.options.URL,
+			p.options.Credential,
+		)
 	}
-	return fmt.Sprintf(describeHTTP, p.options.Method, p.options.URL, p.options.Credential)
+	return fmt.Sprintf(
+		describeHTTP,
+		p.options.Method,
+		p.options.URL,
+		p.options.Credential,
+	)
 }
 
 func (p *HTTPProbe) Run(ctx context.Context) Outcome {
@@ -116,7 +129,12 @@ func (p *HTTPProbe) Run(ctx context.Context) Outcome {
 		Disposition: Unknown,
 	}
 
-	request, err := http.NewRequestWithContext(ctx, p.options.Method, p.options.URL, nil)
+	request, err := http.NewRequestWithContext(
+		ctx,
+		p.options.Method,
+		p.options.URL,
+		nil,
+	)
 	if err != nil {
 		outcome.Disposition = ProbeFailed
 		outcome.Detail = fmt.Sprintf(detailError, err)
@@ -179,7 +197,8 @@ func (p *HTTPProbe) credential(ctx context.Context) (string, error) {
 }
 
 func transportDisposition(err error) Disposition {
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, os.ErrDeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, os.ErrDeadlineExceeded) {
 		return TimedOut
 	}
 	if errors.Is(err, context.Canceled) {

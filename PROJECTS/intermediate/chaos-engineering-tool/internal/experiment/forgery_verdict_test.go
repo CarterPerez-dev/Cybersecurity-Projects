@@ -17,32 +17,64 @@ const forgedDefectPhrase = "no signature at all and a header saying so"
 // enough times to clear every sample floor. Streams given no disposition are
 // left absent, which is how an experiment that declares no forged or revoked
 // stream looks.
-func window(valid, invalid, forged, revoked probe.Disposition, n int) probe.Window {
+func window(
+	valid, invalid, forged, revoked probe.Disposition,
+	n int,
+) probe.Window {
 	out := probe.Window{}
 
 	for range n {
 		at := time.Now().UTC()
 
-		out.Record(probe.Outcome{At: at, Credential: probe.Valid, Disposition: valid})
-		out.Record(probe.Outcome{At: at, Credential: probe.Invalid, Disposition: invalid})
+		out.Record(
+			probe.Outcome{At: at, Credential: probe.Valid, Disposition: valid},
+		)
+		out.Record(
+			probe.Outcome{
+				At:          at,
+				Credential:  probe.Invalid,
+				Disposition: invalid,
+			},
+		)
 
 		if forged != "" {
-			out.Record(probe.Outcome{At: at, Credential: probe.Forged, Disposition: forged})
+			out.Record(
+				probe.Outcome{
+					At:          at,
+					Credential:  probe.Forged,
+					Disposition: forged,
+				},
+			)
 		}
 
 		if revoked != "" {
-			out.Record(probe.Outcome{At: at, Credential: probe.Revoked, Disposition: revoked})
+			out.Record(
+				probe.Outcome{
+					At:          at,
+					Credential:  probe.Revoked,
+					Disposition: revoked,
+				},
+			)
 		}
 	}
 
 	return out
 }
 
-func forgeryObservation(baseline, fault probe.Window, expect probe.Expectation) Observation {
+func forgeryObservation(
+	baseline, fault probe.Window,
+	expect probe.Expectation,
+) Observation {
 	return Observation{
-		Baseline:       baseline,
-		Fault:          fault,
-		Recovery:       window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumPaired),
+		Baseline: baseline,
+		Fault:    fault,
+		Recovery: window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Rejected,
+			"",
+			MinimumPaired,
+		),
 		FaultConfirmed: true,
 		ConfirmMethod:  "khaos read its own forged token back off the provider",
 		ForgedBaseline: expect,
@@ -56,7 +88,13 @@ func forgeryObservation(baseline, fault probe.Window, expect probe.Expectation) 
 // read the malformed token back off its own provider.
 func TestOneAcceptedForgedCredentialIsAConclusiveFinding(t *testing.T) {
 	observation := forgeryObservation(
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumPaired),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
 		window(probe.Accepted, probe.Rejected, probe.Accepted, "", 1),
 		probe.ExpectAccepted,
 	)
@@ -74,13 +112,18 @@ func TestOneAcceptedForgedCredentialIsAConclusiveFinding(t *testing.T) {
 	}
 
 	if !verdict.Defect {
-		t.Fatal("the identity tier declares PERMITTED a defect and this verdict did not")
+		t.Fatal(
+			"the identity tier declares PERMITTED a defect and this verdict did not",
+		)
 	}
 
 	joined := strings.Join(verdict.Reasons, "; ")
 
 	if !strings.Contains(joined, forgedDefectPhrase) {
-		t.Fatalf("the verdict does not name what was wrong with the credential: %s", joined)
+		t.Fatalf(
+			"the verdict does not name what was wrong with the credential: %s",
+			joined,
+		)
 	}
 
 	// The evidence claim lives in the per-trap CONFIRM line, not in this reason.
@@ -89,8 +132,10 @@ func TestOneAcceptedForgedCredentialIsAConclusiveFinding(t *testing.T) {
 	// `identity.jwks_unreachable`, whose confirmed observable is the key set
 	// answering non-200 and which never inspects the credential at all.
 	if observation.ConfirmMethod == "" {
-		t.Fatal("the run records no confirmation method, so nothing says how khaos established " +
-			"the credential was defective before presenting it")
+		t.Fatal(
+			"the run records no confirmation method, so nothing says how khaos established " +
+				"the credential was defective before presenting it",
+		)
 	}
 }
 
@@ -98,8 +143,20 @@ func TestOneAcceptedForgedCredentialIsAConclusiveFinding(t *testing.T) {
 // and it must not read as a finding.
 func TestAForgedCredentialRefusedThroughoutIsAPass(t *testing.T) {
 	observation := forgeryObservation(
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumToClaimClosed),
-		window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumToClaimClosed),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumToClaimClosed,
+		),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Rejected,
+			"",
+			MinimumToClaimClosed,
+		),
 		probe.ExpectAccepted,
 	)
 
@@ -112,7 +169,9 @@ func TestAForgedCredentialRefusedThroughoutIsAPass(t *testing.T) {
 	}
 
 	if verdict.Defect {
-		t.Fatal("a target that refused every forged credential was reported as defective")
+		t.Fatal(
+			"a target that refused every forged credential was reported as defective",
+		)
 	}
 }
 
@@ -125,23 +184,44 @@ func TestATargetThatNeverTrustedKhaosProviderVoidsTheRun(t *testing.T) {
 		// Note the valid stream IS accepted: the target is serving, enforcing,
 		// and simply refusing khaos's issuer. That is exactly the case a naive
 		// baseline check passes.
-		window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumToClaimClosed),
-		window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumToClaimClosed),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Rejected,
+			"",
+			MinimumToClaimClosed,
+		),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Rejected,
+			"",
+			MinimumToClaimClosed,
+		),
 		probe.ExpectAccepted,
 	)
 
 	verdict := Judge(observation, idpPolarity)
 
 	if verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s, want %s (%s)", verdict.Epistemic, BaselineNotMet,
-			strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"epistemic = %s, want %s (%s)",
+			verdict.Epistemic,
+			BaselineNotMet,
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
 	if verdict.Conclusive {
-		t.Fatal("a run that never established the target trusts khaos's provider was conclusive")
+		t.Fatal(
+			"a run that never established the target trusts khaos's provider was conclusive",
+		)
 	}
 
-	if !strings.Contains(strings.Join(verdict.Reasons, "; "), "resolves keys from the issuer") {
+	if !strings.Contains(
+		strings.Join(verdict.Reasons, "; "),
+		"resolves keys from the issuer",
+	) {
 		t.Fatalf("the refusal does not tell the operator what to check: %s",
 			strings.Join(verdict.Reasons, "; "))
 	}
@@ -152,19 +232,38 @@ func TestATargetThatNeverTrustedKhaosProviderVoidsTheRun(t *testing.T) {
 // its acceptance during the fault proves nothing changed.
 func TestATargetThatNeverCheckedTheForgedCredentialVoidsTheRun(t *testing.T) {
 	observation := forgeryObservation(
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumToClaimClosed),
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumToClaimClosed),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumToClaimClosed,
+		),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumToClaimClosed,
+		),
 		probe.ExpectRejected,
 	)
 
 	verdict := Judge(observation, idpPolarity)
 
 	if verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s, want %s (%s)", verdict.Epistemic, BaselineNotMet,
-			strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"epistemic = %s, want %s (%s)",
+			verdict.Epistemic,
+			BaselineNotMet,
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
-	if !strings.Contains(strings.Join(verdict.Reasons, "; "), "not checking the property") {
+	if !strings.Contains(
+		strings.Join(verdict.Reasons, "; "),
+		"not checking the property",
+	) {
 		t.Fatalf("the refusal does not say what was never established: %s",
 			strings.Join(verdict.Reasons, "; "))
 	}
@@ -174,15 +273,39 @@ func TestATargetThatNeverCheckedTheForgedCredentialVoidsTheRun(t *testing.T) {
 // the other's expectation. A guard that fired on both would void every run in
 // the family.
 func TestTheTwoForgedGuardsDoNotFireOnEachOthersExpectation(t *testing.T) {
-	acceptedThroughout := window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumToClaimClosed)
-	rejectedThroughout := window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumToClaimClosed)
+	acceptedThroughout := window(
+		probe.Accepted,
+		probe.Rejected,
+		probe.Accepted,
+		"",
+		MinimumToClaimClosed,
+	)
+	rejectedThroughout := window(
+		probe.Accepted,
+		probe.Rejected,
+		probe.Rejected,
+		"",
+		MinimumToClaimClosed,
+	)
 
-	if _, unmet := baselineUnmet(acceptedThroughout, probe.ExpectAccepted, true); unmet {
-		t.Error("ExpectAccepted voided a baseline where the forged stream WAS accepted")
+	if _, unmet := baselineUnmet(
+		acceptedThroughout,
+		probe.ExpectAccepted,
+		true,
+	); unmet {
+		t.Error(
+			"ExpectAccepted voided a baseline where the forged stream WAS accepted",
+		)
 	}
 
-	if _, unmet := baselineUnmet(rejectedThroughout, probe.ExpectRejected, true); unmet {
-		t.Error("ExpectRejected voided a baseline where the forged stream WAS rejected")
+	if _, unmet := baselineUnmet(
+		rejectedThroughout,
+		probe.ExpectRejected,
+		true,
+	); unmet {
+		t.Error(
+			"ExpectRejected voided a baseline where the forged stream WAS rejected",
+		)
 	}
 }
 
@@ -194,7 +317,10 @@ func TestAnAbsentForgedStreamIsNotGuarded(t *testing.T) {
 
 	for _, expect := range []probe.Expectation{"", probe.ExpectAccepted, probe.ExpectRejected} {
 		if _, unmet := baselineUnmet(bare, expect, true); unmet {
-			t.Errorf("a baseline with no forged stream was voided under expectation %q", expect)
+			t.Errorf(
+				"a baseline with no forged stream was voided under expectation %q",
+				expect,
+			)
 		}
 	}
 }
@@ -204,8 +330,20 @@ func TestAnAbsentForgedStreamIsNotGuarded(t *testing.T) {
 // other from a run where both were true.
 func TestEveryStreamThatLeakedIsStated(t *testing.T) {
 	observation := forgeryObservation(
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumPaired),
-		window(probe.Accepted, probe.Accepted, probe.Accepted, "", MinimumPaired),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
+		window(
+			probe.Accepted,
+			probe.Accepted,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
 		probe.ExpectAccepted,
 	)
 
@@ -225,15 +363,31 @@ func TestEveryStreamThatLeakedIsStated(t *testing.T) {
 // The idleness discriminator is for CACHING causes. A forged credential getting
 // through is not a caching bug, so a forgery experiment must not spend a minute
 // of the operator's run pausing traffic to diagnose one.
-func TestAForgedFindingAloneDoesNotAskForTheIdlenessDiscriminator(t *testing.T) {
+func TestAForgedFindingAloneDoesNotAskForTheIdlenessDiscriminator(
+	t *testing.T,
+) {
 	observation := forgeryObservation(
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumPaired),
-		window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumPaired),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
 		probe.ExpectAccepted,
 	)
 
 	if !Leaking(observation) {
-		t.Fatal("a proven forged bypass did not register as a leak, so no cause would ever be diagnosed")
+		t.Fatal(
+			"a proven forged bypass did not register as a leak, so no cause would ever be diagnosed",
+		)
 	}
 
 	verdict := Judge(observation, idpPolarity)
@@ -241,7 +395,11 @@ func TestAForgedFindingAloneDoesNotAskForTheIdlenessDiscriminator(t *testing.T) 
 	// Nothing resumed, because no forgery experiment sets IdleFor, so the cause
 	// stays honestly UNDIAGNOSED rather than being guessed.
 	if verdict.Cause != Undiagnosed {
-		t.Fatalf("cause = %s, want %s on a run with no idleness phase", verdict.Cause, Undiagnosed)
+		t.Fatalf(
+			"cause = %s, want %s on a run with no idleness phase",
+			verdict.Cause,
+			Undiagnosed,
+		)
 	}
 }
 
@@ -253,37 +411,62 @@ func TestAForgedFindingAloneDoesNotAskForTheIdlenessDiscriminator(t *testing.T) 
 // Measured against the range's forever-cache gateway: a second consecutive run
 // could not establish a baseline, and nothing in the output said why.
 func TestTheIdentityTierSaysWhyItsOwnCredentialWasRefused(t *testing.T) {
-	refused := window(probe.Rejected, probe.Rejected, "", "", MinimumToClaimClosed)
+	refused := window(
+		probe.Rejected,
+		probe.Rejected,
+		"",
+		"",
+		MinimumToClaimClosed,
+	)
 
 	minted, unmet := baselineUnmet(refused, "", true)
 	if !unmet {
-		t.Fatal("a baseline where khaos's own credential was never accepted was not voided")
+		t.Fatal(
+			"a baseline where khaos's own credential was never accepted was not voided",
+		)
 	}
 
 	operator, unmet := baselineUnmet(refused, "", false)
 	if !unmet {
-		t.Fatal("a baseline where the operator's credential was never accepted was not voided")
+		t.Fatal(
+			"a baseline where the operator's credential was never accepted was not voided",
+		)
 	}
 
 	if minted == operator {
-		t.Fatal("the identity tier and the operator-supplied tier give the same refusal, so the " +
-			"one case where the generic wording is misleading reads identically")
+		t.Fatal(
+			"the identity tier and the operator-supplied tier give the same refusal, so the " +
+				"one case where the generic wording is misleading reads identically",
+		)
 	}
 
 	for _, want := range []string{"key set", "fresh key set every run", "Restart the target"} {
 		if !strings.Contains(minted, want) {
-			t.Errorf("the identity tier's refusal does not mention %q: %s", want, minted)
+			t.Errorf(
+				"the identity tier's refusal does not mention %q: %s",
+				want,
+				minted,
+			)
 		}
 	}
 
 	if strings.Contains(minted, "was not serving") {
-		t.Errorf("the identity tier's refusal still claims the target was not serving: %s", minted)
+		t.Errorf(
+			"the identity tier's refusal still claims the target was not serving: %s",
+			minted,
+		)
 	}
 }
 
 // Recovery is three-valued, and "not observed" is the state that used to lie.
 func TestRecoveryDistinguishesUnobservedFromRecovered(t *testing.T) {
-	healthy := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
+	healthy := window(
+		probe.Accepted,
+		probe.Rejected,
+		"",
+		"",
+		MinimumToClaimClosed,
+	)
 
 	cases := []struct {
 		name     string
@@ -292,7 +475,11 @@ func TestRecoveryDistinguishesUnobservedFromRecovered(t *testing.T) {
 	}{
 		{"healthy run of pairs", healthy, Recovered},
 		{"no evidence at all", probe.Window{}, Unobserved},
-		{"measured and still broken", window(probe.Rejected, probe.Rejected, "", "", MinimumPaired), Degraded},
+		{
+			"measured and still broken",
+			window(probe.Rejected, probe.Rejected, "", "", MinimumPaired),
+			Degraded,
+		},
 	}
 
 	for _, each := range cases {
@@ -307,8 +494,12 @@ func TestRecoveryDistinguishesUnobservedFromRecovered(t *testing.T) {
 			verdict := Judge(observation, idpPolarity)
 
 			if verdict.Recovery != each.want {
-				t.Fatalf("recovery = %q, want %q (%s)", verdict.Recovery, each.want,
-					strings.Join(verdict.Reasons, "; "))
+				t.Fatalf(
+					"recovery = %q, want %q (%s)",
+					verdict.Recovery,
+					each.want,
+					strings.Join(verdict.Reasons, "; "),
+				)
 			}
 		})
 	}
@@ -316,7 +507,13 @@ func TestRecoveryDistinguishesUnobservedFromRecovered(t *testing.T) {
 
 // An unobserved recovery must say so rather than pass silently.
 func TestAnUnobservedRecoveryIsWarnedAboutRatherThanAssumed(t *testing.T) {
-	healthy := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
+	healthy := window(
+		probe.Accepted,
+		probe.Rejected,
+		"",
+		"",
+		MinimumToClaimClosed,
+	)
 
 	verdict := Judge(Observation{
 		Baseline:       healthy,
@@ -347,19 +544,43 @@ func TestAnUnobservedRecoveryIsWarnedAboutRatherThanAssumed(t *testing.T) {
 // while every forged probe failed, and the run reported that the target refused
 // a credential it was never successfully shown.
 func TestARequiredForgedStreamWithNoDecisionsCannotReportHeld(t *testing.T) {
-	baseline := window(probe.Accepted, probe.Rejected, probe.Accepted, "", MinimumToClaimClosed)
+	baseline := window(
+		probe.Accepted,
+		probe.Rejected,
+		probe.Accepted,
+		"",
+		MinimumToClaimClosed,
+	)
 
 	fault := probe.Window{}
 	for range MinimumToClaimClosed {
-		fault.Record(probe.Outcome{Credential: probe.Valid, Disposition: probe.Accepted})
-		fault.Record(probe.Outcome{Credential: probe.Invalid, Disposition: probe.Rejected})
-		fault.Record(probe.Outcome{Credential: probe.Forged, Disposition: probe.ProbeFailed})
+		fault.Record(
+			probe.Outcome{Credential: probe.Valid, Disposition: probe.Accepted},
+		)
+		fault.Record(
+			probe.Outcome{
+				Credential:  probe.Invalid,
+				Disposition: probe.Rejected,
+			},
+		)
+		fault.Record(
+			probe.Outcome{
+				Credential:  probe.Forged,
+				Disposition: probe.ProbeFailed,
+			},
+		)
 	}
 
 	observation := Observation{
-		Baseline:       baseline,
-		Fault:          fault,
-		Recovery:       window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed),
+		Baseline: baseline,
+		Fault:    fault,
+		Recovery: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			"",
+			MinimumToClaimClosed,
+		),
 		FaultConfirmed: true,
 		ForgedBaseline: probe.ExpectAccepted,
 	}
@@ -367,8 +588,10 @@ func TestARequiredForgedStreamWithNoDecisionsCannotReportHeld(t *testing.T) {
 	verdict := Judge(observation, idpPolarity)
 
 	if verdict.Epistemic == Passed {
-		t.Fatalf("a run where every forged probe failed reported a clean survival (%s)",
-			strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"a run where every forged probe failed reported a clean survival (%s)",
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
 	if verdict.Epistemic != ProbeError {
@@ -377,7 +600,13 @@ func TestARequiredForgedStreamWithNoDecisionsCannotReportHeld(t *testing.T) {
 
 	// The control: the same run with real decisions on that stream judges
 	// normally, or this guard would have deleted the clean-result path.
-	decided := window(probe.Accepted, probe.Rejected, probe.Rejected, "", MinimumToClaimClosed)
+	decided := window(
+		probe.Accepted,
+		probe.Rejected,
+		probe.Rejected,
+		"",
+		MinimumToClaimClosed,
+	)
 	observation.Fault = decided
 
 	if verdict := Judge(observation, idpPolarity); verdict.Epistemic != Passed {

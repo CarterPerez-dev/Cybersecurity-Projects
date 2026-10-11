@@ -23,7 +23,9 @@ import (
 // It stays in the reference implementation anyway, because it is normative and
 // because this is the file readers copy. This test is what stops it being a
 // branch nothing runs.
-func TestKeyAlgorithmCrossCheckRefusesAHeaderThatDisagreesWithTheKey(t *testing.T) {
+func TestKeyAlgorithmCrossCheckRefusesAHeaderThatDisagreesWithTheKey(
+	t *testing.T,
+) {
 	provider, v := pair(t, verifier.Correct)
 
 	honest, err := provider.HonestToken()
@@ -44,7 +46,9 @@ func TestKeyAlgorithmCrossCheckRefusesAHeaderThatDisagreesWithTheKey(t *testing.
 	// header is the mismatch the rule forbids.
 	ec, ok := signingKidFor(provider, string(idp.ES256))
 	if !ok {
-		t.Fatal("khaos's provider publishes no ES256 key, so this mismatch is not expressible")
+		t.Fatal(
+			"khaos's provider publishes no ES256 key, so this mismatch is not expressible",
+		)
 	}
 
 	mismatched := idp.Retarget(token, ec)
@@ -124,8 +128,11 @@ func TestAKeyNotMarkedForSigningIsRefused(t *testing.T) {
 	})
 
 	if decision := loose.Decide(honest); !decision.Allow {
-		t.Fatalf("the same token was refused against the real key set, so the test above proves "+
-			"nothing about `use`: %s", decision.Reason)
+		t.Fatalf(
+			"the same token was refused against the real key set, so the test above proves "+
+				"nothing about `use`: %s",
+			decision.Reason,
+		)
 	}
 }
 
@@ -159,14 +166,19 @@ func TestTheDecisionCacheExpiresInCorrectMode(t *testing.T) {
 		t.Fatalf("an active credential was refused: %s", decision.Reason)
 	}
 
-	if err := provider.Arm(idp.Trap{Kind: idp.Revoke, Credential: credential}); err != nil {
+	if err := provider.Arm(
+		idp.Trap{Kind: idp.Revoke, Credential: credential},
+	); err != nil {
 		t.Fatalf("revoke: %v", err)
 	}
 
 	time.Sleep(decisionTTL * 3)
 
 	if decision := v.Decide(credential); decision.Allow {
-		t.Fatalf("a revoked credential was still honoured after the cache lifetime: %s", decision.Reason)
+		t.Fatalf(
+			"a revoked credential was still honoured after the cache lifetime: %s",
+			decision.Reason,
+		)
 	}
 }
 
@@ -198,11 +210,16 @@ func TestAnUnknownKidTriggersARefetch(t *testing.T) {
 	}
 
 	if decision := v.Decide(rotated); !decision.Allow {
-		t.Fatalf("a correctly signed token under a published new key was refused: %s", decision.Reason)
+		t.Fatalf(
+			"a correctly signed token under a published new key was refused: %s",
+			decision.Reason,
+		)
 	}
 
 	if provider.JWKSFetches() <= before {
-		t.Fatal("the verifier accepted a token under an unseen kid without refetching the key set")
+		t.Fatal(
+			"the verifier accepted a token under an unseen kid without refetching the key set",
+		)
 	}
 }
 
@@ -251,7 +268,9 @@ func TestATokenWithNoExpiryIsRefused(t *testing.T) {
 	decision := v.Decide(stripped)
 
 	if decision.Allow {
-		t.Fatal("a token carrying no `exp` was accepted, so nothing can ever revoke it")
+		t.Fatal(
+			"a token carrying no `exp` was accepted, so nothing can ever revoke it",
+		)
 	}
 
 	if !containsText(decision.Reason, "no `exp`") {
@@ -275,12 +294,19 @@ func TestATokenOfTheWrongTypeIsRefused(t *testing.T) {
 		decision := v.Decide(retyped)
 
 		if decision.Allow {
-			t.Errorf("a token with typ %q was accepted where an access token belongs", typ)
+			t.Errorf(
+				"a token with typ %q was accepted where an access token belongs",
+				typ,
+			)
 			continue
 		}
 
 		if !containsText(decision.Reason, "typ") {
-			t.Errorf("typ %q was refused for the wrong reason: %s", typ, decision.Reason)
+			t.Errorf(
+				"typ %q was refused for the wrong reason: %s",
+				typ,
+				decision.Reason,
+			)
 		}
 	}
 
@@ -292,7 +318,10 @@ func TestATokenOfTheWrongTypeIsRefused(t *testing.T) {
 	}
 
 	if decision := v.Decide(honest); !decision.Allow {
-		t.Fatalf("the explicit-typing check refuses khaos's own correct token: %s", decision.Reason)
+		t.Fatalf(
+			"the explicit-typing check refuses khaos's own correct token: %s",
+			decision.Reason,
+		)
 	}
 }
 
@@ -323,14 +352,20 @@ func TestUnknownKidsDoNotAmplifyIntoOneFetchEach(t *testing.T) {
 	before := provider.JWKSFetches()
 
 	for i := range attempts {
-		_ = v.Decide(idp.Retarget(token, "attacker-chosen-kid-"+strconv.Itoa(i)))
+		_ = v.Decide(
+			idp.Retarget(token, "attacker-chosen-kid-"+strconv.Itoa(i)),
+		)
 	}
 
 	fetches := provider.JWKSFetches() - before
 
 	if fetches >= attempts {
-		t.Fatalf("%d requests carrying unknown kids caused %d upstream fetches; an "+
-			"attacker-controlled header field must not be a one-to-one amplifier", attempts, fetches)
+		t.Fatalf(
+			"%d requests carrying unknown kids caused %d upstream fetches; an "+
+				"attacker-controlled header field must not be a one-to-one amplifier",
+			attempts,
+			fetches,
+		)
 	}
 
 	// The control. Bounding the refetch must not stop a legitimate rotation being
@@ -364,9 +399,12 @@ func TestUnknownKidsDoNotAmplifyIntoOneFetchEach(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	t.Fatalf("a correctly signed token under a newly published key was still refused after %s, "+
-		"so the amplifier fix turned a routine rotation into an outage: %s",
-		rotationPickupBudget, last)
+	t.Fatalf(
+		"a correctly signed token under a newly published key was still refused after %s, "+
+			"so the amplifier fix turned a routine rotation into an outage: %s",
+		rotationPickupBudget,
+		last,
+	)
 }
 
 // How long a legitimate rotation may take to be picked up after an unknown-kid

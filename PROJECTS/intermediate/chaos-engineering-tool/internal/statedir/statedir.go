@@ -20,7 +20,9 @@ const (
 	lockName    = "khaos.lock"
 )
 
-var ErrUnresolvable = errors.New("no state directory could be resolved: set " + EnvStateDir + " or " + EnvXDGState)
+var ErrUnresolvable = errors.New(
+	"no state directory could be resolved: set " + EnvStateDir + " or " + EnvXDGState,
+)
 
 type Paths struct {
 	Root string

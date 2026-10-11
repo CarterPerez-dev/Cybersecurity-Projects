@@ -141,6 +141,9 @@ jobs:
           - name: monitor-the-situation-dashboard-backend
             type: go
             path: PROJECTS/advanced/monitor-the-situation-dashboard/backend
+          - name: chaos-engineering-tool
+            type: go
+            path: PROJECTS/intermediate/chaos-engineering-tool
           # Nim
           - name: credential-enumeration
             type: nim

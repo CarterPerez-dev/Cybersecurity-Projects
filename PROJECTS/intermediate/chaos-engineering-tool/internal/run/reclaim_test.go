@@ -36,7 +36,10 @@ func TestASweepWillNotSettleAFaultFromAnotherDaemon(t *testing.T) {
 
 	for _, each := range cases {
 		t.Run(each.name, func(t *testing.T) {
-			err := daemonMismatch(journal.Record{Daemon: each.recorded, TargetID: "abc"}, each.here)
+			err := daemonMismatch(
+				journal.Record{Daemon: each.recorded, TargetID: "abc"},
+				each.here,
+			)
 
 			if (err != nil) != each.refuse {
 				t.Fatalf("recorded=%q here=%q refused=%v, want %v (%v)",
@@ -66,6 +69,8 @@ func TestASweepWillNotSettleAFaultFromAnotherDaemon(t *testing.T) {
 	// The ambiguous cases deliberately do NOT refuse, so without this the whole
 	// table could pass with a function that never refuses anything.
 	if refusals == 0 {
-		t.Fatal("no case refused, so this table cannot detect a check that always allows")
+		t.Fatal(
+			"no case refused, so this table cannot detect a check that always allows",
+		)
 	}
 }

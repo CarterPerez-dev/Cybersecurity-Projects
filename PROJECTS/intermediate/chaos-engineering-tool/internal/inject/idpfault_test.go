@@ -56,7 +56,11 @@ func TestEveryIdentityTrapAppliesConfirmsAndReverts(t *testing.T) {
 	}
 
 	if registered != len(all) {
-		t.Fatalf("this test covers %d identity traps but %d are registered", len(all), registered)
+		t.Fatalf(
+			"this test covers %d identity traps but %d are registered",
+			len(all),
+			registered,
+		)
 	}
 
 	ctx := context.Background()
@@ -71,7 +75,13 @@ func TestEveryIdentityTrapAppliesConfirmsAndReverts(t *testing.T) {
 				t.Fatalf("lookup: %v", err)
 			}
 
-			if describe := mutator.Describe(env, target); !strings.Contains(describe, target.Name) {
+			if describe := mutator.Describe(
+				env,
+				target,
+			); !strings.Contains(
+				describe,
+				target.Name,
+			) {
 				t.Errorf("the plan line does not name the target: %s", describe)
 			}
 
@@ -86,11 +96,18 @@ func TestEveryIdentityTrapAppliesConfirmsAndReverts(t *testing.T) {
 
 			observable, confirmed, err := mutator.Confirm(ctx, env, target)
 			if err != nil || !confirmed {
-				t.Fatalf("confirm said %v (%v) with %s armed", confirmed, err, trap.Kind)
+				t.Fatalf(
+					"confirm said %v (%v) with %s armed",
+					confirmed,
+					err,
+					trap.Kind,
+				)
 			}
 
 			if observable == "" {
-				t.Fatal("confirmed with no observable, so the run record would carry no evidence")
+				t.Fatal(
+					"confirmed with no observable, so the run record would carry no evidence",
+				)
 			}
 
 			if err := mutator.Revert(ctx, env, journal.Record{}); err != nil {
@@ -118,7 +135,11 @@ func TestTheJournalledTrapRoundTrips(t *testing.T) {
 			t.Fatalf("lookup %s: %v", trap.Kind, err)
 		}
 
-		payload, err := mutator.Plan(context.Background(), env, dockerx.Target{})
+		payload, err := mutator.Plan(
+			context.Background(),
+			env,
+			dockerx.Target{},
+		)
 		if err != nil {
 			t.Fatalf("plan %s: %v", trap.Kind, err)
 		}
@@ -130,8 +151,14 @@ func TestTheJournalledTrapRoundTrips(t *testing.T) {
 			t.Fatalf("decode %s: %v", trap.Kind, err)
 		}
 
-		if back.Kind != trap.Kind || back.Delay != trap.Delay || back.KeyForm != trap.KeyForm {
-			t.Errorf("%s did not round-trip: got %+v want %+v", trap.Kind, back, trap)
+		if back.Kind != trap.Kind || back.Delay != trap.Delay ||
+			back.KeyForm != trap.KeyForm {
+			t.Errorf(
+				"%s did not round-trip: got %+v want %+v",
+				trap.Kind,
+				back,
+				trap,
+			)
 		}
 	}
 }
@@ -144,15 +171,29 @@ func TestApplyingAnIdentityTrapWithNoProviderIsRefused(t *testing.T) {
 		t.Fatalf("lookup: %v", err)
 	}
 
-	if _, err := mutator.Plan(context.Background(), Env{}, dockerx.Target{}); err == nil {
+	if _, err := mutator.Plan(
+		context.Background(),
+		Env{},
+		dockerx.Target{},
+	); err == nil {
 		t.Fatal("planning an identity trap with no provider succeeded")
 	}
 
-	if err := mutator.Apply(context.Background(), Env{}, dockerx.Target{}, nil); err == nil {
+	if err := mutator.Apply(
+		context.Background(),
+		Env{},
+		dockerx.Target{},
+		nil,
+	); err == nil {
 		t.Fatal("applying an identity trap with no provider succeeded")
 	}
 
-	if _, confirmed, err := mutator.Confirm(context.Background(), Env{}, dockerx.Target{}); confirmed || err == nil {
+	if _, confirmed, err := mutator.Confirm(
+		context.Background(),
+		Env{},
+		dockerx.Target{},
+	); confirmed ||
+		err == nil {
 		t.Fatal("confirming an identity trap with no provider succeeded")
 	}
 }
@@ -167,7 +208,11 @@ func TestRevertingWithoutAProviderIsResolvedRatherThanFailed(t *testing.T) {
 		t.Fatalf("lookup: %v", err)
 	}
 
-	if err := mutator.Revert(context.Background(), Env{}, journal.Record{}); err != nil {
+	if err := mutator.Revert(
+		context.Background(),
+		Env{},
+		journal.Record{},
+	); err != nil {
 		t.Fatalf("revert on a cold start returned %v; it must resolve", err)
 	}
 }
@@ -185,8 +230,14 @@ func TestAMutationRefusesATrapTheRunDidNotArm(t *testing.T) {
 
 	env := Env{IdP: provider, IdPTrap: idp.Trap{Kind: idp.SignatureTruncated}}
 
-	if _, err := mutator.Plan(context.Background(), Env(env), dockerx.Target{}); err == nil {
-		t.Fatal("a run holding signature-truncated planned an alg-none mutation")
+	if _, err := mutator.Plan(
+		context.Background(),
+		env,
+		dockerx.Target{},
+	); err == nil {
+		t.Fatal(
+			"a run holding signature-truncated planned an alg-none mutation",
+		)
 	}
 }
 
@@ -206,8 +257,14 @@ func TestRevokeResolvesItsCredentialAtInjectTime(t *testing.T) {
 
 	bare := Env{IdP: fresh, IdPTrap: idp.Trap{Kind: idp.Revoke}}
 
-	if _, err := mutator.Plan(context.Background(), bare, dockerx.Target{}); err == nil {
-		t.Fatal("planning a revocation succeeded before any credential was issued")
+	if _, err := mutator.Plan(
+		context.Background(),
+		bare,
+		dockerx.Target{},
+	); err == nil {
+		t.Fatal(
+			"planning a revocation succeeded before any credential was issued",
+		)
 	}
 
 	credential := fresh.Revocable()
@@ -218,13 +275,18 @@ func TestRevokeResolvesItsCredentialAtInjectTime(t *testing.T) {
 	}
 
 	var resolved idp.Trap
-	if err := (journal.Record{Payload: payload}).DecodePayload(&resolved); err != nil {
+	if err := (journal.Record{Payload: payload}).DecodePayload(
+		&resolved,
+	); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 
 	if resolved.Credential != credential {
-		t.Fatalf("the journalled trap revokes %q, want the credential the probe issued, %q",
-			resolved.Credential, credential)
+		t.Fatalf(
+			"the journalled trap revokes %q, want the credential the probe issued, %q",
+			resolved.Credential,
+			credential,
+		)
 	}
 }
 

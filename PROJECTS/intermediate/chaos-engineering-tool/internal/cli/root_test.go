@@ -24,7 +24,9 @@ func TestFreshTreeDoesNotInheritFlagState(t *testing.T) {
 		t.Fatalf("first execute: %v", err)
 	}
 
-	if set, err := first.PersistentFlags().GetBool(FlagNoColor); err != nil || !set {
+	if set, err := first.PersistentFlags().
+		GetBool(FlagNoColor); err != nil ||
+		!set {
 		t.Fatalf("first tree did not record the flag (set=%v err=%v)", set, err)
 	}
 
@@ -42,7 +44,9 @@ func TestFreshTreeDoesNotInheritFlagState(t *testing.T) {
 	}
 
 	if set {
-		t.Fatal("a freshly built tree inherited --no-color from a previous invocation")
+		t.Fatal(
+			"a freshly built tree inherited --no-color from a previous invocation",
+		)
 	}
 }
 
@@ -66,22 +70,30 @@ func TestSharedTreeLeaksFlagState(t *testing.T) {
 	}
 
 	if !set {
-		t.Fatal("cobra no longer leaks flag state across invocations on a shared tree, " +
-			"which means TestFreshTreeDoesNotInheritFlagState proves nothing and the " +
-			"factory may no longer be load bearing")
+		t.Fatal(
+			"cobra no longer leaks flag state across invocations on a shared tree, " +
+				"which means TestFreshTreeDoesNotInheritFlagState proves nothing and the " +
+				"factory may no longer be load bearing",
+		)
 	}
 }
 
 func TestEveryCommandRejectsStrayArguments(t *testing.T) {
 	registered := NewRoot().Commands()
 	if len(registered) < 4 {
-		t.Fatalf("only %d commands registered; this test is named 'every' and must cover them all", len(registered))
+		t.Fatalf(
+			"only %d commands registered; this test is named 'every' and must cover them all",
+			len(registered),
+		)
 	}
 
 	for _, cmd := range registered {
 		name := cmd.Name()
 		if cmd.Args == nil {
-			t.Fatalf("%s declares no Args validator, so it silently accepts stray positional arguments", name)
+			t.Fatalf(
+				"%s declares no Args validator, so it silently accepts stray positional arguments",
+				name,
+			)
 		}
 	}
 

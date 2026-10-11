@@ -12,14 +12,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/rangelab"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/verifier"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
+	"github.com/spf13/cobra"
 )
 
 var ErrUnknownFailMode = errors.New("the range has no such fail mode")
@@ -108,7 +107,14 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runRangeUp(cmd.Context(), cmd.OutOrStdout(), failMode, cacheTTL, port, quiet)
+			return runRangeUp(
+				cmd.Context(),
+				cmd.OutOrStdout(),
+				failMode,
+				cacheTTL,
+				port,
+				quiet,
+			)
 		},
 	}
 
@@ -173,7 +179,11 @@ func newRangeStatusCmd() *cobra.Command {
 // safe behaviour, and the refusal lists what is available because nobody is
 // going to remember ten mode names.
 func knownFailModes() []string {
-	modes := []string{rangelab.FailModeShut, rangelab.FailModeOpen, rangelab.FailModeStaleRearm}
+	modes := []string{
+		rangelab.FailModeShut,
+		rangelab.FailModeOpen,
+		rangelab.FailModeStaleRearm,
+	}
 
 	for _, mode := range verifier.Modes() {
 		if !slices.Contains(modes, mode) {
@@ -184,7 +194,13 @@ func knownFailModes() []string {
 	return modes
 }
 
-func runRangeUp(ctx context.Context, out io.Writer, failMode, cacheTTL string, port int, quiet bool) error {
+func runRangeUp(
+	ctx context.Context,
+	out io.Writer,
+	failMode, cacheTTL string,
+	port int,
+	quiet bool,
+) error {
 	if !slices.Contains(knownFailModes(), failMode) {
 		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
 			strings.Join(knownFailModes(), listSep))
@@ -262,7 +278,10 @@ func runRangeStatus(ctx context.Context, out io.Writer) error {
 	}
 	defer work.Close()
 
-	targets, err := work.Docker.Targets(ctx, dockerx.Filter{Project: rangelab.ProjectName})
+	targets, err := work.Docker.Targets(
+		ctx,
+		dockerx.Filter{Project: rangelab.ProjectName},
+	)
 	if err != nil {
 		return err
 	}
@@ -301,7 +320,11 @@ func runRangeStatus(ctx context.Context, out io.Writer) error {
 	return nil
 }
 
-func describeEntryPoints(ctx context.Context, out io.Writer, reader rangelab.PortReader) {
+func describeEntryPoints(
+	ctx context.Context,
+	out io.Writer,
+	reader rangelab.PortReader,
+) {
 	lab, err := rangelab.Discover(ctx, reader)
 	if err != nil {
 		return
@@ -310,11 +333,25 @@ func describeEntryPoints(ctx context.Context, out io.Writer, reader rangelab.Por
 	say(out, fmt.Sprintf(msgTierDirect, lab.ProtectedURL()))
 
 	if lab.ProxiedPort != 0 {
-		say(out, fmt.Sprintf(msgTierProxied, lab.ProxiedProtectedURL(), lab.ProxyPort))
+		say(
+			out,
+			fmt.Sprintf(
+				msgTierProxied,
+				lab.ProxiedProtectedURL(),
+				lab.ProxyPort,
+			),
+		)
 	}
 
 	if lab.VerifierPort != 0 {
-		say(out, fmt.Sprintf(msgTierVerifier, lab.VerifierProtectedURL(), lab.Issuer))
+		say(
+			out,
+			fmt.Sprintf(
+				msgTierVerifier,
+				lab.VerifierProtectedURL(),
+				lab.Issuer,
+			),
+		)
 	}
 
 	fmt.Fprintln(out)

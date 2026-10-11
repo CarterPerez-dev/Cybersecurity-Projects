@@ -27,12 +27,17 @@ const (
 )
 
 var (
-	ErrNoHostConfig = errors.New("the daemon returned a container with no host configuration, so khaos cannot tell whether it is safe to touch")
-	ErrEmptyName    = errors.New("a target name is required")
+	ErrNoHostConfig = errors.New(
+		"the daemon returned a container with no host configuration, so khaos cannot tell whether it is safe to touch",
+	)
+	ErrEmptyName = errors.New("a target name is required")
 )
 
 func (c *Client) Targets(ctx context.Context, filter Filter) ([]Target, error) {
-	consenting, err := c.list(ctx, make(client.Filters).Add(filterLabel, LabelConsent))
+	consenting, err := c.list(
+		ctx,
+		make(client.Filters).Add(filterLabel, LabelConsent),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -56,13 +61,20 @@ func (c *Client) Targets(ctx context.Context, filter Filter) ([]Target, error) {
 	}
 
 	slices.SortFunc(targets, func(a, b Target) int {
-		return cmp.Or(cmp.Compare(a.Project, b.Project), cmp.Compare(a.Name, b.Name))
+		return cmp.Or(
+			cmp.Compare(a.Project, b.Project),
+			cmp.Compare(a.Name, b.Name),
+		)
 	})
 
 	return targets, nil
 }
 
-func (c *Client) Lookup(ctx context.Context, name string, filter Filter) (Target, error) {
+func (c *Client) Lookup(
+	ctx context.Context,
+	name string,
+	filter Filter,
+) (Target, error) {
 	if strings.TrimSpace(name) == "" {
 		return Target{}, ErrEmptyName
 	}
@@ -78,7 +90,8 @@ func (c *Client) Lookup(ctx context.Context, name string, filter Filter) (Target
 
 	var matches []Target
 	for _, t := range targets {
-		if t.Name == name || t.Service == name || strings.HasPrefix(t.ID, name) {
+		if t.Name == name || t.Service == name ||
+			strings.HasPrefix(t.ID, name) {
 			matches = append(matches, t)
 		}
 	}
@@ -89,11 +102,21 @@ func (c *Client) Lookup(ctx context.Context, name string, filter Filter) (Target
 	case 1:
 		return matches[0], nil
 	default:
-		return Target{}, fmt.Errorf(errAmbiguous, name, len(matches), joinNames(matches))
+		return Target{}, fmt.Errorf(
+			errAmbiguous,
+			name,
+			len(matches),
+			joinNames(matches),
+		)
 	}
 }
 
-func (c *Client) Accept(ctx context.Context, name string, filter Filter, guard Guard) (Target, error) {
+func (c *Client) Accept(
+	ctx context.Context,
+	name string,
+	filter Filter,
+	guard Guard,
+) (Target, error) {
 	target, err := c.Lookup(ctx, name, filter)
 	if err != nil {
 		return Target{}, err
@@ -106,15 +129,23 @@ func (c *Client) Accept(ctx context.Context, name string, filter Filter, guard G
 	return target, nil
 }
 
-func (c *Client) list(ctx context.Context, filters client.Filters) ([]container.Summary, error) {
-	listed, err := c.api.ContainerList(ctx, client.ContainerListOptions{All: true, Filters: filters})
+func (c *Client) list(
+	ctx context.Context,
+	filters client.Filters,
+) ([]container.Summary, error) {
+	listed, err := c.api.ContainerList(
+		ctx,
+		client.ContainerListOptions{All: true, Filters: filters},
+	)
 	if err != nil {
 		return nil, fmt.Errorf(errListFmt, err)
 	}
 	return listed.Items, nil
 }
 
-func (c *Client) namespacePeers(ctx context.Context) (map[string][]string, error) {
+func (c *Client) namespacePeers(
+	ctx context.Context,
+) (map[string][]string, error) {
 	all, err := c.list(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -129,7 +160,10 @@ func (c *Client) namespacePeers(ctx context.Context) (map[string][]string, error
 
 	peers := make(map[string][]string)
 	for _, summary := range all {
-		reference, ok := strings.CutPrefix(summary.HostConfig.NetworkMode, NetworkModeContainerPfx)
+		reference, ok := strings.CutPrefix(
+			summary.HostConfig.NetworkMode,
+			NetworkModeContainerPfx,
+		)
 		if !ok {
 			continue
 		}
@@ -146,7 +180,11 @@ func (c *Client) namespacePeers(ctx context.Context) (map[string][]string, error
 }
 
 func (c *Client) inspect(ctx context.Context, id string) (Target, error) {
-	result, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
+	result, err := c.api.ContainerInspect(
+		ctx,
+		id,
+		client.ContainerInspectOptions{},
+	)
 	if err != nil {
 		return Target{}, fmt.Errorf(errInspect, ShortID(id), err)
 	}

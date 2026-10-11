@@ -47,8 +47,10 @@ func TestCloseDoesNotDeadlockAgainstAWedgedDependency(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("Close() did not return within 5s against a dependency that accepts and never " +
-			"answers. khaos run defers this Close, so the whole command hangs with a fault's " +
-			"listener still bound, and the operator reaches for kill -9")
+		t.Fatal(
+			"Close() did not return within 5s against a dependency that accepts and never " +
+				"answers. khaos run defers this Close, so the whole command hangs with a fault's " +
+				"listener still bound, and the operator reaches for kill -9",
+		)
 	}
 }

@@ -9,11 +9,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -104,7 +103,13 @@ func runReclaim(ctx context.Context, out io.Writer, expiredOnly bool) error {
 	defer work.Close()
 
 	fmt.Fprintln(out)
-	sweep := run.Reclaim(ctx, work.Env(), work.Journal, time.Now().UTC(), expiredOnly)
+	sweep := run.Reclaim(
+		ctx,
+		work.Env(),
+		work.Journal,
+		time.Now().UTC(),
+		expiredOnly,
+	)
 	report(out, sweep)
 
 	if len(sweep.Results) == 0 {
@@ -142,14 +147,23 @@ func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
 			fmt.Fprintln(out)
 			return nil
 		case <-ticker.C:
-			sweep := run.Reclaim(ctx, work.Env(), work.Journal, time.Now().UTC(), true)
+			sweep := run.Reclaim(
+				ctx,
+				work.Env(),
+				work.Journal,
+				time.Now().UTC(),
+				true,
+			)
 			report(out, sweep)
 			reclaimed += len(sweep.Results)
 		}
 	}
 }
 
-func openFor(ctx context.Context, expiredOnly bool) (*workspace.Workspace, error) {
+func openFor(
+	ctx context.Context,
+	expiredOnly bool,
+) (*workspace.Workspace, error) {
 	if expiredOnly {
 		return workspace.OpenShared(ctx)
 	}
@@ -165,13 +179,31 @@ func report(out io.Writer, sweep run.Sweep) {
 	for _, result := range sweep.Results {
 		if result.Err != nil {
 			failed = true
-			event(out, markError, theme.StatusError,
-				fmt.Sprintf(faultFormat, result.Record.Kind, result.Record.TargetName, result.Err))
+			event(
+				out,
+				markError,
+				theme.StatusError,
+				fmt.Sprintf(
+					faultFormat,
+					result.Record.Kind,
+					result.Record.TargetName,
+					result.Err,
+				),
+			)
 			continue
 		}
-		event(out, markRevert, theme.StatusOK,
-			fmt.Sprintf(leaseFormat, result.Record.Kind, result.Record.TargetName,
-				result.Record.RunID, result.Record.LeaseID))
+		event(
+			out,
+			markRevert,
+			theme.StatusOK,
+			fmt.Sprintf(
+				leaseFormat,
+				result.Record.Kind,
+				result.Record.TargetName,
+				result.Record.RunID,
+				result.Record.LeaseID,
+			),
+		)
 	}
 
 	if len(sweep.Results) > 0 && !failed {

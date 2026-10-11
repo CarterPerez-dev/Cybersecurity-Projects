@@ -62,7 +62,10 @@ const (
 // the fix was a way to arm a fault that does not happen. Every branch below
 // therefore has a control that must disagree with the fault, and `Inert` makes
 // the fault not happen so a test can prove the branch says NO.
-func (p *Provider) Observe(ctx context.Context, expected Kind) (string, bool, error) {
+func (p *Provider) Observe(
+	ctx context.Context,
+	expected Kind,
+) (string, bool, error) {
 	select {
 	case <-p.closed:
 		return "", false, ErrClosed
@@ -76,7 +79,12 @@ func (p *Provider) Observe(ctx context.Context, expected Kind) (string, bool, er
 	}
 
 	if expected != "" && trap.Kind != expected {
-		return "", false, fmt.Errorf(errWrongExpected, ErrTrapNotObserved, trap.Kind, expected)
+		return "", false, fmt.Errorf(
+			errWrongExpected,
+			ErrTrapNotObserved,
+			trap.Kind,
+			expected,
+		)
 	}
 
 	if trap.Forgery() {
@@ -100,13 +108,47 @@ func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 		return "", false, err
 	}
 
-	published := p.PublishedSet()
-	now := p.clock()
+	// Grouped by WHAT the trap corrupts, which is the split the catalogue
+	// already uses: the JOSE header, a registered claim, or the signature. Each
+	// group is confirmed the same way within itself and differently from the
+	// others, so the three read as three questions rather than one long one.
+	switch trap.Kind {
+	case AlgNone, AlgConfusion, EmbeddedJWK:
+		return p.observeHeader(trap, honest, forged)
 
+	case ClaimExpired, ClaimNotYetValid, ClaimWrongAudience,
+		ClaimForeignIssuer:
+		return p.observeClaims(trap, honest, forged)
+
+	case SignatureTruncated, SignatureZero, SignatureWeakKey:
+		return p.observeSignature(trap, honest, forged)
+
+	default:
+		// The endpoint and key-state traps are confirmed by observeEndpoint,
+		// not from the token. Everything else is deliberately left unconfirmed,
+		// which is the fail-closed direction: khaos will not measure a fault it
+		// could not see land.
+		return "", false, nil
+	}
+}
+
+// observeHeader confirms the traps that corrupt the JOSE header. Each is two
+// assertions, not one: the forged token says the wrong thing AND the honest
+// control says the right thing, so a provider that was never armed cannot
+// confirm its own trap.
+func (p *Provider) observeHeader(
+	trap Trap,
+	honest, forged Token,
+) (string, bool, error) {
 	switch trap.Kind {
 	case AlgNone:
-		if forged.Header.Alg == string(None) && len(forged.Signature) == 0 && honest.Header.Alg != string(None) {
-			return sprintf(observedAlgNone, forged.Header.Alg, honest.Header.Alg), true, nil
+		if forged.Header.Alg == string(None) && len(forged.Signature) == 0 &&
+			honest.Header.Alg != string(None) {
+			return sprintf(
+				observedAlgNone,
+				forged.Header.Alg,
+				honest.Header.Alg,
+			), true, nil
 		}
 
 	case AlgConfusion:
@@ -128,58 +170,121 @@ func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 		}
 
 	case EmbeddedJWK:
-		if forged.Header.JWK == nil || published.Has(forged.Header.JWK.Kid) {
+		if forged.Header.JWK == nil ||
+			p.PublishedSet().Has(forged.Header.JWK.Kid) {
 			return "", false, nil
 		}
 		if verifiesUnder(*forged.Header.JWK, forged) {
-			return sprintf(observedEmbeddedJWK, forged.Header.JWK.Kid), true, nil
+			return sprintf(
+				observedEmbeddedJWK,
+				forged.Header.JWK.Kid,
+			), true, nil
 		}
 
+	default:
+		// Unreachable: observeForgery routes only the header group here.
+	}
+
+	return "", false, nil
+}
+
+// observeClaims confirms the traps that corrupt a registered claim. Every one
+// of them first asserts that the signature still VERIFIES, because a claim trap
+// whose token also failed its signature check would be confirmed by the wrong
+// evidence and would tell khaos nothing about claim validation.
+func (p *Provider) observeClaims(
+	trap Trap,
+	honest, forged Token,
+) (string, bool, error) {
+	// Hoisted out of all four cases, which each asserted it separately. It is
+	// the precondition the whole group shares: a claim trap whose token ALSO
+	// failed its signature check would be confirmed by the wrong evidence and
+	// would tell khaos nothing about whether the target validates claims.
+	if !verifiesUnderSet(p.PublishedSet(), forged) {
+		return "", false, nil
+	}
+
+	now := p.clock()
+
+	switch trap.Kind {
 	case ClaimExpired:
-		if forged.Claims.Expires == nil || !verifiesUnderSet(published, forged) {
+		if forged.Claims.Expires == nil {
 			return "", false, nil
 		}
 		expiry := time.Unix(*forged.Claims.Expires, 0)
 		if expiry.Before(now) {
-			return sprintf(observedExpired, now.Sub(expiry).Round(time.Second)), true, nil
+			return sprintf(
+				observedExpired,
+				now.Sub(expiry).Round(time.Second),
+			), true, nil
 		}
 
 	case ClaimNotYetValid:
-		if forged.Claims.NotBefore == nil || !verifiesUnderSet(published, forged) {
+		if forged.Claims.NotBefore == nil {
 			return "", false, nil
 		}
 		start := time.Unix(*forged.Claims.NotBefore, 0)
 		if start.After(now) {
-			return sprintf(observedNotYetValid, start.Sub(now).Round(time.Second)), true, nil
+			return sprintf(
+				observedNotYetValid,
+				start.Sub(now).Round(time.Second),
+			), true, nil
 		}
 
 	case ClaimWrongAudience:
-		if !verifiesUnderSet(published, forged) {
-			return "", false, nil
-		}
-		if !forged.Claims.Audience.Contains(p.audience) && len(forged.Claims.Audience) > 0 {
-			return sprintf(observedWrongAud, forged.Claims.Audience, honest.Claims.Audience), true, nil
+		if !forged.Claims.Audience.Contains(p.audience) &&
+			len(forged.Claims.Audience) > 0 {
+			return sprintf(
+				observedWrongAud,
+				forged.Claims.Audience,
+				honest.Claims.Audience,
+			), true, nil
 		}
 
 	case ClaimForeignIssuer:
 		// The key IS published, deliberately. That is the multi-tenant shape and
 		// the teaching point: the key set is not the trust boundary, so the
 		// signature verifies and only the `iss` check can refuse it.
-		if !verifiesUnderSet(published, forged) {
-			return "", false, nil
-		}
-		if forged.Claims.Issuer != honest.Claims.Issuer && forged.Claims.Issuer != "" {
-			return sprintf(observedForeignIss, forged.Claims.Issuer, honest.Claims.Issuer), true, nil
+		if forged.Claims.Issuer != honest.Claims.Issuer &&
+			forged.Claims.Issuer != "" {
+			return sprintf(
+				observedForeignIss,
+				forged.Claims.Issuer,
+				honest.Claims.Issuer,
+			), true, nil
 		}
 
+	default:
+		// Unreachable: observeForgery routes only the claim group here.
+	}
+
+	return "", false, nil
+}
+
+// observeSignature confirms the traps that corrupt the signature itself.
+func (p *Provider) observeSignature(
+	trap Trap,
+	honest, forged Token,
+) (string, bool, error) {
+	switch trap.Kind {
 	case SignatureTruncated:
-		if len(forged.Signature) == truncatedLength && len(honest.Signature) > truncatedLength {
-			return sprintf(observedTruncated, len(forged.Signature), len(honest.Signature)), true, nil
+		if len(forged.Signature) == truncatedLength &&
+			len(honest.Signature) > truncatedLength {
+			return sprintf(
+				observedTruncated,
+				len(forged.Signature),
+				len(honest.Signature),
+			), true, nil
 		}
 
 	case SignatureZero:
-		if forged.Header.Alg == string(ES256) && len(forged.Signature) > 0 && allZero(forged.Signature) {
-			return sprintf(observedZero, forged.Header.Alg, len(forged.Signature)), true, nil
+		if forged.Header.Alg == string(ES256) && len(forged.Signature) > 0 &&
+			allZero(forged.Signature) {
+			return sprintf(
+				observedZero,
+				forged.Header.Alg,
+				len(forged.Signature),
+			), true, nil
 		}
 
 	case SignatureWeakKey:
@@ -193,23 +298,37 @@ func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 		// claim that a correct verifier cannot accept this token would be false
 		// in that environment, and the trap declines to confirm rather than
 		// asserting it anyway.
-		key, err := published.Lookup(forged.Header.Kid)
+		//
+		// A confirmation that cannot be MADE is not an error either. The returns
+		// below report "not confirmed" and let the engine refuse the run, which
+		// is the fail-closed answer. Returning the lookup error instead would
+		// make khaos abort with a key-management complaint when the honest
+		// reading is "khaos could not see this fault land".
+		key, err := p.PublishedSet().Lookup(forged.Header.Kid)
 		if err != nil {
-			return "", false, nil
+			return "", false, nil //nolint:nilerr // not confirmed, not an error
 		}
 		pub, err := key.RSAPublicKey()
 		if err != nil {
-			return "", false, nil
+			return "", false, nil //nolint:nilerr // not confirmed, not an error
 		}
 		if pub.N.BitLen() >= libraryFloorBits {
 			return "", false, nil
 		}
 		digest := sha256.Sum256(forged.SigningInput)
-		libraryRefuses := rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], forged.Signature) != nil
+		libraryRefuses := rsa.VerifyPKCS1v15(
+			pub,
+			crypto.SHA256,
+			digest[:],
+			forged.Signature,
+		) != nil
 		khaosAccepts := verifyPKCS1v15Raw(pub, digest[:], forged.Signature)
 		if libraryRefuses && khaosAccepts {
 			return sprintf(observedWeakKey, pub.N.BitLen()), true, nil
 		}
+
+	default:
+		// Unreachable: observeForgery routes only the signature group here.
 	}
 
 	return "", false, nil
@@ -231,7 +350,10 @@ func (p *Provider) mintTrappedForControl() (Token, error) {
 }
 
 func (p *Provider) parseMint(trap Trap) (Token, error) {
-	raw, err := p.mintToken(trap, grantRequest{subject: DefaultSubject, lifetime: p.lifetime})
+	raw, err := p.mintToken(
+		trap,
+		grantRequest{subject: DefaultSubject, lifetime: p.lifetime},
+	)
 	if err != nil {
 		return Token{}, err
 	}
@@ -254,7 +376,10 @@ func (p *Provider) confusionSecret(form KeyForm) ([]byte, error) {
 // surface, with the health route as the control: it is never faulted, so an
 // unhealthy control means khaos's provider is broken rather than lying and
 // nothing seen elsewhere can be attributed to the trap.
-func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool, error) {
+func (p *Provider) observeEndpoint(
+	ctx context.Context,
+	trap Trap,
+) (string, bool, error) {
 	base, err := p.Addr()
 	if err != nil {
 		return "", false, fmt.Errorf(errNoListener, ErrTrapNotObserved)
@@ -265,15 +390,60 @@ func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool
 
 	healthStatus, healthTook, err := probeRoute(ctx, client, root+RouteHealth)
 	if err != nil || healthStatus != http.StatusOK {
-		return "", false, fmt.Errorf(errProviderDown, ErrTrapNotObserved, orStatus(err, healthStatus))
+		return "", false, fmt.Errorf(
+			errProviderDown,
+			ErrTrapNotObserved,
+			orStatus(err, healthStatus),
+		)
+	}
+
+	at := probeAt{
+		client:       client,
+		root:         root,
+		healthStatus: healthStatus,
+		healthTook:   healthTook,
 	}
 
 	switch trap.Kind {
+	case JWKSUnreachable, KidRollover, KeyRotation:
+		return p.observeKeySet(ctx, trap, at)
+
+	case IntrospectionError, IntrospectionMalformed, IntrospectionSlow,
+		Revoke:
+		return p.observeIntrospection(ctx, trap, at)
+
+	default:
+		// The token traps are confirmed against the minted token, not against
+		// the endpoint. Leaving them unconfirmed here is the fail-closed answer.
+		return "", false, nil
+	}
+}
+
+// probeAt is the measurement context both endpoint groups need: where to reach
+// the provider, a client whose timeout already accounts for the trap's own
+// delay, and what the health route answered. The health route is never faulted,
+// which is what makes it the control every confirmation below measures against
+// rather than a threshold someone picked.
+type probeAt struct {
+	client       *http.Client
+	root         string
+	healthStatus int
+	healthTook   time.Duration
+}
+
+// observeKeySet confirms the traps that act on the PUBLISHED KEY SET rather
+// than on a token: the set going away, and a key leaving or joining it.
+func (p *Provider) observeKeySet(
+	ctx context.Context,
+	trap Trap,
+	at probeAt,
+) (string, bool, error) {
+	switch trap.Kind {
 	case JWKSUnreachable:
 		p.ownFetches.Add(1)
-		status, _, err := probeRoute(ctx, client, root+RouteJWKS)
+		status, _, err := probeRoute(ctx, at.client, at.root+RouteJWKS)
 		if err == nil && status != http.StatusOK {
-			return sprintf(observedJWKSGone, healthStatus, status), true, nil
+			return sprintf(observedJWKSGone, at.healthStatus, status), true, nil
 		}
 
 	case KidRollover:
@@ -281,7 +451,7 @@ func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool
 		if !ok {
 			return "", false, nil
 		}
-		set, err := p.fetchSet(ctx, client, root+RouteJWKS)
+		set, err := p.fetchSet(ctx, at.client, at.root+RouteJWKS)
 		if err != nil {
 			return "", false, err
 		}
@@ -304,11 +474,12 @@ func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool
 		if !ok {
 			return "", false, nil
 		}
-		set, err := p.fetchSet(ctx, client, root+RouteJWKS)
+		set, err := p.fetchSet(ctx, at.client, at.root+RouteJWKS)
 		if err != nil {
 			return "", false, err
 		}
-		if retired == p.SigningKid() || !set.Has(retired) || !set.Has(p.SigningKid()) {
+		if retired == p.SigningKid() || !set.Has(retired) ||
+			!set.Has(p.SigningKid()) {
 			return "", false, nil
 		}
 		// The three assertions above are the live ones, and the first carries the
@@ -325,16 +496,50 @@ func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool
 			return "", false, err
 		}
 
-		return sprintf(observedRotation, retired, p.SigningKid(), minted.Header.Kid), true, nil
+		return sprintf(
+			observedRotation,
+			retired,
+			p.SigningKid(),
+			minted.Header.Kid,
+		), true, nil
 
+	default:
+		// Unreachable: observeEndpoint routes only the key-set group here.
+	}
+
+	return "", false, nil
+}
+
+// observeIntrospection confirms the traps that act on the introspection
+// endpoint, which is how a target asks about a credential it cannot verify
+// locally. Each one needs its own control, because "inactive" and "no answer"
+// are also what a provider khaos had broken by accident would say.
+func (p *Provider) observeIntrospection(
+	ctx context.Context,
+	trap Trap,
+	at probeAt,
+) (string, bool, error) {
+	switch trap.Kind {
 	case IntrospectionError:
-		status, _, err := probeRoute(ctx, client, p.introspectURL(root, p.Opaque()))
+		status, _, err := probeRoute(
+			ctx,
+			at.client,
+			p.introspectURL(at.root, p.Opaque()),
+		)
 		if err == nil && status != http.StatusOK {
-			return sprintf(observedIntroError, healthStatus, status), true, nil
+			return sprintf(
+				observedIntroError,
+				at.healthStatus,
+				status,
+			), true, nil
 		}
 
 	case IntrospectionMalformed:
-		status, body, err := readRoute(ctx, client, p.introspectURL(root, p.Opaque()))
+		status, body, err := readRoute(
+			ctx,
+			at.client,
+			p.introspectURL(at.root, p.Opaque()),
+		)
 		if err != nil {
 			return "", false, err
 		}
@@ -343,45 +548,76 @@ func (p *Provider) observeEndpoint(ctx context.Context, trap Trap) (string, bool
 		}
 
 	case IntrospectionSlow:
-		status, took, err := probeRoute(ctx, client, p.introspectURL(root, p.Opaque()))
+		status, took, err := probeRoute(
+			ctx,
+			at.client,
+			p.introspectURL(at.root, p.Opaque()),
+		)
 		if err != nil || status != http.StatusOK {
-			return "", false, nil
+			return "", false, nil //nolint:nilerr // not confirmed, not an error
 		}
 		// A differential, not a threshold. The health route is the control and it
 		// is never faulted, so the comparison separates khaos's own hold from a
 		// generally slow machine.
-		if took-healthTook >= slack(trap.Delay) {
-			return sprintf(observedIntroSlow, took.Round(time.Millisecond), healthTook.Round(time.Millisecond)), true, nil
+		if took-at.healthTook >= slack(trap.Delay) {
+			return sprintf(
+				observedIntroSlow,
+				took.Round(time.Millisecond),
+				at.healthTook.Round(time.Millisecond),
+			), true, nil
 		}
 
 	case Revoke:
-		// A control credential, issued now and never revoked. Without it,
-		// "inactive" is also what a provider that lost every grant would say, and
-		// the finding would be khaos's own bug reported as the target's.
-		control := p.Opaque()
+		return p.observeRevocation(ctx, trap, at)
 
-		revoked, err := fetchIntrospection(ctx, client, p.introspectURL(root, trap.Credential))
-		if err != nil {
-			return "", false, err
-		}
+	default:
+		// Unreachable: observeEndpoint routes only the introspection group here.
+	}
 
-		alive, err := fetchIntrospection(ctx, client, p.introspectURL(root, control))
-		if err != nil {
-			return "", false, err
-		}
+	return "", false, nil
+}
 
-		if !revoked.Active && alive.Active {
-			return observedRevoked, true, nil
-		}
+// observeRevocation is the only endpoint confirmation that needs TWO reads, so
+// it is the only one that can tell a revoked credential from a provider that
+// lost every grant it ever issued.
+func (p *Provider) observeRevocation(
+	ctx context.Context,
+	trap Trap,
+	at probeAt,
+) (string, bool, error) {
+	// A control credential, issued now and never revoked. Without it,
+	// "inactive" is also what a provider that lost every grant would say, and
+	// the finding would be khaos's own bug reported as the target's.
+	control := p.Opaque()
+
+	revoked, err := fetchIntrospection(
+		ctx,
+		at.client,
+		p.introspectURL(at.root, trap.Credential),
+	)
+	if err != nil {
+		return "", false, err
+	}
+
+	alive, err := fetchIntrospection(
+		ctx,
+		at.client,
+		p.introspectURL(at.root, control),
+	)
+	if err != nil {
+		return "", false, err
+	}
+
+	if !revoked.Active && alive.Active {
+		return observedRevoked, true, nil
 	}
 
 	return "", false, nil
 }
 
 // introspectURL records the call as khaos's own, so the exported count stays a
-// measurement of the TARGET's behaviour. Every caller of this is a confirmation
-// probe.
-// introspectURL is khaos's own read-back path. It keeps the query form on
+// measurement of the TARGET's behaviour: every caller of this is a confirmation
+// probe. It keeps the query form on
 // purpose: these probes exist to observe the endpoint's BEHAVIOUR, and reading
 // the token the same way a conforming client does is the fixture's job to prove,
 // not the oracle's. The contract test covers the specified wire format directly.
@@ -390,7 +626,11 @@ func (p *Provider) introspectURL(root, credential string) string {
 	return root + RouteIntrospect + "?" + ParamToken + "=" + credential
 }
 
-func probeRoute(ctx context.Context, client *http.Client, url string) (int, time.Duration, error) {
+func probeRoute(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (int, time.Duration, error) {
 	started := time.Now()
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -409,7 +649,11 @@ func probeRoute(ctx context.Context, client *http.Client, url string) (int, time
 	return response.StatusCode, time.Since(started), nil
 }
 
-func readRoute(ctx context.Context, client *http.Client, url string) (int, []byte, error) {
+func readRoute(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (int, []byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, nil, err
@@ -431,12 +675,20 @@ func readRoute(ctx context.Context, client *http.Client, url string) (int, []byt
 
 // fetchSet is khaos's own read-back of the key set, so it records the fetch as
 // khaos's and the exported count stays a measurement of the TARGET's behaviour.
-func (p *Provider) fetchSet(ctx context.Context, client *http.Client, url string) (JWKSet, error) {
+func (p *Provider) fetchSet(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (JWKSet, error) {
 	p.ownFetches.Add(1)
 	return fetchSet(ctx, client, url)
 }
 
-func fetchSet(ctx context.Context, client *http.Client, url string) (JWKSet, error) {
+func fetchSet(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (JWKSet, error) {
 	status, body, err := readRoute(ctx, client, url)
 	if err != nil {
 		return JWKSet{}, err
@@ -449,14 +701,22 @@ func fetchSet(ctx context.Context, client *http.Client, url string) (JWKSet, err
 	return ParseJWKSet(body)
 }
 
-func fetchIntrospection(ctx context.Context, client *http.Client, url string) (Introspection, error) {
+func fetchIntrospection(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (Introspection, error) {
 	status, body, err := readRoute(ctx, client, url)
 	if err != nil {
 		return Introspection{}, err
 	}
 
 	if status != http.StatusOK {
-		return Introspection{}, fmt.Errorf(errProviderDown, ErrTrapNotObserved, status)
+		return Introspection{}, fmt.Errorf(
+			errProviderDown,
+			ErrTrapNotObserved,
+			status,
+		)
 	}
 
 	var out Introspection
@@ -490,7 +750,12 @@ func verifiesUnder(key JWK, token Token) bool {
 		if pub.N.BitLen() < libraryFloorBits {
 			return verifyPKCS1v15Raw(pub, digest[:], token.Signature)
 		}
-		return rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], token.Signature) == nil
+		return rsa.VerifyPKCS1v15(
+			pub,
+			crypto.SHA256,
+			digest[:],
+			token.Signature,
+		) == nil
 
 	case ES256:
 		pub, err := key.ECPublicKey()

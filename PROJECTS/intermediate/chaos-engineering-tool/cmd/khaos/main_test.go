@@ -6,11 +6,11 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"testing"
 
 	"github.com/CarterPerez-dev/khaos/internal/cli"
 	"github.com/CarterPerez-dev/khaos/internal/run"
-	"os"
-	"testing"
 )
 
 func notATTY(t *testing.T) *os.File {
@@ -57,8 +57,10 @@ func TestInteractiveRefusesEveryNonTerminalCombination(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if interactive(tc.args, tc.stdin(t), tc.stdout(t)) {
-				t.Fatal("interactive() said yes without a terminal on both ends; " +
-					"the console spins forever on a non-TTY stdin, writing megabytes per second")
+				t.Fatal(
+					"interactive() said yes without a terminal on both ends; " +
+						"the console spins forever on a non-TTY stdin, writing megabytes per second",
+				)
 			}
 		})
 	}
@@ -98,9 +100,16 @@ func TestNoColorFlagAcceptsEverySpellingPflagDoes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.arg, func(t *testing.T) {
-			if got := noColorRequested([]string{"banner", tc.arg}); got != tc.want {
-				t.Fatalf("noColorRequested(%q) = %v, want %v; cobra and this pre-parser must agree "+
-					"or the flag is accepted and silently ignored", tc.arg, got, tc.want)
+			if got := noColorRequested(
+				[]string{"banner", tc.arg},
+			); got != tc.want {
+				t.Fatalf(
+					"noColorRequested(%q) = %v, want %v; cobra and this pre-parser must agree "+
+						"or the flag is accepted and silently ignored",
+					tc.arg,
+					got,
+					tc.want,
+				)
 			}
 		})
 	}
@@ -125,10 +134,26 @@ func TestRollbackFailureOutranksEveryOtherExitCode(t *testing.T) {
 		want int
 	}{
 		{"rollback alone", run.ErrRevertFailed, exitRevertFailed},
-		{"rollback joined with cancellation", errors.Join(context.Canceled, run.ErrRevertFailed), exitRevertFailed},
-		{"rollback joined with a defect", errors.Join(cli.ErrDefectFound, run.ErrRevertFailed), exitRevertFailed},
-		{"rollback joined with inconclusive", errors.Join(cli.ErrInconclusive, run.ErrRevertFailed), exitRevertFailed},
-		{"a target that never came back", cli.ErrNotRecovered, exitRevertFailed},
+		{
+			"rollback joined with cancellation",
+			errors.Join(context.Canceled, run.ErrRevertFailed),
+			exitRevertFailed,
+		},
+		{
+			"rollback joined with a defect",
+			errors.Join(cli.ErrDefectFound, run.ErrRevertFailed),
+			exitRevertFailed,
+		},
+		{
+			"rollback joined with inconclusive",
+			errors.Join(cli.ErrInconclusive, run.ErrRevertFailed),
+			exitRevertFailed,
+		},
+		{
+			"a target that never came back",
+			cli.ErrNotRecovered,
+			exitRevertFailed,
+		},
 		{"cancellation alone", context.Canceled, exitInterrupted},
 		{"defect alone", cli.ErrDefectFound, exitDefect},
 		{"inconclusive alone", cli.ErrInconclusive, exitInconclusive},

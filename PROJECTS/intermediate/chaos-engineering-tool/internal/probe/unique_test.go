@@ -23,12 +23,14 @@ func recorder(t *testing.T) (*httptest.Server, func() []string) {
 	var mu sync.Mutex
 	seen := []string{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		seen = append(seen, r.Header.Get("Authorization"))
-		mu.Unlock()
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			seen = append(seen, r.Header.Get("Authorization"))
+			mu.Unlock()
+			w.WriteHeader(http.StatusUnauthorized)
+		}),
+	)
 	t.Cleanup(server.Close)
 
 	return server, func() []string {
@@ -59,8 +61,13 @@ func TestTheNegativeControlCarriesAFreshCredentialPerRequest(t *testing.T) {
 	})
 
 	for range samples {
-		if outcome := p.Run(context.Background()); outcome.Disposition != Rejected {
-			t.Fatalf("the recorder did not reject the credential, got %s", outcome.Disposition)
+		if outcome := p.Run(
+			context.Background(),
+		); outcome.Disposition != Rejected {
+			t.Fatalf(
+				"the recorder did not reject the credential, got %s",
+				outcome.Disposition,
+			)
 		}
 	}
 
@@ -72,16 +79,23 @@ func TestTheNegativeControlCarriesAFreshCredentialPerRequest(t *testing.T) {
 	distinct := map[string]bool{}
 	for _, header := range headers {
 		if header == bearer+fixedToken {
-			t.Fatalf("the negative control sent the bare fixed credential %q; a credential-keyed "+
-				"decision cache answers every probe from one cached refusal and a control that "+
-				"stops enforcing during the fault is never exercised", fixedToken)
+			t.Fatalf(
+				"the negative control sent the bare fixed credential %q; a credential-keyed "+
+					"decision cache answers every probe from one cached refusal and a control that "+
+					"stops enforcing during the fault is never exercised",
+				fixedToken,
+			)
 		}
 		distinct[header] = true
 	}
 
 	if len(distinct) != samples {
-		t.Fatalf("the negative control sent %d distinct credentials across %d requests; every "+
-			"repeat is a probe the target can answer from cache", len(distinct), samples)
+		t.Fatalf(
+			"the negative control sent %d distinct credentials across %d requests; every "+
+				"repeat is a probe the target can answer from cache",
+			len(distinct),
+			samples,
+		)
 	}
 }
 
@@ -103,7 +117,11 @@ func TestTheValidProbeSendsOneStableCredential(t *testing.T) {
 
 	for i, header := range sent() {
 		if header != bearer+fixedToken {
-			t.Fatalf("request %d carried %q, want the operator's credential unchanged", i, header)
+			t.Fatalf(
+				"request %d carried %q, want the operator's credential unchanged",
+				i,
+				header,
+			)
 		}
 	}
 }

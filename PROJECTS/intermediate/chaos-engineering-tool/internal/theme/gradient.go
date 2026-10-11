@@ -13,7 +13,11 @@ import (
 const newline = '\n'
 
 func Ramp(steps int) []color.Color {
-	return lipgloss.Blend1D(steps, lipgloss.Color(string(BrandDeep)), lipgloss.Color(string(BrandLight)))
+	return lipgloss.Blend1D(
+		steps,
+		lipgloss.Color(string(BrandDeep)),
+		lipgloss.Color(string(BrandLight)),
+	)
 }
 
 func Block(lines []string) string {

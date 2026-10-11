@@ -28,10 +28,14 @@ const (
 )
 
 var (
-	ErrHeld        = errors.New("another khaos instance is already running")
-	ErrUnlockable  = errors.New("khaos could not take its instance lock, so it cannot be sure another run is not already holding a fault")
+	ErrHeld       = errors.New("another khaos instance is already running")
+	ErrUnlockable = errors.New(
+		"khaos could not take its instance lock, so it cannot be sure another run is not already holding a fault",
+	)
 	unsupportedFS  = []error{unix.ENOLCK, unix.ENOSYS, unix.EOPNOTSUPP}
-	ErrUnsupported = errors.New("this filesystem does not support file locking" + fixUnsupported)
+	ErrUnsupported = errors.New(
+		"this filesystem does not support file locking" + fixUnsupported,
+	)
 )
 
 type Lock struct {
@@ -39,23 +43,28 @@ type Lock struct {
 }
 
 func Acquire(path string) (*Lock, error) {
+	//nolint:gosec // khaos's own state dir, from statedir.Paths
 	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
 		return nil, fmt.Errorf(errOpen, err)
 	}
 
+	//nolint:gosec // khaos's own state dir, from statedir.Paths
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, fileMode)
 	if err != nil {
 		return nil, fmt.Errorf(errOpen, err)
 	}
 
-	if err := unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	if err := unix.Flock(
+		fd(file),
+		unix.LOCK_EX|unix.LOCK_NB,
+	); err != nil {
 		holder := readHolder(file)
 		_ = file.Close()
 		return nil, classify(err, holder)
 	}
 
 	if err := recordHolder(file); err != nil {
-		_ = unix.Flock(int(file.Fd()), unix.LOCK_UN)
+		_ = unix.Flock(fd(file), unix.LOCK_UN)
 		_ = file.Close()
 		return nil, err
 	}
@@ -64,11 +73,18 @@ func Acquire(path string) (*Lock, error) {
 }
 
 func (l *Lock) Release() error {
-	if err := unix.Flock(int(l.file.Fd()), unix.LOCK_UN); err != nil {
+	if err := unix.Flock(fd(l.file), unix.LOCK_UN); err != nil {
 		_ = l.file.Close()
 		return err
 	}
 	return l.file.Close()
+}
+
+// fd narrows a descriptor for the flock wrapper, which wants an int. A file
+// descriptor is bounded by RLIMIT_NOFILE, orders of magnitude below MaxInt, so
+// the conversion cannot overflow.
+func fd(file *os.File) int {
+	return int(file.Fd()) //nolint:gosec // bounded by RLIMIT_NOFILE
 }
 
 func classify(err error, holder string) error {
@@ -90,7 +106,10 @@ func recordHolder(file *os.File) error {
 		return fmt.Errorf(errWrite, err)
 	}
 
-	if _, err := file.WriteAt([]byte(strconv.Itoa(os.Getpid())), 0); err != nil {
+	if _, err := file.WriteAt(
+		[]byte(strconv.Itoa(os.Getpid())),
+		0,
+	); err != nil {
 		return fmt.Errorf(errWrite, err)
 	}
 

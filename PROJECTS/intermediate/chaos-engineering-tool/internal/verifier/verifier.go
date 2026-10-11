@@ -125,6 +125,11 @@ const (
 	// RFC 9068's media type for an OAuth 2.0 access token.
 	typAccessToken = "at+jwt"
 
+	// One refusal for all three verification paths, because a reader comparing
+	// khaos's output across modes must not have to decide whether three
+	// different wordings mean three different findings.
+	reasonBadSignature = "the signature does not verify"
+
 	minimumModulusBits = 1024
 
 	// DefaultNegativeTTL and DefaultForcedCooldown bound the unknown-kid refetch.
@@ -287,7 +292,9 @@ func (v *Verifier) Decide(credential string) Decision {
 
 	token, err := idp.Parse(credential)
 	if err != nil {
-		return Decision{Reason: "the credential is shaped like a JWS and does not parse as one"}
+		return Decision{
+			Reason: "the credential is shaped like a JWS and does not parse as one",
+		}
 	}
 
 	return v.validate(token)
@@ -302,26 +309,39 @@ func (v *Verifier) validate(token idp.Token) Decision {
 		// degradation. It is an unauthenticated-request-accepted path gated on
 		// an outage.
 		if v.mode == JWKSFailOpen {
-			return Decision{Allow: true, Reason: "the key set was unavailable, so the signature was not checked"}
+			return Decision{
+				Allow:  true,
+				Reason: "the key set was unavailable, so the signature was not checked",
+			}
 		}
 		return Decision{Reason: errNoKeys}
 	}
 
 	alg, ok := v.algorithm(token.Header.Alg)
 	if !ok {
-		return Decision{Reason: fmt.Sprintf("algorithm %q is not acceptable", token.Header.Alg)}
+		return Decision{
+			Reason: fmt.Sprintf(
+				"algorithm %q is not acceptable",
+				token.Header.Alg,
+			),
+		}
 	}
 
 	// `alg: none` only ever reaches here under AlgAny, because the allowlist
 	// above refuses it otherwise. RFC 7515 registers it as "no digital signature
 	// or MAC performed", and a verifier that routes on it has agreed.
 	if alg == string(idp.None) {
-		return v.claims(token, "the token declared no signature and it was believed")
+		return v.claims(
+			token,
+			"the token declared no signature and it was believed",
+		)
 	}
 
 	key, found := v.resolve(keys, token)
 	if !found {
-		return Decision{Reason: fmt.Sprintf("no key matches kid %q", token.Header.Kid)}
+		return Decision{
+			Reason: fmt.Sprintf("no key matches kid %q", token.Header.Kid),
+		}
 	}
 
 	// RFC 8725 rule 2: "Each key MUST be used with exactly one algorithm, and
@@ -329,11 +349,20 @@ func (v *Verifier) validate(token idp.Token) Decision {
 	// single line is what kills algorithm confusion, and AlgAny is what happens
 	// without it.
 	if v.mode != AlgAny && key.Alg != "" && key.Alg != alg {
-		return Decision{Reason: fmt.Sprintf("kid %q is bound to %q and the token asked for %q", key.Kid, key.Alg, alg)}
+		return Decision{
+			Reason: fmt.Sprintf(
+				"kid %q is bound to %q and the token asked for %q",
+				key.Kid,
+				key.Alg,
+				alg,
+			),
+		}
 	}
 
 	if key.Use != "" && key.Use != idp.UseSignature {
-		return Decision{Reason: fmt.Sprintf("kid %q is not a signing key", key.Kid)}
+		return Decision{
+			Reason: fmt.Sprintf("kid %q is not a signing key", key.Kid),
+		}
 	}
 
 	if reason, ok := v.signature(key, token, alg); !ok {
@@ -374,7 +403,11 @@ func (v *Verifier) resolve(keys idp.JWKSet, token idp.Token) (idp.JWK, bool) {
 	return key, true
 }
 
-func (v *Verifier) signature(key idp.JWK, token idp.Token, alg string) (string, bool) {
+func (v *Verifier) signature(
+	key idp.JWK,
+	token idp.Token,
+	alg string,
+) (string, bool) {
 	// A signature that is absent, all zero, or shorter than THIS KEY produces is
 	// treated as a pass. CVE-2020-28042 is the no-minimum-length shape and
 	// CVE-2022-21449 is the all-zero shape; measured on go1.26.5, ecdsa.Verify
@@ -395,31 +428,7 @@ func (v *Verifier) signature(key idp.JWK, token idp.Token, alg string) (string, 
 
 	switch alg {
 	case allowedRS:
-		pub, err := key.RSAPublicKey()
-		if err != nil {
-			return "the key is not usable as RSA", false
-		}
-
-		// An explicit floor, rather than relying on crypto/rsa to have one. The
-		// standard library does enforce 1024 bits, but a reference
-		// implementation that depends on that is correct by luck, and the floor
-		// is a GODEBUG away from being gone.
-		if v.mode != AnyKeySize && pub.N.BitLen() < minimumModulusBits {
-			return fmt.Sprintf("kid %q has a %d-bit modulus", key.Kid, pub.N.BitLen()), false
-		}
-
-		if v.mode == AnyKeySize {
-			if !verifyRaw(pub, digest[:], token.Signature) {
-				return "the signature does not verify", false
-			}
-			return "", true
-		}
-
-		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], token.Signature); err != nil {
-			return "the signature does not verify", false
-		}
-
-		return "", true
+		return v.verifyRSA(key, token, digest)
 
 	case allowedES:
 		pub, err := key.ECPublicKey()
@@ -431,7 +440,7 @@ func (v *Verifier) signature(key idp.JWK, token idp.Token, alg string) (string, 
 		s := new(big.Int).SetBytes(token.Signature[p256SignatureBytes/2:])
 
 		if !ecdsa.Verify(pub, digest[:], r, s) {
-			return "the signature does not verify", false
+			return reasonBadSignature, false
 		}
 
 		return "", true
@@ -460,6 +469,50 @@ func (v *Verifier) signature(key idp.JWK, token idp.Token, alg string) (string, 
 	}
 }
 
+// verifyRSA is the RS256 arm, and the only one with a function of its own
+// because it is the only one carrying a key-size policy on top of a signature
+// check: two of the broken modes act here and nowhere else.
+func (v *Verifier) verifyRSA(
+	key idp.JWK,
+	token idp.Token,
+	digest [sha256.Size]byte,
+) (string, bool) {
+	pub, err := key.RSAPublicKey()
+	if err != nil {
+		return "the key is not usable as RSA", false
+	}
+
+	// An explicit floor, rather than relying on crypto/rsa to have one. The
+	// standard library does enforce 1024 bits, but a reference implementation
+	// that depends on that is correct by luck, and the floor is a GODEBUG away
+	// from being gone.
+	if v.mode != AnyKeySize && pub.N.BitLen() < minimumModulusBits {
+		return fmt.Sprintf(
+			"kid %q has a %d-bit modulus",
+			key.Kid,
+			pub.N.BitLen(),
+		), false
+	}
+
+	if v.mode == AnyKeySize {
+		if !verifyRaw(pub, digest[:], token.Signature) {
+			return reasonBadSignature, false
+		}
+		return "", true
+	}
+
+	if err := rsa.VerifyPKCS1v15(
+		pub,
+		crypto.SHA256,
+		digest[:],
+		token.Signature,
+	); err != nil {
+		return reasonBadSignature, false
+	}
+
+	return "", true
+}
+
 func weakSignature(key idp.JWK, signature []byte, alg string) bool {
 	if len(signature) == 0 || allZero(signature) {
 		return true
@@ -485,7 +538,10 @@ func weakSignature(key idp.JWK, signature []byte, alg string) bool {
 // no revocation at all.
 func (v *Verifier) claims(token idp.Token, reason string) Decision {
 	if v.mode == SkipClaims {
-		return Decision{Allow: true, Reason: reason + ", and no claim was checked"}
+		return Decision{
+			Allow:  true,
+			Reason: reason + ", and no claim was checked",
+		}
 	}
 
 	// RFC 8725 section 3.11, Use Explicit Typing, and RFC 9068 which requires
@@ -500,7 +556,13 @@ func (v *Verifier) claims(token idp.Token, reason string) Decision {
 	// described a refusal that never happened and the property it defends (every
 	// forged token carrying `at+jwt`) was inert against this fixture.
 	if token.Header.Typ != typAccessToken {
-		return Decision{Reason: fmt.Sprintf("typ %q is not %q", token.Header.Typ, typAccessToken)}
+		return Decision{
+			Reason: fmt.Sprintf(
+				"typ %q is not %q",
+				token.Header.Typ,
+				typAccessToken,
+			),
+		}
 	}
 
 	now := v.now()
@@ -513,12 +575,19 @@ func (v *Verifier) claims(token idp.Token, reason string) Decision {
 		return Decision{Reason: "the token has expired"}
 	}
 
-	if token.Claims.NotBefore != nil && time.Unix(*token.Claims.NotBefore, 0).Add(-clockSkew).After(now) {
+	if token.Claims.NotBefore != nil &&
+		time.Unix(*token.Claims.NotBefore, 0).Add(-clockSkew).After(now) {
 		return Decision{Reason: "the token is not valid yet"}
 	}
 
 	if v.issuer != "" && token.Claims.Issuer != v.issuer {
-		return Decision{Reason: fmt.Sprintf("issuer %q is not %q", token.Claims.Issuer, v.issuer)}
+		return Decision{
+			Reason: fmt.Sprintf(
+				"issuer %q is not %q",
+				token.Claims.Issuer,
+				v.issuer,
+			),
+		}
 	}
 
 	// RFC 9700: "every resource server is obliged to verify, for every request,
@@ -528,7 +597,13 @@ func (v *Verifier) claims(token idp.Token, reason string) Decision {
 	// resource servers carries all of them, and RFC 9700's obligation is that
 	// this one "was meant to be used for that particular resource server".
 	if !token.Claims.Audience.Contains(v.audience) {
-		return Decision{Reason: fmt.Sprintf("audience %q does not include %q", token.Claims.Audience, v.audience)}
+		return Decision{
+			Reason: fmt.Sprintf(
+				"audience %q does not include %q",
+				token.Claims.Audience,
+				v.audience,
+			),
+		}
 	}
 
 	return Decision{Allow: true, Reason: reason}
@@ -675,7 +750,10 @@ func (v *Verifier) fetchKeys() (idp.JWKSet, error) {
 	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
-		return idp.JWKSet{}, fmt.Errorf("the key set answered %d", response.StatusCode)
+		return idp.JWKSet{}, fmt.Errorf(
+			"the key set answered %d",
+			response.StatusCode,
+		)
 	}
 
 	body, err := io.ReadAll(response.Body)
@@ -699,7 +777,10 @@ func (v *Verifier) introspect(credential string) Decision {
 
 	if !answered {
 		if v.mode == IntrospectFailOpen {
-			return Decision{Allow: true, Reason: "introspection did not answer usefully, so the credential was allowed"}
+			return Decision{
+				Allow:  true,
+				Reason: "introspection did not answer usefully, so the credential was allowed",
+			}
 		}
 		return Decision{Reason: "introspection did not answer"}
 	}
@@ -719,7 +800,10 @@ func (v *Verifier) ask(credential string) (bool, bool) {
 	// own private convention and not the specification — so the fixture and the
 	// provider agreed with each other and neither would interoperate with
 	// anything real.
-	response, err := v.client.PostForm(v.introspectURI, url.Values{paramToken: {credential}})
+	response, err := v.client.PostForm(
+		v.introspectURI,
+		url.Values{paramToken: {credential}},
+	)
 	if err != nil {
 		return false, false
 	}

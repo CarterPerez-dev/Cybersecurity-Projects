@@ -96,7 +96,10 @@ func (g *gateway) routes() *http.ServeMux {
 }
 
 func (g *gateway) protected(w http.ResponseWriter, r *http.Request) {
-	token, scheme := strings.CutPrefix(r.Header.Get(headerAuthorization), bearerPrefix)
+	token, scheme := strings.CutPrefix(
+		r.Header.Get(headerAuthorization),
+		bearerPrefix,
+	)
 
 	if !scheme || token == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -177,7 +180,8 @@ func (g *gateway) introspect(token string) (bool, bool) {
 	// Treating any non-200 as "dependency unavailable, proceed" is the single
 	// most common fail-open shape in service-to-service code, and a reference
 	// implementation that contains it makes the comparison dishonest.
-	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+	if response.StatusCode == http.StatusUnauthorized ||
+		response.StatusCode == http.StatusForbidden {
 		return false, true
 	}
 
@@ -241,5 +245,8 @@ func (g *gateway) staleCeiling() time.Duration {
 func (g *gateway) remember(token string, active bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.cache[token] = cachedDecision{active: active, expires: time.Now().Add(g.cacheTTL)}
+	g.cache[token] = cachedDecision{
+		active:  active,
+		expires: time.Now().Add(g.cacheTTL),
+	}
 }

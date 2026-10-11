@@ -54,18 +54,28 @@ func TestEveryIdentityTrapHasExactlyOneExperiment(t *testing.T) {
 
 		switch len(named) {
 		case 0:
-			t.Errorf("trap %s has no experiment, so khaos can produce it and no operator can ask for it", trap)
+			t.Errorf(
+				"trap %s has no experiment, so khaos can produce it and no operator can ask for it",
+				trap,
+			)
 		case 1:
 		default:
-			t.Errorf("trap %s is claimed by %v; one trap is one experiment or `khaos catalog` describes the same fault twice",
-				trap, named)
+			t.Errorf(
+				"trap %s is claimed by %v; one trap is one experiment or `khaos catalog` describes the same fault twice",
+				trap,
+				named,
+			)
 		}
 
 		delete(byTrap, trap)
 	}
 
 	for trap, named := range byTrap {
-		t.Errorf("%v name the trap %s, which khaos's provider does not register", named, trap)
+		t.Errorf(
+			"%v name the trap %s, which khaos's provider does not register",
+			named,
+			trap,
+		)
 	}
 }
 
@@ -80,11 +90,15 @@ func TestEveryIdentityExperimentBuildsFromTheRangeAnswers(t *testing.T) {
 			}
 
 			if spec.IdP == nil {
-				t.Fatal("no provider was built, so the probes have nothing to mint from")
+				t.Fatal(
+					"no provider was built, so the probes have nothing to mint from",
+				)
 			}
 
 			if spec.IdPTrap == nil {
-				t.Fatal("no trap was declared, so the run would stand up a provider and arm nothing")
+				t.Fatal(
+					"no trap was declared, so the run would stand up a provider and arm nothing",
+				)
 			}
 
 			// Every trap has to be armable as declared, with ONE stated
@@ -98,15 +112,20 @@ func TestEveryIdentityExperimentBuildsFromTheRangeAnswers(t *testing.T) {
 
 			if spec.IdPTrap.Kind == idp.Revoke {
 				if err == nil {
-					t.Fatal("the revocation trap validated at build time, so it is carrying a credential " +
-						"from before the probe that issues one has fired")
+					t.Fatal(
+						"the revocation trap validated at build time, so it is carrying a credential " +
+							"from before the probe that issues one has fired",
+					)
 				}
 
 				resolved := *spec.IdPTrap
 				resolved.Credential = spec.IdP.Revocable()
 
 				if err := resolved.Validate(); err != nil {
-					t.Fatalf("the revocation trap is not armable even once a credential is resolved: %v", err)
+					t.Fatalf(
+						"the revocation trap is not armable even once a credential is resolved: %v",
+						err,
+					)
 				}
 
 				return
@@ -117,12 +136,19 @@ func TestEveryIdentityExperimentBuildsFromTheRangeAnswers(t *testing.T) {
 			}
 
 			if spec.Fault.Kind != inject.IdPKind(spec.IdPTrap.Kind) {
-				t.Fatalf("the catalogued fault is %q and the trap is %q; the mutator would refuse its own experiment",
-					spec.Fault.Kind, spec.IdPTrap.Kind)
+				t.Fatalf(
+					"the catalogued fault is %q and the trap is %q; the mutator would refuse its own experiment",
+					spec.Fault.Kind,
+					spec.IdPTrap.Kind,
+				)
 			}
 
 			if spec.Fault.Target != testTargetName {
-				t.Fatalf("the fault names %q, want the target %q", spec.Fault.Target, testTargetName)
+				t.Fatalf(
+					"the fault names %q, want the target %q",
+					spec.Fault.Target,
+					testTargetName,
+				)
 			}
 		})
 	}
@@ -142,7 +168,11 @@ func TestEveryIdentityExperimentMintsUnderTheIssuerItWasGiven(t *testing.T) {
 			}
 
 			if got := spec.IdP.Issuer(); got != testIssuerURL {
-				t.Fatalf("the provider issues as %q, want %q", got, testIssuerURL)
+				t.Fatalf(
+					"the provider issues as %q, want %q",
+					got,
+					testIssuerURL,
+				)
 			}
 
 			raw, err := spec.IdP.HonestToken()
@@ -156,7 +186,11 @@ func TestEveryIdentityExperimentMintsUnderTheIssuerItWasGiven(t *testing.T) {
 			}
 
 			if token.Claims.Issuer != testIssuerURL {
-				t.Fatalf("the minted token says iss %q, want %q", token.Claims.Issuer, testIssuerURL)
+				t.Fatalf(
+					"the minted token says iss %q, want %q",
+					token.Claims.Issuer,
+					testIssuerURL,
+				)
 			}
 		})
 	}
@@ -211,15 +245,21 @@ func TestEachIdentityExperimentWiresTheStreamsItsFindingNeeds(t *testing.T) {
 	tier := identityTier()
 
 	if len(want) != len(tier) {
-		t.Fatalf("this test states expectations for %d experiments and the identity tier has %d",
-			len(want), len(tier))
+		t.Fatalf(
+			"this test states expectations for %d experiments and the identity tier has %d",
+			len(want),
+			len(tier),
+		)
 	}
 
 	for _, definition := range tier {
 		t.Run(definition.Name, func(t *testing.T) {
 			expected, stated := want[definition.Name]
 			if !stated {
-				t.Fatalf("%s has no stated wiring, so nothing pins its design", definition.Name)
+				t.Fatalf(
+					"%s has no stated wiring, so nothing pins its design",
+					definition.Name,
+				)
 			}
 
 			spec, err := Build(definition.Name, identityInputs(), Timing{})
@@ -228,19 +268,35 @@ func TestEachIdentityExperimentWiresTheStreamsItsFindingNeeds(t *testing.T) {
 			}
 
 			if (spec.Probes.Forged != nil) != (expected.forged != "") {
-				t.Errorf("forged stream present = %v, want %v", spec.Probes.Forged != nil, expected.forged != "")
+				t.Errorf(
+					"forged stream present = %v, want %v",
+					spec.Probes.Forged != nil,
+					expected.forged != "",
+				)
 			}
 
 			if spec.Probes.ForgedBaseline != expected.forged {
-				t.Errorf("forged baseline expectation = %q, want %q", spec.Probes.ForgedBaseline, expected.forged)
+				t.Errorf(
+					"forged baseline expectation = %q, want %q",
+					spec.Probes.ForgedBaseline,
+					expected.forged,
+				)
 			}
 
 			if (spec.Probes.Revoked != nil) != expected.revoked {
-				t.Errorf("revoked stream present = %v, want %v", spec.Probes.Revoked != nil, expected.revoked)
+				t.Errorf(
+					"revoked stream present = %v, want %v",
+					spec.Probes.Revoked != nil,
+					expected.revoked,
+				)
 			}
 
 			if (spec.IdleFor > 0) != expected.idleness {
-				t.Errorf("idleness discriminator = %v, want %v", spec.IdleFor > 0, expected.idleness)
+				t.Errorf(
+					"idleness discriminator = %v, want %v",
+					spec.IdleFor > 0,
+					expected.idleness,
+				)
 			}
 
 			// Every stream that can carry a finding has to name what khaos did to
@@ -248,7 +304,9 @@ func TestEachIdentityExperimentWiresTheStreamsItsFindingNeeds(t *testing.T) {
 			// experiment identically.
 			if spec.Probes.Forged != nil || spec.Probes.Revoked != nil {
 				if spec.Defect == "" {
-					t.Error("this experiment can produce a finding and does not say what khaos did to the credential")
+					t.Error(
+						"this experiment can produce a finding and does not say what khaos did to the credential",
+					)
 				}
 			}
 		})
@@ -280,7 +338,10 @@ func TestTheForgeryStreamsMintPerSampleAndTheFixedOnesDoNot(t *testing.T) {
 
 		// Describe is the only thing a probe exposes about how it gets its
 		// credential, and it says so explicitly for exactly this reason.
-		perSample := strings.Contains(spec.Probes.Forged.Describe(), "minted per request")
+		perSample := strings.Contains(
+			spec.Probes.Forged.Describe(),
+			"minted per request",
+		)
 
 		if perSample != want {
 			t.Errorf("%s mints per sample = %v, want %v (%s)",
@@ -326,22 +387,31 @@ func TestEachFamilysValidControlTravelsThePathItNeedsTo(t *testing.T) {
 
 		if opaqueControl[definition.Name] {
 			if perSample {
-				t.Errorf("%s faults the introspection endpoint and its valid control is minted "+
-					"per sample; a JWT control is validated locally and never reaches the fault: %s",
-					definition.Name, describe)
+				t.Errorf(
+					"%s faults the introspection endpoint and its valid control is minted "+
+						"per sample; a JWT control is validated locally and never reaches the fault: %s",
+					definition.Name,
+					describe,
+				)
 			}
 			seenOpaque = true
 			continue
 		}
 
 		if !perSample {
-			t.Errorf("%s freezes its valid credential: %s", definition.Name, describe)
+			t.Errorf(
+				"%s freezes its valid credential: %s",
+				definition.Name,
+				describe,
+			)
 		}
 		seenMinted = true
 	}
 
 	if !seenOpaque || !seenMinted {
-		t.Fatal("every experiment landed in one bucket, so this test cannot tell the two apart")
+		t.Fatal(
+			"every experiment landed in one bucket, so this test cannot tell the two apart",
+		)
 	}
 }
 
@@ -365,16 +435,23 @@ func TestTheRolloverControlIsAJWTUnderAKeyThatIsNeverRotated(t *testing.T) {
 
 	control, err := idp.Parse(raw)
 	if err != nil {
-		t.Fatalf("the control is not a JWT, so a JWT-only verifier cannot baseline: %v", err)
+		t.Fatalf(
+			"the control is not a JWT, so a JWT-only verifier cannot baseline: %v",
+			err,
+		)
 	}
 
 	if control.Header.Kid == spec.IdP.SigningKid() {
-		t.Fatal("the control is signed by the CURRENT signing key, so after the rotation it becomes " +
-			"the new-key traffic that evicts the retired key")
+		t.Fatal(
+			"the control is signed by the CURRENT signing key, so after the rotation it becomes " +
+				"the new-key traffic that evicts the retired key",
+		)
 	}
 
 	if !spec.IdP.PublishedSet().Has(control.Header.Kid) {
-		t.Fatal("the control's key is not published, so it cannot be resolved without a refetch")
+		t.Fatal(
+			"the control's key is not published, so it cannot be resolved without a refetch",
+		)
 	}
 
 	// And it survives the rotation still published and still not the signing key,
@@ -396,7 +473,9 @@ func TestTheRolloverControlIsAJWTUnderAKeyThatIsNeverRotated(t *testing.T) {
 // only thing in the whole catalogue that makes the directional axis anything but
 // decoration. If it ever stops treating DENIED as a defect, nothing else
 // exercises that branch.
-func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(t *testing.T) {
+func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(
+	t *testing.T,
+) {
 	inverted := []string{}
 
 	for _, definition := range Catalog() {
@@ -406,8 +485,11 @@ func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(t *testing.T)
 	}
 
 	if !slices.Equal(inverted, []string{NameKeyRotation}) {
-		t.Fatalf("the experiments treating DENIED as a defect are %v, want exactly [%s]",
-			inverted, NameKeyRotation)
+		t.Fatalf(
+			"the experiments treating DENIED as a defect are %v, want exactly [%s]",
+			inverted,
+			NameKeyRotation,
+		)
 	}
 }
 
@@ -422,8 +504,11 @@ func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(t *testing.T)
 func TestEveryExperimentTreatsPermittedAsADefect(t *testing.T) {
 	for _, definition := range Catalog() {
 		if !definition.Polarity.IsDefect(Permitted) {
-			t.Errorf("%s does not treat PERMITTED as a defect, so a target that failed open "+
-				"would be reported as acceptable and exit 0", definition.Name)
+			t.Errorf(
+				"%s does not treat PERMITTED as a defect, so a target that failed open "+
+					"would be reported as acceptable and exit 0",
+				definition.Name,
+			)
 		}
 
 		if len(definition.Polarity.Defects) == 0 {
@@ -431,7 +516,10 @@ func TestEveryExperimentTreatsPermittedAsADefect(t *testing.T) {
 		}
 
 		if definition.Polarity.Rationale == "" {
-			t.Errorf("%s declares a polarity with no rationale", definition.Name)
+			t.Errorf(
+				"%s declares a polarity with no rationale",
+				definition.Name,
+			)
 		}
 	}
 }
@@ -460,7 +548,11 @@ func TestEveryAdvertisedKeyFormBuilds(t *testing.T) {
 		inputs[ParamKeyForm] = form
 
 		if _, err := Build(NameAlgConfusion, inputs, Timing{}); err != nil {
-			t.Errorf("key form %q is advertised and does not build: %v", form, err)
+			t.Errorf(
+				"key form %q is advertised and does not build: %v",
+				form,
+				err,
+			)
 		}
 	}
 }
@@ -485,13 +577,22 @@ func TestOnlyTheEndpointFaultsDeclareAConsultedGuard(t *testing.T) {
 		expected := want[definition.Name]
 
 		if spec.ConsultedWhat != expected {
-			t.Errorf("%s declares the guard %q, want %q", definition.Name, spec.ConsultedWhat, expected)
+			t.Errorf(
+				"%s declares the guard %q, want %q",
+				definition.Name,
+				spec.ConsultedWhat,
+				expected,
+			)
 		}
 
 		if (spec.Consulted != nil) != (expected != "") {
-			t.Errorf("%s has a counter = %v and a declared endpoint = %v; a declared endpoint with "+
-				"no counter is a guard that can never fire",
-				definition.Name, spec.Consulted != nil, expected != "")
+			t.Errorf(
+				"%s has a counter = %v and a declared endpoint = %v; a declared endpoint with "+
+					"no counter is a guard that can never fire",
+				definition.Name,
+				spec.Consulted != nil,
+				expected != "",
+			)
 		}
 	}
 }
@@ -501,7 +602,13 @@ func TestOnlyTheEndpointFaultsDeclareAConsultedGuard(t *testing.T) {
 // and its fault window looks identical — `passed / HELD`, conclusive, over a
 // fault that never reached it.
 func TestATargetThatNeverUsedTheFaultedEndpointVoidsTheRun(t *testing.T) {
-	healthy := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
+	healthy := window(
+		probe.Accepted,
+		probe.Rejected,
+		"",
+		"",
+		MinimumToClaimClosed,
+	)
 
 	observation := Observation{
 		Baseline:       healthy,
@@ -516,12 +623,22 @@ func TestATargetThatNeverUsedTheFaultedEndpointVoidsTheRun(t *testing.T) {
 	verdict := Judge(observation, idpPolarity)
 
 	if verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s, want %s (%s)", verdict.Epistemic, BaselineNotMet,
-			strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"epistemic = %s, want %s (%s)",
+			verdict.Epistemic,
+			BaselineNotMet,
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
-	if !strings.Contains(strings.Join(verdict.Reasons, "; "), ConsultsIntrospection) {
-		t.Fatalf("the refusal does not name the endpoint: %s", strings.Join(verdict.Reasons, "; "))
+	if !strings.Contains(
+		strings.Join(verdict.Reasons, "; "),
+		ConsultsIntrospection,
+	) {
+		t.Fatalf(
+			"the refusal does not name the endpoint: %s",
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
 	// The control: the same run where the target DID use the endpoint is judged
@@ -538,7 +655,13 @@ func TestATargetThatNeverUsedTheFaultedEndpointVoidsTheRun(t *testing.T) {
 // An experiment that declares no endpoint must be unaffected, or adding the
 // guard would have voided the fourteen experiments that fault a credential.
 func TestAnExperimentWithNoDeclaredEndpointIsNotGuarded(t *testing.T) {
-	healthy := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
+	healthy := window(
+		probe.Accepted,
+		probe.Rejected,
+		"",
+		"",
+		MinimumToClaimClosed,
+	)
 
 	observation := Observation{
 		Baseline:       healthy,
@@ -571,13 +694,23 @@ func TestOnlyTheExperimentsThatMeasureLessCarryAHeldCaveat(t *testing.T) {
 		fragment, expected := caveated[definition.Name]
 
 		if (spec.HeldCaveat != "") != expected {
-			t.Errorf("%s carries a HELD caveat = %v, want %v (%q)",
-				definition.Name, spec.HeldCaveat != "", expected, spec.HeldCaveat)
+			t.Errorf(
+				"%s carries a HELD caveat = %v, want %v (%q)",
+				definition.Name,
+				spec.HeldCaveat != "",
+				expected,
+				spec.HeldCaveat,
+			)
 			continue
 		}
 
 		if expected && !strings.Contains(spec.HeldCaveat, fragment) {
-			t.Errorf("%s's caveat does not mention %q: %s", definition.Name, fragment, spec.HeldCaveat)
+			t.Errorf(
+				"%s's caveat does not mention %q: %s",
+				definition.Name,
+				fragment,
+				spec.HeldCaveat,
+			)
 		}
 	}
 }
@@ -587,9 +720,27 @@ func TestTheHeldCaveatIsStatedOnlyWhenTheTargetHeld(t *testing.T) {
 	const caveat = "this run tried one of four serializations"
 
 	held := Observation{
-		Baseline:       window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed),
-		Fault:          window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed),
-		Recovery:       window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed),
+		Baseline: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			"",
+			MinimumToClaimClosed,
+		),
+		Fault: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			"",
+			MinimumToClaimClosed,
+		),
+		Recovery: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			"",
+			MinimumToClaimClosed,
+		),
 		FaultConfirmed: true,
 		HeldCaveat:     caveat,
 	}
@@ -601,8 +752,11 @@ func TestTheHeldCaveatIsStatedOnlyWhenTheTargetHeld(t *testing.T) {
 	}
 
 	if !strings.Contains(strings.Join(verdict.Reasons, "; "), caveat) {
-		t.Fatalf("a HELD verdict did not state its caveat, so khaos claims it ruled out more than "+
-			"it tried: %s", strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"a HELD verdict did not state its caveat, so khaos claims it ruled out more than "+
+				"it tried: %s",
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
 	// A run that found something does not need the caveat: it found the thing
@@ -610,8 +764,16 @@ func TestTheHeldCaveatIsStatedOnlyWhenTheTargetHeld(t *testing.T) {
 	leaked := held
 	leaked.Fault = window(probe.Accepted, probe.Accepted, "", "", MinimumPaired)
 
-	if found := Judge(leaked, idpPolarity); strings.Contains(strings.Join(found.Reasons, "; "), caveat) {
-		t.Fatalf("a run that found a bypass still warned that it might have missed one: %s",
-			strings.Join(found.Reasons, "; "))
+	if found := Judge(
+		leaked,
+		idpPolarity,
+	); strings.Contains(
+		strings.Join(found.Reasons, "; "),
+		caveat,
+	) {
+		t.Fatalf(
+			"a run that found a bypass still warned that it might have missed one: %s",
+			strings.Join(found.Reasons, "; "),
+		)
 	}
 }

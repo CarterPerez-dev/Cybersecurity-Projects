@@ -10,7 +10,12 @@ import (
 )
 
 type Resolver interface {
-	Accept(ctx context.Context, name string, filter dockerx.Filter, guard dockerx.Guard) (dockerx.Target, error)
+	Accept(
+		ctx context.Context,
+		name string,
+		filter dockerx.Filter,
+		guard dockerx.Guard,
+	) (dockerx.Target, error)
 }
 
 // Injector adapts a Session to the experiment engine, so the engine never

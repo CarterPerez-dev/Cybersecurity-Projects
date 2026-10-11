@@ -82,7 +82,9 @@ func TestASecondAcquireIsRefused(t *testing.T) {
 	second, err := Acquire(path)
 	if err == nil {
 		_ = second.Release()
-		t.Fatal("two khaos instances held the lock at once, so both could inject into the same target")
+		t.Fatal(
+			"two khaos instances held the lock at once, so both could inject into the same target",
+		)
 	}
 
 	if !errors.Is(err, ErrHeld) {
@@ -101,8 +103,11 @@ func TestTheRefusalNamesTheHoldingProcessAndTheFix(t *testing.T) {
 
 	wantPid := strconv.Itoa(holder.Process.Pid)
 	if !strings.Contains(err.Error(), wantPid) {
-		t.Fatalf("the refusal %q does not name the holding pid %s, so the operator cannot find it",
-			err, wantPid)
+		t.Fatalf(
+			"the refusal %q does not name the holding pid %s, so the operator cannot find it",
+			err,
+			wantPid,
+		)
 	}
 
 	if !strings.Contains(err.Error(), "khaos reclaim") {
@@ -132,8 +137,10 @@ func TestTheLockIsReleasedWhenTheHolderIsKilled(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	t.Fatal("the lock stayed held after its owner was killed; flock was chosen precisely " +
-		"so the kernel releases it, and a stale lock would block every later khaos run")
+	t.Fatal(
+		"the lock stayed held after its owner was killed; flock was chosen precisely " +
+			"so the kernel releases it, and a stale lock would block every later khaos run",
+	)
 }
 
 func TestReleaseAllowsReacquisition(t *testing.T) {
@@ -173,7 +180,11 @@ func TestAcquireCreatesTheStateDirectoryPrivately(t *testing.T) {
 	}
 
 	if info.Mode().Perm() != fileMode {
-		t.Fatalf("lock mode is %v, want %v", info.Mode().Perm(), os.FileMode(fileMode))
+		t.Fatalf(
+			"lock mode is %v, want %v",
+			info.Mode().Perm(),
+			os.FileMode(fileMode),
+		)
 	}
 
 	dir, err := os.Stat(filepath.Dir(path))
@@ -182,6 +193,10 @@ func TestAcquireCreatesTheStateDirectoryPrivately(t *testing.T) {
 	}
 
 	if dir.Mode().Perm() != dirMode {
-		t.Fatalf("state directory mode is %v, want %v", dir.Mode().Perm(), os.FileMode(dirMode))
+		t.Fatalf(
+			"state directory mode is %v, want %v",
+			dir.Mode().Perm(),
+			os.FileMode(dirMode),
+		)
 	}
 }

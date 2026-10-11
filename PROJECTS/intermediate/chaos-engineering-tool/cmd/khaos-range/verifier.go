@@ -34,7 +34,10 @@ type verifierGateway struct {
 	verifier *verifier.Verifier
 }
 
-func newVerifierGateway(issuer, failMode string, keyTTL, decisionTTL time.Duration) *verifierGateway {
+func newVerifierGateway(
+	issuer, failMode string,
+	keyTTL, decisionTTL time.Duration,
+) *verifierGateway {
 	issuer = strings.TrimSuffix(issuer, "/")
 
 	return &verifierGateway{
@@ -61,7 +64,10 @@ func (g *verifierGateway) routes() *http.ServeMux {
 }
 
 func (g *verifierGateway) protected(w http.ResponseWriter, r *http.Request) {
-	token, scheme := strings.CutPrefix(r.Header.Get(headerAuthorization), bearerPrefix)
+	token, scheme := strings.CutPrefix(
+		r.Header.Get(headerAuthorization),
+		bearerPrefix,
+	)
 
 	if !scheme || token == "" {
 		w.WriteHeader(http.StatusUnauthorized)

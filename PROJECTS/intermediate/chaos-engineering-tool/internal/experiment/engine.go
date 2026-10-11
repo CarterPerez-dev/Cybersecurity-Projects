@@ -62,12 +62,164 @@ type Injector interface {
 	Revert(ctx context.Context) error
 }
 
-var ErrNoProbePair = errors.New("an experiment needs both a valid and an invalid probe; the invalid one is the negative control that makes the verdict mean anything")
+var ErrNoProbePair = errors.New(
+	"an experiment needs both a valid and an invalid probe; the invalid one is the negative control that makes the verdict mean anything",
+)
 
 type Engine struct {
 	Injector Injector
 	Report   Reporter
 	Now      func() time.Time
+}
+
+// abandon reverts the fault and then concludes, which is what every failure
+// AFTER a successful injection has to do. It is one function rather than one
+// block per branch because there is more than one such branch, and a branch
+// that returned a verdict without reverting would leave khaos's own fault
+// applied while reporting a result -- the single outcome this tool must never
+// produce. The cause is joined with the rollback error rather than replaced by
+// it, because the caller maps a rollback failure to its own exit code.
+func (e Engine) abandon(
+	ctx context.Context,
+	spec Experiment,
+	result Result,
+	observation Observation,
+	cause error,
+) (Result, error) {
+	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	observation.RollbackFailed = revertErr != nil
+
+	return e.conclude(
+		result,
+		observation,
+		spec.Polarity,
+		errors.Join(cause, revertErr),
+	)
+}
+
+// measureBaseline samples the healthy target and records how many times it
+// consulted the dependency across that window. The delta is measured HERE, in
+// the one window where the target is healthy and doing whatever it normally
+// does, because a delta of zero means the target never used the dependency this
+// experiment is about to break -- and an experiment against a dependency the
+// target ignores can only ever report HELD for the wrong reason.
+//
+// Measurement only. The two decisions that follow a baseline, whether the
+// operator interrupted it and whether it was ever a steady state, stay in Run
+// where they are visible beside the phases they skip.
+func (e Engine) measureBaseline(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+	observation Observation,
+) Observation {
+	e.emit(StageBaseline, detailBaseline)
+
+	consultedBefore := e.consulted(spec)
+
+	observation.Baseline = e.sample(
+		ctx,
+		spec.Probes,
+		timing.BaselineFor,
+		timing.SampleInterval,
+	)
+
+	observation.ConsultedWhat = spec.ConsultedWhat
+	observation.Consulted = e.consulted(spec) - consultedBefore
+
+	return observation
+}
+
+// injectionFailed is a conclusion of its own rather than a call to conclude,
+// because a fault that never landed leaves nothing to judge: there is no
+// behaviour under fault to have a direction, only an error to report. The
+// rollback is still attempted, since a failed Inject can still have changed
+// something before it failed.
+func (e Engine) injectionFailed(
+	ctx context.Context,
+	result Result,
+	observation Observation,
+	cause error,
+) (Result, error) {
+	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	observation.RollbackFailed = revertErr != nil
+
+	result.Observation = observation
+	result.Verdict = Verdict{
+		Epistemic: Errored,
+		Direction: Undetermined,
+		Reasons:   []string{cause.Error()},
+	}
+	result.Duration = e.now().Sub(result.StartedAt)
+
+	// Joined, not discarded. The caller maps the rollback failure to its own
+	// exit code, and keeping only a boolean here meant the CLI returned this
+	// error first and never reached the boolean.
+	return result, errors.Join(cause, revertErr)
+}
+
+// act performs the mid-run action, which happens AFTER the fault is confirmed
+// and BEFORE anything is measured under it. That ordering is forced rather than
+// convenient: revoking a credential while the authority is still reachable
+// makes the target cache a DENY, which a correct stale-serving implementation
+// then serves correctly. The bug only exists when the cache holds an ALLOW at
+// the moment the authority goes away, so the revocation has to be real and the
+// authority has to already be unreachable. It happens here or not at all.
+//
+// An experiment with no action returns unchanged, so the caller does not need
+// to know which kind it is holding.
+func (e Engine) act(
+	ctx context.Context,
+	spec Experiment,
+	observation Observation,
+) (Observation, error) {
+	if spec.Act == nil {
+		return observation, nil
+	}
+
+	e.emit(StageAct, spec.ActDetail)
+
+	if err := spec.Act(ctx); err != nil {
+		e.emit(StageAct, sprintf(detailActFailed, err))
+		observation.ActFailed = true
+
+		return observation, err
+	}
+
+	observation.Acted = true
+
+	return observation, nil
+}
+
+// restore reverts the fault and then measures what the target does once it is
+// gone, which together are khaos's Recovery axis: a target that never comes
+// back is a different finding from one that held throughout, and only the
+// second window can tell them apart.
+//
+// Both halves run on a context that cannot be cancelled. An operator's Ctrl-C
+// must not be able to skip the rollback, and it must not be able to skip the
+// evidence that the rollback worked either.
+func (e Engine) restore(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+	observation Observation,
+) (Observation, error) {
+	e.emit(StageRevert, detailRevert)
+
+	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	observation.RollbackFailed = revertErr != nil
+
+	e.emit(StageRecover, detailRecover)
+
+	observation.Recovery = e.sample(
+		context.WithoutCancel(ctx),
+		spec.Probes,
+		timing.RecoveryFor,
+		timing.SampleInterval,
+	)
+
+	return observation, revertErr
 }
 
 func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
@@ -90,38 +242,36 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		HeldCaveat:     spec.HeldCaveat,
 	}
 
-	e.emit(StageBaseline, detailBaseline)
-
-	// Measured across the BASELINE, where the target is healthy and whatever it
-	// normally does it is doing. A delta of zero there means the target never
-	// used the dependency this experiment is about to break.
-	consultedBefore := e.consulted(spec)
-
-	observation.Baseline = e.sample(ctx, spec.Probes, timing.BaselineFor, timing.SampleInterval)
-
-	observation.ConsultedWhat = spec.ConsultedWhat
-	observation.Consulted = e.consulted(spec) - consultedBefore
+	observation = e.measureBaseline(ctx, spec, timing, observation)
 
 	if ctx.Err() != nil {
-		return e.conclude(result, markInterrupted(observation), spec.Polarity, nil)
+		return e.conclude(
+			result,
+			markInterrupted(observation),
+			spec.Polarity,
+			nil,
+		)
 	}
 
-	if _, unmet := baselineUnmet(observation.Baseline, observation.ForgedBaseline, observation.MintedByKhaos); unmet {
+	if _, unmet := baselineUnmet(
+		observation.Baseline,
+		observation.ForgedBaseline,
+		observation.MintedByKhaos,
+	); unmet {
 		return e.conclude(result, observation, spec.Polarity, nil)
 	}
 
-	e.emit(StageInject, sprintf(detailInjecting, spec.Fault.Kind, spec.Fault.Target))
+	e.emit(
+		StageInject,
+		sprintf(detailInjecting, spec.Fault.Kind, spec.Fault.Target),
+	)
 
-	if err := e.Injector.Inject(ctx, spec.Fault.Kind, spec.Fault.Target); err != nil {
-		revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
-		observation.RollbackFailed = revertErr != nil
-		result.Observation = observation
-		result.Verdict = Verdict{Epistemic: Errored, Direction: Undetermined, Reasons: []string{err.Error()}}
-		result.Duration = e.now().Sub(result.StartedAt)
-		// Joined, not discarded. The caller maps the rollback failure to its own
-		// exit code, and keeping only a boolean here meant the CLI returned this
-		// error first and never reached the boolean.
-		return result, errors.Join(err, revertErr)
+	if err := e.Injector.Inject(
+		ctx,
+		spec.Fault.Kind,
+		spec.Fault.Target,
+	); err != nil {
+		return e.injectionFailed(ctx, result, observation, err)
 	}
 
 	method, confirmErr := e.Injector.Confirm(ctx)
@@ -130,45 +280,27 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 
 	if !observation.FaultConfirmed {
 		e.emit(StageConfirm, detailUnconfirm)
-		revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
-		observation.RollbackFailed = revertErr != nil
-		return e.conclude(result, observation, spec.Polarity, errors.Join(confirmErr, revertErr))
+		return e.abandon(ctx, spec, result, observation, confirmErr)
 	}
 
 	e.emit(StageConfirm, sprintf(detailConfirmed, method))
 
-	// The mid-run action happens AFTER the fault is confirmed and before anything
-	// is measured under it, and that ordering is forced rather than convenient.
-	// Revoking a credential while the authority is still reachable makes the
-	// target cache a DENY, which a correct stale-serving control then serves
-	// correctly; the bug only exists when the cache holds an ALLOW at the moment
-	// the authority goes away. So the revocation has to be real and unreachable,
-	// which means it happens here or not at all.
-	if spec.Act != nil {
-		e.emit(StageAct, spec.ActDetail)
-
-		if err := spec.Act(ctx); err != nil {
-			e.emit(StageAct, sprintf(detailActFailed, err))
-			observation.ActFailed = true
-			revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
-			observation.RollbackFailed = revertErr != nil
-			return e.conclude(result, observation, spec.Polarity, errors.Join(err, revertErr))
-		}
-
-		observation.Acted = true
+	observation, actErr := e.act(ctx, spec, observation)
+	if actErr != nil {
+		return e.abandon(ctx, spec, result, observation, actErr)
 	}
 
 	e.emit(StageObserve, detailObserve)
-	observation.Fault = e.sample(ctx, spec.Probes, timing.FaultFor, timing.SampleInterval)
+	observation.Fault = e.sample(
+		ctx,
+		spec.Probes,
+		timing.FaultFor,
+		timing.SampleInterval,
+	)
 
 	observation = e.discriminate(ctx, spec, observation, timing)
 
-	e.emit(StageRevert, detailRevert)
-	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
-	observation.RollbackFailed = revertErr != nil
-
-	e.emit(StageRecover, detailRecover)
-	observation.Recovery = e.sample(context.WithoutCancel(ctx), spec.Probes, timing.RecoveryFor, timing.SampleInterval)
+	observation, revertErr := e.restore(ctx, spec, timing, observation)
 
 	if ctx.Err() != nil {
 		observation = markInterrupted(observation)
@@ -215,17 +347,34 @@ func (e Engine) discriminate(
 	e.emit(StageResume, detailResume)
 
 	observation.IdleFor = spec.IdleFor
-	observation.Resumed = e.sample(ctx, spec.Probes, timing.FaultFor, timing.SampleInterval)
+	observation.Resumed = e.sample(
+		ctx,
+		spec.Probes,
+		timing.FaultFor,
+		timing.SampleInterval,
+	)
 
 	return observation
 }
 
-func (e Engine) conclude(result Result, observation Observation, polarity Polarity, err error) (Result, error) {
+func (e Engine) conclude(
+	result Result,
+	observation Observation,
+	polarity Polarity,
+	err error,
+) (Result, error) {
 	result.Observation = observation
 	result.Verdict = Judge(observation, polarity)
 	result.Duration = e.now().Sub(result.StartedAt)
 
-	e.emit(StageVerdict, sprintf(detailVerdict, result.Verdict.Epistemic, result.Verdict.Direction))
+	e.emit(
+		StageVerdict,
+		sprintf(
+			detailVerdict,
+			result.Verdict.Epistemic,
+			result.Verdict.Direction,
+		),
+	)
 
 	return result, err
 }
@@ -248,7 +397,11 @@ func markInterrupted(observation Observation) Observation {
 // take is subtracted from the wait, so a slow target reduces latency headroom
 // rather than silently collapsing the sample count below the floor a verdict
 // needs.
-func (e Engine) sample(ctx context.Context, pair probe.Pair, duration, interval time.Duration) probe.Window {
+func (e Engine) sample(
+	ctx context.Context,
+	pair probe.Pair,
+	duration, interval time.Duration,
+) probe.Window {
 	window := probe.Window{}
 	deadline := e.now().Add(duration)
 
@@ -286,6 +439,9 @@ func jitter(interval time.Duration) time.Duration {
 	if span <= 0 {
 		return 0
 	}
+	// Spread between probes, so a periodic sampler does not beat in lockstep
+	// with whatever the target does periodically. Statistical, not secret.
+	//nolint:gosec // probe spread, not a secret
 	return time.Duration(rand.Float64() * span)
 }
 

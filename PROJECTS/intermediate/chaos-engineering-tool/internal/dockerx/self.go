@@ -25,6 +25,7 @@ func SelfContainerID() string {
 }
 
 func scanForContainerID(path string) string {
+	//nolint:gosec // a procfs path from khaos's own fixed list
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return ""

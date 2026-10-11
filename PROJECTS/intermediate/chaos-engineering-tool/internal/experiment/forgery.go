@@ -95,7 +95,11 @@ const (
 // because the shape is identical: the provider mints correctly until it is
 // armed, so the forged stream mints per sample and has to have been accepted
 // during the baseline.
-func forged(name, summary, condition, defect string, trap idp.Kind, extra ...Param) idpSpec {
+func forged(
+	name, summary, condition, defect string,
+	trap idp.Kind,
+	extra ...Param,
+) idpSpec {
 	spec := idpSpec{
 		name:      name,
 		summary:   summary,
@@ -116,8 +120,18 @@ func forged(name, summary, condition, defect string, trap idp.Kind, extra ...Par
 		// "no bypass was observed" would be khaos claiming it ruled out
 		// algorithm confusion when it ruled out one of four ways to express it.
 		spec.heldCaveat = func(params *Params) string {
-			return sprintf(caveatOneKeyForm, params.Get(ParamKeyForm), strings.Join(idp.KeyForms(), nameSep))
+			return sprintf(
+				caveatOneKeyForm,
+				params.Get(ParamKeyForm),
+				strings.Join(idp.KeyForms(), nameSep),
+			)
 		}
+
+	default:
+		// Every other trap keeps the magnitude and caveat the caller declared.
+		// Falling through is the safe direction here: a missing override leaves a
+		// declared value in place, where a wrong override would change the fault
+		// khaos actually applies.
 	}
 
 	return spec

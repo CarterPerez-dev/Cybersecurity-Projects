@@ -30,11 +30,17 @@ const (
 	errNoControl = "%w: %v"
 )
 
-var ErrNothingArmed = errors.New("nothing is armed on the fault proxy, so there is nothing to confirm")
+var ErrNothingArmed = errors.New(
+	"nothing is armed on the fault proxy, so there is nothing to confirm",
+)
 
-var ErrDependencyUnreachable = errors.New("khaos cannot reach the dependency directly, so it cannot attribute what it sees through the proxy to its own fault")
+var ErrDependencyUnreachable = errors.New(
+	"khaos cannot reach the dependency directly, so it cannot attribute what it sees through the proxy to its own fault",
+)
 
-var ErrFaultNotObserved = errors.New("the armed fault did not produce its own observable")
+var ErrFaultNotObserved = errors.New(
+	"the armed fault did not produce its own observable",
+)
 
 // reading is what khaos's confirmation probe measured on one path.
 type reading struct {
@@ -55,25 +61,45 @@ type reading struct {
 // served in full, and a dependency taking one second confirmed a `latency` whose
 // delay had been removed. The direct path is the control, and the design contract
 // calls for read-back rather than an API return value.
-func (p *Proxy) Observe(ctx context.Context, expected Kind) (string, bool, error) {
-	// Closed is checked FIRST. Close reverts to pass-through, so reading the fault
-	// before this would report "nothing armed" for a proxy that is gone, and a
-	// dial to a listener that no longer exists is ECONNREFUSED, which a reset
-	// oracle must not accept as its own observable.
+// armedFor resolves the fault this call is allowed to confirm, or says why the
+// proxy cannot be asked at all.
+//
+// Closed is checked FIRST. Close reverts to pass-through, so reading the fault
+// before this would report "nothing armed" for a proxy that is gone, and a dial
+// to a listener that no longer exists is ECONNREFUSED, which a reset oracle
+// must not accept as its own observable.
+func (p *Proxy) armedFor(expected Kind) (Fault, error) {
 	select {
 	case <-p.closed:
-		return "", false, ErrClosed
+		return Fault{}, ErrClosed
 	default:
 	}
 
 	fault := p.Fault()
 
 	if fault.Kind == PassThrough {
-		return "", false, ErrNothingArmed
+		return Fault{}, ErrNothingArmed
 	}
 
 	if expected != "" && fault.Kind != expected {
-		return "", false, fmt.Errorf(errWrongArmed, ErrFaultNotObserved, fault.Kind, expected)
+		return Fault{}, fmt.Errorf(
+			errWrongArmed,
+			ErrFaultNotObserved,
+			fault.Kind,
+			expected,
+		)
+	}
+
+	return fault, nil
+}
+
+func (p *Proxy) Observe(
+	ctx context.Context,
+	expected Kind,
+) (string, bool, error) {
+	fault, err := p.armedFor(expected)
+	if err != nil {
+		return "", false, err
 	}
 
 	p.probes.Add(1)
@@ -84,12 +110,17 @@ func (p *Proxy) Observe(ctx context.Context, expected Kind) (string, bool, error
 	// the way, nothing seen through the proxy can be attributed to khaos's fault,
 	// and saying so voids the run instead of crediting khaos for someone else's
 	// outage.
-	// A complete answer always ends in an error, because that is what the peer
-	// closing looks like to a reader. Only the absence of BYTES means khaos could
-	// not reach the dependency.
+	//
+	// The test is the absence of BYTES, not the presence of an error: a complete
+	// answer always ends in one, because that is what the peer closing looks
+	// like to a reader.
 	direct, directErr := p.measure(ctx, p.upstream, observeGrace)
 	if direct.total == 0 {
-		return "", false, fmt.Errorf(errNoControl, ErrDependencyUnreachable, directErr)
+		return "", false, fmt.Errorf(
+			errNoControl,
+			ErrDependencyUnreachable,
+			directErr,
+		)
 	}
 
 	through, throughErr := p.measure(ctx, p.Addr(), budget)
@@ -114,21 +145,35 @@ func (p *Proxy) Observe(ctx context.Context, expected Kind) (string, bool, error
 	case Latency:
 		added := through.firstByte - direct.firstByte
 		if added >= slack(fault.Delay) {
-			return sprintf(observedLatency, added.Round(time.Millisecond)), true, nil
+			return sprintf(
+				observedLatency,
+				added.Round(time.Millisecond),
+			), true, nil
 		}
 	case Partial:
 		// Both halves. A byte count that merely MATCHES the budget is also what
 		// pass-through delivers when the answer happens to be that long, so the
 		// control's answer has to be longer than what came through.
 		if through.total == int64(fault.Bytes) && direct.total > through.total {
-			return sprintf(observedPartial, through.total, direct.total), true, nil
+			return sprintf(
+				observedPartial,
+				through.total,
+				direct.total,
+			), true, nil
 		}
 	case SlowClose:
 		held := through.closed - through.firstByte
 		reference := direct.closed - direct.firstByte
 		if held-reference >= slack(fault.Delay) {
-			return sprintf(observedSlowClose, held.Round(time.Millisecond)), true, nil
+			return sprintf(
+				observedSlowClose,
+				held.Round(time.Millisecond),
+			), true, nil
 		}
+
+	default:
+		// PassThrough is the absence of a fault and has no observable to
+		// confirm, so it reaches the unconfirmed return below.
 	}
 
 	return "", false, nil
@@ -140,7 +185,11 @@ func slack(delay time.Duration) time.Duration {
 
 // measure sends one probe to an address and records when the first byte arrived,
 // how much arrived in total, and when the peer closed.
-func (p *Proxy) measure(ctx context.Context, addr string, budget time.Duration) (reading, error) {
+func (p *Proxy) measure(
+	ctx context.Context,
+	addr string,
+	budget time.Duration,
+) (reading, error) {
 	dialer := net.Dialer{Timeout: budget}
 
 	conn, err := dialer.DialContext(ctx, network, addr)

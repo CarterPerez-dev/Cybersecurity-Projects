@@ -23,9 +23,13 @@ const (
 	describeIdP = "%s, at khaos's own identity provider, which holds no capabilities and serves nothing but the target under test"
 )
 
-var ErrNoIdP = errors.New("this mutation needs khaos's identity provider, which is not running")
+var ErrNoIdP = errors.New(
+	"this mutation needs khaos's identity provider, which is not running",
+)
 
-var ErrTrapMismatch = errors.New("the armed trap does not match the mutation being applied")
+var ErrTrapMismatch = errors.New(
+	"the armed trap does not match the mutation being applied",
+)
 
 // IdPKind names the mutation that arms one trap on khaos's identity provider.
 // The trap kinds and the mutation kinds are one-to-one, so `khaos catalog` names
@@ -69,13 +73,22 @@ func (m idpMutator) Describe(env Env, target dockerx.Target) string {
 // the experiment is built, so the trap travels without it and picks it up here.
 // Inject runs after the baseline, by which time the credential exists and the
 // target has been honouring it, which is exactly the state the finding needs.
-func (m idpMutator) Plan(_ context.Context, env Env, _ dockerx.Target) (json.RawMessage, error) {
+func (m idpMutator) Plan(
+	_ context.Context,
+	env Env,
+	_ dockerx.Target,
+) (json.RawMessage, error) {
 	if env.IdP == nil {
 		return nil, fmt.Errorf(errNoIdP, ErrNoIdP, IdPKind(m.kind))
 	}
 
 	if env.IdPTrap.Kind != m.kind {
-		return nil, fmt.Errorf(errWrongTrapKind, ErrTrapMismatch, env.IdPTrap.Kind, m.kind)
+		return nil, fmt.Errorf(
+			errWrongTrapKind,
+			ErrTrapMismatch,
+			env.IdPTrap.Kind,
+			m.kind,
+		)
 	}
 
 	trap := env.IdPTrap
@@ -95,7 +108,12 @@ func (m idpMutator) Plan(_ context.Context, env Env, _ dockerx.Target) (json.Raw
 	return journal.EncodePayload(trap)
 }
 
-func (m idpMutator) Apply(_ context.Context, env Env, _ dockerx.Target, raw json.RawMessage) error {
+func (m idpMutator) Apply(
+	_ context.Context,
+	env Env,
+	_ dockerx.Target,
+	raw json.RawMessage,
+) error {
 	if env.IdP == nil {
 		return fmt.Errorf(errNoIdP, ErrNoIdP, IdPKind(m.kind))
 	}
@@ -130,7 +148,11 @@ func (m idpMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
 // set: a flag records which branch was chosen, not what a verifier would
 // actually receive, and a provider whose minting broke would confirm a trap it
 // is not producing.
-func (m idpMutator) Confirm(ctx context.Context, env Env, _ dockerx.Target) (string, bool, error) {
+func (m idpMutator) Confirm(
+	ctx context.Context,
+	env Env,
+	_ dockerx.Target,
+) (string, bool, error) {
 	if env.IdP == nil {
 		return "", false, fmt.Errorf(errNoIdP, ErrNoIdP, IdPKind(m.kind))
 	}

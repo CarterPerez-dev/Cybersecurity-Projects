@@ -38,7 +38,9 @@ const (
 	errUnresolvableContext = "%w: %s names the context %q, but its metadata could not be read"
 )
 
-var ErrContextUnresolvable = errors.New("the selected Docker context could not be resolved")
+var ErrContextUnresolvable = errors.New(
+	"the selected Docker context could not be resolved",
+)
 
 type Endpoint struct {
 	Host   string
@@ -57,7 +59,10 @@ type contextMetadata struct {
 	} `json:"Endpoints"`
 }
 
-func ResolveEndpoint(environ func(string) string, home string) (Endpoint, error) {
+func ResolveEndpoint(
+	environ func(string) string,
+	home string,
+) (Endpoint, error) {
 	if host := environ(EnvDockerHost); host != "" {
 		return Endpoint{Host: host, Source: SourceEnvHost}, nil
 	}
@@ -81,7 +86,12 @@ func ResolveEndpoint(environ func(string) string, home string) (Endpoint, error)
 	if name := environ(EnvDockerContext); name != "" {
 		host, ok := contextHost(home, name)
 		if !ok {
-			return Endpoint{}, fmt.Errorf(errUnresolvableContext, ErrContextUnresolvable, EnvDockerContext, name)
+			return Endpoint{}, fmt.Errorf(
+				errUnresolvableContext,
+				ErrContextUnresolvable,
+				EnvDockerContext,
+				name,
+			)
 		}
 		return Endpoint{Host: host, Source: SourceEnvContext, Name: name}, nil
 	}
@@ -89,9 +99,18 @@ func ResolveEndpoint(environ func(string) string, home string) (Endpoint, error)
 	if name, ok := currentContext(home); ok && name != defaultContext {
 		host, found := contextHost(home, name)
 		if !found {
-			return Endpoint{}, fmt.Errorf(errUnresolvableContext, ErrContextUnresolvable, SourceConfigContext, name)
+			return Endpoint{}, fmt.Errorf(
+				errUnresolvableContext,
+				ErrContextUnresolvable,
+				SourceConfigContext,
+				name,
+			)
 		}
-		return Endpoint{Host: host, Source: SourceConfigContext, Name: name}, nil
+		return Endpoint{
+			Host:   host,
+			Source: SourceConfigContext,
+			Name:   name,
+		}, nil
 	}
 
 	return defaultEndpoint(environ)
@@ -103,12 +122,18 @@ func defaultEndpoint(environ func(string) string) (Endpoint, error) {
 	if runtimeDir := environ(EnvXDGRuntime); runtimeDir != "" {
 		path := filepath.Join(runtimeDir, socketBaseName)
 		if exists(path) {
-			return Endpoint{Host: unixScheme + path, Source: SourceRootless}, nil
+			return Endpoint{
+				Host:   unixScheme + path,
+				Source: SourceRootless,
+			}, nil
 		}
 	}
 
 	if exists(DockerSocketPath) {
-		return Endpoint{Host: unixScheme + DockerSocketPath, Source: SourceDefault}, nil
+		return Endpoint{
+			Host:   unixScheme + DockerSocketPath,
+			Source: SourceDefault,
+		}, nil
 	}
 
 	return Endpoint{Source: SourceNone}, ErrNoEndpoint
@@ -126,6 +151,7 @@ func (e Endpoint) SocketPath() (string, bool) {
 }
 
 func currentContext(home string) (string, bool) {
+	//nolint:gosec // the operator's own ~/.docker/config.json
 	raw, err := os.ReadFile(filepath.Join(home, dockerDir, configFile))
 	if err != nil {
 		return "", false
@@ -141,8 +167,16 @@ func currentContext(home string) (string, bool) {
 
 func contextHost(home, name string) (string, bool) {
 	digest := sha256.Sum256([]byte(name))
-	path := filepath.Join(home, dockerDir, contextsDir, contextMetaDir, hex.EncodeToString(digest[:]), contextMeta)
+	path := filepath.Join(
+		home,
+		dockerDir,
+		contextsDir,
+		contextMetaDir,
+		hex.EncodeToString(digest[:]),
+		contextMeta,
+	)
 
+	//nolint:gosec // a path khaos derives under the operator's ~/.docker
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return "", false

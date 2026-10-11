@@ -90,15 +90,31 @@ func idpParams(extra ...Param) []Param {
 		{Name: ParamTarget, Usage: usageTarget, Required: true},
 		{Name: ParamURL, Usage: usageURL, Required: true},
 		{Name: ParamIssuer, Usage: usageIssuer, Required: true},
-		{Name: ParamInvalidToken, Usage: usageInvalidToken, Default: DefaultInvalidToken},
+		{
+			Name:    ParamInvalidToken,
+			Usage:   usageInvalidToken,
+			Default: DefaultInvalidToken,
+		},
 	}, extra...)
 }
 
-var keyFormParam = Param{Name: ParamKeyForm, Usage: usageKeyForm, Default: string(idp.SPKIPEM)}
+var keyFormParam = Param{
+	Name:    ParamKeyForm,
+	Usage:   usageKeyForm,
+	Default: string(idp.SPKIPEM),
+}
 
-var idpDelayParam = Param{Name: ParamDelay, Usage: usageIdPDelay, Default: defaultIdPDelay}
+var idpDelayParam = Param{
+	Name:    ParamDelay,
+	Usage:   usageIdPDelay,
+	Default: defaultIdPDelay,
+}
 
-var claimShiftParam = Param{Name: ParamDelay, Usage: usageClaimShift, Default: defaultClaimShift}
+var claimShiftParam = Param{
+	Name:    ParamDelay,
+	Usage:   usageClaimShift,
+	Default: defaultClaimShift,
+}
 
 const (
 	// The two endpoints an identity experiment can fault, as they read in the
@@ -164,7 +180,11 @@ type streams struct {
 // and an experiment whose valid stream froze a token would be unable to tell a
 // target that stopped trusting the provider from one that never picked up a
 // rotation.
-func idpPair(params *Params, provider *idp.Provider, wiring streams) (probe.Pair, error) {
+func idpPair(
+	params *Params,
+	provider *idp.Provider,
+	wiring streams,
+) (probe.Pair, error) {
 	url := params.Get(ParamURL)
 
 	mintValid := provider.HonestToken
@@ -238,7 +258,11 @@ func idpPair(params *Params, provider *idp.Provider, wiring streams) (probe.Pair
 	return pair, nil
 }
 
-func forgedProbe(url string, provider *idp.Provider, wiring streams) (probe.Probe, error) {
+func forgedProbe(
+	url string,
+	provider *idp.Provider,
+	wiring streams,
+) (probe.Probe, error) {
 	options := probe.HTTPOptions{
 		Name:       probeForgedName,
 		URL:        url,
@@ -262,7 +286,9 @@ func forgedProbe(url string, provider *idp.Provider, wiring streams) (probe.Prob
 // mintEvery adapts a provider mint to the probe's per-request signature. The
 // context is unused because minting is local arithmetic with no I/O, and giving
 // it one would suggest a cancellation point that does not exist.
-func mintEvery(mint func() (string, error)) func(context.Context) (string, error) {
+func mintEvery(
+	mint func() (string, error),
+) func(context.Context) (string, error) {
 	return func(context.Context) (string, error) {
 		return mint()
 	}

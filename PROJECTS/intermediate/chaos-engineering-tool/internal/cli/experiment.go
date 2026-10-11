@@ -16,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
@@ -29,6 +27,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -122,13 +121,21 @@ enforcing in the first place.`
 	listSep      = ", "
 )
 
-var ErrDefectFound = errors.New("the target broke in the direction this experiment declares a defect")
+var ErrDefectFound = errors.New(
+	"the target broke in the direction this experiment declares a defect",
+)
 
-var ErrNotRecovered = errors.New("the target did not return to its steady state after khaos reverted the fault, so it may still be degraded")
+var ErrNotRecovered = errors.New(
+	"the target did not return to its steady state after khaos reverted the fault, so it may still be degraded",
+)
 
-var ErrUnusableIssuer = errors.New("that issuer does not tell khaos where to listen")
+var ErrUnusableIssuer = errors.New(
+	"that issuer does not tell khaos where to listen",
+)
 
-var ErrInconclusive = errors.New("this run did not reach a conclusion, so nothing can be concluded from it either way")
+var ErrInconclusive = errors.New(
+	"this run did not reach a conclusion, so nothing can be concluded from it either way",
+)
 
 func newCatalogCmd() *cobra.Command {
 	return &cobra.Command{
@@ -196,7 +203,11 @@ func unknownExperiment(verb string, args []string) error {
 			return err
 		}
 	}
-	return fmt.Errorf(errNoExperiment, verb, strings.Join(experiment.Names(), listSep))
+	return fmt.Errorf(
+		errNoExperiment,
+		verb,
+		strings.Join(experiment.Names(), listSep),
+	)
 }
 
 func newPlanExperimentCmd(definition experiment.Definition) *cobra.Command {
@@ -236,7 +247,13 @@ func newRunExperimentCmd(definition experiment.Definition) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runExperiment(cmd.Context(), cmd.OutOrStdout(), definition, ttl, given)
+			return runExperiment(
+				cmd.Context(),
+				cmd.OutOrStdout(),
+				definition,
+				ttl,
+				given,
+			)
 		},
 	}
 
@@ -256,10 +273,13 @@ func experimentFlags(cmd *cobra.Command, definition experiment.Definition) {
 		cmd.Flags().String(param.Name, "", paramUsage(param))
 	}
 
-	cmd.Flags().Duration(flagBaselineFor, experiment.DefaultBaselineFor, baselineUsage)
+	cmd.Flags().
+		Duration(flagBaselineFor, experiment.DefaultBaselineFor, baselineUsage)
 	cmd.Flags().Duration(flagFaultFor, experiment.DefaultFaultFor, faultUsage)
-	cmd.Flags().Duration(flagRecoverFor, experiment.DefaultRecoveryFor, recoverUsage)
-	cmd.Flags().Duration(flagSampleEvery, experiment.DefaultSampleInterval, sampleUsage)
+	cmd.Flags().
+		Duration(flagRecoverFor, experiment.DefaultRecoveryFor, recoverUsage)
+	cmd.Flags().
+		Duration(flagSampleEvery, experiment.DefaultSampleInterval, sampleUsage)
 }
 
 func paramUsage(param experiment.Param) string {
@@ -275,7 +295,10 @@ type inputs struct {
 	Timing   experiment.Timing
 }
 
-func experimentInputs(cmd *cobra.Command, definition experiment.Definition) (inputs, error) {
+func experimentInputs(
+	cmd *cobra.Command,
+	definition experiment.Definition,
+) (inputs, error) {
 	project, err := cmd.Flags().GetString(flagProject)
 	if err != nil {
 		return inputs{}, err
@@ -336,27 +359,59 @@ func runCatalog(out io.Writer) error {
 		theme.Fg(theme.TextFaint, "DEFECT IS"))
 
 	for _, definition := range experiment.Catalog() {
-		fmt.Fprintf(out, rowLayout, render.Indent,
-			theme.Fg(theme.TextBright, render.Cell(definition.Name, colExperiment)),
-			theme.Fg(theme.TextNormal, render.Cell(definition.Family, colFamily)),
-			theme.Fg(theme.TextDim, render.Cell(definition.FaultKind, colFault)),
-			theme.Fg(directionColor(definition.Polarity.Defects[0]), definition.Polarity.Declared()))
+		fmt.Fprintf(
+			out,
+			rowLayout,
+			render.Indent,
+			theme.Fg(
+				theme.TextBright,
+				render.Cell(definition.Name, colExperiment),
+			),
+			theme.Fg(
+				theme.TextNormal,
+				render.Cell(definition.Family, colFamily),
+			),
+			theme.Fg(
+				theme.TextDim,
+				render.Cell(definition.FaultKind, colFault),
+			),
+			theme.Fg(
+				directionColor(definition.Polarity.Defects[0]),
+				definition.Polarity.Declared(),
+			),
+		)
 
-		fmt.Fprintf(out, noteLayout, render.FixIndent, theme.Fg(theme.TextDim, definition.Summary))
+		fmt.Fprintf(
+			out,
+			noteLayout,
+			render.FixIndent,
+			theme.Fg(theme.TextDim, definition.Summary),
+		)
 	}
 
 	fmt.Fprintln(out)
 	return nil
 }
 
-func runPlan(ctx context.Context, out io.Writer, definition experiment.Definition, given inputs) error {
+func runPlan(
+	ctx context.Context,
+	out io.Writer,
+	definition experiment.Definition,
+	given inputs,
+) error {
 	work, err := workspace.OpenShared(ctx)
 	if err != nil {
 		return err
 	}
 	defer work.Close()
 
-	supplied, err := fillFromRange(ctx, out, work.Docker, definition, given.Supplied)
+	supplied, err := fillFromRange(
+		ctx,
+		out,
+		work.Docker,
+		definition,
+		given.Supplied,
+	)
 	if err != nil {
 		return err
 	}
@@ -369,7 +424,12 @@ func runPlan(ctx context.Context, out io.Writer, definition experiment.Definitio
 	project := given.Project
 	guard := dockerx.Guard{Project: project, SelfID: dockerx.SelfContainerID()}
 
-	target, err := work.Docker.Accept(ctx, spec.Fault.Target, dockerx.Filter{Project: project}, guard)
+	target, err := work.Docker.Accept(
+		ctx,
+		spec.Fault.Target,
+		dockerx.Filter{Project: project},
+		guard,
+	)
 	if err != nil {
 		return err
 	}
@@ -388,7 +448,11 @@ func describe(out io.Writer, spec experiment.Experiment, resolved string) {
 	field(out, labelTarget, resolved)
 	field(out, labelValid, spec.Probes.Valid.Describe())
 	field(out, labelInvalid, spec.Probes.Invalid.Describe())
-	field(out, labelPolarity, spec.Polarity.Declared()+" ("+spec.Polarity.Rationale+")")
+	field(
+		out,
+		labelPolarity,
+		spec.Polarity.Declared()+" ("+spec.Polarity.Rationale+")",
+	)
 
 	timing := spec.Timing
 	field(out, labelTiming, fmt.Sprintf(timingFormat,
@@ -412,7 +476,13 @@ func runExperiment(
 	}
 	defer work.Close()
 
-	supplied, err := fillFromRange(ctx, out, work.Docker, definition, given.Supplied)
+	supplied, err := fillFromRange(
+		ctx,
+		out,
+		work.Docker,
+		definition,
+		given.Supplied,
+	)
 	if err != nil {
 		return err
 	}
@@ -432,7 +502,12 @@ func runExperiment(
 	// khaos never even accepted. That is the same "true statement about a run that
 	// never had a chance, blaming the target" failure the parameter model exists
 	// to kill, arriving on the output path instead of the input path.
-	accepted, err := work.Docker.Accept(ctx, spec.Fault.Target, dockerx.Filter{Project: project}, guard)
+	accepted, err := work.Docker.Accept(
+		ctx,
+		spec.Fault.Target,
+		dockerx.Filter{Project: project},
+		guard,
+	)
 	if err != nil {
 		return err
 	}
@@ -473,43 +548,106 @@ func runExperiment(
 
 	session := run.NewSession(env, work.Journal, ttl)
 
-	injector := &run.Injector{
-		Session:  session,
-		Resolver: work.Docker,
-		Filter:   dockerx.Filter{Project: project},
-		Guard:    guard,
-		Progress: func(record journal.Record, failure error) {
-			if failure != nil {
-				event(out, markError, theme.StatusError,
-					fmt.Sprintf(faultFormat, record.Kind, record.TargetName, failure))
-				return
-			}
-			event(out, markRevert, theme.StatusOK, subject(record.Kind, record.TargetName))
-		},
-	}
-
-	engine := experiment.Engine{
-		Injector: injector,
-		Report: func(e experiment.Event) {
-			event(out, markPlan, theme.TextFaint, fmt.Sprintf(stageFormat, e.Stage, e.Detail))
-		},
-	}
+	engine := wire(
+		out,
+		session,
+		work.Docker,
+		dockerx.Filter{Project: project},
+		guard,
+	)
 
 	describe(out, spec, accepted.Name)
 
-	// The lease must be renewed for as long as the run holds a fault. Without
-	// this, `khaos reap` reverts the fault partway through and the engine
-	// scores a target that was never under fault as a clean survival.
+	result, runErr := underLease(ctx, engine, spec, session)
+
+	result.RunID = session.RunID()
+	reportVerdict(out, result)
+
+	return exitFor(result, runErr)
+}
+
+// wire builds the injector and the engine. Everything in here is progress
+// reporting and none of it is policy, which is why the two literals are long
+// and why they belong together away from the run itself.
+func wire(
+	out io.Writer,
+	session *run.Session,
+	resolver run.Resolver,
+	filter dockerx.Filter,
+	guard dockerx.Guard,
+) experiment.Engine {
+	injector := &run.Injector{
+		Session:  session,
+		Resolver: resolver,
+		Filter:   filter,
+		Guard:    guard,
+		Progress: func(record journal.Record, failure error) {
+			if failure != nil {
+				event(
+					out,
+					markError,
+					theme.StatusError,
+					fmt.Sprintf(
+						faultFormat,
+						record.Kind,
+						record.TargetName,
+						failure,
+					),
+				)
+
+				return
+			}
+
+			event(
+				out,
+				markRevert,
+				theme.StatusOK,
+				subject(record.Kind, record.TargetName),
+			)
+		},
+	}
+
+	return experiment.Engine{
+		Injector: injector,
+		Report: func(e experiment.Event) {
+			event(
+				out,
+				markPlan,
+				theme.TextFaint,
+				fmt.Sprintf(stageFormat, e.Stage, e.Detail),
+			)
+		},
+	}
+}
+
+// underLease runs the experiment while the session's lease is kept alive, which
+// it must be for as long as the run holds a fault. Without the renewal `khaos
+// reap` reverts the fault partway through and the engine scores a target that
+// was never under fault as a clean survival.
+//
+// A lease that STOPPED being renewed is therefore an epistemic failure, not a
+// warning: the fault may have been reverted underneath the measurement, so the
+// result cannot be believed even though the engine returned one.
+func underLease(
+	ctx context.Context,
+	engine experiment.Engine,
+	spec experiment.Experiment,
+	session *run.Session,
+) (experiment.Result, error) {
 	keepCtx, stopKeeping := context.WithCancel(ctx)
 	renewals := make(chan error, 1)
 
 	go func() {
-		renewals <- session.Lease().Keep(keepCtx, func(time.Time) error { return session.Renew() })
+		renewals <- session.Lease().Keep(
+			keepCtx,
+			func(time.Time) error { return session.Renew() },
+		)
 	}()
 
 	result, runErr := engine.Run(ctx, spec)
 
 	stopKeeping()
+
 	if keepErr := <-renewals; !errors.Is(keepErr, context.Canceled) {
 		result.Verdict.Epistemic = experiment.Aborted
 		result.Verdict.Conclusive = false
@@ -517,9 +655,14 @@ func runExperiment(
 		runErr = errors.Join(runErr, keepErr)
 	}
 
-	result.RunID = session.RunID()
-	reportVerdict(out, result)
+	return result, runErr
+}
 
+// exitFor maps a finished run onto khaos's exit contract, and the ORDER is the
+// contract. The operator's first question is the state of their own system, not
+// the verdict about it, so a failed rollback and a target khaos never saw come
+// back both rank ABOVE the defect the run went looking for.
+func exitFor(result experiment.Result, runErr error) error {
 	if runErr != nil {
 		return runErr
 	}
@@ -547,7 +690,11 @@ func runExperiment(
 	// verdict text said so honestly, and the exit code said success. Design
 	// section 8 assigns 4 to inconclusive, and that is what this produces.
 	if !conclusive(result.Verdict.Epistemic) {
-		return fmt.Errorf(errInconclusive, ErrInconclusive, result.Verdict.Epistemic)
+		return fmt.Errorf(
+			errInconclusive,
+			ErrInconclusive,
+			result.Verdict.Epistemic,
+		)
 	}
 
 	// khaos's OWN confidence field, which the exit code used to ignore entirely.
@@ -561,7 +708,11 @@ func runExperiment(
 
 	// Recovery that was never observed is not recovery.
 	if result.Verdict.Recovery == experiment.Unobserved {
-		return fmt.Errorf(errInconclusive, ErrInconclusive, verdictRecoveryUnobserved)
+		return fmt.Errorf(
+			errInconclusive,
+			ErrInconclusive,
+			verdictRecoveryUnobserved,
+		)
 	}
 
 	return nil
@@ -577,14 +728,24 @@ func conclusive(epistemic experiment.Epistemic) bool {
 func reportVerdict(out io.Writer, result experiment.Result) {
 	fmt.Fprintln(out)
 
-	field(out, labelVerdict, theme.Fg(directionColor(result.Verdict.Direction),
-		fmt.Sprintf(verdictFormat, result.Verdict.Epistemic, result.Verdict.Direction)))
+	field(out, labelVerdict, theme.Fg(
+		directionColor(result.Verdict.Direction),
+		fmt.Sprintf(
+			verdictFormat,
+			result.Verdict.Epistemic,
+			result.Verdict.Direction,
+		),
+	))
 
 	// The cause is only printed when something established one. An UNDIAGNOSED
 	// line on every run would read as a field khaos failed to fill rather than a
 	// diagnosis it never attempted.
 	if result.Verdict.Cause != experiment.Undiagnosed {
-		field(out, labelCause, theme.Fg(theme.StatePermitted, string(result.Verdict.Cause)))
+		field(
+			out,
+			labelCause,
+			theme.Fg(theme.StatePermitted, string(result.Verdict.Cause)),
+		)
 	}
 
 	if result.RunID != "" {
@@ -697,7 +858,11 @@ type rangeAnswers struct {
 	ProxyUpstream string
 }
 
-func rangeDefaults(lab rangelab.Lab, answers rangeAnswers, at tier) map[string]string {
+func rangeDefaults(
+	lab rangelab.Lab,
+	answers rangeAnswers,
+	at tier,
+) map[string]string {
 	url := lab.ProtectedURL()
 	target := rangelab.IDPName
 
@@ -714,6 +879,10 @@ func rangeDefaults(lab rangelab.Lab, answers rangeAnswers, at tier) map[string]s
 		// touches and leave the one it does measure unchecked.
 		url = lab.VerifierProtectedURL()
 		target = rangelab.VerifierGatewayName
+
+	default:
+		// The direct tier probes the protected URL and names the provider
+		// container, both of which are already set above.
 	}
 
 	return map[string]string{
@@ -752,7 +921,11 @@ func fillFromRange(
 	}
 
 	if len(given) > 0 {
-		return nil, fmt.Errorf(errHalfSpecified, flagList(given), flagList(missing))
+		return nil, fmt.Errorf(
+			errHalfSpecified,
+			flagList(given),
+			flagList(missing),
+		)
 	}
 
 	lab, err := rangelab.Discover(ctx, reader)
@@ -769,11 +942,19 @@ func fillFromRange(
 	at := tierOf(definition.FaultKind)
 
 	if at == tierProxy && lab.ProxiedPort == 0 {
-		return nil, fmt.Errorf(errNoProxiedPath, rangelab.ErrRangeIncomplete, rangelab.ProxiedGatewayName)
+		return nil, fmt.Errorf(
+			errNoProxiedPath,
+			rangelab.ErrRangeIncomplete,
+			rangelab.ProxiedGatewayName,
+		)
 	}
 
 	if at == tierIdP && (lab.VerifierPort == 0 || lab.Issuer == "") {
-		return nil, fmt.Errorf(errNoVerifierPath, rangelab.ErrRangeIncomplete, rangelab.VerifierGatewayName)
+		return nil, fmt.Errorf(
+			errNoVerifierPath,
+			rangelab.ErrRangeIncomplete,
+			rangelab.VerifierGatewayName,
+		)
 	}
 
 	answers, err := askTheRange(ctx, reader, lab, missing)
@@ -791,7 +972,10 @@ func fillFromRange(
 	for _, name := range missing {
 		filled[name] = defaults[name]
 		if !credentialParam(name) {
-			resolved = append(resolved, fmt.Sprintf(pairFormat, name, defaults[name]))
+			resolved = append(
+				resolved,
+				fmt.Sprintf(pairFormat, name, defaults[name]),
+			)
 		}
 	}
 
@@ -802,7 +986,10 @@ func fillFromRange(
 
 // partitionFillable splits the parameters this experiment declares AND the range
 // can answer into the ones the operator gave and the ones they did not.
-func partitionFillable(definition experiment.Definition, supplied map[string]string) ([]string, []string) {
+func partitionFillable(
+	definition experiment.Definition,
+	supplied map[string]string,
+) ([]string, []string) {
 	answerable := rangeSupplies()
 	given := []string{}
 	missing := []string{}
@@ -982,7 +1169,8 @@ func askTheRange(
 		answers.Revocable = revocable
 	}
 
-	if want(experiment.ParamProxyListen) || want(experiment.ParamProxyUpstream) {
+	if want(experiment.ParamProxyListen) ||
+		want(experiment.ParamProxyUpstream) {
 		listen, upstream, err := lab.ProxyEndpoint(ctx, reader)
 		if err != nil {
 			return rangeAnswers{}, err

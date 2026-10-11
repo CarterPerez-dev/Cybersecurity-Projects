@@ -25,9 +25,13 @@ const (
 	describeProxy = "%s, through khaos's own proxy, which holds no capabilities and cannot reach the host"
 )
 
-var ErrNoProxy = errors.New("this mutation needs a fault proxy that is not running")
+var ErrNoProxy = errors.New(
+	"this mutation needs a fault proxy that is not running",
+)
 
-var ErrProxyFaultMismatch = errors.New("the armed proxy fault does not match the mutation being applied")
+var ErrProxyFaultMismatch = errors.New(
+	"the armed proxy fault does not match the mutation being applied",
+)
 
 // ProxyKind names the mutation that arms one proxy fault. The proxy fault kinds
 // and the mutation kinds are deliberately one-to-one, so `khaos catalog` names
@@ -66,13 +70,22 @@ func (m proxyMutator) Describe(env Env, target dockerx.Target) string {
 // Plan journals the fault that is about to be armed. For every other tier the
 // payload is what the revert needs; here it is also the only durable record of
 // what the run actually did, since the proxy itself dies with the process.
-func (m proxyMutator) Plan(_ context.Context, env Env, _ dockerx.Target) (json.RawMessage, error) {
+func (m proxyMutator) Plan(
+	_ context.Context,
+	env Env,
+	_ dockerx.Target,
+) (json.RawMessage, error) {
 	if env.Proxy == nil {
 		return nil, fmt.Errorf(errNoProxy, ErrNoProxy, ProxyKind(m.kind))
 	}
 
 	if env.ProxyFault.Kind != m.kind {
-		return nil, fmt.Errorf(errWrongFault, ErrProxyFaultMismatch, env.ProxyFault.Kind, m.kind)
+		return nil, fmt.Errorf(
+			errWrongFault,
+			ErrProxyFaultMismatch,
+			env.ProxyFault.Kind,
+			m.kind,
+		)
 	}
 
 	if err := env.ProxyFault.Validate(); err != nil {
@@ -82,7 +95,12 @@ func (m proxyMutator) Plan(_ context.Context, env Env, _ dockerx.Target) (json.R
 	return journal.EncodePayload(env.ProxyFault)
 }
 
-func (m proxyMutator) Apply(_ context.Context, env Env, _ dockerx.Target, raw json.RawMessage) error {
+func (m proxyMutator) Apply(
+	_ context.Context,
+	env Env,
+	_ dockerx.Target,
+	raw json.RawMessage,
+) error {
 	if env.Proxy == nil {
 		return fmt.Errorf(errNoProxy, ErrNoProxy, ProxyKind(m.kind))
 	}
@@ -100,7 +118,11 @@ func (m proxyMutator) Apply(_ context.Context, env Env, _ dockerx.Target, raw js
 // provably went with it. Reporting that as a failure would wedge the journal
 // record forever and, because `khaos reap` stops on a sweep error, would disable
 // the dead man's switch for every other fault on the machine.
-func (m proxyMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
+func (m proxyMutator) Revert(
+	_ context.Context,
+	env Env,
+	_ journal.Record,
+) error {
 	if env.Proxy == nil {
 		return nil
 	}
@@ -117,7 +139,11 @@ func (m proxyMutator) Revert(_ context.Context, env Env, _ journal.Record) error
 // was chosen, not what reached the wire, so counter comparison confirms a fault
 // that is not armed and confirms a severing fault while the dependency is fully
 // reachable.
-func (m proxyMutator) Confirm(ctx context.Context, env Env, _ dockerx.Target) (string, bool, error) {
+func (m proxyMutator) Confirm(
+	ctx context.Context,
+	env Env,
+	_ dockerx.Target,
+) (string, bool, error) {
 	if env.Proxy == nil {
 		return "", false, fmt.Errorf(errNoProxy, ErrNoProxy, ProxyKind(m.kind))
 	}

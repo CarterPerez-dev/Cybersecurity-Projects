@@ -10,14 +10,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reeflective/console"
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/banner"
 	"github.com/CarterPerez-dev/khaos/internal/cli"
 	"github.com/CarterPerez-dev/khaos/internal/lock"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
 	"github.com/CarterPerez-dev/khaos/internal/version"
+	"github.com/reeflective/console"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -34,7 +33,9 @@ leaving at that moment would abandon the rollback and report success.`
 	exitCode = 0
 )
 
-var ErrBusy = errors.New("a khaos run is still holding or reverting a fault; wait for it to finish, then exit again")
+var ErrBusy = errors.New(
+	"a khaos run is still holding or reverting a fault; wait for it to finish, then exit again",
+)
 
 func Run(ctx context.Context, out io.Writer) error {
 	app := console.New(version.Name)
@@ -55,7 +56,7 @@ func Run(ctx context.Context, out io.Writer) error {
 	})
 
 	menu.AddInterrupt(io.EOF, func(*console.Console) {
-		leave(out)
+		leaveOrSayWhyNot(out)
 	})
 
 	if path, ok := historyPath(); ok {
@@ -75,6 +76,18 @@ func newExitCmd(out io.Writer) *cobra.Command {
 		RunE: func(*cobra.Command, []string) error {
 			return leave(out)
 		},
+	}
+}
+
+// leaveOrSayWhyNot is the interrupt path's leave. An interrupt callback cannot
+// return an error, so the refusal has to be WRITTEN here or it is lost, and
+// losing it made Ctrl-D a silent no-op while a fault was still outstanding: the
+// same guard the `exit` command explains itself through, reached a second way
+// and saying nothing at all. An operator who gets no answer reasonably concludes
+// the key did not register and presses it again.
+func leaveOrSayWhyNot(out io.Writer) {
+	if err := leave(out); err != nil {
+		_, _ = io.WriteString(out, err.Error()+newline)
 	}
 }
 

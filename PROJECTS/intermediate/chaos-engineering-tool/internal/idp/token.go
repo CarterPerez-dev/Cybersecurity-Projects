@@ -139,7 +139,13 @@ type Token struct {
 // header and claims so a trap can corrupt either one before signing, and it
 // takes the signature as bytes so a trap can replace it after signing.
 func assemble(headerJSON, claimsJSON, signature []byte) string {
-	return b64(headerJSON) + segmentSep + b64(claimsJSON) + segmentSep + b64(signature)
+	return b64(
+		headerJSON,
+	) + segmentSep + b64(
+		claimsJSON,
+	) + segmentSep + b64(
+		signature,
+	)
 }
 
 func signingInput(headerJSON, claimsJSON []byte) []byte {
@@ -152,7 +158,12 @@ func signingInput(headerJSON, claimsJSON []byte) []byte {
 func Parse(raw string) (Token, error) {
 	parts := strings.Split(raw, segmentSep)
 	if len(parts) != jwsSegments {
-		return Token{}, fmt.Errorf(errSegments, ErrNotAJWS, jwsSegments, len(parts))
+		return Token{}, fmt.Errorf(
+			errSegments,
+			ErrNotAJWS,
+			jwsSegments,
+			len(parts),
+		)
 	}
 
 	headerJSON, err := decodeSegment(parts[0])

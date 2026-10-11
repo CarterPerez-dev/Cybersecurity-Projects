@@ -30,7 +30,7 @@ func armable() []Fault {
 // reported a latency fault confirmed while the proxy was in pass-through and
 // nothing was armed at all.
 func TestObserveRefusesToConfirmWhenNothingIsArmed(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	method, confirmed, err := p.Observe(context.Background(), "")
 
@@ -45,32 +45,47 @@ func TestObserveRefusesToConfirmWhenNothingIsArmed(t *testing.T) {
 
 func TestObserveConfirmsEveryFaultAndStopsAfterTheRevert(t *testing.T) {
 	if len(armable()) != len(Kinds()) {
-		t.Fatalf("this test covers %d faults but %d are registered", len(armable()), len(Kinds()))
+		t.Fatalf(
+			"this test covers %d faults but %d are registered",
+			len(armable()),
+			len(Kinds()),
+		)
 	}
 
 	for _, fault := range armable() {
 		t.Run(string(fault.Kind), func(t *testing.T) {
-			p, _ := through(t)
+			p := through(t)
 
 			if err := p.Arm(fault); err != nil {
 				t.Fatalf("arm: %v", err)
 			}
 
-			method, confirmed, err := p.Observe(context.Background(), fault.Kind)
+			method, confirmed, err := p.Observe(
+				context.Background(),
+				fault.Kind,
+			)
 			if err != nil {
 				t.Fatalf("observe: %v", err)
 			}
 			if !confirmed {
-				t.Fatalf("%s was armed and the proxy could not observe it; a fault khaos "+
-					"cannot confirm voids the run", fault.Kind)
+				t.Fatalf(
+					"%s was armed and the proxy could not observe it; a fault khaos "+
+						"cannot confirm voids the run",
+					fault.Kind,
+				)
 			}
 			if method == "" {
-				t.Fatal("the confirmation reported no method, so the run record cannot say how")
+				t.Fatal(
+					"the confirmation reported no method, so the run record cannot say how",
+				)
 			}
 
 			p.Disarm()
 
-			if _, confirmed, _ := p.Observe(context.Background(), ""); confirmed {
+			if _, confirmed, _ := p.Observe(
+				context.Background(),
+				"",
+			); confirmed {
 				t.Fatalf("%s still confirmed after the revert", fault.Kind)
 			}
 		})
@@ -85,7 +100,7 @@ func TestObserveConfirmsEveryFaultAndStopsAfterTheRevert(t *testing.T) {
 func TestObserveRefusesAFaultThatIsArmedButDoesNotHappen(t *testing.T) {
 	for _, fault := range armable() {
 		t.Run(string(fault.Kind), func(t *testing.T) {
-			p, _ := through(t)
+			p := through(t)
 
 			if err := p.Arm(fault); err != nil {
 				t.Fatalf("arm: %v", err)
@@ -96,10 +111,14 @@ func TestObserveRefusesAFaultThatIsArmedButDoesNotHappen(t *testing.T) {
 			method, confirmed, _ := p.Observe(context.Background(), fault.Kind)
 
 			if confirmed {
-				t.Fatalf("%s was confirmed (%q) while the proxy forwarded normally. The oracle "+
-					"cannot tell an applied fault from an unapplied one, so a run would record "+
-					"that the fault landed, the probes would see a healthy dependency, and the "+
-					"verdict would be a clean survival", fault.Kind, method)
+				t.Fatalf(
+					"%s was confirmed (%q) while the proxy forwarded normally. The oracle "+
+						"cannot tell an applied fault from an unapplied one, so a run would record "+
+						"that the fault landed, the probes would see a healthy dependency, and the "+
+						"verdict would be a clean survival",
+					fault.Kind,
+					method,
+				)
 			}
 		})
 	}
@@ -110,10 +129,12 @@ func TestObserveRefusesAFaultThatIsArmedButDoesNotHappen(t *testing.T) {
 func TestASlowDependencyDoesNotConfirmAFaultThatIsNotHappening(t *testing.T) {
 	const dependencyDelay = 1200 * time.Millisecond
 
-	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(dependencyDelay)
-		_, _ = io.WriteString(w, body)
-	}))
+	slow := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			time.Sleep(dependencyDelay)
+			_, _ = io.WriteString(w, body)
+		}),
+	)
 	defer slow.Close()
 
 	for _, fault := range []Fault{
@@ -136,9 +157,13 @@ func TestASlowDependencyDoesNotConfirmAFaultThatIsNotHappening(t *testing.T) {
 			_, confirmed, _ := p.Observe(context.Background(), fault.Kind)
 
 			if confirmed {
-				t.Fatalf("a dependency that takes %s to answer confirmed %s while the proxy "+
-					"forwarded it untouched; khaos would credit itself for someone else's "+
-					"slowness", dependencyDelay, fault.Kind)
+				t.Fatalf(
+					"a dependency that takes %s to answer confirmed %s while the proxy "+
+						"forwarded it untouched; khaos would credit itself for someone else's "+
+						"slowness",
+					dependencyDelay,
+					fault.Kind,
+				)
 			}
 		})
 	}
@@ -163,12 +188,18 @@ func TestAnUnreachableDependencyCannotConfirmAnything(t *testing.T) {
 			_, confirmed, err := p.Observe(context.Background(), fault.Kind)
 
 			if confirmed {
-				t.Fatalf("%s was confirmed against a dependency khaos cannot reach", fault.Kind)
+				t.Fatalf(
+					"%s was confirmed against a dependency khaos cannot reach",
+					fault.Kind,
+				)
 			}
 
 			if !errors.Is(err, ErrDependencyUnreachable) {
-				t.Fatalf("err = %v, want ErrDependencyUnreachable so the operator learns why "+
-					"the run is void", err)
+				t.Fatalf(
+					"err = %v, want ErrDependencyUnreachable so the operator learns why "+
+						"the run is void",
+					err,
+				)
 			}
 		})
 	}
@@ -178,7 +209,7 @@ func TestAnUnreachableDependencyCannotConfirmAnything(t *testing.T) {
 // listener gives ECONNREFUSED, and accepting that as a reset let a dead proxy
 // report the fault it was holding when it died.
 func TestAClosedProxyDoesNotConfirmItsFault(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Reset}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -204,10 +235,12 @@ func TestAClosedProxyDoesNotConfirmItsFault(t *testing.T) {
 func TestPartialDoesNotConfirmWhenNothingWasTruncated(t *testing.T) {
 	const answer = "exactly-this"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprint(len(answer)))
-		_, _ = io.WriteString(w, answer)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprint(len(answer)))
+			_, _ = io.WriteString(w, answer)
+		}),
+	)
 	defer server.Close()
 
 	p, err := Open(loopback, strings.TrimPrefix(server.URL, "http://"))
@@ -231,8 +264,12 @@ func TestPartialDoesNotConfirmWhenNothingWasTruncated(t *testing.T) {
 	_, confirmed, _ := p.Observe(context.Background(), Partial)
 
 	if confirmed {
-		t.Fatalf("a budget of %d bytes against a %d byte answer confirmed truncation; the "+
-			"target received the dependency's complete answer", full.total, full.total)
+		t.Fatalf(
+			"a budget of %d bytes against a %d byte answer confirmed truncation; the "+
+				"target received the dependency's complete answer",
+			full.total,
+			full.total,
+		)
 	}
 }
 
@@ -240,7 +277,7 @@ func TestPartialDoesNotConfirmWhenNothingWasTruncated(t *testing.T) {
 // uninterruptibly, and the design doc is explicit that a tool which LOOKS hung is
 // what makes an operator reach for kill -9.
 func TestObserveHonoursCancellation(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Hang}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -258,14 +295,17 @@ func TestObserveHonoursCancellation(t *testing.T) {
 	}
 
 	if took >= observeGrace {
-		t.Fatalf("a cancelled confirmation took %s; it ignored the context", took)
+		t.Fatalf(
+			"a cancelled confirmation took %s; it ignored the context",
+			took,
+		)
 	}
 }
 
 // The oracle must also catch the wrong fault being armed, which is the other
 // thing a confirmation step is for.
 func TestObserveRefusesWhenADifferentFaultIsArmed(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Reset}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -284,7 +324,7 @@ func TestObserveRefusesWhenADifferentFaultIsArmed(t *testing.T) {
 
 // Probe traffic is khaos's own and must not be reported as the target's.
 func TestConfirmationTrafficIsCountedSeparately(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Hang}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -297,23 +337,30 @@ func TestConfirmationTrafficIsCountedSeparately(t *testing.T) {
 	}
 
 	if after := p.Counts(); after.Probes <= before.Probes {
-		t.Fatal("a confirmation dial was not recorded as khaos's own probe, so the run record " +
-			"reports it as the target's traffic")
+		t.Fatal(
+			"a confirmation dial was not recorded as khaos's own probe, so the run record " +
+				"reports it as the target's traffic",
+		)
 	}
 }
 
 func TestMeasureReadsBothPathsOfTheDifferential(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	direct, _ := p.measure(context.Background(), p.upstream, observeGrace)
 	if direct.total == 0 {
-		t.Fatal("the control path measured nothing, so no differential is possible")
+		t.Fatal(
+			"the control path measured nothing, so no differential is possible",
+		)
 	}
 
 	proxied, _ := p.measure(context.Background(), p.Addr(), observeGrace)
 
 	if proxied.total != direct.total {
-		t.Fatalf("pass-through delivered %d bytes where the dependency answers %d",
-			proxied.total, direct.total)
+		t.Fatalf(
+			"pass-through delivered %d bytes where the dependency answers %d",
+			proxied.total,
+			direct.total,
+		)
 	}
 }

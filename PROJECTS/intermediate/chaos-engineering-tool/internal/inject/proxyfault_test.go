@@ -28,9 +28,11 @@ const (
 func armed(t *testing.T, fault proxy.Fault) Env {
 	t.Helper()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, answer)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(w, answer)
+		}),
+	)
 	t.Cleanup(server.Close)
 
 	p, err := proxy.Open(loopback, strings.TrimPrefix(server.URL, "http://"))
@@ -69,7 +71,11 @@ func TestEveryProxyFaultAppliesConfirmsAndReverts(t *testing.T) {
 	}
 
 	if registered != len(kinds()) {
-		t.Fatalf("this test covers %d proxy faults but %d are registered", len(kinds()), registered)
+		t.Fatalf(
+			"this test covers %d proxy faults but %d are registered",
+			len(kinds()),
+			registered,
+		)
 	}
 
 	for _, fault := range kinds() {
@@ -90,11 +96,18 @@ func TestEveryProxyFaultAppliesConfirmsAndReverts(t *testing.T) {
 
 			var journaled proxy.Fault
 			if err := json.Unmarshal(payload, &journaled); err != nil {
-				t.Fatalf("the journalled payload does not describe the fault: %v", err)
+				t.Fatalf(
+					"the journalled payload does not describe the fault: %v",
+					err,
+				)
 			}
 			if journaled != fault {
-				t.Fatalf("journalled %+v, armed %+v; the journal is the only durable record of "+
-					"what this run did, because the proxy dies with the process", journaled, fault)
+				t.Fatalf(
+					"journalled %+v, armed %+v; the journal is the only durable record of "+
+						"what this run did, because the proxy dies with the process",
+					journaled,
+					fault,
+				)
 			}
 
 			if err := mutator.Apply(ctx, env, target, payload); err != nil {
@@ -102,7 +115,11 @@ func TestEveryProxyFaultAppliesConfirmsAndReverts(t *testing.T) {
 			}
 
 			if got := env.Proxy.Fault(); got != fault {
-				t.Fatalf("after apply the proxy holds %+v, want %+v", got, fault)
+				t.Fatalf(
+					"after apply the proxy holds %+v, want %+v",
+					got,
+					fault,
+				)
 			}
 
 			method, confirmed, err := mutator.Confirm(ctx, env, target)
@@ -110,15 +127,20 @@ func TestEveryProxyFaultAppliesConfirmsAndReverts(t *testing.T) {
 				t.Fatalf("confirm: %v", err)
 			}
 			if !confirmed {
-				t.Fatalf("%s applied but could not be confirmed, so every run of it is void",
-					fault.Kind)
+				t.Fatalf(
+					"%s applied but could not be confirmed, so every run of it is void",
+					fault.Kind,
+				)
 			}
 
 			// The run record has to carry what was MEASURED. A constant naming the
 			// technique is not evidence a reader can audit.
 			if method == "" || method == confirmProxy {
-				t.Fatalf("%s confirmed with %q rather than the observable it measured",
-					fault.Kind, method)
+				t.Fatalf(
+					"%s confirmed with %q rather than the observable it measured",
+					fault.Kind,
+					method,
+				)
 			}
 
 			if err := mutator.Revert(ctx, env, journal.Record{}); err != nil {
@@ -129,9 +151,19 @@ func TestEveryProxyFaultAppliesConfirmsAndReverts(t *testing.T) {
 				t.Fatalf("after revert the proxy holds %s", got)
 			}
 
-			if body := reach(t, env.Proxy.Addr()); !strings.Contains(body, answer) {
-				t.Fatalf("after reverting %s the dependency is still not reachable through the "+
-					"proxy, got %q", fault.Kind, body)
+			if body := reach(
+				t,
+				env.Proxy.Addr(),
+			); !strings.Contains(
+				body,
+				answer,
+			) {
+				t.Fatalf(
+					"after reverting %s the dependency is still not reachable through the "+
+						"proxy, got %q",
+					fault.Kind,
+					body,
+				)
 			}
 		})
 	}
@@ -168,11 +200,26 @@ func TestAProxyMutationWithoutAProxyIsRefusedByName(t *testing.T) {
 		t.Fatalf("plan without a proxy returned %v, want ErrNoProxy", err)
 	}
 
-	if err := mutator.Apply(ctx, empty, target, nil); !errors.Is(err, ErrNoProxy) {
+	if err := mutator.Apply(
+		ctx,
+		empty,
+		target,
+		nil,
+	); !errors.Is(
+		err,
+		ErrNoProxy,
+	) {
 		t.Fatalf("apply without a proxy returned %v, want ErrNoProxy", err)
 	}
 
-	if _, _, err := mutator.Confirm(ctx, empty, target); !errors.Is(err, ErrNoProxy) {
+	if _, _, err := mutator.Confirm(
+		ctx,
+		empty,
+		target,
+	); !errors.Is(
+		err,
+		ErrNoProxy,
+	) {
 		t.Fatalf("confirm without a proxy returned %v, want ErrNoProxy", err)
 	}
 }
@@ -186,7 +233,11 @@ func TestPlanRefusesAFaultTheRunDidNotArm(t *testing.T) {
 		t.Fatalf("lookup: %v", err)
 	}
 
-	_, err = mutator.Plan(context.Background(), env, dockerx.Target{ID: "a", Name: "dep"})
+	_, err = mutator.Plan(
+		context.Background(),
+		env,
+		dockerx.Target{ID: "a", Name: "dep"},
+	)
 	if !errors.Is(err, ErrProxyFaultMismatch) {
 		t.Fatalf("err = %v, want ErrProxyFaultMismatch", err)
 	}
@@ -202,9 +253,16 @@ func TestRevertingWithoutAProxyIsResolvedRatherThanFailed(t *testing.T) {
 		t.Fatalf("lookup: %v", err)
 	}
 
-	if err := mutator.Revert(context.Background(), Env{}, journal.Record{}); err != nil {
-		t.Fatalf("revert on a cold start returned %v; it must resolve, because the proxy died "+
-			"with the process and the fault went with it", err)
+	if err := mutator.Revert(
+		context.Background(),
+		Env{},
+		journal.Record{},
+	); err != nil {
+		t.Fatalf(
+			"revert on a cold start returned %v; it must resolve, because the proxy died "+
+				"with the process and the fault went with it",
+			err,
+		)
 	}
 }
 
@@ -228,7 +286,12 @@ func TestInProcessKindsAreNotOfferedForDirectInjection(t *testing.T) {
 		}
 
 		if IsDirect(kind) != wantDirect {
-			t.Errorf("%s: IsDirect reports %v, want %v", kind, IsDirect(kind), wantDirect)
+			t.Errorf(
+				"%s: IsDirect reports %v, want %v",
+				kind,
+				IsDirect(kind),
+				wantDirect,
+			)
 		}
 	}
 
@@ -242,7 +305,10 @@ func TestInProcessKindsAreNotOfferedForDirectInjection(t *testing.T) {
 		}
 
 		if excluded == 0 {
-			t.Errorf("no kind carries the %q prefix, so excluding it proves nothing", prefix)
+			t.Errorf(
+				"no kind carries the %q prefix, so excluding it proves nothing",
+				prefix,
+			)
 		}
 
 		for _, kind := range DirectKinds() {

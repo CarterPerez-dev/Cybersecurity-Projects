@@ -40,7 +40,11 @@ func TestArtDimensionsAreLocked(t *testing.T) {
 func TestArtCarriesNoFileHeader(t *testing.T) {
 	for i, line := range Lines() {
 		if strings.Contains(line, "AngelaMos") || strings.HasPrefix(line, "#") {
-			t.Fatalf("line %d looks like a file header and would print inside the banner: %q", i, line)
+			t.Fatalf(
+				"line %d looks like a file header and would print inside the banner: %q",
+				i,
+				line,
+			)
 		}
 	}
 }
@@ -57,7 +61,11 @@ func TestRenderIncludesVersionAndAuthor(t *testing.T) {
 
 func TestRenderThroughNoColorWriterIsPlainText(t *testing.T) {
 	var buf bytes.Buffer
-	w := theme.NewWriter(&buf, []string{"CLICOLOR_FORCE=1", "COLORTERM=truecolor"}, true)
+	w := theme.NewWriter(
+		&buf,
+		[]string{"CLICOLOR_FORCE=1", "COLORTERM=truecolor"},
+		true,
+	)
 
 	if err := Write(w); err != nil {
 		t.Fatalf("write: %v", err)

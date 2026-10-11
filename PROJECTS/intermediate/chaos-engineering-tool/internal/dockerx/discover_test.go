@@ -19,8 +19,11 @@ func inspectResponse() container.InspectResponse {
 			NetworkMode: "shop_default",
 		},
 		Config: &container.Config{
-			Image:  "shop/api:latest",
-			Labels: map[string]string{LabelConsent: ConsentValue, LabelComposeProject: project},
+			Image: "shop/api:latest",
+			Labels: map[string]string{
+				LabelConsent:        ConsentValue,
+				LabelComposeProject: project,
+			},
 		},
 		Mounts: []container.MountPoint{{Source: "/srv/shop/config"}},
 	}
@@ -33,8 +36,11 @@ func TestTargetFromProducesAnAcceptableTarget(t *testing.T) {
 	}
 
 	if refusal := Refuse(target, Guard{Project: project}); refusal != nil {
-		t.Fatalf("a healthy inspect response produced a target refused by %s (%s)",
-			refusal.Predicate, refusal.Reason)
+		t.Fatalf(
+			"a healthy inspect response produced a target refused by %s (%s)",
+			refusal.Predicate,
+			refusal.Reason,
+		)
 	}
 }
 
@@ -43,8 +49,11 @@ func TestTargetFromRefusesAnInspectResponseWithNoHostConfig(t *testing.T) {
 	raw.HostConfig = nil
 
 	if _, err := targetFrom(raw); !errors.Is(err, ErrNoHostConfig) {
-		t.Fatalf("targetFrom returned %v for a nil HostConfig; it must refuse rather than zero-fill, "+
-			"because zero-filled host config silently disarms every container-property predicate", err)
+		t.Fatalf(
+			"targetFrom returned %v for a nil HostConfig; it must refuse rather than zero-fill, "+
+				"because zero-filled host config silently disarms every container-property predicate",
+			err,
+		)
 	}
 }
 
@@ -58,7 +67,9 @@ func TestTargetFromCarriesEveryFieldThePredicatesRead(t *testing.T) {
 			r.HostConfig.NetworkMode = NetworkModeHost
 		}, PredicateHostNetwork},
 		{"shared namespace", func(r *container.InspectResponse) {
-			r.HostConfig.NetworkMode = container.NetworkMode(NetworkModeContainerPfx + peerID)
+			r.HostConfig.NetworkMode = container.NetworkMode(
+				NetworkModeContainerPfx + peerID,
+			)
 		}, PredicateSharedNamespace},
 		{"host pid namespace", func(r *container.InspectResponse) {
 			r.HostConfig.PidMode = ModeHost
@@ -76,16 +87,24 @@ func TestTargetFromCarriesEveryFieldThePredicatesRead(t *testing.T) {
 			r.HostConfig.CapAdd = []string{"CAP_SYS_MODULE"}
 		}, PredicateDangerousCap},
 		{"device passthrough", func(r *container.InspectResponse) {
-			r.HostConfig.Devices = []container.DeviceMapping{{PathOnHost: "/dev/sda"}}
+			r.HostConfig.Devices = []container.DeviceMapping{
+				{PathOnHost: "/dev/sda"},
+			}
 		}, PredicateDeviceAccess},
 		{"unconfined profile", func(r *container.InspectResponse) {
 			r.HostConfig.SecurityOpt = []string{"apparmor=unconfined"}
 		}, PredicateUnconfined},
 		{"socket mount", func(r *container.InspectResponse) {
-			r.Mounts = append(r.Mounts, container.MountPoint{Source: DockerSocketPath})
+			r.Mounts = append(
+				r.Mounts,
+				container.MountPoint{Source: DockerSocketPath},
+			)
 		}, PredicateSocketReachable},
 		{"socket parent directory", func(r *container.InspectResponse) {
-			r.Mounts = append(r.Mounts, container.MountPoint{Source: "/var/run"})
+			r.Mounts = append(
+				r.Mounts,
+				container.MountPoint{Source: "/var/run"},
+			)
 		}, PredicateSocketReachable},
 		{"not running", func(r *container.InspectResponse) {
 			r.State.Running = false
@@ -107,9 +126,12 @@ func TestTargetFromCarriesEveryFieldThePredicatesRead(t *testing.T) {
 
 			refusal := Refuse(target, Guard{Project: project})
 			if refusal == nil {
-				t.Fatalf("a container that is %s was built into an accepted target; "+
-					"the field the %s predicate reads is not being carried across from the daemon response",
-					tc.name, tc.predicate)
+				t.Fatalf(
+					"a container that is %s was built into an accepted target; "+
+						"the field the %s predicate reads is not being carried across from the daemon response",
+					tc.name,
+					tc.predicate,
+				)
 			}
 
 			if refusal.Predicate != tc.predicate {
@@ -133,7 +155,9 @@ func TestTargetFromSurvivesAbsentOptionalSections(t *testing.T) {
 
 	refusal := Refuse(target, Guard{})
 	if refusal == nil {
-		t.Fatal("an inspect response with no Config and no State produced an accepted target")
+		t.Fatal(
+			"an inspect response with no Config and no State produced an accepted target",
+		)
 	}
 }
 
@@ -144,6 +168,8 @@ func TestTargetFromMarksTheTargetInspected(t *testing.T) {
 	}
 
 	if !target.Inspected {
-		t.Fatal("targetFrom did not mark the target as inspected, so it will be refused as incomplete")
+		t.Fatal(
+			"targetFrom did not mark the target as inspected, so it will be refused as incomplete",
+		)
 	}
 }

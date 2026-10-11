@@ -48,7 +48,9 @@ type payload struct {
 func TestAppendAndReplayRoundTrip(t *testing.T) {
 	j := tempJournal(t)
 
-	raw, err := EncodePayload(payload{Networks: []string{"shop_default", "shop_edge"}})
+	raw, err := EncodePayload(
+		payload{Networks: []string{"shop_default", "shop_edge"}},
+	)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -85,8 +87,17 @@ func TestAppendAndReplayRoundTrip(t *testing.T) {
 }
 
 func TestDecodingAnAbsentPayloadIsNamed(t *testing.T) {
-	if err := record("m1", PhaseApplied).DecodePayload(&payload{}); !errors.Is(err, ErrNoPayload) {
-		t.Fatalf("got %v, want ErrNoPayload so a revert can tell empty from corrupt", err)
+	if err := record(
+		"m1",
+		PhaseApplied,
+	).DecodePayload(&payload{}); !errors.Is(
+		err,
+		ErrNoPayload,
+	) {
+		t.Fatalf(
+			"got %v, want ErrNoPayload so a revert can tell empty from corrupt",
+			err,
+		)
 	}
 }
 
@@ -112,13 +123,19 @@ func TestOutstandingCollapsesToTheLatestPhaseAndKeepsOrder(t *testing.T) {
 	}
 
 	if len(out) != 2 {
-		t.Fatalf("got %d outstanding, want 2 (m1 applied, m3 pending)", len(out))
+		t.Fatalf(
+			"got %d outstanding, want 2 (m1 applied, m3 pending)",
+			len(out),
+		)
 	}
 
 	if out[0].MutationID != "m1" || out[1].MutationID != "m3" {
-		t.Fatalf("outstanding came back as %s,%s; first-seen order must hold because "+
-			"reclaim reverts in reverse to undo most-recent-first",
-			out[0].MutationID, out[1].MutationID)
+		t.Fatalf(
+			"outstanding came back as %s,%s; first-seen order must hold because "+
+				"reclaim reverts in reverse to undo most-recent-first",
+			out[0].MutationID,
+			out[1].MutationID,
+		)
 	}
 }
 
@@ -147,7 +164,10 @@ func TestOutstandingKeepsTheLatestPayload(t *testing.T) {
 
 	var decoded payload
 	if err := out[0].DecodePayload(&decoded); err != nil {
-		t.Fatalf("the collapse dropped the payload, so a revert would silently do nothing: %v", err)
+		t.Fatalf(
+			"the collapse dropped the payload, so a revert would silently do nothing: %v",
+			err,
+		)
 	}
 
 	if len(decoded.Networks) != 1 {
@@ -157,12 +177,16 @@ func TestOutstandingKeepsTheLatestPayload(t *testing.T) {
 
 func TestPendingAndFailedAreBothOutstanding(t *testing.T) {
 	if !record("m1", PhasePending).Outstanding() {
-		t.Fatal("a mutation journaled before it was applied must still be reclaimed, " +
-			"because khaos may have died between the write and the apply")
+		t.Fatal(
+			"a mutation journaled before it was applied must still be reclaimed, " +
+				"because khaos may have died between the write and the apply",
+		)
 	}
 
 	if !record("m1", PhaseFailed).Outstanding() {
-		t.Fatal("a mutation whose apply failed may have partially landed and must stay reclaimable")
+		t.Fatal(
+			"a mutation whose apply failed may have partially landed and must stay reclaimable",
+		)
 	}
 
 	if record("m1", PhaseReverted).Outstanding() {
@@ -174,8 +198,10 @@ func TestARecordWithNoLeaseIsTreatedAsExpired(t *testing.T) {
 	r := record("m1", PhaseApplied)
 
 	if !r.Expired(time.Now().UTC()) {
-		t.Fatal("a record carrying no lease was treated as immortal; every injected fault " +
-			"must carry a lease, so a record without one is malformed and must fail safe")
+		t.Fatal(
+			"a record carrying no lease was treated as immortal; every injected fault " +
+				"must carry a lease, so a record without one is malformed and must fail safe",
+		)
 	}
 
 	r.ExpiresAt = time.Now().UTC().Add(time.Hour)
@@ -208,12 +234,18 @@ func TestADamagedLineIsQuarantinedNotFatal(t *testing.T) {
 	out, err := Outstanding(path)
 
 	if !errors.Is(err, ErrDamaged) {
-		t.Fatalf("got %v; a damaged line must be reported, or khaos silently claims completeness", err)
+		t.Fatalf(
+			"got %v; a damaged line must be reported, or khaos silently claims completeness",
+			err,
+		)
 	}
 
 	if len(out) != 2 {
-		t.Fatalf("got %d outstanding records; the readable records must still be acted on, "+
-			"or one bad line strands every fault on the machine forever", len(out))
+		t.Fatalf(
+			"got %d outstanding records; the readable records must still be acted on, "+
+				"or one bad line strands every fault on the machine forever",
+			len(out),
+		)
 	}
 }
 
@@ -247,7 +279,11 @@ func TestCompactKeepsOnlyOutstandingRecords(t *testing.T) {
 	}
 
 	if after.Size() >= before.Size() {
-		t.Fatalf("compaction grew the journal from %d to %d bytes", before.Size(), after.Size())
+		t.Fatalf(
+			"compaction grew the journal from %d to %d bytes",
+			before.Size(),
+			after.Size(),
+		)
 	}
 
 	out, err := Outstanding(j.Path())
@@ -273,8 +309,11 @@ func TestTheJournalIsNotWorldReadable(t *testing.T) {
 	}
 
 	if info.Mode().Perm() != fileMode {
-		t.Fatalf("journal mode is %v, want %v; it records container names and network topology",
-			info.Mode().Perm(), fs.FileMode(fileMode))
+		t.Fatalf(
+			"journal mode is %v, want %v; it records container names and network topology",
+			info.Mode().Perm(),
+			fs.FileMode(fileMode),
+		)
 	}
 
 	dir, err := os.Stat(filepath.Dir(j.Path()))
@@ -283,7 +322,11 @@ func TestTheJournalIsNotWorldReadable(t *testing.T) {
 	}
 
 	if dir.Mode().Perm() != wantDirMode {
-		t.Fatalf("state directory mode is %v, want %v", dir.Mode().Perm(), wantDirMode)
+		t.Fatalf(
+			"state directory mode is %v, want %v",
+			dir.Mode().Perm(),
+			wantDirMode,
+		)
 	}
 }
 
@@ -295,8 +338,10 @@ func TestAppendSurfacesAWriteFailure(t *testing.T) {
 	}
 
 	if err := j.Append(record("m1", PhaseApplied)); err == nil {
-		t.Fatal("append on a closed journal reported success, so a durability failure " +
-			"would be swallowed while the fault stays applied")
+		t.Fatal(
+			"append on a closed journal reported success, so a durability failure " +
+				"would be swallowed while the fault stays applied",
+		)
 	}
 }
 
@@ -306,7 +351,10 @@ func TestIDsAreDistinct(t *testing.T) {
 	for range 128 {
 		id := NewID()
 		if seen[id] {
-			t.Fatalf("duplicate id %q; two mutations would collapse into one journal entry", id)
+			t.Fatalf(
+				"duplicate id %q; two mutations would collapse into one journal entry",
+				id,
+			)
 		}
 		seen[id] = true
 	}
@@ -345,7 +393,10 @@ func TestAReversionCannotBeUndoneByALaterApplied(t *testing.T) {
 	}
 
 	if len(outstanding) != 0 {
-		t.Fatalf("a reverted mutation came back as outstanding: %+v", outstanding)
+		t.Fatalf(
+			"a reverted mutation came back as outstanding: %+v",
+			outstanding,
+		)
 	}
 }
 

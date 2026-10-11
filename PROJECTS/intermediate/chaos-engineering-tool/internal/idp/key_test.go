@@ -37,7 +37,11 @@ func TestThumbprintMatchesRFC7638WorkedExample(t *testing.T) {
 	got := thumbprintOf(t, canonicalRSAJWK(pub))
 
 	if got != rfc7638Thumbprint {
-		t.Fatalf("RFC 7638 section 3.1 publishes %q, khaos computed %q", rfc7638Thumbprint, got)
+		t.Fatalf(
+			"RFC 7638 section 3.1 publishes %q, khaos computed %q",
+			rfc7638Thumbprint,
+			got,
+		)
 	}
 }
 
@@ -45,7 +49,9 @@ func TestThumbprintMatchesRFC7638WorkedExample(t *testing.T) {
 // to pin the exact bytes: encoding/json would order members by struct
 // declaration, and a field reorder would silently change every kid khaos derives
 // without changing any key material.
-func TestCanonicalRSAJWKIsExactlyTheRequiredMembersInLexicographicOrder(t *testing.T) {
+func TestCanonicalRSAJWKIsExactlyTheRequiredMembersInLexicographicOrder(
+	t *testing.T,
+) {
 	jwk := JWK{Kty: keyTypeRSA, N: rfc7638Modulus, E: "AQAB"}
 
 	pub, err := jwk.RSAPublicKey()
@@ -81,7 +87,9 @@ func TestThumbprintIsStableAndKeyDependent(t *testing.T) {
 	}
 
 	if first.ID == second.ID {
-		t.Fatal("two different keys produced the same kid, so a rotation would be invisible")
+		t.Fatal(
+			"two different keys produced the same kid, so a rotation would be invisible",
+		)
 	}
 }
 
@@ -103,7 +111,8 @@ func TestECThumbprintUsesTheRequiredMembers(t *testing.T) {
 	}
 
 	jwk := key.PublicJWK()
-	if decodedLen(t, jwk.X) != p256CoordinateBytes || decodedLen(t, jwk.Y) != p256CoordinateBytes {
+	if decodedLen(t, jwk.X) != p256CoordinateBytes ||
+		decodedLen(t, jwk.Y) != p256CoordinateBytes {
 		t.Fatalf("coordinates are not fixed-width: x=%d y=%d, want %d each",
 			decodedLen(t, jwk.X), decodedLen(t, jwk.Y), p256CoordinateBytes)
 	}
@@ -122,7 +131,12 @@ func TestRawPKCS1v15AgreesWithTheStandardLibrary(t *testing.T) {
 	for _, message := range []string{"", "khaos", "a much longer signing input than the first two"} {
 		digest := sha256.Sum256([]byte(message))
 
-		library, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+		library, err := rsa.SignPKCS1v15(
+			rand.Reader,
+			key,
+			crypto.SHA256,
+			digest[:],
+		)
 		if err != nil {
 			t.Fatalf("library sign %q: %v", message, err)
 		}
@@ -133,11 +147,17 @@ func TestRawPKCS1v15AgreesWithTheStandardLibrary(t *testing.T) {
 		}
 
 		if string(library) != string(mine) {
-			t.Fatalf("khaos's PKCS#1 v1.5 disagrees with crypto/rsa on %q", message)
+			t.Fatalf(
+				"khaos's PKCS#1 v1.5 disagrees with crypto/rsa on %q",
+				message,
+			)
 		}
 
 		if !verifyPKCS1v15Raw(&key.PublicKey, digest[:], library) {
-			t.Fatalf("khaos's verify rejected a signature crypto/rsa produced for %q", message)
+			t.Fatalf(
+				"khaos's verify rejected a signature crypto/rsa produced for %q",
+				message,
+			)
 		}
 	}
 }
@@ -175,7 +195,9 @@ func TestRawPKCS1v15VerifyRejectsWrongSignatures(t *testing.T) {
 	}
 
 	if verifyPKCS1v15Raw(&key.PublicKey, other[:], signature) {
-		t.Error("khaos's verify accepted a valid signature over a different digest")
+		t.Error(
+			"khaos's verify accepted a valid signature over a different digest",
+		)
 	}
 }
 
@@ -197,8 +219,15 @@ func TestWeakKeyIsBelowTheLibraryFloorAndStillSigns(t *testing.T) {
 
 	digest := sha256.Sum256([]byte("khaos"))
 
-	if _, err := rsa.SignPKCS1v15(rand.Reader, key.rsaKey, crypto.SHA256, digest[:]); err == nil {
-		t.Fatal("crypto/rsa signed below its own floor; the weak-key trap's premise is gone")
+	if _, err := rsa.SignPKCS1v15(
+		rand.Reader,
+		key.rsaKey,
+		crypto.SHA256,
+		digest[:],
+	); err == nil {
+		t.Fatal(
+			"crypto/rsa signed below its own floor; the weak-key trap's premise is gone",
+		)
 	}
 
 	signature, err := key.Sign(RS256, []byte("khaos"))
@@ -206,12 +235,21 @@ func TestWeakKeyIsBelowTheLibraryFloorAndStillSigns(t *testing.T) {
 		t.Fatalf("khaos could not sign with its own weak key: %v", err)
 	}
 
-	if err := rsa.VerifyPKCS1v15(&key.rsaKey.PublicKey, crypto.SHA256, digest[:], signature); err == nil {
-		t.Fatal("crypto/rsa verified below its own floor; the weak-key trap would find nothing")
+	if err := rsa.VerifyPKCS1v15(
+		&key.rsaKey.PublicKey,
+		crypto.SHA256,
+		digest[:],
+		signature,
+	); err == nil {
+		t.Fatal(
+			"crypto/rsa verified below its own floor; the weak-key trap would find nothing",
+		)
 	}
 
 	if !verifyPKCS1v15Raw(&key.rsaKey.PublicKey, digest[:], signature) {
-		t.Fatal("khaos's own weak signature does not verify under khaos's own arithmetic")
+		t.Fatal(
+			"khaos's own weak signature does not verify under khaos's own arithmetic",
+		)
 	}
 }
 

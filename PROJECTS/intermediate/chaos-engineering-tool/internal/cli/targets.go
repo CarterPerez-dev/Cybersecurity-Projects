@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -72,7 +71,12 @@ func newTargetsCmd() *cobra.Command {
 	return cmd
 }
 
-func runTargets(ctx context.Context, out io.Writer, project string, all bool) error {
+func runTargets(
+	ctx context.Context,
+	out io.Writer,
+	project string,
+	all bool,
+) error {
 	client, err := dockerx.Open(ctx)
 	if err != nil {
 		return fmt.Errorf("%w (run `khaos doctor` for the fix)", err)
@@ -92,16 +96,67 @@ func runTargets(ctx context.Context, out io.Writer, project string, all bool) er
 	}
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, noteLayout, render.Indent,
-		theme.Fg(theme.TextFaint, fmt.Sprintf(endpointNote, client.Endpoint().Host)))
+	fmt.Fprintf(
+		out,
+		noteLayout,
+		render.Indent,
+		theme.Fg(
+			theme.TextFaint,
+			fmt.Sprintf(endpointNote, client.Endpoint().Host),
+		),
+	)
 
 	if len(targets) == 0 {
-		fmt.Fprintf(out, noteLayout, render.Indent, theme.Fg(theme.TextNormal, emptyMessage))
-		fmt.Fprintf(out, noteLayout, render.Indent, theme.Fg(theme.TextDim, dockerx.FixNoTargets))
-		fmt.Fprintln(out)
+		printNoTargets(out)
 		return nil
 	}
 
+	refused := printTargetTable(out, targets, guard, all)
+
+	if refused > 0 && !all {
+		fmt.Fprintln(out)
+		fmt.Fprintf(
+			out,
+			noteLayout,
+			render.Indent,
+			theme.Fg(
+				theme.TextDim,
+				fmt.Sprintf(refusedFormat, refused, refusedHint),
+			),
+		)
+	}
+	fmt.Fprintln(out)
+
+	return nil
+}
+
+// printNoTargets is its own answer rather than an empty table, because the
+// operator needs the fix and an empty table does not carry one.
+func printNoTargets(out io.Writer) {
+	fmt.Fprintf(
+		out,
+		noteLayout,
+		render.Indent,
+		theme.Fg(theme.TextNormal, emptyMessage),
+	)
+	fmt.Fprintf(
+		out,
+		noteLayout,
+		render.Indent,
+		theme.Fg(theme.TextDim, dockerx.FixNoTargets),
+	)
+	fmt.Fprintln(out)
+}
+
+// printTargetTable writes the header and one row per target, and returns how
+// many were REFUSED. The count comes back as a value because the caller's
+// closing hint is the only thing that depends on it.
+func printTargetTable(
+	out io.Writer,
+	targets []dockerx.Target,
+	guard dockerx.Guard,
+	all bool,
+) int {
 	fmt.Fprintf(out, rowLayout, render.Indent,
 		theme.Fg(theme.TextFaint, render.Cell(headerName, colName)),
 		theme.Fg(theme.TextFaint, render.Cell(headerProject, colProject)),
@@ -123,26 +178,31 @@ func runTargets(ctx context.Context, out io.Writer, project string, all bool) er
 			status = theme.Fg(theme.StateDenied, refusal.Predicate)
 		}
 
-		fmt.Fprintf(out, rowLayout, render.Indent,
+		fmt.Fprintf(
+			out,
+			rowLayout,
+			render.Indent,
 			theme.Fg(theme.TextBright, render.Cell(target.Name, colName)),
-			theme.Fg(theme.TextNormal, render.Cell(orDash(target.Project), colProject)),
+			theme.Fg(
+				theme.TextNormal,
+				render.Cell(orDash(target.Project), colProject),
+			),
 			theme.Fg(theme.TextDim, render.Cell(target.Image, colImage)),
-			status)
+			status,
+		)
 
 		if all && refusal != nil {
-			fmt.Fprintf(out, noteLayout, render.FixIndent, theme.Fg(theme.TextDim, refusal.Reason))
-			fmt.Fprintf(out, noteLayout, render.FixIndent, theme.Fg(theme.TextBright, render.FixPrefix+refusal.Fix))
+			fmt.Fprintf(
+				out,
+				noteLayout,
+				render.FixIndent,
+				theme.Fg(theme.TextDim, refusal.Reason),
+			)
+			fixLine(out, refusal.Fix)
 		}
 	}
 
-	if refused > 0 && !all {
-		fmt.Fprintln(out)
-		fmt.Fprintf(out, noteLayout, render.Indent,
-			theme.Fg(theme.TextDim, fmt.Sprintf(refusedFormat, refused, refusedHint)))
-	}
-	fmt.Fprintln(out)
-
-	return nil
+	return refused
 }
 
 func orDash(s string) string {

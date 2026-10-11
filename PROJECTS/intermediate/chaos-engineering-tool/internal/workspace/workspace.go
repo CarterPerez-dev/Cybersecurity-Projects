@@ -78,7 +78,13 @@ func open(ctx context.Context, exclusive bool) (*Workspace, error) {
 	// fault out from under it; a shared open is a read-only command and must not
 	// mutate anything. That is the same split `khaos reap` already uses.
 	if exclusive {
-		work.Reconciled = run.Reclaim(ctx, work.Env(), log, time.Now().UTC(), true)
+		work.Reconciled = run.Reclaim(
+			ctx,
+			work.Env(),
+			log,
+			time.Now().UTC(),
+			true,
+		)
 	}
 
 	return work, nil

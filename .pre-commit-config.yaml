@@ -194,6 +194,14 @@ repos:
         types: [go]
         pass_filenames: false
 
+      - id: golangci-lint-chaos-engineering-tool
+        name: golangci-lint (chaos-engineering-tool)
+        entry: bash -c 'cd PROJECTS/intermediate/chaos-engineering-tool && golangci-lint run --fix'
+        language: system
+        files: ^PROJECTS/intermediate/chaos-engineering-tool/
+        types: [go]
+        pass_filenames: false
+
   # Biome Frontend Checks
   - repo: local
     hooks:

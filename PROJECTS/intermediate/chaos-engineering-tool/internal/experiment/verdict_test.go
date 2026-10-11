@@ -11,7 +11,10 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
-func stream(credential probe.Credential, dispositions ...probe.Disposition) probe.Stream {
+func stream(
+	credential probe.Credential,
+	dispositions ...probe.Disposition,
+) probe.Stream {
 	s := probe.Stream{Credential: credential}
 	base := time.Now().UTC()
 
@@ -36,8 +39,10 @@ func repeat(d probe.Disposition, n int) []probe.Disposition {
 
 func healthyBaseline() probe.Window {
 	return probe.Window{
-		Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-		Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
+		Invalid: stream(
+			probe.Invalid,
+			repeat(probe.Rejected, MinimumPaired)...),
 	}
 }
 
@@ -48,7 +53,10 @@ func healthyRecovery() probe.Window {
 	}
 }
 
-var authPolarity = Polarity{Defects: []Direction{Permitted}, Rationale: "an authentication check that stops enforcing is catastrophic"}
+var authPolarity = Polarity{
+	Defects:   []Direction{Permitted},
+	Rationale: "an authentication check that stops enforcing is catastrophic",
+}
 
 func TestTheVerdictTruthTable(t *testing.T) {
 	cases := []struct {
@@ -61,8 +69,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 		{
 			name: "survived with enforcement intact",
 			fault: probe.Window{
-				Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-				Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+				Valid: stream(
+					probe.Valid,
+					repeat(probe.Accepted, MinimumPaired)...),
+				Invalid: stream(
+					probe.Invalid,
+					repeat(probe.Rejected, MinimumPaired)...),
 			},
 			wantEpistemic: Passed,
 			wantDirection: Held,
@@ -70,8 +82,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 		{
 			name: "failed closed, legitimate traffic refused",
 			fault: probe.Window{
-				Valid:   stream(probe.Valid, repeat(probe.Rejected, MinimumPaired)...),
-				Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+				Valid: stream(
+					probe.Valid,
+					repeat(probe.Rejected, MinimumPaired)...),
+				Invalid: stream(
+					probe.Invalid,
+					repeat(probe.Rejected, MinimumPaired)...),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Denied,
@@ -79,8 +95,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 		{
 			name: "failed open, a rejected credential was later accepted",
 			fault: probe.Window{
-				Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-				Invalid: stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...),
+				Valid: stream(
+					probe.Valid,
+					repeat(probe.Accepted, MinimumPaired)...),
+				Invalid: stream(
+					probe.Invalid,
+					repeat(probe.Accepted, MinimumPaired)...),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Permitted,
@@ -89,8 +109,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 		{
 			name: "stopped answering entirely",
 			fault: probe.Window{
-				Valid:   stream(probe.Valid, repeat(probe.Unavailable, MinimumPaired)...),
-				Invalid: stream(probe.Invalid, repeat(probe.Unavailable, MinimumPaired)...),
+				Valid: stream(
+					probe.Valid,
+					repeat(probe.Unavailable, MinimumPaired)...),
+				Invalid: stream(
+					probe.Invalid,
+					repeat(probe.Unavailable, MinimumPaired)...),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Crashed,
@@ -107,13 +131,21 @@ func TestTheVerdictTruthTable(t *testing.T) {
 			}, authPolarity)
 
 			if verdict.Epistemic != tc.wantEpistemic {
-				t.Fatalf("epistemic = %s, want %s (%s)", verdict.Epistemic, tc.wantEpistemic,
-					strings.Join(verdict.Reasons, "; "))
+				t.Fatalf(
+					"epistemic = %s, want %s (%s)",
+					verdict.Epistemic,
+					tc.wantEpistemic,
+					strings.Join(verdict.Reasons, "; "),
+				)
 			}
 
 			if verdict.Direction != tc.wantDirection {
-				t.Fatalf("direction = %s, want %s (%s)", verdict.Direction, tc.wantDirection,
-					strings.Join(verdict.Reasons, "; "))
+				t.Fatalf(
+					"direction = %s, want %s (%s)",
+					verdict.Direction,
+					tc.wantDirection,
+					strings.Join(verdict.Reasons, "; "),
+				)
 			}
 
 			if verdict.Defect != tc.wantDefect {
@@ -125,26 +157,38 @@ func TestTheVerdictTruthTable(t *testing.T) {
 
 func TestATargetThatWasNeverEnforcingIsNotAPass(t *testing.T) {
 	baseline := healthyBaseline()
-	baseline.Invalid = stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...)
+	baseline.Invalid = stream(
+		probe.Invalid,
+		repeat(probe.Accepted, MinimumPaired)...)
 
 	verdict := Judge(Observation{
 		FaultConfirmed: true,
 		Baseline:       baseline,
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Accepted, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
 
 	if verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s, want %s; a target that accepted an invalid credential BEFORE "+
-			"the fault was never enforcing, and a two-valued verdict would report this as a clean pass "+
-			"while teaching the operator nothing", verdict.Epistemic, BaselineNotMet)
+		t.Fatalf(
+			"epistemic = %s, want %s; a target that accepted an invalid credential BEFORE "+
+				"the fault was never enforcing, and a two-valued verdict would report this as a clean pass "+
+				"while teaching the operator nothing",
+			verdict.Epistemic,
+			BaselineNotMet,
+		)
 	}
 
 	if verdict.Conclusive {
-		t.Fatal("a run against a target that was not enforcing was marked conclusive")
+		t.Fatal(
+			"a run against a target that was not enforcing was marked conclusive",
+		)
 	}
 
 	if verdict.Direction != Undetermined {
@@ -160,14 +204,20 @@ func TestAServiceStillServingAValidCredentialIsNotPermitted(t *testing.T) {
 		FaultConfirmed: true,
 		Baseline:       healthyBaseline(),
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Rejected, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
 
 	if verdict.Direction == Permitted {
-		t.Fatal("a service that kept serving a still-valid credential was reported as failing open")
+		t.Fatal(
+			"a service that kept serving a still-valid credential was reported as failing open",
+		)
 	}
 
 	if verdict.Direction != Held {
@@ -180,23 +230,35 @@ func TestAnEarlyAcceptanceFollowedByEnforcementIsNotPermitted(t *testing.T) {
 	// consistently has not stopped enforcing. Counting acceptances instead of
 	// ordering them calls this a failure to enforce.
 	baseline := healthyBaseline()
-	baseline.Invalid = stream(probe.Invalid,
-		probe.Accepted, probe.Rejected, probe.Rejected, probe.Rejected, probe.Rejected)
+	baseline.Invalid = stream(
+		probe.Invalid,
+		probe.Accepted,
+		probe.Rejected,
+		probe.Rejected,
+		probe.Rejected,
+		probe.Rejected,
+	)
 
 	verdict := Judge(Observation{
 		FaultConfirmed: true,
 		Baseline:       baseline,
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Rejected, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
 
 	if verdict.Direction == Permitted {
-		t.Fatal("an acceptance that happened BEFORE the target ever enforced was counted as the " +
-			"control giving way; the test is 'a credential it had already refused was later " +
-			"honoured', not 'something was accepted at some point'")
+		t.Fatal(
+			"an acceptance that happened BEFORE the target ever enforced was counted as the " +
+				"control giving way; the test is 'a credential it had already refused was later " +
+				"honoured', not 'something was accepted at some point'",
+		)
 	}
 
 	if verdict.Direction != Held {
@@ -206,21 +268,30 @@ func TestAnEarlyAcceptanceFollowedByEnforcementIsNotPermitted(t *testing.T) {
 
 func TestPermittedRequiresAPriorRejection(t *testing.T) {
 	baseline := healthyBaseline()
-	baseline.Invalid = stream(probe.Invalid, repeat(probe.Unavailable, MinimumPaired)...)
+	baseline.Invalid = stream(
+		probe.Invalid,
+		repeat(probe.Unavailable, MinimumPaired)...)
 
 	verdict := Judge(Observation{
 		FaultConfirmed: true,
 		Baseline:       baseline,
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Accepted, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
 
 	if verdict.Epistemic != BaselineNotMet {
-		t.Fatalf("epistemic = %s; with no rejection ever observed there is no enforcement to lose, "+
-			"so there is nothing to conclude", verdict.Epistemic)
+		t.Fatalf(
+			"epistemic = %s; with no rejection ever observed there is no enforcement to lose, "+
+				"so there is nothing to conclude",
+			verdict.Epistemic,
+		)
 	}
 }
 
@@ -244,7 +315,11 @@ func TestAThinSampleIsNotConclusive(t *testing.T) {
 			}
 
 			if verdict.Epistemic != ProbeError {
-				t.Fatalf("epistemic = %s, want %s", verdict.Epistemic, ProbeError)
+				t.Fatalf(
+					"epistemic = %s, want %s",
+					verdict.Epistemic,
+					ProbeError,
+				)
 			}
 		})
 	}
@@ -259,8 +334,12 @@ func TestAFaultThatNeverLandedCannotProduceAVerdict(t *testing.T) {
 	}, authPolarity)
 
 	if verdict.Epistemic != Aborted {
-		t.Fatalf("epistemic = %s, want %s; nothing measured can be attributed to a fault "+
-			"that was never confirmed applied", verdict.Epistemic, Aborted)
+		t.Fatalf(
+			"epistemic = %s, want %s; nothing measured can be attributed to a fault "+
+				"that was never confirmed applied",
+			verdict.Epistemic,
+			Aborted,
+		)
 	}
 
 	if verdict.Conclusive {
@@ -273,27 +352,38 @@ func TestPolarityDecidesWhetherADeviationIsADefect(t *testing.T) {
 		FaultConfirmed: true,
 		Baseline:       healthyBaseline(),
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Accepted, MinimumPaired)...),
 		},
 		Recovery: healthyRecovery(),
 	}
 
 	strict := Judge(failedOpen, Polarity{Defects: []Direction{Permitted}})
 	if !strict.Defect {
-		t.Fatal("failing open was not a defect for a control that declares it one")
+		t.Fatal(
+			"failing open was not a defect for a control that declares it one",
+		)
 	}
 
 	lenient := Judge(failedOpen, Polarity{Defects: []Direction{Denied}})
 	if lenient.Defect {
-		t.Fatal("failing open was called a defect for a control that deliberately tolerates it; " +
-			"a rate-limit counter that stops counting when its datastore is unreachable is a " +
-			"trade, not a bug")
+		t.Fatal(
+			"failing open was called a defect for a control that deliberately tolerates it; " +
+				"a rate-limit counter that stops counting when its datastore is unreachable is a " +
+				"trade, not a bug",
+		)
 	}
 
 	if lenient.Direction != Permitted {
-		t.Fatalf("direction = %s; polarity changes whether a deviation is a defect, never which "+
-			"direction it went", lenient.Direction)
+		t.Fatalf(
+			"direction = %s; polarity changes whether a deviation is a defect, never which "+
+				"direction it went",
+			lenient.Direction,
+		)
 	}
 }
 
@@ -302,8 +392,12 @@ func TestAFailureToRecoverIsRecorded(t *testing.T) {
 		FaultConfirmed: true,
 		Baseline:       healthyBaseline(),
 		Fault: probe.Window{
-			Valid:   stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
-			Invalid: stream(probe.Invalid, repeat(probe.Rejected, MinimumPaired)...),
+			Valid: stream(
+				probe.Valid,
+				repeat(probe.Accepted, MinimumPaired)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Rejected, MinimumPaired)...),
 		},
 		Recovery: probe.Window{
 			Valid:   stream(probe.Valid, repeat(probe.Unavailable, 2)...),
@@ -312,8 +406,10 @@ func TestAFailureToRecoverIsRecorded(t *testing.T) {
 	}, authPolarity)
 
 	if verdict.Epistemic != Deviated {
-		t.Fatalf("epistemic = %s; a target that never came back after the revert did not pass",
-			verdict.Epistemic)
+		t.Fatalf(
+			"epistemic = %s; a target that never came back after the revert did not pass",
+			verdict.Epistemic,
+		)
 	}
 }
 
@@ -321,8 +417,24 @@ func TestEveryVerdictCarriesAReason(t *testing.T) {
 	observations := map[string]Observation{
 		"not applied": {FaultConfirmed: false},
 		"thin":        {FaultConfirmed: true, Baseline: healthyBaseline()},
-		"no baseline": {FaultConfirmed: true, Baseline: probe.Window{Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...), Invalid: stream(probe.Invalid, repeat(probe.Accepted, MinimumPaired)...)}, Fault: healthyBaseline()},
-		"held":        {FaultConfirmed: true, Baseline: healthyBaseline(), Fault: healthyBaseline(), Recovery: healthyRecovery()},
+		"no baseline": {
+			FaultConfirmed: true,
+			Baseline: probe.Window{
+				Valid: stream(
+					probe.Valid,
+					repeat(probe.Accepted, MinimumPaired)...),
+				Invalid: stream(
+					probe.Invalid,
+					repeat(probe.Accepted, MinimumPaired)...),
+			},
+			Fault: healthyBaseline(),
+		},
+		"held": {
+			FaultConfirmed: true,
+			Baseline:       healthyBaseline(),
+			Fault:          healthyBaseline(),
+			Recovery:       healthyRecovery(),
+		},
 	}
 
 	for name, observation := range observations {

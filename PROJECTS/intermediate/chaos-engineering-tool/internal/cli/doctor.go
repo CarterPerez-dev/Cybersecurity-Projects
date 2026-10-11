@@ -9,11 +9,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -72,9 +71,15 @@ func runDoctor(ctx context.Context, out io.Writer) error {
 			continue
 		}
 
-		if _, err := fmt.Fprintf(out, fixFormat,
+		if _, err := fmt.Fprintf(
+			out,
+			fixFormat,
 			render.FixIndent,
-			theme.Fg(theme.TextBright, render.FixPrefix+check.Fix)); err != nil {
+			theme.Fg(
+				theme.TextBright,
+				render.FixPrefix+check.Fix,
+			),
+		); err != nil {
 			return err
 		}
 	}

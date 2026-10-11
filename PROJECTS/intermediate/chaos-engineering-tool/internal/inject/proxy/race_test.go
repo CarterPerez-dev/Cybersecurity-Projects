@@ -24,7 +24,7 @@ const (
 // attempts, and hang and reset are the two faults the design doc exists to keep
 // distinguishable because they hit different branches in almost every client.
 func TestAnArmedHangNeverArrivesAsAReset(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	resets := 0
 
@@ -52,9 +52,13 @@ func TestAnArmedHangNeverArrivesAsAReset(t *testing.T) {
 	}
 
 	if resets > 0 {
-		t.Fatalf("%d of %d armed hangs arrived as a reset. A handler read the new fault with a "+
-			"stale generation, so the connection was refused and closed rather than held, and "+
-			"the operator measured the other fault in the catalogue", resets, raceAttempts)
+		t.Fatalf(
+			"%d of %d armed hangs arrived as a reset. A handler read the new fault with a "+
+				"stale generation, so the connection was refused and closed rather than held, and "+
+				"the operator measured the other fault in the catalogue",
+			resets,
+			raceAttempts,
+		)
 	}
 }
 
@@ -62,7 +66,7 @@ func TestAnArmedHangNeverArrivesAsAReset(t *testing.T) {
 // provide: a connection accepted just before a revert must not be left held by
 // nothing once the revert has run.
 func TestNoConnectionOutlivesTheRevertThatShouldHaveFreedIt(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	for attempt := range raceAttempts {
 		if err := p.Arm(Fault{Kind: Hang}); err != nil {
@@ -83,10 +87,14 @@ func TestNoConnectionOutlivesTheRevertThatShouldHaveFreedIt(t *testing.T) {
 
 		var timeout net.Error
 		if errors.As(readErr, &timeout) && timeout.Timeout() {
-			t.Fatalf("attempt %d: a connection was still held %s after the revert. The ceiling "+
-				"is %s against a five second recovery window, so the target reads as one that "+
-				"never came back and khaos manufactures that verdict itself",
-				attempt, raceWindow, hangCeiling)
+			t.Fatalf(
+				"attempt %d: a connection was still held %s after the revert. The ceiling "+
+					"is %s against a five second recovery window, so the target reads as one that "+
+					"never came back and khaos manufactures that verdict itself",
+				attempt,
+				raceWindow,
+				hangCeiling,
+			)
 		}
 	}
 }

@@ -41,7 +41,11 @@ func (p *Provider) active(t *testing.T, credential string) bool {
 		t.Fatalf("addr: %v", err)
 	}
 
-	body, err := fetchIntrospection(context.Background(), httpClient(), p.introspectURL("http://"+addr, credential))
+	body, err := fetchIntrospection(
+		context.Background(),
+		httpClient(),
+		p.introspectURL("http://"+addr, credential),
+	)
 	if err != nil {
 		t.Fatalf("introspect: %v", err)
 	}

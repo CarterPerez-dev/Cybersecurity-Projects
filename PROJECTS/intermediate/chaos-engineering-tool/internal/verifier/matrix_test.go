@@ -137,10 +137,13 @@ func subjects() []subject {
 		// service, and khaos's own experiment was hiding it by supplying the
 		// new-key traffic itself.
 		{
-			trap:        idp.KidRollover,
-			present:     func(p *idp.Provider) (string, error) { return p.HonestToken() },
-			arm:         func(*idp.Provider) idp.Trap { return idp.Trap{Kind: idp.KidRollover} },
-			acceptedBy:  []verifier.Mode{verifier.JWKSCacheForever, verifier.JWKSRefetchOnKidOnly},
+			trap:    idp.KidRollover,
+			present: func(p *idp.Provider) (string, error) { return p.HonestToken() },
+			arm:     func(*idp.Provider) idp.Trap { return idp.Trap{Kind: idp.KidRollover} },
+			acceptedBy: []verifier.Mode{
+				verifier.JWKSCacheForever,
+				verifier.JWKSRefetchOnKidOnly,
+			},
 			beforeFault: true,
 		},
 
@@ -192,10 +195,15 @@ func TestRevokedCredentialIsHonouredOnlyByAForeverCache(t *testing.T) {
 			credential := provider.Revocable()
 
 			if decision := v.Decide(credential); !decision.Allow {
-				t.Fatalf("the provider's own active credential was refused before anything was revoked: %s", decision.Reason)
+				t.Fatalf(
+					"the provider's own active credential was refused before anything was revoked: %s",
+					decision.Reason,
+				)
 			}
 
-			if err := provider.Arm(idp.Trap{Kind: idp.Revoke, Credential: credential}); err != nil {
+			if err := provider.Arm(
+				idp.Trap{Kind: idp.Revoke, Credential: credential},
+			); err != nil {
 				t.Fatalf("revoke: %v", err)
 			}
 
@@ -208,8 +216,13 @@ func TestRevokedCredentialIsHonouredOnlyByAForeverCache(t *testing.T) {
 			wantAllow := verifier.Mode(mode) == verifier.DecisionCacheForever
 
 			if decision.Allow != wantAllow {
-				t.Fatalf("mode %s allowed a revoked credential = %v, want %v (%s)",
-					mode, decision.Allow, wantAllow, decision.Reason)
+				t.Fatalf(
+					"mode %s allowed a revoked credential = %v, want %v (%s)",
+					mode,
+					decision.Allow,
+					wantAllow,
+					decision.Reason,
+				)
 			}
 		})
 	}
@@ -233,7 +246,10 @@ func TestEveryTrapIsCaughtByCorrectAndLetThroughOnlyByItsOwnBug(t *testing.T) {
 
 	for _, kind := range idp.Kinds() {
 		if !covered[idp.Kind(kind)] {
-			t.Errorf("trap %s has no row in the matrix, so nothing proves it is detectable", kind)
+			t.Errorf(
+				"trap %s has no row in the matrix, so nothing proves it is detectable",
+				kind,
+			)
 		}
 	}
 
@@ -249,8 +265,15 @@ func TestEveryTrapIsCaughtByCorrectAndLetThroughOnlyByItsOwnBug(t *testing.T) {
 				want := each.expects(verifier.Mode(mode))
 
 				if decision.Allow != want {
-					t.Fatalf("%s under %s: allowed = %v, want %v (verifier said: %s; provider observed: %s)",
-						each.trap, mode, decision.Allow, want, decision.Reason, armed)
+					t.Fatalf(
+						"%s under %s: allowed = %v, want %v (verifier said: %s; provider observed: %s)",
+						each.trap,
+						mode,
+						decision.Allow,
+						want,
+						decision.Reason,
+						armed,
+					)
 				}
 			})
 		}
@@ -277,7 +300,12 @@ func (s subject) expects(mode verifier.Mode) bool {
 // is minted first; the caches are warmed before the fault so a verifier has
 // something stale to serve; and the trap is confirmed through the provider's own
 // surface so a cell that fails cannot be blamed on a fault that never landed.
-func stage(t *testing.T, provider *idp.Provider, v *verifier.Verifier, s subject) (string, string) {
+func stage(
+	t *testing.T,
+	provider *idp.Provider,
+	v *verifier.Verifier,
+	s subject,
+) (string, string) {
 	t.Helper()
 
 	// Warm the verifier the way khaos's baseline does, by presenting an honest
@@ -293,8 +321,10 @@ func stage(t *testing.T, provider *idp.Provider, v *verifier.Verifier, s subject
 	}
 
 	if decision := v.Decide(warm); !decision.Allow {
-		t.Fatalf("the verifier refused an honest credential before any fault was armed (%s), so nothing it does afterwards can be attributed to the trap",
-			decision.Reason)
+		t.Fatalf(
+			"the verifier refused an honest credential before any fault was armed (%s), so nothing it does afterwards can be attributed to the trap",
+			decision.Reason,
+		)
 	}
 
 	early := ""
@@ -314,8 +344,11 @@ func stage(t *testing.T, provider *idp.Provider, v *verifier.Verifier, s subject
 
 	observable, confirmed, err := provider.Observe(context(t), s.trap)
 	if err != nil || !confirmed {
-		t.Fatalf("khaos could not confirm %s on its own provider (%v), so this cell would be measuring nothing",
-			s.trap, orErr(err, observable))
+		t.Fatalf(
+			"khaos could not confirm %s on its own provider (%v), so this cell would be measuring nothing",
+			s.trap,
+			orErr(err, observable),
+		)
 	}
 
 	// Past the key cache's lifetime, so a correct verifier refetches and sees

@@ -77,9 +77,13 @@ const (
 	errShortModulus = "the digest and PKCS#1 v1.5 framing need %d bytes and this key's modulus is only %d"
 )
 
-var ErrUnsupportedAlgorithm = errors.New("khaos cannot sign under that algorithm")
+var ErrUnsupportedAlgorithm = errors.New(
+	"khaos cannot sign under that algorithm",
+)
 
-var ErrKeyAlgorithmMismatch = errors.New("that key cannot sign under that algorithm")
+var ErrKeyAlgorithmMismatch = errors.New(
+	"that key cannot sign under that algorithm",
+)
 
 // Key is one signing key the provider publishes and signs with. The thumbprint
 // is its `kid`, so a rotated key's identity is derived from the key material
@@ -183,7 +187,12 @@ func (k *Key) Sign(alg Algorithm, signingInput []byte) ([]byte, error) {
 	switch alg {
 	case RS256:
 		if k.rsaKey == nil {
-			return nil, fmt.Errorf(errNotRSA, ErrKeyAlgorithmMismatch, k.ID, alg)
+			return nil, fmt.Errorf(
+				errNotRSA,
+				ErrKeyAlgorithmMismatch,
+				k.ID,
+				alg,
+			)
 		}
 		return k.signRSA(signingInput)
 	case ES256:
@@ -357,7 +366,9 @@ func weakRSAPrivateKey() (*rsa.PrivateKey, error) {
 		// benefit.
 		pMinus := new(big.Int).Sub(p, one)
 		qMinus := new(big.Int).Sub(q, one)
-		totient := new(big.Int).Div(new(big.Int).Mul(pMinus, qMinus), new(big.Int).GCD(nil, nil, pMinus, qMinus))
+		totient := new(
+			big.Int,
+		).Div(new(big.Int).Mul(pMinus, qMinus), new(big.Int).GCD(nil, nil, pMinus, qMinus))
 
 		d := new(big.Int).ModInverse(exponent, totient)
 		if d == nil {

@@ -18,7 +18,10 @@ import (
 // it. The provider is reached over HTTP rather than in-process on purpose: the
 // JWKS and introspection traps live in the HTTP handlers, so a verifier wired
 // straight to the Go methods would never see them.
-func pair(t *testing.T, mode verifier.Mode) (*idp.Provider, *verifier.Verifier) {
+func pair(
+	t *testing.T,
+	mode verifier.Mode,
+) (*idp.Provider, *verifier.Verifier) {
 	t.Helper()
 
 	provider, err := idp.New(idp.Config{})
@@ -84,10 +87,12 @@ func serveSet(t *testing.T, set idp.JWKSet) string {
 		t.Fatalf("encode: %v", err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(body)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}),
+	)
 
 	t.Cleanup(server.Close)
 

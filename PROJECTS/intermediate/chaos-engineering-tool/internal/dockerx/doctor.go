@@ -63,7 +63,11 @@ func Diagnose(ctx context.Context) []Check {
 	return DiagnoseWith(ctx, os.Getenv, homeDir())
 }
 
-func DiagnoseWith(ctx context.Context, environ func(string) string, home string) []Check {
+func DiagnoseWith(
+	ctx context.Context,
+	environ func(string) string,
+	home string,
+) []Check {
 	checks := make([]Check, 0, checkCapacity)
 
 	endpoint, err := ResolveEndpoint(environ, home)
@@ -74,13 +78,23 @@ func DiagnoseWith(ctx context.Context, environ func(string) string, home string)
 			Detail: endpointFailureDetail(err),
 			Fix:    endpointFix(err),
 		})
-		return append(checks, skipped(checkSocket), skipped(checkDaemon), skipped(checkTargets))
+		return append(
+			checks,
+			skipped(checkSocket),
+			skipped(checkDaemon),
+			skipped(checkTargets),
+		)
 	}
 
 	checks = append(checks, Check{
 		Name:   checkEndpoint,
 		Status: StatusPass,
-		Detail: fmt.Sprintf(detailEndpointFmt, endpoint.Host, endpoint.Source, contextSuffix(endpoint)),
+		Detail: fmt.Sprintf(
+			detailEndpointFmt,
+			endpoint.Host,
+			endpoint.Source,
+			contextSuffix(endpoint),
+		),
 	})
 
 	path, isSocket := endpoint.SocketPath()
@@ -137,7 +151,11 @@ func socketCheck(path string, connectErr error) Check {
 			Fix:    socketFix(connectErr, path),
 		}
 	}
-	return Check{Name: checkSocket, Status: StatusPass, Detail: fmt.Sprintf(detailSocketOK, path)}
+	return Check{
+		Name:   checkSocket,
+		Status: StatusPass,
+		Detail: fmt.Sprintf(detailSocketOK, path),
+	}
 }
 
 func targetsCheck(targets []Target) Check {
@@ -149,13 +167,23 @@ func targetsCheck(targets []Target) Check {
 	}
 
 	if consenting == 0 {
-		return Check{Name: checkTargets, Status: StatusFail, Detail: detailNone, Fix: FixNoTargets}
+		return Check{
+			Name:   checkTargets,
+			Status: StatusFail,
+			Detail: detailNone,
+			Fix:    FixNoTargets,
+		}
 	}
 
 	return Check{
 		Name:   checkTargets,
 		Status: StatusPass,
-		Detail: fmt.Sprintf(detailTargets, consenting, LabelConsent, ConsentValue),
+		Detail: fmt.Sprintf(
+			detailTargets,
+			consenting,
+			LabelConsent,
+			ConsentValue,
+		),
 	}
 }
 

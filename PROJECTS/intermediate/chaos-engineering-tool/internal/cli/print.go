@@ -21,7 +21,12 @@ const (
 )
 
 func say(out io.Writer, text string) {
-	fmt.Fprintf(out, lineLayout, render.Indent, theme.Fg(theme.TextNormal, text))
+	fmt.Fprintf(
+		out,
+		lineLayout,
+		render.Indent,
+		theme.Fg(theme.TextNormal, text),
+	)
 }
 
 func note(out io.Writer, text string) {
@@ -37,7 +42,12 @@ func fixLine(out io.Writer, fix string) {
 	if fix == "" {
 		return
 	}
-	fmt.Fprintf(out, lineLayout, render.FixIndent, theme.Fg(theme.TextBright, render.FixPrefix+fix))
+	fmt.Fprintf(
+		out,
+		lineLayout,
+		render.FixIndent,
+		theme.Fg(theme.TextBright, render.FixPrefix+fix),
+	)
 }
 
 func subject(kind, target string) string {

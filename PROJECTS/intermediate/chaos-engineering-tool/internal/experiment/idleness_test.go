@@ -43,7 +43,11 @@ type cachingService struct {
 }
 
 func newCachingService(reArm, noExpiry bool) *cachingService {
-	s := &cachingService{reArm: reArm, noExpiry: noExpiry, cache: map[string]time.Time{}}
+	s := &cachingService{
+		reArm:    reArm,
+		noExpiry: noExpiry,
+		cache:    map[string]time.Time{},
+	}
 	s.up.Store(true)
 	s.cache[leakedToken] = time.Now().Add(cacheTTL)
 	return s
@@ -115,12 +119,15 @@ func registerIdlenessExperiment(t *testing.T) {
 	t.Helper()
 
 	catalog[idleName] = Definition{
-		Name:       idleName,
-		Family:     FamilyNetwork,
-		Summary:    "a cached allow outliving the authority that could revoke it",
-		Hypothesis: Hypothesis{Condition: outageGeneric, Response: outageResponse},
-		Polarity:   outagePolarity,
-		FaultKind:  "test-kind",
+		Name:    idleName,
+		Family:  FamilyNetwork,
+		Summary: "a cached allow outliving the authority that could revoke it",
+		Hypothesis: Hypothesis{
+			Condition: outageGeneric,
+			Response:  outageResponse,
+		},
+		Polarity:  outagePolarity,
+		FaultKind: "test-kind",
 		Params: []Param{
 			{Name: ParamTarget, Usage: usageTarget, Required: true},
 			{Name: ParamURL, Usage: usageURL, Required: true},
@@ -203,8 +210,16 @@ func TestTheIdlenessDiscriminatorSeparatesTwoCausesOfOneLeak(t *testing.T) {
 		svc   *cachingService
 		cause Cause
 	}{
-		{"a cache re-armed on every failed check", newCachingService(true, false), TTLExtension},
-		{"a cache that outlasts the pause", newCachingService(false, true), StalePastPause},
+		{
+			"a cache re-armed on every failed check",
+			newCachingService(true, false),
+			TTLExtension,
+		},
+		{
+			"a cache that outlasts the pause",
+			newCachingService(false, true),
+			StalePastPause,
+		},
 	}
 
 	for _, tc := range cases {
@@ -212,20 +227,32 @@ func TestTheIdlenessDiscriminatorSeparatesTwoCausesOfOneLeak(t *testing.T) {
 			result := runIdleness(t, tc.svc, pause)
 
 			if result.Verdict.Direction != Permitted {
-				t.Fatalf("direction = %s, want %s (%s)", result.Verdict.Direction, Permitted,
-					strings.Join(result.Verdict.Reasons, "; "))
+				t.Fatalf(
+					"direction = %s, want %s (%s)",
+					result.Verdict.Direction,
+					Permitted,
+					strings.Join(result.Verdict.Reasons, "; "),
+				)
 			}
 
 			if result.Verdict.Cause != tc.cause {
-				t.Fatalf("cause = %s, want %s. These two targets are identical under steady "+
-					"traffic and need different fixes, so a verdict that cannot tell them apart "+
-					"sends the operator after the wrong bug (%s)",
-					result.Verdict.Cause, tc.cause, strings.Join(result.Verdict.Reasons, "; "))
+				t.Fatalf(
+					"cause = %s, want %s. These two targets are identical under steady "+
+						"traffic and need different fixes, so a verdict that cannot tell them apart "+
+						"sends the operator after the wrong bug (%s)",
+					result.Verdict.Cause,
+					tc.cause,
+					strings.Join(result.Verdict.Reasons, "; "),
+				)
 			}
 
 			if result.Observation.IdleFor != pause {
-				t.Fatalf("the run recorded a pause of %s, want %s; a finding whose pause is not "+
-					"reported cannot be checked", result.Observation.IdleFor, pause)
+				t.Fatalf(
+					"the run recorded a pause of %s, want %s; a finding whose pause is not "+
+						"reported cannot be checked",
+					result.Observation.IdleFor,
+					pause,
+				)
 			}
 		})
 	}
@@ -261,24 +288,38 @@ func TestTheDiscriminatorDoesNotRunOnATargetThatHeld(t *testing.T) {
 	spec.IdleFor = 10 * time.Second
 
 	started := time.Now()
-	result, err := Engine{Injector: &cachingInjector{svc: svc}}.Run(context.Background(), spec)
+	result, err := Engine{
+		Injector: &cachingInjector{svc: svc},
+	}.Run(
+		context.Background(),
+		spec,
+	)
 	took := time.Since(started)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
 	if took >= spec.IdleFor {
-		t.Fatalf("the run took %s against a %s pause, so it paused traffic on a target with "+
-			"nothing to diagnose", took, spec.IdleFor)
+		t.Fatalf(
+			"the run took %s against a %s pause, so it paused traffic on a target with "+
+				"nothing to diagnose",
+			took,
+			spec.IdleFor,
+		)
 	}
 
 	if result.Verdict.Cause != Undiagnosed {
-		t.Fatalf("cause = %s, want %s on a run where the discriminator never ran",
-			result.Verdict.Cause, Undiagnosed)
+		t.Fatalf(
+			"cause = %s, want %s on a run where the discriminator never ran",
+			result.Verdict.Cause,
+			Undiagnosed,
+		)
 	}
 
 	if result.Observation.Resumed.Paired() != 0 {
-		t.Fatal("a resumed window was measured although the discriminator did not run")
+		t.Fatal(
+			"a resumed window was measured although the discriminator did not run",
+		)
 	}
 }
 
@@ -292,8 +333,12 @@ func TestWithoutAPauseTheCauseIsUndiagnosedRatherThanGuessed(t *testing.T) {
 	}
 
 	if result.Verdict.Cause != Undiagnosed {
-		t.Fatalf("cause = %s, want %s. Nothing ran that could tell the causes apart, and naming "+
-			"one anyway is a finding khaos did not measure", result.Verdict.Cause, Undiagnosed)
+		t.Fatalf(
+			"cause = %s, want %s. Nothing ran that could tell the causes apart, and naming "+
+				"one anyway is a finding khaos did not measure",
+			result.Verdict.Cause,
+			Undiagnosed,
+		)
 	}
 }
 
@@ -312,18 +357,43 @@ func maxDuration(a, b time.Duration) time.Duration {
 // when its own window was too short to exclude that.
 //
 // The gate shipped with `--fault-for 8s --idle-for 14s`, which is that case.
-func TestTTLExtensionIsRefusedWhenTheSteadyWindowIsShorterThanThePause(t *testing.T) {
+func TestTTLExtensionIsRefusedWhenTheSteadyWindowIsShorterThanThePause(
+	t *testing.T,
+) {
 	lapsed := probe.Window{}
 	for range MinimumPaired {
-		lapsed.Record(probe.Outcome{Credential: probe.Revoked, Disposition: probe.Rejected})
+		lapsed.Record(
+			probe.Outcome{
+				Credential:  probe.Revoked,
+				Disposition: probe.Rejected,
+			},
+		)
 	}
 
-	leaked := window(probe.Accepted, probe.Rejected, "", probe.Accepted, MinimumPaired)
+	leaked := window(
+		probe.Accepted,
+		probe.Rejected,
+		"",
+		probe.Accepted,
+		MinimumPaired,
+	)
 
 	base := Observation{
-		Baseline:       window(probe.Accepted, probe.Rejected, "", probe.Accepted, MinimumPaired),
-		Fault:          leaked,
-		Recovery:       window(probe.Accepted, probe.Rejected, "", "", MinimumPaired),
+		Baseline: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			probe.Accepted,
+			MinimumPaired,
+		),
+		Fault: leaked,
+		Recovery: window(
+			probe.Accepted,
+			probe.Rejected,
+			"",
+			"",
+			MinimumPaired,
+		),
 		Resumed:        lapsed,
 		FaultConfirmed: true,
 		IdleFor:        14 * time.Second,
@@ -334,9 +404,12 @@ func TestTTLExtensionIsRefusedWhenTheSteadyWindowIsShorterThanThePause(t *testin
 	unsound.FaultFor = 8 * time.Second
 
 	if verdict := Judge(unsound, idpPolarity); verdict.Cause != LapsedOnPause {
-		t.Fatalf("an 8s steady window against a 14s pause produced %s; a fixed lifetime between "+
-			"those two durations explains it just as well (%s)",
-			verdict.Cause, strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"an 8s steady window against a 14s pause produced %s; a fixed lifetime between "+
+				"those two durations explains it just as well (%s)",
+			verdict.Cause,
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
 	// The control. The same observation with a steady window at least as long as
@@ -348,12 +421,21 @@ func TestTTLExtensionIsRefusedWhenTheSteadyWindowIsShorterThanThePause(t *testin
 	verdict := Judge(sound, idpPolarity)
 
 	if verdict.Cause != TTLExtension {
-		t.Fatalf("a 14s steady window against a 14s pause produced %s, want %s (%s)",
-			verdict.Cause, TTLExtension, strings.Join(verdict.Reasons, "; "))
+		t.Fatalf(
+			"a 14s steady window against a 14s pause produced %s, want %s (%s)",
+			verdict.Cause,
+			TTLExtension,
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 
-	if !strings.Contains(strings.Join(verdict.Reasons, "; "), "no fixed lifetime behaves that way") {
-		t.Fatalf("the TTL-extension reason does not state why a fixed lifetime is excluded: %s",
-			strings.Join(verdict.Reasons, "; "))
+	if !strings.Contains(
+		strings.Join(verdict.Reasons, "; "),
+		"no fixed lifetime behaves that way",
+	) {
+		t.Fatalf(
+			"the TTL-extension reason does not state why a fixed lifetime is excluded: %s",
+			strings.Join(verdict.Reasons, "; "),
+		)
 	}
 }

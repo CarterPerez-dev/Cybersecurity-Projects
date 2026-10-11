@@ -13,14 +13,13 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/term"
-
 	"github.com/CarterPerez-dev/khaos/internal/cli"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/shell"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/version"
+	"golang.org/x/term"
 )
 
 const (
@@ -43,14 +42,20 @@ const (
 	fixFormat       = "       fix: %s\n"
 )
 
-var errInterrupted = errors.New("interrupted before the run could reach a verdict")
+var errInterrupted = errors.New(
+	"interrupted before the run could reach a verdict",
+)
 
 func main() {
 	os.Exit(execute())
 }
 
 func execute() int {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
 	defer stop()
 
 	args := os.Args[1:]
@@ -79,7 +84,14 @@ func interactive(args []string, stdin, stdout *os.File) bool {
 	if len(args) > 0 {
 		return false
 	}
-	return term.IsTerminal(int(stdin.Fd())) && term.IsTerminal(int(stdout.Fd()))
+	return term.IsTerminal(fd(stdin)) && term.IsTerminal(fd(stdout))
+}
+
+// fd narrows a descriptor for the syscall wrappers that want an int. A file
+// descriptor is bounded by RLIMIT_NOFILE, orders of magnitude below MaxInt, so
+// the conversion cannot overflow.
+func fd(file *os.File) int {
+	return int(file.Fd()) //nolint:gosec // bounded by RLIMIT_NOFILE
 }
 
 func noColorRequested(args []string) bool {

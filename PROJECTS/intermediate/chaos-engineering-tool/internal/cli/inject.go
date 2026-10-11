@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
@@ -20,6 +18,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -96,7 +95,10 @@ func injectLong() string {
 	return `inject applies one raw fault to one consenting target, holds it, and reverts it
 when you stop the command.
 
-Available kinds: ` + strings.Join(inject.DirectKinds(), ", ") + `
+Available kinds: ` + strings.Join(
+		inject.DirectKinds(),
+		", ",
+	) + `
 
 The fault carries a lease. Everything the revert will need is written to the
 journal BEFORE the fault is applied, so a khaos killed outright still leaves a
@@ -118,13 +120,21 @@ func onlyKnownKind(_ *cobra.Command, args []string) error {
 	// name rather than attempted. It would otherwise fail deep inside the
 	// mutation with a message about a proxy the operator never asked for.
 	if !inject.IsDirect(args[0]) {
-		return fmt.Errorf(errNotDirect, args[0], strings.Join(inject.DirectKinds(), ", "))
+		return fmt.Errorf(
+			errNotDirect,
+			args[0],
+			strings.Join(inject.DirectKinds(), ", "),
+		)
 	}
 
 	return nil
 }
 
-func completeKinds(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+func completeKinds(
+	_ *cobra.Command,
+	args []string,
+	_ string,
+) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -172,12 +182,19 @@ func runInject(
 	}
 
 	if err := session.Inject(ctx, kind, confirmed); err != nil {
-		return errors.Join(err, revert(withoutCancel(ctx, timeout), out, session))
+		return errors.Join(
+			err,
+			revert(withoutCancel(ctx, timeout), out, session),
+		)
 	}
 
 	event(out, markInject, theme.StatusWarn, subject(kind, confirmed.Name))
-	note(out, fmt.Sprintf(msgLeaseInfo,
-		session.RunID(), session.Lease().ID(), session.Lease().ExpiresAt().Format(time.RFC3339)))
+	note(out, fmt.Sprintf(
+		msgLeaseInfo,
+		session.RunID(),
+		session.Lease().ID(),
+		session.Lease().ExpiresAt().Format(time.RFC3339),
+	))
 	say(out, msgInjected)
 
 	waitErr := hold_(ctx, session, hold)
@@ -202,7 +219,11 @@ func runInject(
 	return errors.Join(skipCancellation(waitErr), revertErr)
 }
 
-func hold_(ctx context.Context, session *run.Session, hold time.Duration) error {
+func hold_(
+	ctx context.Context,
+	session *run.Session,
+	hold time.Duration,
+) error {
 	keepCtx, stop := context.WithCancel(ctx)
 	renewals := make(chan error, 1)
 
@@ -255,13 +276,26 @@ func revert(ctx context.Context, out io.Writer, session *run.Session) error {
 
 	err := session.RevertAll(ctx, func(record journal.Record, failure error) {
 		if failure != nil {
-			event(out, markError, theme.StatusError,
-				fmt.Sprintf(faultFormat, record.Kind, record.TargetName, failure))
+			event(
+				out,
+				markError,
+				theme.StatusError,
+				fmt.Sprintf(
+					faultFormat,
+					record.Kind,
+					record.TargetName,
+					failure,
+				),
+			)
 			return
 		}
-		event(out, markRevert, theme.StatusOK, subject(record.Kind, record.TargetName))
+		event(
+			out,
+			markRevert,
+			theme.StatusOK,
+			subject(record.Kind, record.TargetName),
+		)
 	})
-
 	if err != nil {
 		fmt.Fprintln(out)
 		return err

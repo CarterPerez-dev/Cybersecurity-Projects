@@ -27,21 +27,86 @@ linters:
 
   exclusions:
     rules:
+      # errcheck is excluded in tests, and only in tests, because a test's
+      # error-handling policy IS its assertion: a discarded return that mattered
+      # shows up as a failing test, not as a silent wrong answer in the field.
+      # Every one of the 13 test sites that discards a meaningful return was read
+      # by hand first; each asserts on the value it keeps, and several discard an
+      # error the measurement requires (a complete answer through the fault proxy
+      # always ends in one). The exclusion is not standing permission to stop
+      # reading them.
+      #
+      # gocognit joins funlen and dupl for the same reason those two are already
+      # here. Cognitive complexity counts branches, and the eight tests it flags
+      # are the CENSUS tests: one function that walks Kinds() and asserts every
+      # property khaos promises for each. Their score is assertion density, not
+      # tangle -- each `if wrong { t.Fatalf }` is independent and reads on its
+      # own -- and density is the property that makes a census worth having. The
+      # limit stays ON for source, where a high score means nested branches that
+      # actually interact.
       - path: _test\.go
         linters:
           - funlen
           - dupl
           - goconst
           - gosec
+          - errcheck
+          - gocognit
     paths:
       - vendor
       - testdata
-    max-same-issues: 50
 
   settings:
     errcheck:
       check-type-assertions: true
-      check-blank: true
+
+      # check-blank is off, and this is a decision rather than a default. It
+      # treats `_ = f()` as unchecked, which means it distrusts the exact thing
+      # this codebase uses to SAY a discard is deliberate. All 191 hits it
+      # produced were read: 103 in source and 88 in tests, and not one was a
+      # bug. Several were load-bearing in the other direction -- the journal
+      # append on an already-failing revert must stay best-effort so the fault
+      # stays outstanding and reclaim retries it, and the proxy's settle() read
+      # exists precisely to throw its result away.
+      #
+      # Satisfying it would mean 58 permanent //nolint:errcheck directives
+      # acknowledging a second time what `_ =` already acknowledges once, in a
+      # comment the compiler never checks, suppressing the whole line rather
+      # than one call. This file already carries about twenty nolint directives
+      # that each record a real decision; burying those among 58 ceremonial ones
+      # is how a reader learns to skim all of them.
+      #
+      # check-type-assertions stays ON: `x := y.(T)` has no `_ =` form that
+      # states intent, and getting it wrong is a panic rather than a dropped
+      # error. errcheck also still catches the genuine mistake this setting is
+      # confused with -- a bare `f()` whose error is not assigned anywhere at
+      # all, which is verified by a negative control, not assumed.
+      check-blank: false
+
+      # Writes to khaos's own output stream are not error-checked, declared once
+      # here rather than acknowledged at 46 call sites. A CLI that cannot print
+      # has already lost the operator it would report the failure to, and the
+      # exit status carries the verdict regardless. Close is deliberately NOT in
+      # this list: closing a file khaos WROTE is what flushes it, so the journal
+      # and its compaction temp file check Close and must keep checking it.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+    exhaustive:
+      # A switch that deliberately handles a subset and sends the rest to a
+      # default is not a bug here, and spelling the rest out as no-op cases that
+      # fall through to the same body would add about a hundred lines that say
+      # nothing. The constants this would guard are already guarded harder: every
+      # Kind dispatch is covered by a census test that walks Kinds() and fails
+      # the moment a new constant exists without a case of its own, and by a
+      # differential that fails when a trap behaves like its own control. That is
+      # exhaustiveness in BEHAVIOUR; the linter only checks that a constant is
+      # named. What this setting leaves switched on is the case the linter is
+      # genuinely better at than a test -- a switch with NO default that misses a
+      # constant and falls out to a zero value.
+      default-signifies-exhaustive: true
 
     funlen:
       lines: 88
@@ -54,6 +119,18 @@ linters:
       enable-all: true
       disable:
         - fieldalignment
+
+        # shadow is not in go vet's default suite, and this is why: all 32 hits
+        # here are `if err := f(); err != nil`, the idiom every Go reader parses
+        # without thinking, where the scoped err is checked on the next line and
+        # then gone. Both non-test hits were read in full; in one the outer err
+        # is already checked and dead, and the other is the bare idiom. Renaming
+        # 32 of them to applyErr and listenErr would make correct code read
+        # worse to silence a check with a 32-of-32 false positive rate on this
+        # tree. The bug shadow is meant to catch -- assigning the inner err and
+        # then testing the outer one -- needs the outer err to be live after the
+        # block, which none of these have.
+        - shadow
 
     revive:
       rules:
@@ -83,13 +160,44 @@ linters:
         - all
 
     gosec:
+      # G104 unhandled errors: errcheck owns that question, with a stricter
+      # setting than gosec applies.
+      #
+      # G101 is a NAME heuristic. It fires on an identifier containing token,
+      # credential or secret, and this tool's entire vocabulary is those three
+      # words. All nine hits were read: eight are message, summary or format
+      # strings, and the ninth is DefaultInvalidToken, which is REQUIRED to be a
+      # known-bad constant because it is khaos's negative control.
+      #
+      # G704 flags a request whose URL came from outside the function, which is
+      # every request khaos makes, by construction. Probing a URL the operator
+      # names IS the product, and there is no privilege boundary to cross: khaos
+      # runs as the operator, against a target the operator chose.
+      #
+      # G304 and G404 are deliberately NOT excluded. A future unsafe path open,
+      # or a future security-relevant use of math/rand in a tool that mints its
+      # own tokens, has to stay catchable, so those are acknowledged one site at
+      # a time instead of waived here.
       excludes:
         - G104
+        - G101
+        - G704
 
     sloglint:
       no-mixed-args: true
       kv-only: true
       context: all
+
+# Both caps are off because the defaults silently truncate the report. golangci
+# stops at 50 issues per linter and 3 per repeated message, so this project read
+# 152 issues while it actually had 311 -- errcheck alone was pinned at exactly
+# 50 of its 191. A gate that hides more than half of what it found cannot be
+# used to decide whether the tree is clean, and a cap that bites is invisible in
+# the output. These were previously set under linters.exclusions, which is not a
+# section golangci reads them from, so neither one did anything.
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 
 formatters:
   enable:

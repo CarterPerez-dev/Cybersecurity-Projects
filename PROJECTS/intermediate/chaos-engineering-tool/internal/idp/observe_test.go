@@ -71,8 +71,11 @@ func TestEveryTrapIsConfirmedByItsOwnObservable(t *testing.T) {
 	cases := everyTrap()
 
 	if len(cases) != len(Kinds()) {
-		t.Fatalf("this test covers %d traps and khaos advertises %d; a new trap needs a case here",
-			len(cases), len(Kinds()))
+		t.Fatalf(
+			"this test covers %d traps and khaos advertises %d; a new trap needs a case here",
+			len(cases),
+			len(Kinds()),
+		)
 	}
 
 	for _, each := range cases {
@@ -85,17 +88,26 @@ func TestEveryTrapIsConfirmedByItsOwnObservable(t *testing.T) {
 				t.Fatalf("arm %s: %v", each.kind, err)
 			}
 
-			observable, confirmed, err := p.Observe(context.Background(), each.kind)
+			observable, confirmed, err := p.Observe(
+				context.Background(),
+				each.kind,
+			)
 			if err != nil {
 				t.Fatalf("observe %s: %v", each.kind, err)
 			}
 
 			if !confirmed {
-				t.Fatalf("%s was armed and its own observable did not appear", each.kind)
+				t.Fatalf(
+					"%s was armed and its own observable did not appear",
+					each.kind,
+				)
 			}
 
 			if observable == "" {
-				t.Fatalf("%s confirmed with no observable; the run record would carry no evidence", each.kind)
+				t.Fatalf(
+					"%s confirmed with no observable; the run record would carry no evidence",
+					each.kind,
+				)
 			}
 		})
 	}
@@ -123,7 +135,10 @@ func TestEveryTrapRefusesConfirmationWhenItDidNotHappen(t *testing.T) {
 			_, confirmed, _ := p.Observe(context.Background(), each.kind)
 
 			if confirmed {
-				t.Fatalf("%s confirmed itself while inert, so its oracle cannot tell a landed trap from one that did nothing", each.kind)
+				t.Fatalf(
+					"%s confirmed itself while inert, so its oracle cannot tell a landed trap from one that did nothing",
+					each.kind,
+				)
 			}
 		})
 	}
@@ -132,8 +147,16 @@ func TestEveryTrapRefusesConfirmationWhenItDidNotHappen(t *testing.T) {
 func TestObserveRefusesWhenNothingIsArmed(t *testing.T) {
 	p := listening(t)
 
-	if _, confirmed, err := p.Observe(context.Background(), AlgNone); confirmed || err == nil {
-		t.Fatalf("an unarmed provider confirmed a trap: confirmed=%v err=%v", confirmed, err)
+	if _, confirmed, err := p.Observe(
+		context.Background(),
+		AlgNone,
+	); confirmed ||
+		err == nil {
+		t.Fatalf(
+			"an unarmed provider confirmed a trap: confirmed=%v err=%v",
+			confirmed,
+			err,
+		)
 	}
 }
 
@@ -144,8 +167,16 @@ func TestObserveRefusesADifferentTrapThanTheOneArmed(t *testing.T) {
 		t.Fatalf("arm: %v", err)
 	}
 
-	if _, confirmed, err := p.Observe(context.Background(), SignatureTruncated); confirmed || err == nil {
-		t.Fatalf("the provider confirmed %s while holding %s", SignatureTruncated, AlgNone)
+	if _, confirmed, err := p.Observe(
+		context.Background(),
+		SignatureTruncated,
+	); confirmed ||
+		err == nil {
+		t.Fatalf(
+			"the provider confirmed %s while holding %s",
+			SignatureTruncated,
+			AlgNone,
+		)
 	}
 }
 
@@ -173,7 +204,11 @@ func TestDisarmRestoresTheSigningKeyARotationReplaced(t *testing.T) {
 	p.Disarm()
 
 	if p.SigningKid() != before {
-		t.Fatalf("after disarm the signing key is %q, want the original %q", p.SigningKid(), before)
+		t.Fatalf(
+			"after disarm the signing key is %q, want the original %q",
+			p.SigningKid(),
+			before,
+		)
 	}
 
 	if !p.PublishedSet().Has(before) {
@@ -197,7 +232,9 @@ func TestDisarmRestoresARevokedGrant(t *testing.T) {
 	p.Disarm()
 
 	if active := p.active(t, credential); !active {
-		t.Fatal("disarm did not restore the revoked grant, so recovery cannot be measured")
+		t.Fatal(
+			"disarm did not restore the revoked grant, so recovery cannot be measured",
+		)
 	}
 }
 
@@ -234,7 +271,9 @@ func TestRotationWithOverlapKeepsBothKeysPublished(t *testing.T) {
 func TestArmRefusesToRevokeACredentialItNeverIssued(t *testing.T) {
 	p := listening(t)
 
-	if err := p.Arm(Trap{Kind: Revoke, Credential: "khaos-opaque-never-issued"}); err == nil {
+	if err := p.Arm(
+		Trap{Kind: Revoke, Credential: "khaos-opaque-never-issued"},
+	); err == nil {
 		t.Fatal("the provider revoked a credential it never issued")
 	}
 }
@@ -269,14 +308,21 @@ func TestAnUnarmedProviderMintsOnlyCorrectTokens(t *testing.T) {
 		}
 
 		if !token.Claims.Audience.Contains(DefaultAudience) {
-			t.Errorf("aud is %q, want %q", token.Claims.Audience, DefaultAudience)
+			t.Errorf(
+				"aud is %q, want %q",
+				token.Claims.Audience,
+				DefaultAudience,
+			)
 		}
 
 		if !verifiesUnderSet(p.PublishedSet(), token) {
-			t.Error("an unarmed provider minted a token that does not verify under its own published keys")
+			t.Error(
+				"an unarmed provider minted a token that does not verify under its own published keys",
+			)
 		}
 
-		if token.Claims.Expires == nil || time.Unix(*token.Claims.Expires, 0).Before(time.Now()) {
+		if token.Claims.Expires == nil ||
+			time.Unix(*token.Claims.Expires, 0).Before(time.Now()) {
 			t.Error("an unarmed provider minted an already-expired token")
 		}
 	}
@@ -309,8 +355,14 @@ func TestHonestTokenIgnoresEveryArmedForgery(t *testing.T) {
 			t.Fatalf("parse under %s: %v", each.kind, err)
 		}
 
-		if token.Header.Alg != string(RS256) || token.Claims.Issuer != testIssuer {
-			t.Errorf("%s leaked into the honest token: alg=%q iss=%q", each.kind, token.Header.Alg, token.Claims.Issuer)
+		if token.Header.Alg != string(RS256) ||
+			token.Claims.Issuer != testIssuer {
+			t.Errorf(
+				"%s leaked into the honest token: alg=%q iss=%q",
+				each.kind,
+				token.Header.Alg,
+				token.Claims.Issuer,
+			)
 		}
 
 		if !verifiesUnderSet(p.PublishedSet(), token) {
@@ -346,11 +398,15 @@ func TestTheAttackerKeyIsNeverPublished(t *testing.T) {
 	}
 
 	if p.PublishedSet().Has(token.Header.JWK.Kid) {
-		t.Fatal("khaos published the attacker key, so resolving it would be correct behaviour")
+		t.Fatal(
+			"khaos published the attacker key, so resolving it would be correct behaviour",
+		)
 	}
 
 	if !verifiesUnder(*token.Header.JWK, token) {
-		t.Fatal("the embedded key does not verify the token it is embedded in, so no verifier could accept it for the reason the trap claims")
+		t.Fatal(
+			"the embedded key does not verify the token it is embedded in, so no verifier could accept it for the reason the trap claims",
+		)
 	}
 }
 
@@ -365,7 +421,11 @@ func TestJWKSFetchesAreCounted(t *testing.T) {
 	before := p.JWKSFetches()
 
 	for range 3 {
-		if _, _, err := probeRoute(context.Background(), httpClient(), "http://"+addr+RouteJWKS); err != nil {
+		if _, _, err := probeRoute(
+			context.Background(),
+			httpClient(),
+			"http://"+addr+RouteJWKS,
+		); err != nil {
 			t.Fatalf("fetch: %v", err)
 		}
 	}
@@ -391,7 +451,11 @@ func TestHealthIsNeverFaulted(t *testing.T) {
 			t.Fatalf("addr: %v", err)
 		}
 
-		status, _, err := probeRoute(context.Background(), httpClient(), "http://"+addr+RouteHealth)
+		status, _, err := probeRoute(
+			context.Background(),
+			httpClient(),
+			"http://"+addr+RouteHealth,
+		)
 		if err != nil || status != 200 {
 			t.Fatalf("health answered %d (%v) with %s armed", status, err, kind)
 		}
@@ -430,7 +494,12 @@ func TestListenDoesNotOverwriteAPinnedIssuer(t *testing.T) {
 	}
 
 	if p.Issuer() != testIssuer {
-		t.Fatalf("after binding on %s the issuer is %q, want the pinned %q", addr, p.Issuer(), testIssuer)
+		t.Fatalf(
+			"after binding on %s the issuer is %q, want the pinned %q",
+			addr,
+			p.Issuer(),
+			testIssuer,
+		)
 	}
 
 	raw, err := p.HonestToken()
@@ -444,8 +513,12 @@ func TestListenDoesNotOverwriteAPinnedIssuer(t *testing.T) {
 	}
 
 	if token.Claims.Issuer != testIssuer {
-		t.Fatalf("the minted token says iss %q, want the pinned %q; a target configured for "+
-			"the pinned issuer refuses this and the run blames the target", token.Claims.Issuer, testIssuer)
+		t.Fatalf(
+			"the minted token says iss %q, want the pinned %q; a target configured for "+
+				"the pinned issuer refuses this and the run blames the target",
+			token.Claims.Issuer,
+			testIssuer,
+		)
 	}
 }
 
@@ -459,7 +532,10 @@ func TestAnUnpinnedProviderNamesItselfAfterBinding(t *testing.T) {
 	t.Cleanup(func() { _ = p.Close() })
 
 	if p.Issuer() != "" {
-		t.Fatalf("an unbound, unpinned provider claims the issuer %q", p.Issuer())
+		t.Fatalf(
+			"an unbound, unpinned provider claims the issuer %q",
+			p.Issuer(),
+		)
 	}
 
 	if err := p.Listen("127.0.0.1:0"); err != nil {
@@ -491,13 +567,22 @@ func TestKhaosOwnConfirmationDoesNotInflateTheFetchCount(t *testing.T) {
 				t.Fatalf("arm: %v", err)
 			}
 
-			if _, confirmed, err := p.Observe(context.Background(), kind); err != nil || !confirmed {
+			if _, confirmed, err := p.Observe(
+				context.Background(),
+				kind,
+			); err != nil ||
+				!confirmed {
 				t.Fatalf("confirm said %v (%v)", confirmed, err)
 			}
 
 			if after := p.JWKSFetches(); after != before {
-				t.Fatalf("confirming %s moved the reported fetch count from %d to %d; the number has "+
-					"to describe the TARGET's refetch behaviour, not khaos's own probing", kind, before, after)
+				t.Fatalf(
+					"confirming %s moved the reported fetch count from %d to %d; the number has "+
+						"to describe the TARGET's refetch behaviour, not khaos's own probing",
+					kind,
+					before,
+					after,
+				)
 			}
 		})
 	}
@@ -516,20 +601,31 @@ func TestATargetsFetchIsStillCounted(t *testing.T) {
 		t.Fatalf("arm: %v", err)
 	}
 
-	if _, confirmed, err := p.Observe(context.Background(), KidRollover); err != nil || !confirmed {
+	if _, confirmed, err := p.Observe(
+		context.Background(),
+		KidRollover,
+	); err != nil ||
+		!confirmed {
 		t.Fatalf("confirm said %v (%v)", confirmed, err)
 	}
 
 	before := p.JWKSFetches()
 
 	for range 4 {
-		if _, _, err := probeRoute(context.Background(), httpClient(), "http://"+addr+RouteJWKS); err != nil {
+		if _, _, err := probeRoute(
+			context.Background(),
+			httpClient(),
+			"http://"+addr+RouteJWKS,
+		); err != nil {
 			t.Fatalf("fetch: %v", err)
 		}
 	}
 
 	if got := p.JWKSFetches() - before; got != 4 {
-		t.Fatalf("counted %d target fetches, want 4; the correction is swallowing real ones", got)
+		t.Fatalf(
+			"counted %d target fetches, want 4; the correction is swallowing real ones",
+			got,
+		)
 	}
 }
 
@@ -574,8 +670,10 @@ func TestIntrospectionAnswersTheWireFormatTheRFCSpecifies(t *testing.T) {
 	}
 
 	if body := post(); !body.Active {
-		t.Fatal("a form-encoded POST for an active credential reported it inactive; no conforming " +
-			"client can establish a baseline against this provider")
+		t.Fatal(
+			"a form-encoded POST for an active credential reported it inactive; no conforming " +
+				"client can establish a baseline against this provider",
+		)
 	}
 
 	if err := p.Arm(Trap{Kind: Revoke, Credential: credential}); err != nil {
@@ -605,8 +703,10 @@ func TestRevocationAcceptsTheFormEncodedPost(t *testing.T) {
 	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("a form-encoded revocation answered %d, so a conforming client cannot revoke",
-			response.StatusCode)
+		t.Fatalf(
+			"a form-encoded revocation answered %d, so a conforming client cannot revoke",
+			response.StatusCode,
+		)
 	}
 
 	if p.active(t, credential) {

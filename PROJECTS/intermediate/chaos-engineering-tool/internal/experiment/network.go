@@ -77,7 +77,11 @@ func proxyParams(extra ...Param) []Param {
 		{Name: ParamToken, Usage: usageToken, Required: true},
 		{Name: ParamProxyListen, Usage: usageProxyListen, Required: true},
 		{Name: ParamProxyUpstream, Usage: usageProxyUpstream, Required: true},
-		{Name: ParamInvalidToken, Usage: usageInvalidToken, Default: DefaultInvalidToken},
+		{
+			Name:    ParamInvalidToken,
+			Usage:   usageInvalidToken,
+			Default: DefaultInvalidToken,
+		},
 	}, extra...)
 }
 
@@ -86,13 +90,24 @@ func proxyEndpoint(params *Params) (string, string) {
 	return params.Get(ParamProxyListen), params.Get(ParamProxyUpstream)
 }
 
-var delayParam = Param{Name: ParamDelay, Usage: usageDelay, Default: defaultDelay}
+var delayParam = Param{
+	Name:    ParamDelay,
+	Usage:   usageDelay,
+	Default: defaultDelay,
+}
 
-var bytesParam = Param{Name: ParamBytes, Usage: usageBytes, Default: defaultBytes}
+var bytesParam = Param{
+	Name:    ParamBytes,
+	Usage:   usageBytes,
+	Default: defaultBytes,
+}
 
 // plainProxyShape covers the three faults that carry no magnitude. The condition
 // is resolved against the real target so the hypothesis names what was broken.
-func plainProxyShape(kind proxy.Kind, condition string) func(*Params) (Shape, error) {
+func plainProxyShape(
+	kind proxy.Kind,
+	condition string,
+) func(*Params) (Shape, error) {
 	return func(params *Params) (Shape, error) {
 		target := params.Get(ParamTarget)
 
@@ -109,7 +124,10 @@ func plainProxyShape(kind proxy.Kind, condition string) func(*Params) (Shape, er
 	}
 }
 
-func delayedProxyShape(kind proxy.Kind, condition string) func(*Params) (Shape, error) {
+func delayedProxyShape(
+	kind proxy.Kind,
+	condition string,
+) func(*Params) (Shape, error) {
 	return func(params *Params) (Shape, error) {
 		target := params.Get(ParamTarget)
 
@@ -151,7 +169,11 @@ func buildDependencyPartial(params *Params) (Shape, error) {
 	}, nil
 }
 
-func proxyDefinition(name, summary, condition string, kind proxy.Kind, extra ...Param) Definition {
+func proxyDefinition(
+	name, summary, condition string,
+	kind proxy.Kind,
+	extra ...Param,
+) Definition {
 	build := plainProxyShape(kind, condition)
 
 	switch kind {
@@ -159,17 +181,22 @@ func proxyDefinition(name, summary, condition string, kind proxy.Kind, extra ...
 		build = delayedProxyShape(kind, condition)
 	case proxy.Partial:
 		build = buildDependencyPartial
+	default:
+		// Hang, Reset and EOF take no parameters, so the plain shape stands.
 	}
 
 	return Definition{
-		Name:       name,
-		Family:     FamilyNetwork,
-		Summary:    summary,
-		Hypothesis: Hypothesis{Condition: outageGeneric, Response: proxyResponse},
-		Polarity:   proxyPolarity,
-		FaultKind:  inject.ProxyKind(kind),
-		Params:     proxyParams(extra...),
-		Build:      build,
+		Name:    name,
+		Family:  FamilyNetwork,
+		Summary: summary,
+		Hypothesis: Hypothesis{
+			Condition: outageGeneric,
+			Response:  proxyResponse,
+		},
+		Polarity:  proxyPolarity,
+		FaultKind: inject.ProxyKind(kind),
+		Params:    proxyParams(extra...),
+		Build:     build,
 	}
 }
 

@@ -27,7 +27,9 @@ const (
 	errBelowFloor  = "--%s was given as %s, and khaos needs at least %s: %s"
 )
 
-var ErrUndeclaredParam = errors.New("that is not a parameter of this experiment")
+var ErrUndeclaredParam = errors.New(
+	"that is not a parameter of this experiment",
+)
 
 // Param declares one input an experiment needs. The declaration is the single
 // place the CLI registers flags from, the range fills defaults into, and Bind
@@ -62,7 +64,12 @@ func Bind(declared []Param, supplied map[string]string) (*Params, error) {
 		if len(names) == 0 {
 			return nil, fmt.Errorf(errNoParams, ErrUndeclaredParam, name)
 		}
-		return nil, fmt.Errorf(errUndeclared, ErrUndeclaredParam, name, strings.Join(names, nameSep))
+		return nil, fmt.Errorf(
+			errUndeclared,
+			ErrUndeclaredParam,
+			name,
+			strings.Join(names, nameSep),
+		)
 	}
 
 	bound := &Params{
@@ -158,7 +165,11 @@ func (p *Params) Duration(name string) (time.Duration, error) {
 //
 // The refusal names the floor AND why it exists, because an operator's first
 // instinct on seeing it will be that khaos is being fussy about a magnitude.
-func (p *Params) AtLeast(name string, floor time.Duration, because string) (time.Duration, error) {
+func (p *Params) AtLeast(
+	name string,
+	floor time.Duration,
+	because string,
+) (time.Duration, error) {
 	value, err := p.Duration(name)
 	if err != nil {
 		return 0, err

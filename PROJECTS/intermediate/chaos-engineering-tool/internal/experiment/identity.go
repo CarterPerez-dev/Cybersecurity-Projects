@@ -127,7 +127,12 @@ func revokeAt(authority, credential string) func(context.Context) error {
 		query.Set(revokeParam, credential)
 		endpoint.RawQuery = query.Encode()
 
-		request, err := http.NewRequestWithContext(ctx, revokeMethod, endpoint.String(), nil)
+		request, err := http.NewRequestWithContext(
+			ctx,
+			revokeMethod,
+			endpoint.String(),
+			nil,
+		)
 		if err != nil {
 			return fmt.Errorf(errRevoke, authority, err)
 		}
@@ -140,7 +145,8 @@ func revokeAt(authority, credential string) func(context.Context) error {
 		}
 		defer func() { _ = response.Body.Close() }()
 
-		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		if response.StatusCode < http.StatusOK ||
+			response.StatusCode >= http.StatusMultipleChoices {
 			return fmt.Errorf(errRevokeStatus, authority, response.StatusCode)
 		}
 
@@ -150,16 +156,24 @@ func revokeAt(authority, credential string) func(context.Context) error {
 
 func init() {
 	catalog[NameIDPOutage] = Definition{
-		Name:       NameIDPOutage,
-		Family:     FamilyIdentity,
-		Summary:    idpOutageSummary,
-		Hypothesis: Hypothesis{Condition: outageGeneric, Response: idpOutageResponse},
-		Polarity:   idpOutagePolarity,
-		FaultKind:  inject.ProxyKind(proxy.Hang),
-		Params: append(proxyParams(),
+		Name:    NameIDPOutage,
+		Family:  FamilyIdentity,
+		Summary: idpOutageSummary,
+		Hypothesis: Hypothesis{
+			Condition: outageGeneric,
+			Response:  idpOutageResponse,
+		},
+		Polarity:  idpOutagePolarity,
+		FaultKind: inject.ProxyKind(proxy.Hang),
+		Params: append(
+			proxyParams(),
 			Param{Name: ParamAuthority, Usage: usageAuthority, Required: true},
 			Param{Name: ParamRevocable, Usage: usageRevocable, Required: true},
-			Param{Name: ParamIdleFor, Usage: usageIdleFor, Default: defaultIdleFor},
+			Param{
+				Name:    ParamIdleFor,
+				Usage:   usageIdleFor,
+				Default: defaultIdleFor,
+			},
 		),
 		Build: buildIDPOutage,
 	}

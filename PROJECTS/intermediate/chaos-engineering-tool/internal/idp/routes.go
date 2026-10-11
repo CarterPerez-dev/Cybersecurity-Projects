@@ -95,7 +95,11 @@ func (p *Provider) jwks(w http.ResponseWriter, _ *http.Request) {
 func (p *Provider) token(w http.ResponseWriter, _ *http.Request) {
 	minted, err := p.TrappedToken()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
 		return
 	}
 
@@ -138,6 +142,12 @@ func (p *Provider) introspect(w http.ResponseWriter, r *http.Request) {
 		case <-p.closed:
 			return
 		}
+
+	default:
+		// Every other trap leaves introspection alone and the honest answer
+		// below is returned. A token trap that broke this endpoint too would
+		// give the target two reasons to refuse and khaos one it cannot
+		// attribute.
 	}
 
 	credential := credentialFrom(r)
@@ -167,7 +177,11 @@ func (p *Provider) revokeRoute(w http.ResponseWriter, r *http.Request) {
 	credential := credentialFrom(r)
 
 	if err := p.revoke(credential); err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		writeJSON(
+			w,
+			http.StatusNotFound,
+			map[string]string{"error": err.Error()},
+		)
 		return
 	}
 

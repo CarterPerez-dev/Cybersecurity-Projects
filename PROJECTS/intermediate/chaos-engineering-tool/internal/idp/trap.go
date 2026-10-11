@@ -161,6 +161,8 @@ func (t Trap) Validate() error {
 			return fmt.Errorf(errUnknownKeyForm, ErrUnknownKeyForm,
 				t.KeyForm, SPKIPEM, SPKIDER, PKCS1PEM, Modulus)
 		}
+	default:
+		// The remaining traps carry no parameter to validate.
 	}
 
 	if t.Kind != PassThrough && !slices.Contains(Kinds(), string(t.Kind)) {

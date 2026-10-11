@@ -74,17 +74,25 @@ func run() error {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
 	defer stop()
 
 	go func() {
 		<-ctx.Done()
-		shutdown, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+		shutdown, cancel := context.WithTimeout(
+			context.Background(),
+			shutdownGrace,
+		)
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
 
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := server.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 

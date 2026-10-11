@@ -70,7 +70,9 @@ const (
 
 var ErrUnknownKind = errors.New("no proxy fault is registered under that name")
 
-var ErrFaultIncomplete = errors.New("that proxy fault needs a parameter it was not given")
+var ErrFaultIncomplete = errors.New(
+	"that proxy fault needs a parameter it was not given",
+)
 
 // Fault is the whole mutable state of an armed proxy. Reverting is assigning
 // PassThrough over it, which is why the tier rolls back by freeing a struct
@@ -93,7 +95,12 @@ func Kinds() []string {
 func ParseKind(name string) (Kind, error) {
 	kind := Kind(name)
 	if kind == PassThrough || !slices.Contains(Kinds(), name) {
-		return "", fmt.Errorf(errUnknownKind, ErrUnknownKind, name, strings.Join(Kinds(), kindSep))
+		return "", fmt.Errorf(
+			errUnknownKind,
+			ErrUnknownKind,
+			name,
+			strings.Join(Kinds(), kindSep),
+		)
 	}
 	return kind, nil
 }
@@ -118,7 +125,12 @@ func (f Fault) Validate() error {
 		// kinds accepts the zero Fault, a misspelling and a trailing space, all of
 		// which forward every byte untouched while reporting as armed. An
 		// unmarshalled journal payload reaches this with no other guard.
-		return fmt.Errorf(errUnknownKind, ErrUnknownKind, f.Kind, strings.Join(Kinds(), kindSep))
+		return fmt.Errorf(
+			errUnknownKind,
+			ErrUnknownKind,
+			f.Kind,
+			strings.Join(Kinds(), kindSep),
+		)
 	}
 
 	return nil

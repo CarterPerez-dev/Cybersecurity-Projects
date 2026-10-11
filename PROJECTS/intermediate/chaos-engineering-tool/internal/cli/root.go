@@ -6,10 +6,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
-
 	"github.com/CarterPerez-dev/khaos/internal/banner"
 	"github.com/CarterPerez-dev/khaos/internal/version"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -65,7 +64,12 @@ func newVersionCmd() *cobra.Command {
 		Short: versionShort,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, err := fmt.Fprintf(cmd.OutOrStdout(), versionFormat, version.Name, version.Version())
+			_, err := fmt.Fprintf(
+				cmd.OutOrStdout(),
+				versionFormat,
+				version.Name,
+				version.Version(),
+			)
 			return err
 		},
 	}

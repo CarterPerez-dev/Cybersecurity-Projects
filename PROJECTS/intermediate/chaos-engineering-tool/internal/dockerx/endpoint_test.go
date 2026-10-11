@@ -30,14 +30,24 @@ func writeContext(t *testing.T, home, name, host string) {
 	t.Helper()
 
 	digest := sha256.Sum256([]byte(name))
-	dir := filepath.Join(home, dockerDir, contextsDir, contextMetaDir, hex.EncodeToString(digest[:]))
+	dir := filepath.Join(
+		home,
+		dockerDir,
+		contextsDir,
+		contextMetaDir,
+		hex.EncodeToString(digest[:]),
+	)
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir context: %v", err)
 	}
 
 	body := `{"Name":"` + name + `","Endpoints":{"docker":{"Host":"` + host + `"}}}`
-	if err := os.WriteFile(filepath.Join(dir, contextMeta), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(dir, contextMeta),
+		[]byte(body),
+		0o644,
+	); err != nil {
 		t.Fatalf("write context meta: %v", err)
 	}
 }
@@ -51,7 +61,11 @@ func writeCurrentContext(t *testing.T, home, name string) {
 	}
 
 	body := `{"currentContext":"` + name + `"}`
-	if err := os.WriteFile(filepath.Join(dir, configFile), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(dir, configFile),
+		[]byte(body),
+		0o644,
+	); err != nil {
 		t.Fatalf("write docker config: %v", err)
 	}
 }
@@ -98,12 +112,16 @@ func TestEnvContextWinsOverConfigContext(t *testing.T) {
 	writeContext(t, home, otherCtxName, otherCtxHost)
 	writeCurrentContext(t, home, ctxName)
 
-	got, err := ResolveEndpoint(fakeEnv(map[string]string{EnvDockerContext: otherCtxName}), home)
+	got, err := ResolveEndpoint(
+		fakeEnv(map[string]string{EnvDockerContext: otherCtxName}),
+		home,
+	)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
 
-	if got.Host != otherCtxHost || got.Source != SourceEnvContext || got.Name != otherCtxName {
+	if got.Host != otherCtxHost || got.Source != SourceEnvContext ||
+		got.Name != otherCtxName {
 		t.Fatalf("got %+v, want %s via %s", got, otherCtxHost, SourceEnvContext)
 	}
 }
@@ -118,8 +136,14 @@ func TestConfigContextIsResolvedByDigestPath(t *testing.T) {
 		t.Fatalf("resolve: %v", err)
 	}
 
-	if got.Host != ctxHostValue || got.Source != SourceConfigContext || got.Name != ctxName {
-		t.Fatalf("got %+v, want %s via %s", got, ctxHostValue, SourceConfigContext)
+	if got.Host != ctxHostValue || got.Source != SourceConfigContext ||
+		got.Name != ctxName {
+		t.Fatalf(
+			"got %+v, want %s via %s",
+			got,
+			ctxHostValue,
+			SourceConfigContext,
+		)
 	}
 }
 
@@ -128,7 +152,10 @@ func TestDefaultContextFallsThroughToSockets(t *testing.T) {
 	writeCurrentContext(t, home, defaultContext)
 	runtimeDir := makeRootlessSocket(t, home)
 
-	got, err := ResolveEndpoint(fakeEnv(map[string]string{EnvXDGRuntime: runtimeDir}), home)
+	got, err := ResolveEndpoint(
+		fakeEnv(map[string]string{EnvXDGRuntime: runtimeDir}),
+		home,
+	)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -146,7 +173,11 @@ func TestDefaultContextFallsThroughToSockets(t *testing.T) {
 func TestAnUnresolvableNamedContextIsRefusedNotIgnored(t *testing.T) {
 	cases := map[string]func(t *testing.T, home string) func(string) string{
 		"named by DOCKER_CONTEXT": func(_ *testing.T, _ string) func(string) string {
-			return fakeEnv(map[string]string{EnvDockerContext: "a-context-with-no-metadata"})
+			return fakeEnv(
+				map[string]string{
+					EnvDockerContext: "a-context-with-no-metadata",
+				},
+			)
 		},
 		"named by docker config": func(t *testing.T, home string) func(string) string {
 			writeCurrentContext(t, home, "a-context-with-no-metadata")
@@ -162,8 +193,11 @@ func TestAnUnresolvableNamedContextIsRefusedNotIgnored(t *testing.T) {
 
 			_, err := ResolveEndpoint(env, home)
 			if !errors.Is(err, ErrContextUnresolvable) {
-				t.Fatalf("got %v; an explicitly named context that cannot be resolved must refuse, "+
-					"never silently fall through to whatever daemon happens to be local", err)
+				t.Fatalf(
+					"got %v; an explicitly named context that cannot be resolved must refuse, "+
+						"never silently fall through to whatever daemon happens to be local",
+					err,
+				)
 			}
 		})
 	}
@@ -213,7 +247,11 @@ func TestAnExplicitDefaultContextSelectsTheLocalDaemon(t *testing.T) {
 		return ""
 	}
 
-	if err := os.WriteFile(filepath.Join(socket, socketBaseName), nil, 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(socket, socketBaseName),
+		nil,
+		0o600,
+	); err != nil {
 		t.Fatalf("socket: %v", err)
 	}
 
@@ -224,7 +262,10 @@ func TestAnExplicitDefaultContextSelectsTheLocalDaemon(t *testing.T) {
 	}
 
 	if saved.Name != "ag-server" {
-		t.Fatalf("with no env set khaos resolved %q, want the saved context ag-server", saved.Name)
+		t.Fatalf(
+			"with no env set khaos resolved %q, want the saved context ag-server",
+			saved.Name,
+		)
 	}
 
 	withDefault := func(name string) string {
@@ -240,12 +281,17 @@ func TestAnExplicitDefaultContextSelectsTheLocalDaemon(t *testing.T) {
 	}
 
 	if resolved.Name == "ag-server" {
-		t.Fatal("DOCKER_CONTEXT=default resolved to the saved remote context; khaos would inject " +
-			"on another machine while `docker compose` acted locally")
+		t.Fatal(
+			"DOCKER_CONTEXT=default resolved to the saved remote context; khaos would inject " +
+				"on another machine while `docker compose` acted locally",
+		)
 	}
 
 	if !strings.HasPrefix(resolved.Host, unixScheme) {
-		t.Fatalf("DOCKER_CONTEXT=default resolved to %q, want a local socket", resolved.Host)
+		t.Fatalf(
+			"DOCKER_CONTEXT=default resolved to %q, want a local socket",
+			resolved.Host,
+		)
 	}
 }
 
@@ -272,7 +318,9 @@ func TestDockerHostStillOutranksDockerContext(t *testing.T) {
 	}
 
 	if resolved.Host != "tcp://127.0.0.1:1" {
-		t.Fatalf("resolved %q; the Docker CLI gives DOCKER_HOST precedence and khaos must match",
-			resolved.Host)
+		t.Fatalf(
+			"resolved %q; the Docker CLI gives DOCKER_HOST precedence and khaos must match",
+			resolved.Host,
+		)
 	}
 }

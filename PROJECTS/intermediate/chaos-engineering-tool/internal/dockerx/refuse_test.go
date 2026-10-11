@@ -17,12 +17,15 @@ const (
 
 func acceptable() (Target, Guard) {
 	return Target{
-			ID:          acceptableID,
-			Name:        "shop-api-1",
-			Image:       "shop/api:latest",
-			Project:     project,
-			Service:     "api",
-			Labels:      map[string]string{LabelConsent: ConsentValue, LabelComposeProject: project},
+			ID:      acceptableID,
+			Name:    "shop-api-1",
+			Image:   "shop/api:latest",
+			Project: project,
+			Service: "api",
+			Labels: map[string]string{
+				LabelConsent:        ConsentValue,
+				LabelComposeProject: project,
+			},
 			Running:     true,
 			NetworkMode: "shop_default",
 			BindSources: []string{"/srv/shop/config"},
@@ -41,29 +44,59 @@ type control struct {
 
 func controls() []control {
 	return []control{
-		{PredicateNotInspected, func(t *Target, _ *Guard) { t.Inspected = false }},
-		{PredicateConsentMissing, func(t *Target, _ *Guard) { delete(t.Labels, LabelConsent) }},
-		{PredicateConsentNotTrue, func(t *Target, _ *Guard) { t.Labels[LabelConsent] = "yes" }},
-		{PredicateIdentityChanged, func(_ *Target, g *Guard) { g.ExpectedID = peerID }},
+		{
+			PredicateNotInspected,
+			func(t *Target, _ *Guard) { t.Inspected = false },
+		},
+		{
+			PredicateConsentMissing,
+			func(t *Target, _ *Guard) { delete(t.Labels, LabelConsent) },
+		},
+		{
+			PredicateConsentNotTrue,
+			func(t *Target, _ *Guard) { t.Labels[LabelConsent] = "yes" },
+		},
+		{
+			PredicateIdentityChanged,
+			func(_ *Target, g *Guard) { g.ExpectedID = peerID },
+		},
 		{PredicateSelfTarget, func(t *Target, g *Guard) { g.SelfID = t.ID }},
-		{PredicateHostNetwork, func(t *Target, _ *Guard) { t.NetworkMode = NetworkModeHost }},
+		{
+			PredicateHostNetwork,
+			func(t *Target, _ *Guard) { t.NetworkMode = NetworkModeHost },
+		},
 		{PredicateSharedNamespace, func(t *Target, _ *Guard) {
 			t.NetworkMode = NetworkModeContainerPfx + peerID
 		}},
 		{PredicateNamespacePeer, func(t *Target, _ *Guard) {
 			t.NamespacePeers = []string{"sidecar-1"}
 		}},
-		{PredicateHostNamespace, func(t *Target, _ *Guard) { t.PidMode = ModeHost }},
-		{PredicatePrivileged, func(t *Target, _ *Guard) { t.Privileged = true }},
-		{PredicateDangerousCap, func(t *Target, _ *Guard) { t.Capabilities = []string{"NET_ADMIN"} }},
-		{PredicateDeviceAccess, func(t *Target, _ *Guard) { t.Devices = []string{"/dev/sda"} }},
+		{
+			PredicateHostNamespace,
+			func(t *Target, _ *Guard) { t.PidMode = ModeHost },
+		},
+		{
+			PredicatePrivileged,
+			func(t *Target, _ *Guard) { t.Privileged = true },
+		},
+		{
+			PredicateDangerousCap,
+			func(t *Target, _ *Guard) { t.Capabilities = []string{"NET_ADMIN"} },
+		},
+		{
+			PredicateDeviceAccess,
+			func(t *Target, _ *Guard) { t.Devices = []string{"/dev/sda"} },
+		},
 		{PredicateUnconfined, func(t *Target, _ *Guard) {
 			t.SecurityOpt = []string{"seccomp=unconfined"}
 		}},
 		{PredicateSocketReachable, func(t *Target, _ *Guard) {
 			t.BindSources = append(t.BindSources, DockerSocketPath)
 		}},
-		{PredicateScopeMismatch, func(t *Target, _ *Guard) { t.Project = "someone-elses-stack" }},
+		{
+			PredicateScopeMismatch,
+			func(t *Target, _ *Guard) { t.Project = "someone-elses-stack" },
+		},
 		{PredicateNotRunning, func(t *Target, _ *Guard) { t.Running = false }},
 	}
 }
@@ -72,8 +105,11 @@ func TestAcceptableTargetIsAccepted(t *testing.T) {
 	target, guard := acceptable()
 
 	if refusal := Refuse(target, guard); refusal != nil {
-		t.Fatalf("the control target was refused by %s (%s), so every refusal test below is vacuous",
-			refusal.Predicate, refusal.Reason)
+		t.Fatalf(
+			"the control target was refused by %s (%s), so every refusal test below is vacuous",
+			refusal.Predicate,
+			refusal.Reason,
+		)
 	}
 }
 
@@ -92,14 +128,25 @@ func TestEachControlFiresExactlyOnePredicate(t *testing.T) {
 
 			switch len(fired) {
 			case 0:
-				t.Fatalf("%s accepted a target that breaks exactly its own invariant", c.predicate)
+				t.Fatalf(
+					"%s accepted a target that breaks exactly its own invariant",
+					c.predicate,
+				)
 			case 1:
 				if fired[0] != c.predicate {
-					t.Fatalf("control for %s fired %s instead", c.predicate, fired[0])
+					t.Fatalf(
+						"control for %s fired %s instead",
+						c.predicate,
+						fired[0],
+					)
 				}
 			default:
-				t.Fatalf("control for %s fired %d predicates (%s); they alibi each other, so gutting any one stays green",
-					c.predicate, len(fired), strings.Join(fired, ", "))
+				t.Fatalf(
+					"control for %s fired %d predicates (%s); they alibi each other, so gutting any one stays green",
+					c.predicate,
+					len(fired),
+					strings.Join(fired, ", "),
+				)
 			}
 		})
 	}
@@ -113,7 +160,10 @@ func TestEveryPredicateHasAControl(t *testing.T) {
 
 	for _, p := range predicates {
 		if !covered[p.Name] {
-			t.Fatalf("predicate %s has no negative control, so nothing proves it ever refuses anything", p.Name)
+			t.Fatalf(
+				"predicate %s has no negative control, so nothing proves it ever refuses anything",
+				p.Name,
+			)
 		}
 	}
 
@@ -138,7 +188,10 @@ func TestEveryRefusalNamesAReasonAndAFix(t *testing.T) {
 			}
 
 			if strings.TrimSpace(refusal.Fix) == "" {
-				t.Fatalf("%s refused without telling the operator how to fix it", c.predicate)
+				t.Fatalf(
+					"%s refused without telling the operator how to fix it",
+					c.predicate,
+				)
 			}
 		})
 	}
@@ -167,7 +220,12 @@ func TestConsentMustBeExactlyTrue(t *testing.T) {
 
 			refused := Refuse(target, guard) != nil
 			if refused == tc.consented {
-				t.Fatalf("consent value %q: refused=%v, want refused=%v", tc.value, refused, !tc.consented)
+				t.Fatalf(
+					"consent value %q: refused=%v, want refused=%v",
+					tc.value,
+					refused,
+					!tc.consented,
+				)
 			}
 		})
 	}
@@ -175,8 +233,17 @@ func TestConsentMustBeExactlyTrue(t *testing.T) {
 
 func TestDangerousCapabilitiesAreRefusedInEverySpelling(t *testing.T) {
 	spellings := []string{
-		"NET_ADMIN", "net_admin", "CAP_NET_ADMIN", "cap_sys_admin", "ALL",
-		"SYS_MODULE", "CAP_SYS_PTRACE", "DAC_READ_SEARCH", "SYS_RAWIO", "BPF", "NET_RAW",
+		"NET_ADMIN",
+		"net_admin",
+		"CAP_NET_ADMIN",
+		"cap_sys_admin",
+		"ALL",
+		"SYS_MODULE",
+		"CAP_SYS_PTRACE",
+		"DAC_READ_SEARCH",
+		"SYS_RAWIO",
+		"BPF",
+		"NET_RAW",
 	}
 
 	for _, value := range spellings {
@@ -221,14 +288,22 @@ func TestSocketIsRefusedThroughEveryReachablePath(t *testing.T) {
 
 			refusal := Refuse(target, guard)
 			if refusal == nil || refusal.Predicate != PredicateSocketReachable {
-				t.Fatalf("a bind mount of %q reaches the Docker daemon and was not refused", source)
+				t.Fatalf(
+					"a bind mount of %q reaches the Docker daemon and was not refused",
+					source,
+				)
 			}
 		})
 	}
 }
 
 func TestOrdinaryBindMountsAreAllowed(t *testing.T) {
-	harmless := []string{"/srv/app/config", "/etc/myapp", "/var/log/myapp", "/opt/data"}
+	harmless := []string{
+		"/srv/app/config",
+		"/etc/myapp",
+		"/var/log/myapp",
+		"/opt/data",
+	}
 
 	for _, source := range harmless {
 		t.Run(source, func(t *testing.T) {
@@ -236,7 +311,11 @@ func TestOrdinaryBindMountsAreAllowed(t *testing.T) {
 			target.BindSources = []string{source}
 
 			if refusal := Refuse(target, guard); refusal != nil {
-				t.Fatalf("harmless mount %q was refused by %s", source, refusal.Predicate)
+				t.Fatalf(
+					"harmless mount %q was refused by %s",
+					source,
+					refusal.Predicate,
+				)
 			}
 		})
 	}
@@ -277,7 +356,10 @@ func TestEmptyGuardStillEnforcesTargetProperties(t *testing.T) {
 	target.Project = "anything"
 
 	if refusal := Refuse(target, Guard{}); refusal != nil {
-		t.Fatalf("an empty guard refused a consenting target via %s", refusal.Predicate)
+		t.Fatalf(
+			"an empty guard refused a consenting target via %s",
+			refusal.Predicate,
+		)
 	}
 
 	target.Privileged = true
@@ -289,11 +371,16 @@ func TestEmptyGuardStillEnforcesTargetProperties(t *testing.T) {
 func TestZeroValueTargetIsRefused(t *testing.T) {
 	refusal := Refuse(Target{}, Guard{})
 	if refusal == nil {
-		t.Fatal("a zero-value Target was accepted; a partially built target must never pass")
+		t.Fatal(
+			"a zero-value Target was accepted; a partially built target must never pass",
+		)
 	}
 
 	if refusal.Predicate != PredicateNotInspected {
-		t.Fatalf("a zero-value Target was refused by %s rather than %s, so the completeness check is not first",
-			refusal.Predicate, PredicateNotInspected)
+		t.Fatalf(
+			"a zero-value Target was refused by %s rather than %s, so the completeness check is not first",
+			refusal.Predicate,
+			PredicateNotInspected,
+		)
 	}
 }

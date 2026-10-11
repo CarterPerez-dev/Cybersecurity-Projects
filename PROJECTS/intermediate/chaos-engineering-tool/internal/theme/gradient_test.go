@@ -22,14 +22,26 @@ func TestRampEndpointsAreExact(t *testing.T) {
 		t.Fatalf("Ramp(%d) returned %d colors", steps, len(ramp))
 	}
 
-	wantFirstR, wantFirstG, wantFirstB := uint32(0x48), uint32(0x05), uint32(0xFF)
+	wantFirstR, wantFirstG, wantFirstB := uint32(
+		0x48,
+	), uint32(
+		0x05,
+	), uint32(
+		0xFF,
+	)
 	wantLastR, wantLastG, wantLastB := uint32(0x94), uint32(0x6E), uint32(0xFF)
 
-	if r, g, b := rgb(ramp[0]); r != wantFirstR || g != wantFirstG || b != wantFirstB {
+	if r, g, b := rgb(
+		ramp[0],
+	); r != wantFirstR || g != wantFirstG ||
+		b != wantFirstB {
 		t.Fatalf("first stop = %02X%02X%02X, want %s", r, g, b, BrandDeep)
 	}
 
-	if r, g, b := rgb(ramp[steps-1]); r != wantLastR || g != wantLastG || b != wantLastB {
+	if r, g, b := rgb(
+		ramp[steps-1],
+	); r != wantLastR || g != wantLastG ||
+		b != wantLastB {
 		t.Fatalf("last stop = %02X%02X%02X, want %s", r, g, b, BrandLight)
 	}
 }
@@ -41,7 +53,12 @@ func TestRampIsMonotonicTowardTheLightStop(t *testing.T) {
 	for i, c := range ramp {
 		r, _, _ := rgb(c)
 		if i > 0 && r < previous {
-			t.Fatalf("red channel went backwards at step %d: %d after %d", i, r, previous)
+			t.Fatalf(
+				"red channel went backwards at step %d: %d after %d",
+				i,
+				r,
+				previous,
+			)
 		}
 		previous = r
 	}
@@ -75,6 +92,10 @@ func TestBlockEmitsOneStyleSpanPerRow(t *testing.T) {
 	out := Block([]string{"aaa", "bbb", "ccc"})
 
 	if got := strings.Count(out, "\x1b[38"); got != rows {
-		t.Fatalf("Block emitted %d color sequences for %d rows; a vertical gradient needs exactly one per row", got, rows)
+		t.Fatalf(
+			"Block emitted %d color sequences for %d rows; a vertical gradient needs exactly one per row",
+			got,
+			rows,
+		)
 	}
 }

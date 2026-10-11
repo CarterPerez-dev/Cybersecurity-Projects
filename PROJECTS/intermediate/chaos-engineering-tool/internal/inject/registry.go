@@ -11,12 +11,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/moby/moby/api/types/network"
-
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
+	"github.com/moby/moby/api/types/network"
 )
 
 const (
@@ -36,7 +35,9 @@ const (
 
 var ErrAlreadyPaused = errors.New("that container is already paused")
 
-var ErrUnknownKind = errors.New("no injector is registered for this mutation kind")
+var ErrUnknownKind = errors.New(
+	"no injector is registered for this mutation kind",
+)
 
 // Proxy, ProxyFault, IdP and IdPTrap are nil and zero for every tier that does
 // not use them. Both the fault proxy and khaos's identity provider are per-run,
@@ -78,7 +79,12 @@ var registry = map[string]Mutator{
 func Lookup(kind string) (Mutator, error) {
 	mutator, ok := registry[kind]
 	if !ok {
-		return nil, fmt.Errorf(errUnknownKind, ErrUnknownKind, kind, strings.Join(DirectKinds(), ", "))
+		return nil, fmt.Errorf(
+			errUnknownKind,
+			ErrUnknownKind,
+			kind,
+			strings.Join(DirectKinds(), ", "),
+		)
 	}
 	return mutator, nil
 }
@@ -176,7 +182,11 @@ type pausePayload struct {
 // cannot pause something already paused, so there is no experiment to run, and
 // a fault that cannot be applied should be refused by name before anything is
 // journaled.
-func (pauseMutator) Plan(ctx context.Context, env Env, t dockerx.Target) (json.RawMessage, error) {
+func (pauseMutator) Plan(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (json.RawMessage, error) {
 	paused, err := env.Docker.Paused(ctx, t.ID)
 	if err != nil {
 		return nil, err
@@ -189,13 +199,22 @@ func (pauseMutator) Plan(ctx context.Context, env Env, t dockerx.Target) (json.R
 	return journal.EncodePayload(pausePayload{})
 }
 
-func (pauseMutator) Apply(ctx context.Context, env Env, t dockerx.Target, _ json.RawMessage) error {
+func (pauseMutator) Apply(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+	_ json.RawMessage,
+) error {
 	return env.Docker.Pause(ctx, t.ID)
 }
 
 // Revert unpauses only what khaos paused. The journaled precondition is what
 // makes that knowable from a cold start, where khaos has no memory of the run.
-func (pauseMutator) Revert(ctx context.Context, env Env, record journal.Record) error {
+func (pauseMutator) Revert(
+	ctx context.Context,
+	env Env,
+	record journal.Record,
+) error {
 	var payload pausePayload
 	if len(record.Payload) > 0 {
 		if err := record.DecodePayload(&payload); err != nil {
@@ -256,7 +275,11 @@ func (disconnectMutator) Describe(_ Env, t dockerx.Target) string {
 	return fmt.Sprintf(describeDisconnect, t.Name)
 }
 
-func (disconnectMutator) Plan(ctx context.Context, env Env, t dockerx.Target) (json.RawMessage, error) {
+func (disconnectMutator) Plan(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (json.RawMessage, error) {
 	endpoints, err := env.Docker.Endpoints(ctx, t.ID)
 	if err != nil {
 		return nil, err
@@ -292,7 +315,12 @@ func (disconnectMutator) Plan(ctx context.Context, env Env, t dockerx.Target) (j
 	return journal.EncodePayload(payload)
 }
 
-func (disconnectMutator) Apply(ctx context.Context, env Env, t dockerx.Target, raw json.RawMessage) error {
+func (disconnectMutator) Apply(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+	raw json.RawMessage,
+) error {
 	var payload disconnectPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return err
@@ -307,7 +335,11 @@ func (disconnectMutator) Apply(ctx context.Context, env Env, t dockerx.Target, r
 	return nil
 }
 
-func (disconnectMutator) Revert(ctx context.Context, env Env, record journal.Record) error {
+func (disconnectMutator) Revert(
+	ctx context.Context,
+	env Env,
+	record journal.Record,
+) error {
 	var payload disconnectPayload
 	if err := record.DecodePayload(&payload); err != nil {
 		return err
@@ -328,7 +360,12 @@ func (disconnectMutator) Revert(ctx context.Context, env Env, record journal.Rec
 		if _, attached := endpoints[entry.Network]; attached {
 			continue
 		}
-		if err := env.Docker.Connect(ctx, entry.Network, record.TargetID, entry.settings()); err != nil {
+		if err := env.Docker.Connect(
+			ctx,
+			entry.Network,
+			record.TargetID,
+			entry.settings(),
+		); err != nil {
 			failures = append(failures, err)
 		}
 	}
@@ -336,7 +373,11 @@ func (disconnectMutator) Revert(ctx context.Context, env Env, record journal.Rec
 	return errors.Join(failures...)
 }
 
-func (pauseMutator) Confirm(ctx context.Context, env Env, t dockerx.Target) (string, bool, error) {
+func (pauseMutator) Confirm(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (string, bool, error) {
 	paused, err := env.Docker.Paused(ctx, t.ID)
 	if err != nil || !paused {
 		return "", false, err
@@ -344,7 +385,11 @@ func (pauseMutator) Confirm(ctx context.Context, env Env, t dockerx.Target) (str
 	return confirmPause, true, nil
 }
 
-func (disconnectMutator) Confirm(ctx context.Context, env Env, t dockerx.Target) (string, bool, error) {
+func (disconnectMutator) Confirm(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (string, bool, error) {
 	endpoints, err := env.Docker.Endpoints(ctx, t.ID)
 	if err != nil {
 		return "", false, err

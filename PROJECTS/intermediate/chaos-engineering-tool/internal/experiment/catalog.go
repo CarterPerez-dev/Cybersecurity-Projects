@@ -35,9 +35,13 @@ const (
 	errStray   = "%w: %s reads %s, which it does not declare; declare them in its Params or stop reading them"
 )
 
-var ErrUnknownExperiment = errors.New("no experiment is registered under that name")
+var ErrUnknownExperiment = errors.New(
+	"no experiment is registered under that name",
+)
 
-var ErrStrayParam = errors.New("an experiment read a parameter it never declared")
+var ErrStrayParam = errors.New(
+	"an experiment read a parameter it never declared",
+)
 
 // Shape is the part of an experiment that depends on the operator's parameters.
 // Identity, polarity, fault kind and timing all come from the declaration, so a
@@ -118,7 +122,11 @@ var outageParams = []Param{
 	{Name: ParamTarget, Usage: usageTarget, Required: true},
 	{Name: ParamURL, Usage: usageURL, Required: true},
 	{Name: ParamToken, Usage: usageToken, Required: true},
-	{Name: ParamInvalidToken, Usage: usageInvalidToken, Default: DefaultInvalidToken},
+	{
+		Name:    ParamInvalidToken,
+		Usage:   usageInvalidToken,
+		Default: DefaultInvalidToken,
+	},
 }
 
 func probePair(params *Params) probe.Pair {
@@ -153,14 +161,17 @@ func buildDependencyOutage(params *Params) (Shape, error) {
 
 var catalog = map[string]Definition{
 	NameDependencyOutage: {
-		Name:       NameDependencyOutage,
-		Family:     FamilyNetwork,
-		Summary:    outageSummary,
-		Hypothesis: Hypothesis{Condition: outageGeneric, Response: outageResponse},
-		Polarity:   outagePolarity,
-		FaultKind:  inject.KindPause,
-		Params:     outageParams,
-		Build:      buildDependencyOutage,
+		Name:    NameDependencyOutage,
+		Family:  FamilyNetwork,
+		Summary: outageSummary,
+		Hypothesis: Hypothesis{
+			Condition: outageGeneric,
+			Response:  outageResponse,
+		},
+		Polarity:  outagePolarity,
+		FaultKind: inject.KindPause,
+		Params:    outageParams,
+		Build:     buildDependencyOutage,
 	},
 }
 
@@ -184,12 +195,21 @@ func Catalog() []Definition {
 func Lookup(name string) (Definition, error) {
 	definition, ok := catalog[name]
 	if !ok {
-		return Definition{}, fmt.Errorf(errUnknown, ErrUnknownExperiment, name, strings.Join(Names(), nameSep))
+		return Definition{}, fmt.Errorf(
+			errUnknown,
+			ErrUnknownExperiment,
+			name,
+			strings.Join(Names(), nameSep),
+		)
 	}
 	return definition, nil
 }
 
-func Build(name string, supplied map[string]string, timing Timing) (Experiment, error) {
+func Build(
+	name string,
+	supplied map[string]string,
+	timing Timing,
+) (Experiment, error) {
 	definition, err := Lookup(name)
 	if err != nil {
 		return Experiment{}, err
@@ -206,7 +226,12 @@ func Build(name string, supplied map[string]string, timing Timing) (Experiment, 
 	}
 
 	if stray := params.strayReads(); len(stray) > 0 {
-		return Experiment{}, fmt.Errorf(errStray, ErrStrayParam, name, strings.Join(stray, nameSep))
+		return Experiment{}, fmt.Errorf(
+			errStray,
+			ErrStrayParam,
+			name,
+			strings.Join(stray, nameSep),
+		)
 	}
 
 	spec := Experiment{

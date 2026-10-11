@@ -66,7 +66,9 @@ var ErrClosed = errors.New("khaos's identity provider is closed")
 
 var ErrNothingToRevoke = errors.New("khaos has no credential to revoke")
 
-var ErrTrapNotObserved = errors.New("the armed trap did not produce its own observable")
+var ErrTrapNotObserved = errors.New(
+	"the armed trap did not produce its own observable",
+)
 
 var ErrNoSuchGrant = errors.New("that credential was never issued here")
 
@@ -264,7 +266,11 @@ func (p *Provider) Listen(addr string) error {
 	defer p.mu.Unlock()
 
 	if p.listener != nil {
-		return fmt.Errorf(errAlreadyListening, ErrListening, p.listener.Addr().String())
+		return fmt.Errorf(
+			errAlreadyListening,
+			ErrListening,
+			p.listener.Addr().String(),
+		)
 	}
 
 	listener, err := net.Listen("tcp", addr)
@@ -395,6 +401,9 @@ func (p *Provider) Arm(trap Trap) error {
 			if err := p.revoke(trap.Credential); err != nil {
 				return err
 			}
+		default:
+			// The token traps hold no provider state. They are expressed when a
+			// token is minted, so arming them is just recording the trap.
 		}
 	}
 
@@ -406,7 +415,6 @@ func (p *Provider) Arm(trap Trap) error {
 
 // snap records the key state as it stands now, once per arming cycle. Disarm
 // restores it and clears it, so a second arming snapshots afresh.
-// snap records the key state as it stands now. Disarm restores it and clears it.
 //
 // It OVERWRITES rather than keeping the first snapshot. The previous version
 // returned early when one existed, so a second Arm without an intervening
@@ -419,7 +427,10 @@ func (p *Provider) snap() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.snapshot = &keySnapshot{signing: p.signing, retired: append([]*Key{}, p.retired...)}
+	p.snapshot = &keySnapshot{
+		signing: p.signing,
+		retired: append([]*Key{}, p.retired...),
+	}
 }
 
 // RetiredKid is the key that was signing before the current arming cycle. The
@@ -536,7 +547,10 @@ func (p *Provider) restoreGrants() {
 // carries it, and a stream that drifted into carrying forged tokens would make
 // every verdict read as a crash.
 func (p *Provider) HonestToken() (string, error) {
-	return p.mintToken(Trap{}, grantRequest{subject: DefaultSubject, lifetime: p.lifetime})
+	return p.mintToken(
+		Trap{},
+		grantRequest{subject: DefaultSubject, lifetime: p.lifetime},
+	)
 }
 
 // TrappedToken honours whatever is armed. It is what the forged stream carries,
@@ -544,7 +558,10 @@ func (p *Provider) HonestToken() (string, error) {
 // there the question is whether the target accepts a correctly signed token under
 // the provider's new key.
 func (p *Provider) TrappedToken() (string, error) {
-	return p.mintToken(p.effective(), grantRequest{subject: DefaultSubject, lifetime: p.lifetime})
+	return p.mintToken(
+		p.effective(),
+		grantRequest{subject: DefaultSubject, lifetime: p.lifetime},
+	)
 }
 
 // StableToken is a correct JWT signed by a key that is always published and
@@ -622,8 +639,13 @@ func (p *Provider) PublishedSet() JWKSet {
 		set.Keys = append(set.Keys, key.PublicJWK())
 	}
 
-	set.Keys = append(set.Keys,
-		p.foreign.PublicJWK(), p.stable.PublicJWK(), p.weak.PublicJWK(), p.ec.PublicJWK())
+	set.Keys = append(
+		set.Keys,
+		p.foreign.PublicJWK(),
+		p.stable.PublicJWK(),
+		p.weak.PublicJWK(),
+		p.ec.PublicJWK(),
+	)
 
 	return set
 }

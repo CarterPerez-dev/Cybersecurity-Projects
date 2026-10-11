@@ -69,7 +69,12 @@ func (s JWKSet) Lookup(kid string) (JWK, error) {
 			return key, nil
 		}
 	}
-	return JWK{}, fmt.Errorf(errNoSuchKid, ErrNoSuchKey, kid, joinKids(s.Kids()))
+	return JWK{}, fmt.Errorf(
+		errNoSuchKid,
+		ErrNoSuchKey,
+		kid,
+		joinKids(s.Kids()),
+	)
 }
 
 func joinKids(kids []string) string {
@@ -111,12 +116,11 @@ func (k *Key) PublicJWK() JWK {
 	return out
 }
 
-// RSAPublicKey rebuilds a verifiable key from a published JWK. khaos needs it on
-// its own confirmation path: proving a minted token actually verifies under the
-// key it names is what makes a target's acceptance of a DIFFERENT token mean
-// something.
 // RSAPublicKey rebuilds a verifiable key from a published JWK, and refuses
-// material that is absent or does not fit.
+// material that is absent or does not fit. khaos needs it on its own
+// confirmation path: proving a minted token actually verifies under the key it
+// names is what makes a target's acceptance of a DIFFERENT token mean
+// something.
 //
 // Both refusals were missing. decodeBigInt("") returns zero with a nil error, so
 // an empty JWK yielded `{N: 0, E: 0}` and no error at all; and `int(e.Int64())`
@@ -138,7 +142,8 @@ func (j JWK) RSAPublicKey() (*rsa.PublicKey, error) {
 		return nil, err
 	}
 
-	if n.Sign() <= 0 || !e.IsInt64() || e.Int64() < 3 || e.Int64() > math.MaxInt32 {
+	if n.Sign() <= 0 || !e.IsInt64() || e.Int64() < 3 ||
+		e.Int64() > math.MaxInt32 {
 		return nil, fmt.Errorf(errUnusableJWK, ErrNoSuchKey, j.Kid)
 	}
 
@@ -152,7 +157,13 @@ func (j JWK) RSAPublicKey() (*rsa.PublicKey, error) {
 // key under a different thumbprint.
 func (j JWK) ECPublicKey() (*ecdsa.PublicKey, error) {
 	if j.Crv != curveP256 {
-		return nil, fmt.Errorf(errUnsupportedCurve, ErrNoSuchKey, j.Kid, j.Crv, curveP256)
+		return nil, fmt.Errorf(
+			errUnsupportedCurve,
+			ErrNoSuchKey,
+			j.Kid,
+			j.Crv,
+			curveP256,
+		)
 	}
 
 	if j.X == "" || j.Y == "" {

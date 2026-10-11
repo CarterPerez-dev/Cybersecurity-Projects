@@ -228,7 +228,15 @@ type Observation struct {
 // run can be believed; the directional one answers which way the target broke.
 // A single-axis verdict cannot tell a target that failed closed from one that
 // was never enforcing to begin with.
-func Judge(observation Observation, polarity Polarity) Verdict {
+// epistemic is khaos's first axis on its own: every reason a run cannot be
+// believed AT ALL, checked in the order that lets the most fundamental finding
+// win. The bool is whether Judge may go on to ask which way the target broke;
+// false means the returned verdict is the whole answer.
+//
+// A warning accumulated here travels with the verdict either way, which is why
+// a rollback failure is recorded before the first early return rather than
+// after it.
+func epistemic(observation Observation) (Verdict, bool) {
 	// Every verdict carries an explicit cause. An empty one would read as a field
 	// khaos forgot rather than a diagnosis it never attempted.
 	verdict := Verdict{Direction: Undetermined, Cause: Undiagnosed}
@@ -241,27 +249,31 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	if observation.Interrupted {
 		verdict.Epistemic = Interrupted
 		verdict.Reasons = append(verdict.Reasons, reasonInterrupted)
-		return verdict
+		return verdict, false
 	}
 
 	// A baseline that was never a steady state is the more fundamental finding
 	// and is knowable whether or not the fault went on to land.
-	if reason, unmet := baselineUnmet(observation.Baseline, observation.ForgedBaseline, observation.MintedByKhaos); unmet {
+	if reason, unmet := baselineUnmet(
+		observation.Baseline,
+		observation.ForgedBaseline,
+		observation.MintedByKhaos,
+	); unmet {
 		verdict.Epistemic = BaselineNotMet
 		verdict.Reasons = append(verdict.Reasons, reason)
-		return verdict
+		return verdict, false
 	}
 
 	if reason, never := endpointNeverConsulted(observation); never {
 		verdict.Epistemic = BaselineNotMet
 		verdict.Reasons = append(verdict.Reasons, reason)
-		return verdict
+		return verdict, false
 	}
 
 	if !observation.FaultConfirmed {
 		verdict.Epistemic = Aborted
 		verdict.Reasons = append(verdict.Reasons, reasonFaultUnconfirmed)
-		return verdict
+		return verdict, false
 	}
 
 	// A failed mid-run action is NOT a clean run. The credential khaos measured
@@ -270,6 +282,15 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	if observation.ActFailed {
 		verdict.Epistemic = Aborted
 		verdict.Reasons = append(verdict.Reasons, reasonActFailed)
+		return verdict, false
+	}
+
+	return verdict, true
+}
+
+func Judge(observation Observation, polarity Polarity) Verdict {
+	verdict, believable := epistemic(observation)
+	if !believable {
 		return verdict
 	}
 
@@ -295,7 +316,10 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	if paired := observation.Fault.Paired(); paired < MinimumPaired {
 		verdict.Epistemic = ProbeError
 		verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
-		verdict.Reasons = append(verdict.Reasons, sprintf(reasonThinFault, paired, MinimumPaired))
+		verdict.Reasons = append(
+			verdict.Reasons,
+			sprintf(reasonThinFault, paired, MinimumPaired),
+		)
 		return verdict
 	}
 
@@ -325,7 +349,10 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 		if paired := observation.Fault.Paired(); paired < MinimumToClaimClosed {
 			verdict.Conclusive = false
 			verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
-			verdict.Reasons = append(verdict.Reasons, sprintf(reasonWeakHeld, paired, MinimumToClaimClosed))
+			verdict.Reasons = append(
+				verdict.Reasons,
+				sprintf(reasonWeakHeld, paired, MinimumToClaimClosed),
+			)
 		}
 	} else {
 		verdict.Epistemic = Deviated
@@ -334,10 +361,20 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	return finish(verdict, observation, polarity)
 }
 
-func finish(verdict Verdict, observation Observation, polarity Polarity) Verdict {
-	if partial, total := unanswered(observation.Fault); partial > 0 && partial < total {
+func finish(
+	verdict Verdict,
+	observation Observation,
+	polarity Polarity,
+) Verdict {
+	if partial, total := unanswered(
+		observation.Fault,
+	); partial > 0 &&
+		partial < total {
 		verdict.Warnings = append(verdict.Warnings, WarningPartialOutage)
-		verdict.Reasons = append(verdict.Reasons, sprintf(reasonPartialOutage, partial, total))
+		verdict.Reasons = append(
+			verdict.Reasons,
+			sprintf(reasonPartialOutage, partial, total),
+		)
 	}
 
 	verdict.Recovery = recoveryOf(observation.Recovery)
@@ -349,6 +386,9 @@ func finish(verdict Verdict, observation Observation, polarity Polarity) Verdict
 	case Unobserved:
 		verdict.Warnings = append(verdict.Warnings, WarningRecoveryUnobserved)
 		verdict.Reasons = append(verdict.Reasons, reasonRecoveryUnobserved)
+	case Recovered:
+		// The target came back under its own power, which is the outcome this
+		// whole axis exists to distinguish. Nothing to warn about.
 	}
 
 	if verdict.Direction == Held && observation.HeldCaveat != "" {
@@ -357,7 +397,10 @@ func finish(verdict Verdict, observation Observation, polarity Polarity) Verdict
 
 	if verdict.Direction != Held {
 		verdict.Defect = polarity.IsDefect(verdict.Direction)
-		verdict.Reasons = append(verdict.Reasons, polarity.Explain(verdict.Direction))
+		verdict.Reasons = append(
+			verdict.Reasons,
+			polarity.Explain(verdict.Direction),
+		)
 	}
 
 	return verdict
@@ -368,8 +411,17 @@ func finish(verdict Verdict, observation Observation, polarity Polarity) Verdict
 func leaked(observation Observation) []string {
 	reasons := []string{}
 
-	if honoured := revokedHonoured(observation); honoured >= MinimumToProveOpen {
-		reasons = append(reasons, sprintf(reasonRevokedHonoured, orUnnamed(observation.Defect), honoured))
+	if honoured := revokedHonoured(
+		observation,
+	); honoured >= MinimumToProveOpen {
+		reasons = append(
+			reasons,
+			sprintf(
+				reasonRevokedHonoured,
+				orUnnamed(observation.Defect),
+				honoured,
+			),
+		)
 
 		// The exposure as a NUMBER, so the finding is checkable rather than a
 		// count whose duration the reader has to infer from the timing flags.
@@ -377,15 +429,27 @@ func leaked(observation Observation) []string {
 		// exposure window of a leaked key", and it is explicitly a lower bound:
 		// khaos stopped looking when the run ended.
 		if span := staleWindow(observation); span > 0 {
-			reasons = append(reasons, sprintf(reasonStaleWindow, span.Round(time.Second)))
+			reasons = append(
+				reasons,
+				sprintf(reasonStaleWindow, span.Round(time.Second)),
+			)
 		}
 	}
 
 	if accepted := forgedAccepted(observation); accepted >= MinimumToProveOpen {
-		reasons = append(reasons, sprintf(reasonForgedAccepted, orUnnamed(observation.Defect), accepted))
+		reasons = append(
+			reasons,
+			sprintf(
+				reasonForgedAccepted,
+				orUnnamed(observation.Defect),
+				accepted,
+			),
+		)
 	}
 
-	if monotonic := leakedMonotonic(observation); monotonic >= MinimumToProveOpen {
+	if monotonic := leakedMonotonic(
+		observation,
+	); monotonic >= MinimumToProveOpen {
 		reasons = append(reasons, sprintf(reasonPermitted, monotonic))
 	}
 
@@ -521,10 +585,20 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 	// took. "Was it ever accepted after the pause" calls that one NO-EXPIRY,
 	// which is the opposite diagnosis and the opposite fix.
 	if revokedHonoured(observation) > 0 {
-		return resolveCause(observation.Resumed.Revoked, observation.FaultFor, observation.IdleFor, reasons)
+		return resolveCause(
+			observation.Resumed.Revoked,
+			observation.FaultFor,
+			observation.IdleFor,
+			reasons,
+		)
 	}
 
-	return resolveCause(observation.Resumed.Invalid, observation.FaultFor, observation.IdleFor, reasons)
+	return resolveCause(
+		observation.Resumed.Invalid,
+		observation.FaultFor,
+		observation.IdleFor,
+		reasons,
+	)
 }
 
 // resolveCause reads one resumed stream and refuses to diagnose from a window
@@ -541,9 +615,16 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 // hang, so a resumed probe against a wedged path times out rather than being
 // refused. TTL-EXTENSION also prescribes a fix, "stop writing to the cache in
 // the error branch", so the wrong diagnosis sends somebody to the wrong line.
-func resolveCause(resumed probe.Stream, steady, idle time.Duration, reasons []string) (Cause, []string) {
+func resolveCause(
+	resumed probe.Stream,
+	steady, idle time.Duration,
+	reasons []string,
+) (Cause, []string) {
 	if resumed.AcceptedDespiteLapse() > 0 {
-		return StalePastPause, append(reasons, sprintf(reasonStalePastPause, idle, idle))
+		return StalePastPause, append(
+			reasons,
+			sprintf(reasonStalePastPause, idle, idle),
+		)
 	}
 
 	// Enforcement returning has to be OBSERVED, not inferred from an absence.
@@ -557,19 +638,31 @@ func resolveCause(resumed probe.Stream, steady, idle time.Duration, reasons []st
 	// this observation, so without a steady-traffic window at least as long as
 	// the pause khaos cannot separate re-arming from ordinary expiry.
 	if steady < idle {
-		return LapsedOnPause, append(reasons, sprintf(reasonLapsedOnPause, idle, steady, idle))
+		return LapsedOnPause, append(
+			reasons,
+			sprintf(reasonLapsedOnPause, idle, steady, idle),
+		)
 	}
 
-	return TTLExtension, append(reasons, sprintf(reasonTTLExtension, steady, idle))
+	return TTLExtension, append(
+		reasons,
+		sprintf(reasonTTLExtension, steady, idle),
+	)
 }
 
-func baselineUnmet(baseline probe.Window, expect probe.Expectation, minted bool) (string, bool) {
+func baselineUnmet(
+	baseline probe.Window,
+	expect probe.Expectation,
+	minted bool,
+) (string, bool) {
 	if paired := baseline.Paired(); paired < MinimumPaired {
 		return sprintf(reasonThinBaseline, paired, MinimumPaired), true
 	}
 
 	if !baseline.Invalid.Any(probe.Rejected) {
-		if redirects := baseline.Invalid.Count(probe.Redirected); redirects > 0 {
+		if redirects := baseline.Invalid.Count(
+			probe.Redirected,
+		); redirects > 0 {
 			return sprintf(reasonRedirects, redirects), true
 		}
 		return reasonNoEnforcement, true
@@ -593,7 +686,8 @@ func baselineUnmet(baseline probe.Window, expect probe.Expectation, minted bool)
 	// been HONOURING that credential first. If it was never accepted there is
 	// nothing for the revocation to take away, and every later rejection is the
 	// target being correct rather than khaos finding anything.
-	if baseline.Revoked.Countable() > 0 && !baseline.Revoked.Any(probe.Accepted) {
+	if baseline.Revoked.Countable() > 0 &&
+		!baseline.Revoked.Any(probe.Accepted) {
 		return reasonNothingToRevoke, true
 	}
 
@@ -623,7 +717,10 @@ func endpointNeverConsulted(observation Observation) (string, bool) {
 //
 // ExpectRejected catches the mirror: a target that was not checking the thing
 // the fault is about to break, so its later acceptance proves nothing changed.
-func forgedBaselineUnmet(baseline probe.Window, expect probe.Expectation) (string, bool) {
+func forgedBaselineUnmet(
+	baseline probe.Window,
+	expect probe.Expectation,
+) (string, bool) {
 	if baseline.Forged.Countable() == 0 {
 		return "", false
 	}

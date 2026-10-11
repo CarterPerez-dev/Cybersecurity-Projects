@@ -15,7 +15,11 @@ const (
 	envSep     = "="
 )
 
-func NewWriter(w io.Writer, environ []string, forceNoColor bool) *colorprofile.Writer {
+func NewWriter(
+	w io.Writer,
+	environ []string,
+	forceNoColor bool,
+) *colorprofile.Writer {
 	out := colorprofile.NewWriter(w, environ)
 	if forceNoColor || noColorRequested(environ) {
 		out.Profile = colorprofile.NoTTY

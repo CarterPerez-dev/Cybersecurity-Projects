@@ -34,10 +34,26 @@ func TestOnlyKhaosOwnComposeFileIsAccepted(t *testing.T) {
 	}{
 		{"khaos's own", "name: " + ProjectName + "\nservices: {}\n", true},
 		{"quoted name", "name: \"" + ProjectName + "\"\n", true},
-		{"a comment mentioning it does not count", "# name: " + ProjectName + "\nname: someone-else\n", false},
-		{"someone else's project", "name: my-production-stack\nservices: {}\n", false},
-		{"no project name at all", "services:\n  web:\n    image: nginx\n", false},
-		{"name nested under a service", "services:\n  web:\n    name: " + ProjectName + "\n", false},
+		{
+			"a comment mentioning it does not count",
+			"# name: " + ProjectName + "\nname: someone-else\n",
+			false,
+		},
+		{
+			"someone else's project",
+			"name: my-production-stack\nservices: {}\n",
+			false,
+		},
+		{
+			"no project name at all",
+			"services:\n  web:\n    image: nginx\n",
+			false,
+		},
+		{
+			"name nested under a service",
+			"services:\n  web:\n    name: " + ProjectName + "\n",
+			false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -49,16 +65,24 @@ func TestOnlyKhaosOwnComposeFileIsAccepted(t *testing.T) {
 			}
 
 			if !tc.allowed && !errors.Is(err, ErrNotOurs) {
-				t.Fatalf("got %v; pointing khaos at a compose file it does not own turns "+
-					"`khaos range down` into `docker compose down --volumes` against that "+
-					"project, which destroys its named volumes and reports success", err)
+				t.Fatalf(
+					"got %v; pointing khaos at a compose file it does not own turns "+
+						"`khaos range down` into `docker compose down --volumes` against that "+
+						"project, which destroys its named volumes and reports success",
+					err,
+				)
 			}
 		})
 	}
 }
 
 func TestAMissingComposeFileIsRefusedNotAssumed(t *testing.T) {
-	if err := VerifyOwned(filepath.Join(t.TempDir(), composeFile)); !errors.Is(err, ErrNotOurs) {
+	if err := VerifyOwned(
+		filepath.Join(t.TempDir(), composeFile),
+	); !errors.Is(
+		err,
+		ErrNotOurs,
+	) {
 		t.Fatalf("got %v, want ErrNotOurs", err)
 	}
 }
@@ -75,16 +99,22 @@ func TestFreePortIsHighAndNotConstant(t *testing.T) {
 		}
 
 		if port < portFloor || port >= portCeil {
-			t.Fatalf("port %d is outside [%d, %d); every host port khaos binds must be a "+
-				"random high one, because the conventional port is the one already taken",
-				port, portFloor, portCeil)
+			t.Fatalf(
+				"port %d is outside [%d, %d); every host port khaos binds must be a "+
+					"random high one, because the conventional port is the one already taken",
+				port,
+				portFloor,
+				portCeil,
+			)
 		}
 
 		seen[port] = true
 	}
 
 	if len(seen) == 1 {
-		t.Fatal("every call returned the same port, so the selection is not random")
+		t.Fatal(
+			"every call returned the same port, so the selection is not random",
+		)
 	}
 }
 
@@ -97,7 +127,10 @@ type fakeReader struct {
 	err     error
 }
 
-func (f fakeReader) Targets(context.Context, dockerx.Filter) ([]dockerx.Target, error) {
+func (f fakeReader) Targets(
+	context.Context,
+	dockerx.Filter,
+) ([]dockerx.Target, error) {
 	return f.targets, f.err
 }
 
@@ -105,11 +138,18 @@ func (f fakeReader) PublishedPort(context.Context, string, int) (int, error) {
 	return f.port, nil
 }
 
-func (f fakeReader) ContainerEnv(context.Context, string) (map[string]string, error) {
+func (f fakeReader) ContainerEnv(
+	context.Context,
+	string,
+) (map[string]string, error) {
 	return f.environ, nil
 }
 
-func (f fakeReader) NetworkAddress(context.Context, string, string) (string, error) {
+func (f fakeReader) NetworkAddress(
+	context.Context,
+	string,
+	string,
+) (string, error) {
 	return f.address, nil
 }
 
@@ -118,7 +158,13 @@ func (f fakeReader) BridgeGateway(context.Context) (string, error) {
 }
 
 func gateway(running bool) dockerx.Target {
-	return dockerx.Target{ID: "abc", Name: GatewayName, Project: ProjectName, Running: running, Inspected: true}
+	return dockerx.Target{
+		ID:        "abc",
+		Name:      GatewayName,
+		Project:   ProjectName,
+		Running:   running,
+		Inspected: true,
+	}
 }
 
 func TestDiscoverRequiresARunningGateway(t *testing.T) {
@@ -127,8 +173,16 @@ func TestDiscoverRequiresARunningGateway(t *testing.T) {
 		reader  fakeReader
 		wantErr bool
 	}{
-		{"running", fakeReader{targets: []dockerx.Target{gateway(true)}, port: 41234}, false},
-		{"stopped", fakeReader{targets: []dockerx.Target{gateway(false)}, port: 41234}, true},
+		{
+			"running",
+			fakeReader{targets: []dockerx.Target{gateway(true)}, port: 41234},
+			false,
+		},
+		{
+			"stopped",
+			fakeReader{targets: []dockerx.Target{gateway(false)}, port: 41234},
+			true,
+		},
 		{"nothing at all", fakeReader{}, true},
 		{"some other container", fakeReader{targets: []dockerx.Target{
 			{ID: "x", Name: "unrelated", Project: ProjectName, Running: true},
@@ -141,8 +195,11 @@ func TestDiscoverRequiresARunningGateway(t *testing.T) {
 
 			if tc.wantErr {
 				if !errors.Is(err, ErrNoRange) {
-					t.Fatalf("got %v, want ErrNoRange so the operator is told to run `khaos range up` "+
-						"rather than handed a bare Docker error", err)
+					t.Fatalf(
+						"got %v, want ErrNoRange so the operator is told to run `khaos range up` "+
+							"rather than handed a bare Docker error",
+						err,
+					)
 				}
 				return
 			}
@@ -163,8 +220,11 @@ func TestTheGatewayURLIsLoopbackOnly(t *testing.T) {
 
 	for _, url := range []string{lab.GatewayURL(), lab.ProtectedURL()} {
 		if got := url[:len("http://127.0.0.1")]; got != "http://127.0.0.1" {
-			t.Fatalf("%q is not loopback; the range is a deliberately vulnerable stack and must "+
-				"never be reachable off the host", url)
+			t.Fatalf(
+				"%q is not loopback; the range is a deliberately vulnerable stack and must "+
+					"never be reachable off the host",
+				url,
+			)
 		}
 	}
 }

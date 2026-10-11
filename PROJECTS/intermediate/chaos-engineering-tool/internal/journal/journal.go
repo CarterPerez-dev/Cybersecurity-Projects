@@ -42,8 +42,12 @@ const (
 )
 
 var (
-	ErrDamaged   = errors.New("the journal contains a line khaos cannot parse, so it may be hiding an outstanding fault")
-	ErrNoPayload = errors.New("the journal record carries no payload, so khaos cannot tell what to restore")
+	ErrDamaged = errors.New(
+		"the journal contains a line khaos cannot parse, so it may be hiding an outstanding fault",
+	)
+	ErrNoPayload = errors.New(
+		"the journal record carries no payload, so khaos cannot tell what to restore",
+	)
 )
 
 func NewID() string {
@@ -101,7 +105,8 @@ func (r Record) Expired(now time.Time) bool {
 }
 
 func (r Record) Outstanding() bool {
-	return r.Phase == PhasePending || r.Phase == PhaseApplied || r.Phase == PhaseFailed
+	return r.Phase == PhasePending || r.Phase == PhaseApplied ||
+		r.Phase == PhaseFailed
 }
 
 type Journal struct {
@@ -114,7 +119,12 @@ func Open(path string) (*Journal, error) {
 		return nil, fmt.Errorf(errOpen, err)
 	}
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, fileMode)
+	//nolint:gosec // khaos's own state dir, from statedir.Paths
+	file, err := os.OpenFile(
+		path,
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		fileMode,
+	)
 	if err != nil {
 		return nil, fmt.Errorf(errOpen, err)
 	}
@@ -148,6 +158,7 @@ func (j *Journal) Close() error {
 }
 
 func Replay(path string) ([]Record, error) {
+	//nolint:gosec // khaos's own journal, from statedir.Paths
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -239,6 +250,7 @@ func Compact(path string) error {
 
 	temp := path + tempSuffix
 
+	//nolint:gosec // the compaction temp beside khaos's own journal
 	file, err := os.OpenFile(temp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fileMode)
 	if err != nil {
 		return fmt.Errorf(errCompact, err)

@@ -34,6 +34,12 @@ const (
 	// be drained to the deadline rather than to the first short read.
 	drainWindow = 250 * time.Millisecond
 
+	// How long Reset waits for the target's first bytes before it resets. Unlike
+	// drainWindow this is not about the receive queue, and it ends at the first
+	// read rather than at the deadline, so a target that sends a request pays
+	// nothing for it.
+	settleWindow = 250 * time.Millisecond
+
 	errWildcard   = "%w: %q binds every address on this host, and a fault proxy in front of a dependency under test must not be reachable off it; bind the Docker bridge gateway instead"
 	errPrivileged = "%w: %q is a privileged port"
 	errBadAddr    = "%w: %q is not a host and port (%v)"
@@ -210,7 +216,9 @@ func bridgeHosts(ip net.IP) (bool, error) {
 				continue
 			}
 
-			_, err := os.Stat(filepath.Join(sysClassNet, iface.Name, bridgeMarker))
+			_, err := os.Stat(
+				filepath.Join(sysClassNet, iface.Name, bridgeMarker),
+			)
 
 			return err == nil, nil
 		}
@@ -390,17 +398,24 @@ func (p *Proxy) handle(client net.Conn) {
 func (p *Proxy) sever(client net.Conn, fault Fault, generation uint64) bool {
 	switch fault.Kind {
 	case Reset:
-		// SO_LINGER 0 is necessary AND sufficient: it forces RST whatever the
-		// receive queue holds, and the reset surfaces at the target's connect or
-		// at its first read, which are the same observable.
+		// SO_LINGER 0 is necessary but NOT sufficient. It forces RST whatever the
+		// receive queue holds, and it is the only thing that produces a reset at
+		// all: deleting it turns both reset controls red immediately. What it does
+		// not decide is WHO sees the reset. The kernel delivers it to the peer
+		// once, through sk_err, and the first syscall to touch that socket clears
+		// it, so a target that writes its request before reading the answer hands
+		// the error to its write and its own read returns EOF. That is the EOF
+		// fault's observable, which would collapse two catalogue entries into one.
 		//
-		// This used to also wait for the target's request, on the theory that a
-		// non-empty receive queue was needed to force RST on an empty-queue close.
-		// Measured: deleting that wait leaves both reset controls green over 20
-		// runs, including a target that sends nothing, while deleting SO_LINGER 0
-		// turns them red immediately. The wait was inert, and an inert arm alibis
-		// the live one's control, so it is gone rather than kept for symmetry. It
-		// also cost every reset a quarter second it should not have.
+		// An earlier pass deleted this wait as inert because both reset controls
+		// stayed green over 20 runs without it. Those controls run through
+		// net/http, which reports a reset at connect and a reset at read as the
+		// same error, so they could not see the difference and alibied the arm.
+		// Measured at the socket instead, 20 trials per arm: without the wait,
+		// `write=ECONNRESET read=EOF` 13 times and a reset at connect the other 7,
+		// never a reset at the read; with it, `write=nil read=ECONNRESET` 20 of 20.
+		settle(client)
+
 		if tcp, ok := client.(*net.TCPConn); ok {
 			_ = tcp.SetLinger(noLinger)
 		}
@@ -426,6 +441,21 @@ func (p *Proxy) sever(client net.Conn, fault Fault, generation uint64) bool {
 // first short read is wrong: a short read means "that is what had arrived by
 // now", not "the queue is empty", so bytes still in flight land on a closed
 // socket and the kernel answers RST.
+// settle waits for the target to write something, or for the window, whichever
+// lands first. Reset does not need an empty receive queue the way EOF does, only
+// a peer that has already spent its first syscall, so this returns on the first
+// read instead of looping to the deadline.
+func settle(client net.Conn) {
+	if err := client.SetReadDeadline(
+		time.Now().Add(settleWindow),
+	); err != nil {
+		return
+	}
+
+	buffer := make([]byte, copyBuffer)
+	_, _ = client.Read(buffer)
+}
+
 func drain(client net.Conn) {
 	if err := client.SetReadDeadline(time.Now().Add(drainWindow)); err != nil {
 		return
@@ -558,7 +588,12 @@ func (p *Proxy) forward(client net.Conn, fault Fault, generation uint64) bool {
 // source ends. The delay is per chunk rather than once at the start, because a
 // one-off delay is a slow connection and a per-chunk delay is a slow dependency,
 // and only the second survives a client that retries.
-func (p *Proxy) pump(dst, src net.Conn, delay time.Duration, limit int, halfClose bool) {
+func (p *Proxy) pump(
+	dst, src net.Conn,
+	delay time.Duration,
+	limit int,
+	halfClose bool,
+) {
 	if halfClose {
 		defer func() {
 			if tcp, ok := dst.(*net.TCPConn); ok {

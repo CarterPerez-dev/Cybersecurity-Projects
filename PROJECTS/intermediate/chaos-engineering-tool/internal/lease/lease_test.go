@@ -19,7 +19,9 @@ func TestNewLeaseIsAliveImmediately(t *testing.T) {
 	}
 
 	if l.ID() == "" {
-		t.Fatal("a lease was issued with no identifier, so the journal cannot attribute a fault to it")
+		t.Fatal(
+			"a lease was issued with no identifier, so the journal cannot attribute a fault to it",
+		)
 	}
 }
 
@@ -27,7 +29,11 @@ func TestTTLIsClampedToAFloor(t *testing.T) {
 	l := New(time.Millisecond)
 
 	if l.TTL() != MinimumTTL {
-		t.Fatalf("TTL %v was accepted; a lease shorter than %v would expire mid-injection", l.TTL(), MinimumTTL)
+		t.Fatalf(
+			"TTL %v was accepted; a lease shorter than %v would expire mid-injection",
+			l.TTL(),
+			MinimumTTL,
+		)
 	}
 }
 
@@ -39,7 +45,9 @@ func TestLeaseExpiresWithoutRenewal(t *testing.T) {
 	}
 
 	if !l.Expired(time.Now().UTC().Add(MinimumTTL + time.Second)) {
-		t.Fatal("a lease that is never renewed must expire, or the dead man's switch never fires")
+		t.Fatal(
+			"a lease that is never renewed must expire, or the dead man's switch never fires",
+		)
 	}
 }
 
@@ -65,13 +73,19 @@ func TestRenewalAlwaysFitsTwiceInsideTheTTL(t *testing.T) {
 			l := New(ttl)
 
 			if l.RenewalInterval() >= l.TTL() {
-				t.Fatalf("renewal interval %v is not shorter than TTL %v, so one missed tick drops the fault",
-					l.RenewalInterval(), l.TTL())
+				t.Fatalf(
+					"renewal interval %v is not shorter than TTL %v, so one missed tick drops the fault",
+					l.RenewalInterval(),
+					l.TTL(),
+				)
 			}
 
 			if l.TTL()/l.RenewalInterval() < 2 {
-				t.Fatalf("only %v fits inside TTL %v; a single hiccup would expire a live fault",
-					l.TTL()/l.RenewalInterval(), l.TTL())
+				t.Fatalf(
+					"only %v fits inside TTL %v; a single hiccup would expire a live fault",
+					l.TTL()/l.RenewalInterval(),
+					l.TTL(),
+				)
 			}
 		})
 	}
@@ -102,12 +116,14 @@ func TestKeepRenewsUntilCancelled(t *testing.T) {
 	}
 	cancel()
 
-	if err := <-done; err != context.Canceled {
+	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("Keep returned %v, want context.Canceled", err)
 	}
 
 	if renewals.Load() == 0 {
-		t.Fatal("Keep never renewed, so a held fault would expire under a live khaos")
+		t.Fatal(
+			"Keep never renewed, so a held fault would expire under a live khaos",
+		)
 	}
 }
 
@@ -128,12 +144,18 @@ func TestKeepStopsWhenRenewalFails(t *testing.T) {
 	elapsed := time.Since(started)
 
 	if !errors.Is(got, want) {
-		t.Fatalf("Keep returned %v; a journal write failure during renewal must surface, "+
-			"not be swallowed while the fault stays applied", got)
+		t.Fatalf(
+			"Keep returned %v; a journal write failure during renewal must surface, "+
+				"not be swallowed while the fault stays applied",
+			got,
+		)
 	}
 
 	if elapsed > l.RenewalInterval()*3 {
-		t.Fatalf("Keep took %v to notice a failing renewal, which is longer than it should wait", elapsed)
+		t.Fatalf(
+			"Keep took %v to notice a failing renewal, which is longer than it should wait",
+			elapsed,
+		)
 	}
 }
 
@@ -143,7 +165,10 @@ func TestLeaseIDsAreDistinct(t *testing.T) {
 	for range 64 {
 		id := New(time.Minute).ID()
 		if seen[id] {
-			t.Fatalf("duplicate lease id %q; two runs would reclaim each other's faults", id)
+			t.Fatalf(
+				"duplicate lease id %q; two runs would reclaim each other's faults",
+				id,
+			)
 		}
 		seen[id] = true
 	}

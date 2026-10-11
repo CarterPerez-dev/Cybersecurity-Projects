@@ -20,8 +20,12 @@ var (
 	ErrSocketMissing    = errors.New("the Docker socket does not exist")
 	ErrSocketDenied     = errors.New("permission denied on the Docker socket")
 	ErrNotASocket       = errors.New("the Docker endpoint path is not a socket")
-	ErrNothingListening = errors.New("the Docker socket exists but nothing is listening on it")
-	ErrDaemonSilent     = errors.New("the Docker endpoint is reachable but the daemon did not answer")
+	ErrNothingListening = errors.New(
+		"the Docker socket exists but nothing is listening on it",
+	)
+	ErrDaemonSilent = errors.New(
+		"the Docker endpoint is reachable but the daemon did not answer",
+	)
 )
 
 const (

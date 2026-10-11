@@ -45,12 +45,21 @@ const (
 	errNothingToCorrupt = "%w: that token has no signature to corrupt"
 )
 
-var ErrUnknownKeyForm = errors.New("khaos cannot serialize a public key that way")
+var ErrUnknownKeyForm = errors.New(
+	"khaos cannot serialize a public key that way",
+)
 
-var ErrNoSigningKey = errors.New("khaos's identity provider is missing a key a trap needs")
+var ErrNoSigningKey = errors.New(
+	"khaos's identity provider is missing a key a trap needs",
+)
 
 func KeyForms() []string {
-	return []string{string(SPKIPEM), string(SPKIDER), string(PKCS1PEM), string(Modulus)}
+	return []string{
+		string(SPKIPEM),
+		string(SPKIDER),
+		string(PKCS1PEM),
+		string(Modulus),
+	}
 }
 
 // grantRequest is what a token is minted for. The provider fills it from its own
@@ -96,6 +105,38 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		ID:        rand.Text(),
 	}
 
+	// The same three groups the confirmations in observe.go use, so a reader can
+	// put the mint and the observe for one group side by side. Each corrupts
+	// exactly ONE property and leaves the rest internally consistent, because a
+	// token that trips two checks isolates neither.
+	switch trap.Kind {
+	case AlgNone, AlgConfusion, EmbeddedJWK:
+		return p.mintHeaderTrap(trap, header, claims)
+
+	case ClaimExpired, ClaimNotYetValid, ClaimWrongAudience,
+		ClaimForeignIssuer:
+		return p.mintClaimTrap(trap, header, claims, now, request.lifetime)
+
+	case SignatureTruncated, SignatureZero, SignatureWeakKey:
+		return p.mintSignatureTrap(trap, header, claims)
+
+	default:
+		// The endpoint and key-state traps are expressed by the provider's own
+		// behaviour rather than by the token, so an HONEST token is the correct
+		// output for every one of them.
+		return p.serialize(header, claims, nil, nil)
+	}
+}
+
+// mintHeaderTrap corrupts the JOSE header and nothing else.
+//
+// This and its two siblings run under the read lock mintToken already holds, so
+// none of them may take it again.
+func (p *Provider) mintHeaderTrap(
+	trap Trap,
+	header Header,
+	claims Claims,
+) (string, error) {
 	switch trap.Kind {
 	case AlgNone:
 		header.Alg = string(None)
@@ -107,11 +148,16 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return p.serialize(header, claims, nil, func(input []byte) ([]byte, error) {
-			mac := hmac.New(sha256.New, secret)
-			mac.Write(input)
-			return mac.Sum(nil), nil
-		})
+		return p.serialize(
+			header,
+			claims,
+			nil,
+			func(input []byte) ([]byte, error) {
+				mac := hmac.New(sha256.New, secret)
+				mac.Write(input)
+				return mac.Sum(nil), nil
+			},
+		)
 
 	case EmbeddedJWK:
 		if p.attacker == nil {
@@ -122,18 +168,34 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		header.JWK = &embedded
 		return p.serialize(header, claims, p.attacker, nil)
 
+	default:
+		// Unreachable: mintToken routes only the header group here.
+		return p.serialize(header, claims, nil, nil)
+	}
+}
+
+// mintClaimTrap moves exactly one registered claim and leaves the signature
+// valid, so a refusal can only have come from claim validation.
+func (p *Provider) mintClaimTrap(
+	trap Trap,
+	header Header,
+	claims Claims,
+	now time.Time,
+	lifetime time.Duration,
+) (string, error) {
+	switch trap.Kind {
 	case ClaimExpired:
 		// Internally consistent on purpose: the token is expired and nothing
 		// else. A token that was also not-yet-valid would trip two checks and
 		// isolate neither.
-		claims.IssuedAt = unix(now.Add(-trap.Delay - request.lifetime))
-		claims.NotBefore = unix(now.Add(-trap.Delay - request.lifetime))
+		claims.IssuedAt = unix(now.Add(-trap.Delay - lifetime))
+		claims.NotBefore = unix(now.Add(-trap.Delay - lifetime))
 		claims.Expires = unix(now.Add(-trap.Delay))
 		return p.serialize(header, claims, nil, nil)
 
 	case ClaimNotYetValid:
 		claims.NotBefore = unix(now.Add(trap.Delay))
-		claims.Expires = unix(now.Add(trap.Delay + request.lifetime))
+		claims.Expires = unix(now.Add(trap.Delay + lifetime))
 		return p.serialize(header, claims, nil, nil)
 
 	case ClaimWrongAudience:
@@ -152,10 +214,29 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		header.Kid = p.foreign.ID
 		return p.serialize(header, claims, p.foreign, nil)
 
+	default:
+		// Unreachable: mintToken routes only the claim group here.
+		return p.serialize(header, claims, nil, nil)
+	}
+}
+
+// mintSignatureTrap corrupts the signature and leaves the header and every
+// claim honest, so a refusal can only have come from signature verification.
+func (p *Provider) mintSignatureTrap(
+	trap Trap,
+	header Header,
+	claims Claims,
+) (string, error) {
+	switch trap.Kind {
 	case SignatureTruncated:
-		return p.serializeThen(header, claims, nil, func(signature []byte) []byte {
-			return signature[:truncatedLength]
-		})
+		return p.serializeThen(
+			header,
+			claims,
+			nil,
+			func(signature []byte) []byte {
+				return signature[:truncatedLength]
+			},
+		)
 
 	case SignatureZero:
 		if p.ec == nil {
@@ -175,6 +256,7 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		return p.serialize(header, claims, p.weak, nil)
 
 	default:
+		// Unreachable: mintToken routes only the signature group here.
 		return p.serialize(header, claims, nil, nil)
 	}
 }
@@ -218,7 +300,12 @@ func (p *Provider) serializeWith(
 
 	input := signingInput(headerJSON, claimsJSON)
 
-	signature, err := p.produceSignature(Algorithm(header.Alg), input, key, signer)
+	signature, err := p.produceSignature(
+		Algorithm(header.Alg),
+		input,
+		key,
+		signer,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -266,14 +353,18 @@ func publicKeyBytes(key *Key, form KeyForm) ([]byte, error) {
 		return der, nil
 
 	case SPKIPEM:
-		return pem.EncodeToMemory(&pem.Block{Type: pemTypePublic, Bytes: der}), nil
+		return pem.EncodeToMemory(
+			&pem.Block{Type: pemTypePublic, Bytes: der},
+		), nil
 
 	case PKCS1PEM:
 		if key.rsaKey == nil {
 			return nil, fmt.Errorf(errNoKey, ErrNoSigningKey, "RSA")
 		}
 		pkcs1 := x509.MarshalPKCS1PublicKey(&key.rsaKey.PublicKey)
-		return pem.EncodeToMemory(&pem.Block{Type: pemTypeRSAPublic, Bytes: pkcs1}), nil
+		return pem.EncodeToMemory(
+			&pem.Block{Type: pemTypeRSAPublic, Bytes: pkcs1},
+		), nil
 
 	case Modulus:
 		if key.rsaKey == nil {

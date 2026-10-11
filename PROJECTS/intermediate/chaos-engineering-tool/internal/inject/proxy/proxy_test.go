@@ -27,16 +27,18 @@ const (
 func upstreamServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-		_, _ = io.WriteString(w, body)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+			_, _ = io.WriteString(w, body)
+		}),
+	)
 	t.Cleanup(server.Close)
 
 	return server
 }
 
-func through(t *testing.T) (*Proxy, *httptest.Server) {
+func through(t *testing.T) *Proxy {
 	t.Helper()
 
 	server := upstreamServer(t)
@@ -47,7 +49,7 @@ func through(t *testing.T) (*Proxy, *httptest.Server) {
 	}
 	t.Cleanup(func() { _ = p.Close() })
 
-	return p, server
+	return p
 }
 
 // get returns the body, or a description of how the attempt failed. Both are
@@ -67,7 +69,7 @@ func get(p *Proxy) (string, error) {
 }
 
 func TestPassThroughDeliversTheDependencyUntouched(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	got, err := get(p)
 	if err != nil {
@@ -99,7 +101,7 @@ func TestEveryFaultIsDistinguishableFromPassThrough(t *testing.T) {
 
 	for _, fault := range faults {
 		t.Run(string(fault.Kind), func(t *testing.T) {
-			p, _ := through(t)
+			p := through(t)
 
 			if err := p.Arm(fault); err != nil {
 				t.Fatalf("arm: %v", err)
@@ -122,8 +124,11 @@ func TestEveryFaultIsDistinguishableFromPassThrough(t *testing.T) {
 			// for the close.
 			if fault.Kind == SlowClose {
 				if got != body {
-					t.Fatalf("slow-close delivered %q, want the answer intact; holding the "+
-						"PAYLOAD back makes it indistinguishable from a latency fault", got)
+					t.Fatalf(
+						"slow-close delivered %q, want the answer intact; holding the "+
+							"PAYLOAD back makes it indistinguishable from a latency fault",
+						got,
+					)
 				}
 
 				// Measured at the SOCKET, not through this HTTP client. Go's
@@ -138,8 +143,12 @@ func TestEveryFaultIsDistinguishableFromPassThrough(t *testing.T) {
 				// clients it is not meant to break.
 				observable, confirmed, err := p.Observe(t.Context(), SlowClose)
 				if err != nil || !confirmed {
-					t.Fatalf("slow-close is not observable at the socket either (%v), so nothing "+
-						"distinguishes it from no fault at all: %s", err, observable)
+					t.Fatalf(
+						"slow-close is not observable at the socket either (%v), so nothing "+
+							"distinguishes it from no fault at all: %s",
+						err,
+						observable,
+					)
 				}
 
 				t.Logf("slow-close -> body intact after %s, and %s",
@@ -148,8 +157,11 @@ func TestEveryFaultIsDistinguishableFromPassThrough(t *testing.T) {
 			}
 
 			if err == nil && got == body {
-				t.Fatalf("%s delivered the dependency's answer intact, so it is "+
-					"indistinguishable from no fault at all", fault.Kind)
+				t.Fatalf(
+					"%s delivered the dependency's answer intact, so it is "+
+						"indistinguishable from no fault at all",
+					fault.Kind,
+				)
 			}
 
 			t.Logf("%s -> body=%q err=%v", fault.Kind, got, err)
@@ -158,7 +170,7 @@ func TestEveryFaultIsDistinguishableFromPassThrough(t *testing.T) {
 }
 
 func TestResetIsRefusedWhileHangIsSilence(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Reset}); err != nil {
 		t.Fatalf("arm reset: %v", err)
@@ -173,8 +185,11 @@ func TestResetIsRefusedWhileHangIsSilence(t *testing.T) {
 	}
 
 	if errors.Is(resetErr, http.ErrHandlerTimeout) || resetTook >= probeWait {
-		t.Fatalf("reset took %s, which is a timeout rather than a refusal; a client "+
-			"cannot tell it from a hang and the two hit different branches", resetTook)
+		t.Fatalf(
+			"reset took %s, which is a timeout rather than a refusal; a client "+
+				"cannot tell it from a hang and the two hit different branches",
+			resetTook,
+		)
 	}
 
 	if err := p.Arm(Fault{Kind: Hang}); err != nil {
@@ -190,8 +205,11 @@ func TestResetIsRefusedWhileHangIsSilence(t *testing.T) {
 	}
 
 	if hangTook < probeWait {
-		t.Fatalf("hang failed after %s, before the client's own timeout; a hang the "+
-			"client distinguishes from a refusal is the whole point of having both", hangTook)
+		t.Fatalf(
+			"hang failed after %s, before the client's own timeout; a hang the "+
+				"client distinguishes from a refusal is the whole point of having both",
+			hangTook,
+		)
 	}
 }
 
@@ -211,7 +229,7 @@ func TestResetIsAnRSTAndEOFIsAFIN(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(string(tc.fault), func(t *testing.T) {
-			p, _ := through(t)
+			p := through(t)
 
 			if err := p.Arm(Fault{Kind: tc.fault}); err != nil {
 				t.Fatalf("arm: %v", err)
@@ -231,7 +249,9 @@ func TestResetIsAnRSTAndEOFIsAFIN(t *testing.T) {
 
 				_, _ = io.WriteString(conn, "GET / HTTP/1.1\r\nHost: x\r\n\r\n")
 
-				if err := conn.SetReadDeadline(time.Now().Add(probeWait)); err != nil {
+				if err := conn.SetReadDeadline(
+					time.Now().Add(probeWait),
+				); err != nil {
 					t.Fatalf("deadline: %v", err)
 				}
 
@@ -243,9 +263,13 @@ func TestResetIsAnRSTAndEOFIsAFIN(t *testing.T) {
 			gotEOF := errors.Is(readErr, io.EOF)
 
 			if tc.wantReset && !gotReset {
-				t.Fatalf("%s produced %v, not ECONNRESET; a client cannot tell it from an "+
-					"orderly close, and the two hit different branches in almost every "+
-					"HTTP client", tc.fault, readErr)
+				t.Fatalf(
+					"%s produced %v, not ECONNRESET; a client cannot tell it from an "+
+						"orderly close, and the two hit different branches in almost every "+
+						"HTTP client",
+					tc.fault,
+					readErr,
+				)
 			}
 
 			if !tc.wantReset && !gotEOF {
@@ -258,7 +282,7 @@ func TestResetIsAnRSTAndEOFIsAFIN(t *testing.T) {
 func TestPartialDeliversAPrefixAndThenStops(t *testing.T) {
 	const budget = 12
 
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Partial, Bytes: budget}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -267,8 +291,11 @@ func TestPartialDeliversAPrefixAndThenStops(t *testing.T) {
 	got, _ := get(p)
 
 	if len(got) >= len(body) {
-		t.Fatalf("partial delivered %d bytes of a %d byte body, so nothing was truncated",
-			len(got), len(body))
+		t.Fatalf(
+			"partial delivered %d bytes of a %d byte body, so nothing was truncated",
+			len(got),
+			len(body),
+		)
 	}
 
 	if strings.Contains(got, body) {
@@ -279,7 +306,7 @@ func TestPartialDeliversAPrefixAndThenStops(t *testing.T) {
 func TestLatencyDelaysRatherThanFails(t *testing.T) {
 	const delay = 300 * time.Millisecond
 
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Latency, Delay: delay}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -298,7 +325,11 @@ func TestLatencyDelaysRatherThanFails(t *testing.T) {
 	}
 
 	if took < delay {
-		t.Fatalf("latency of %s took only %s, so the delay is not being applied", delay, took)
+		t.Fatalf(
+			"latency of %s took only %s, so the delay is not being applied",
+			delay,
+			took,
+		)
 	}
 }
 
@@ -306,13 +337,15 @@ func TestLatencyDelaysRatherThanFails(t *testing.T) {
 // recovery window reads as a target that never came back.
 func TestDisarmRestoresPassThroughCompletely(t *testing.T) {
 	for _, fault := range []Fault{
-		{Kind: Hang}, {Kind: Reset}, {Kind: EOF},
+		{Kind: Hang},
+		{Kind: Reset},
+		{Kind: EOF},
 		{Kind: Latency, Delay: 2 * time.Second},
 		{Kind: Partial, Bytes: 4},
 		{Kind: SlowClose, Delay: 2 * time.Second},
 	} {
 		t.Run(string(fault.Kind), func(t *testing.T) {
-			p, _ := through(t)
+			p := through(t)
 
 			if err := p.Arm(fault); err != nil {
 				t.Fatalf("arm: %v", err)
@@ -327,10 +360,18 @@ func TestDisarmRestoresPassThroughCompletely(t *testing.T) {
 
 			got, err := get(p)
 			if err != nil {
-				t.Fatalf("after disarming %s the proxy still fails: %v", fault.Kind, err)
+				t.Fatalf(
+					"after disarming %s the proxy still fails: %v",
+					fault.Kind,
+					err,
+				)
 			}
 			if got != body {
-				t.Fatalf("after disarming %s the proxy delivered %q", fault.Kind, got)
+				t.Fatalf(
+					"after disarming %s the proxy delivered %q",
+					fault.Kind,
+					got,
+				)
 			}
 		})
 	}
@@ -340,7 +381,7 @@ func TestDisarmRestoresPassThroughCompletely(t *testing.T) {
 // would otherwise keep sailing through it, and a fault nothing experiences reads
 // as a clean survival.
 func TestArmingDropsConnectionsOpenedBeforeTheFault(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	client, err := net.Dial("tcp", p.Addr())
 	if err != nil {
@@ -348,7 +389,10 @@ func TestArmingDropsConnectionsOpenedBeforeTheFault(t *testing.T) {
 	}
 	defer func() { _ = client.Close() }()
 
-	if _, err := io.WriteString(client, "GET / HTTP/1.1\r\nHost: x\r\n\r\n"); err != nil {
+	if _, err := io.WriteString(
+		client,
+		"GET / HTTP/1.1\r\nHost: x\r\n\r\n",
+	); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 
@@ -358,7 +402,10 @@ func TestArmingDropsConnectionsOpenedBeforeTheFault(t *testing.T) {
 
 	buffer := make([]byte, 128)
 	if _, err := client.Read(buffer); err != nil {
-		t.Fatalf("the established connection never answered before the fault: %v", err)
+		t.Fatalf(
+			"the established connection never answered before the fault: %v",
+			err,
+		)
 	}
 
 	if err := p.Arm(Fault{Kind: Hang}); err != nil {
@@ -382,9 +429,11 @@ func TestArmingDropsConnectionsOpenedBeforeTheFault(t *testing.T) {
 
 		var timeout net.Error
 		if errors.As(err, &timeout) && timeout.Timeout() {
-			t.Fatalf("a connection established before the fault was neither dropped nor ended " +
-				"after arming; a target on a pooled keepalive connection would sail straight " +
-				"through the fault and the run would report a clean survival")
+			t.Fatalf(
+				"a connection established before the fault was neither dropped nor ended " +
+					"after arming; a target on a pooled keepalive connection would sail straight " +
+					"through the fault and the run would report a clean survival",
+			)
 		}
 
 		return
@@ -394,7 +443,7 @@ func TestArmingDropsConnectionsOpenedBeforeTheFault(t *testing.T) {
 // Closing the proxy IS the rollback of last resort. The fault has to die with the
 // process, because that is the tier's entire safety argument.
 func TestClosingTheProxyRemovesTheFaultEntirely(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Hang}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -409,7 +458,9 @@ func TestClosingTheProxyRemovesTheFaultEntirely(t *testing.T) {
 	conn, err := net.DialTimeout("tcp", addr, probeWait)
 	if err == nil {
 		_ = conn.Close()
-		t.Fatal("the proxy still accepts connections after Close, so the fault outlived it")
+		t.Fatal(
+			"the proxy still accepts connections after Close, so the fault outlived it",
+		)
 	}
 
 	if err := p.Arm(Fault{Kind: Reset}); !errors.Is(err, ErrClosed) {
@@ -420,7 +471,7 @@ func TestClosingTheProxyRemovesTheFaultEntirely(t *testing.T) {
 // An incomplete fault is indistinguishable from pass-through at runtime, so it
 // has to be refused at arm time rather than silently measured.
 func TestAFaultThatCannotExpressItselfIsRefused(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	for _, fault := range []Fault{
 		{Kind: Latency},
@@ -429,12 +480,19 @@ func TestAFaultThatCannotExpressItselfIsRefused(t *testing.T) {
 	} {
 		t.Run(string(fault.Kind), func(t *testing.T) {
 			if err := p.Arm(fault); !errors.Is(err, ErrFaultIncomplete) {
-				t.Fatalf("arm(%+v) = %v, want ErrFaultIncomplete; without a parameter this "+
-					"fault forwards everything untouched and reports a clean survival", fault, err)
+				t.Fatalf(
+					"arm(%+v) = %v, want ErrFaultIncomplete; without a parameter this "+
+						"fault forwards everything untouched and reports a clean survival",
+					fault,
+					err,
+				)
 			}
 
 			if armed := p.Fault().Kind; armed != PassThrough {
-				t.Fatalf("a refused fault still changed the armed state to %s", armed)
+				t.Fatalf(
+					"a refused fault still changed the armed state to %s",
+					armed,
+				)
 			}
 		})
 	}
@@ -448,11 +506,16 @@ func TestAnUnreachableDependencyIsNotMistakenForAFault(t *testing.T) {
 	defer func() { _ = p.Close() }()
 
 	if _, err := get(p); err == nil {
-		t.Fatal("the proxy invented an answer for a dependency it could not reach")
+		t.Fatal(
+			"the proxy invented an answer for a dependency it could not reach",
+		)
 	}
 
 	if counts := p.Counts(); counts.Relayed != 0 {
-		t.Fatalf("the proxy counted %d relayed chunks to a dead upstream", counts.Relayed)
+		t.Fatalf(
+			"the proxy counted %d relayed chunks to a dead upstream",
+			counts.Relayed,
+		)
 	}
 }
 
@@ -478,9 +541,13 @@ func TestSeveringAndForwardingFaultsAreSeparated(t *testing.T) {
 		fault := Fault{Kind: kind, Delay: time.Second, Bytes: 1}
 
 		if fault.Severs() != severing[kind] {
-			t.Fatalf("%s reports Severs()=%v; khaos confirms a severing fault by proving the "+
-				"dependency is unreachable and a forwarding one by proving the stream was "+
-				"altered, and one cannot stand in for the other", kind, fault.Severs())
+			t.Fatalf(
+				"%s reports Severs()=%v; khaos confirms a severing fault by proving the "+
+					"dependency is unreachable and a forwarding one by proving the stream was "+
+					"altered, and one cannot stand in for the other",
+				kind,
+				fault.Severs(),
+			)
 		}
 	}
 }
@@ -490,7 +557,7 @@ func TestSeveringAndForwardingFaultsAreSeparated(t *testing.T) {
 func TestSlowCloseHoldsTheConnectionOpenAfterTheAnswer(t *testing.T) {
 	const delay = 600 * time.Millisecond
 
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: SlowClose, Delay: delay}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -505,7 +572,10 @@ func TestSlowCloseHoldsTheConnectionOpenAfterTheAnswer(t *testing.T) {
 	// Connection: close is load-bearing. Without it the upstream keeps the
 	// connection alive, the answer leg never finishes, and the "hold" being
 	// measured is the test's own read deadline rather than the fault.
-	_, _ = io.WriteString(conn, "GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
+	_, _ = io.WriteString(
+		conn,
+		"GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n",
+	)
 	_ = conn.SetReadDeadline(time.Now().Add(probeWait * 4))
 
 	buffer := make([]byte, 4096)
@@ -523,19 +593,25 @@ func TestSlowCloseHoldsTheConnectionOpenAfterTheAnswer(t *testing.T) {
 	}
 
 	if lastByte.IsZero() {
-		t.Fatal("slow-close delivered nothing at all, so it is not a slow CLOSE")
+		t.Fatal(
+			"slow-close delivered nothing at all, so it is not a slow CLOSE",
+		)
 	}
 
 	held := ended.Sub(lastByte)
 	if held < delay {
-		t.Fatalf("the stream ended %s after the last byte, want at least %s; slow-close is not "+
-			"holding the connection open and is only distinguishable from pass-through because "+
-			"it also delays every chunk, which is what latency does", held, delay)
+		t.Fatalf(
+			"the stream ended %s after the last byte, want at least %s; slow-close is not "+
+				"holding the connection open and is only distinguishable from pass-through because "+
+				"it also delays every chunk, which is what latency does",
+			held,
+			delay,
+		)
 	}
 }
 
 func TestEOFStaysAFINWhenTheRequestIsLargerThanOneRead(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: EOF}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -549,7 +625,10 @@ func TestEOFStaysAFINWhenTheRequestIsLargerThanOneRead(t *testing.T) {
 
 		body := strings.Repeat("x", 4<<20)
 		go func() {
-			_, _ = io.WriteString(conn, "POST / HTTP/1.1\r\nHost: x\r\n\r\n"+body)
+			_, _ = io.WriteString(
+				conn,
+				"POST / HTTP/1.1\r\nHost: x\r\n\r\n"+body,
+			)
 		}()
 
 		_ = conn.SetReadDeadline(time.Now().Add(probeWait))
@@ -557,14 +636,17 @@ func TestEOFStaysAFINWhenTheRequestIsLargerThanOneRead(t *testing.T) {
 		_ = conn.Close()
 
 		if errors.Is(readErr, syscall.ECONNRESET) {
-			t.Fatalf("attempt %d: eof produced ECONNRESET on a request larger than one read, so "+
-				"it is a nondeterministic duplicate of reset after all", attempt)
+			t.Fatalf(
+				"attempt %d: eof produced ECONNRESET on a request larger than one read, so "+
+					"it is a nondeterministic duplicate of reset after all",
+				attempt,
+			)
 		}
 	}
 }
 
 func TestArmRefusesAFaultWhoseKindIsNotRegistered(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	for _, fault := range []Fault{
 		{},
@@ -573,8 +655,11 @@ func TestArmRefusesAFaultWhoseKindIsNotRegistered(t *testing.T) {
 		{Kind: PassThrough},
 	} {
 		if err := p.Arm(fault); err == nil {
-			t.Fatalf("Arm(%+v) was accepted; an unrecognised kind forwards every byte untouched "+
-				"and the run reports a clean survival", fault)
+			t.Fatalf(
+				"Arm(%+v) was accepted; an unrecognised kind forwards every byte untouched "+
+					"and the run reports a clean survival",
+				fault,
+			)
 		}
 
 		if armed := p.Fault().Kind; armed != PassThrough {
@@ -587,7 +672,7 @@ func TestArmRefusesAFaultWhoseKindIsNotRegistered(t *testing.T) {
 // The baseline is measured through the proxy, so getting this wrong makes a
 // healthy dependency read as a dead one before any fault is armed.
 func TestAHalfClosingClientStillReceivesTheWholeAnswer(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	conn, err := net.DialTimeout(network, p.Addr(), probeWait)
 	if err != nil {
@@ -600,7 +685,10 @@ func TestAHalfClosingClientStillReceivesTheWholeAnswer(t *testing.T) {
 		t.Fatal("expected a TCP connection")
 	}
 
-	if _, err := io.WriteString(tcp, "GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n"); err != nil {
+	if _, err := io.WriteString(
+		tcp,
+		"GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n",
+	); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 
@@ -616,8 +704,12 @@ func TestAHalfClosingClientStillReceivesTheWholeAnswer(t *testing.T) {
 	}
 
 	if !strings.Contains(string(answer), body) {
-		t.Fatalf("a half-closing client received %d bytes and never the answer; pass-through "+
-			"dropped it: %q", len(answer), string(answer))
+		t.Fatalf(
+			"a half-closing client received %d bytes and never the answer; pass-through "+
+				"dropped it: %q",
+			len(answer),
+			string(answer),
+		)
 	}
 }
 
@@ -629,14 +721,18 @@ func TestOpenRefusesAnAddressThatWouldExposeTheProxy(t *testing.T) {
 		if err == nil {
 			bound := p.Addr()
 			_ = p.Close()
-			t.Fatalf("Open(%q) bound %s; a fault proxy in front of a deliberately vulnerable "+
-				"dependency must not be reachable off the host", addr, bound)
+			t.Fatalf(
+				"Open(%q) bound %s; a fault proxy in front of a deliberately vulnerable "+
+					"dependency must not be reachable off the host",
+				addr,
+				bound,
+			)
 		}
 	}
 }
 
 func TestDisarmReleasesAConnectionThatRacedTheRevert(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	for attempt := range 300 {
 		if err := p.Arm(Fault{Kind: Hang}); err != nil {
@@ -657,10 +753,14 @@ func TestDisarmReleasesAConnectionThatRacedTheRevert(t *testing.T) {
 
 		var timeout net.Error
 		if errors.As(readErr, &timeout) && timeout.Timeout() {
-			t.Fatalf("attempt %d: a hung connection was still held 400ms after Disarm. The "+
-				"ceiling is %s against a %s recovery window, so the target reads as one that "+
-				"never came back and khaos manufactures the verdict itself",
-				attempt, hangCeiling, "5s")
+			t.Fatalf(
+				"attempt %d: a hung connection was still held 400ms after Disarm. The "+
+					"ceiling is %s against a %s recovery window, so the target reads as one that "+
+					"never came back and khaos manufactures the verdict itself",
+				attempt,
+				hangCeiling,
+				"5s",
+			)
 		}
 	}
 }
@@ -678,7 +778,9 @@ func TestOpenRefusesThisHostsRoutableAddress(t *testing.T) {
 	}
 
 	for _, iface := range interfaces {
-		if _, err := os.Stat(filepath.Join(sysClassNet, iface.Name, bridgeMarker)); err == nil {
+		if _, err := os.Stat(
+			filepath.Join(sysClassNet, iface.Name, bridgeMarker),
+		); err == nil {
 			continue
 		}
 
@@ -704,7 +806,10 @@ func TestOpenRefusesThisHostsRoutableAddress(t *testing.T) {
 	if err == nil {
 		bound := p.Addr()
 		_ = p.Close()
-		t.Fatalf("Open bound %s, which is reachable from outside this host", bound)
+		t.Fatalf(
+			"Open bound %s, which is reachable from outside this host",
+			bound,
+		)
 	}
 
 	if !errors.Is(err, ErrUnsafeBind) {
@@ -721,7 +826,9 @@ func TestOpenAcceptsABridgeAddress(t *testing.T) {
 	}
 
 	for _, iface := range interfaces {
-		if _, err := os.Stat(filepath.Join(sysClassNet, iface.Name, bridgeMarker)); err != nil {
+		if _, err := os.Stat(
+			filepath.Join(sysClassNet, iface.Name, bridgeMarker),
+		); err != nil {
 			continue
 		}
 
@@ -736,9 +843,16 @@ func TestOpenAcceptsABridgeAddress(t *testing.T) {
 				continue
 			}
 
-			p, err := Open(net.JoinHostPort(network.IP.String(), "0"), "127.0.0.1:1")
+			p, err := Open(
+				net.JoinHostPort(network.IP.String(), "0"),
+				"127.0.0.1:1",
+			)
 			if err != nil {
-				t.Fatalf("Open refused the bridge address %s: %v", network.IP, err)
+				t.Fatalf(
+					"Open refused the bridge address %s: %v",
+					network.IP,
+					err,
+				)
 			}
 			_ = p.Close()
 
@@ -758,7 +872,7 @@ func TestOpenAcceptsABridgeAddress(t *testing.T) {
 // and an ordinary close would send FIN, which is the eof fault wearing the wrong
 // name.
 func TestResetIsStillAnRSTWhenTheTargetSendsNothing(t *testing.T) {
-	p, _ := through(t)
+	p := through(t)
 
 	if err := p.Arm(Fault{Kind: Reset}); err != nil {
 		t.Fatalf("arm: %v", err)
@@ -780,8 +894,11 @@ func TestResetIsStillAnRSTWhenTheTargetSendsNothing(t *testing.T) {
 		_ = conn.Close()
 
 		if errors.Is(readErr, io.EOF) {
-			t.Fatalf("attempt %d: a target that sent nothing got a clean EOF, so reset degraded "+
-				"into the eof fault", attempt)
+			t.Fatalf(
+				"attempt %d: a target that sent nothing got a clean EOF, so reset degraded "+
+					"into the eof fault",
+				attempt,
+			)
 		}
 
 		if !isReset(readErr) {

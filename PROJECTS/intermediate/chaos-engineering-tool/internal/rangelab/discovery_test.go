@@ -49,11 +49,18 @@ type tieredReader struct {
 	address string
 }
 
-func (r tieredReader) Targets(context.Context, dockerx.Filter) ([]dockerx.Target, error) {
+func (r tieredReader) Targets(
+	context.Context,
+	dockerx.Filter,
+) ([]dockerx.Target, error) {
 	return r.targets, nil
 }
 
-func (r tieredReader) PublishedPort(_ context.Context, id string, _ int) (int, error) {
+func (r tieredReader) PublishedPort(
+	_ context.Context,
+	id string,
+	_ int,
+) (int, error) {
 	port, ok := r.ports[id]
 	if !ok {
 		return 0, errors.New("no published port for " + id)
@@ -61,11 +68,18 @@ func (r tieredReader) PublishedPort(_ context.Context, id string, _ int) (int, e
 	return port, nil
 }
 
-func (r tieredReader) ContainerEnv(_ context.Context, id string) (map[string]string, error) {
+func (r tieredReader) ContainerEnv(
+	_ context.Context,
+	id string,
+) (map[string]string, error) {
 	return r.environ[id], nil
 }
 
-func (r tieredReader) NetworkAddress(context.Context, string, string) (string, error) {
+func (r tieredReader) NetworkAddress(
+	context.Context,
+	string,
+	string,
+) (string, error) {
 	return r.address, nil
 }
 
@@ -74,7 +88,13 @@ func (r tieredReader) BridgeGateway(context.Context) (string, error) {
 }
 
 func container(id, name string) dockerx.Target {
-	return dockerx.Target{ID: id, Name: name, Project: ProjectName, Running: true, Inspected: true}
+	return dockerx.Target{
+		ID:        id,
+		Name:      name,
+		Project:   ProjectName,
+		Running:   true,
+		Inspected: true,
+	}
 }
 
 // fullRange is every container a complete range runs, with the two khaos-side
@@ -93,7 +113,11 @@ func fullRange() tieredReader {
 			verifierID: verifierPort,
 		},
 		environ: map[string]map[string]string{
-			proxiedID:  {EnvUpstream: "http://host.docker.internal:" + strconv.Itoa(proxyPort)},
+			proxiedID: {
+				EnvUpstream: "http://host.docker.internal:" + strconv.Itoa(
+					proxyPort,
+				),
+			},
 			verifierID: {EnvIssuer: testIssuer},
 		},
 		bridge:  bridgeIP,
@@ -172,16 +196,33 @@ func TestAMissingVerifierGatewayIsNotFatal(t *testing.T) {
 	}
 
 	if lab.Port != directPort || lab.ProxyPort != proxyPort {
-		t.Fatalf("the first two tiers did not survive: port=%d proxy=%d", lab.Port, lab.ProxyPort)
+		t.Fatalf(
+			"the first two tiers did not survive: port=%d proxy=%d",
+			lab.Port,
+			lab.ProxyPort,
+		)
 	}
 
 	if lab.VerifierPort != 0 || lab.IdPPort != 0 || lab.Issuer != "" {
-		t.Fatalf("khaos invented an identity tier that is not running: port=%d idp=%d issuer=%q",
-			lab.VerifierPort, lab.IdPPort, lab.Issuer)
+		t.Fatalf(
+			"khaos invented an identity tier that is not running: port=%d idp=%d issuer=%q",
+			lab.VerifierPort,
+			lab.IdPPort,
+			lab.Issuer,
+		)
 	}
 
-	if _, _, err := lab.IdPEndpoint(context.Background(), reader); !errors.Is(err, ErrRangeIncomplete) {
-		t.Fatalf("IdPEndpoint returned %v, want ErrRangeIncomplete so the refusal names the missing container", err)
+	if _, _, err := lab.IdPEndpoint(
+		context.Background(),
+		reader,
+	); !errors.Is(
+		err,
+		ErrRangeIncomplete,
+	) {
+		t.Fatalf(
+			"IdPEndpoint returned %v, want ErrRangeIncomplete so the refusal names the missing container",
+			err,
+		)
 	}
 }
 
@@ -211,7 +252,10 @@ func TestAVerifierGatewayWithNoUsableIssuerIsRefusedByName(t *testing.T) {
 			}
 
 			if !strings.Contains(err.Error(), VerifierGatewayName) {
-				t.Fatalf("the refusal does not name the container at fault: %v", err)
+				t.Fatalf(
+					"the refusal does not name the container at fault: %v",
+					err,
+				)
 			}
 		})
 	}
@@ -237,7 +281,10 @@ func TestAProxiedGatewayWithNoUsableUpstreamIsRefusedByName(t *testing.T) {
 			}
 
 			if !strings.Contains(err.Error(), ProxiedGatewayName) {
-				t.Fatalf("the refusal does not name the container at fault: %v", err)
+				t.Fatalf(
+					"the refusal does not name the container at fault: %v",
+					err,
+				)
 			}
 		})
 	}
@@ -265,26 +312,45 @@ func TestIdPEndpointBindsTheBridgeAndKeepsTheIssuerVerbatim(t *testing.T) {
 
 	host, port, err := net.SplitHostPort(listen)
 	if err != nil {
-		t.Fatalf("the listen address is not a host and port: %q (%v)", listen, err)
+		t.Fatalf(
+			"the listen address is not a host and port: %q (%v)",
+			listen,
+			err,
+		)
 	}
 
 	if host != bridgeIP {
-		t.Errorf("khaos would bind %q; it has to bind the discovered bridge gateway %q, because a "+
-			"listener anywhere else is unreachable from the container", host, bridgeIP)
+		t.Errorf(
+			"khaos would bind %q; it has to bind the discovered bridge gateway %q, because a "+
+				"listener anywhere else is unreachable from the container",
+			host,
+			bridgeIP,
+		)
 	}
 
 	if port != strconv.Itoa(idpPort) {
-		t.Errorf("khaos would bind port %s, and the container will dial %d", port, idpPort)
+		t.Errorf(
+			"khaos would bind port %s, and the container will dial %d",
+			port,
+			idpPort,
+		)
 	}
 
 	if issuer != testIssuer {
-		t.Errorf("khaos would mint under %q and the target trusts %q; one character of difference "+
-			"refuses every credential khaos sends", issuer, testIssuer)
+		t.Errorf(
+			"khaos would mint under %q and the target trusts %q; one character of difference "+
+				"refuses every credential khaos sends",
+			issuer,
+			testIssuer,
+		)
 	}
 
 	if host == "127.0.0.1" || host == "0.0.0.0" || host == "" {
-		t.Errorf("khaos would bind %q, which is either unreachable from containers or exposed off "+
-			"the host; a deliberately-wrong identity provider must be neither", host)
+		t.Errorf(
+			"khaos would bind %q, which is either unreachable from containers or exposed off "+
+				"the host; a deliberately-wrong identity provider must be neither",
+			host,
+		)
 	}
 }
 
@@ -300,8 +366,12 @@ func TestTheIssuerIsNormalisedTheSameWayTheTargetNormalisesIt(t *testing.T) {
 	}
 
 	if lab.Issuer != testIssuer {
-		t.Fatalf("issuer = %q, want %q with the trailing slash removed, because the verifier "+
-			"gateway trims it too and an `iss` that differs by one character is refused", lab.Issuer, testIssuer)
+		t.Fatalf(
+			"issuer = %q, want %q with the trailing slash removed, because the verifier "+
+				"gateway trims it too and an `iss` that differs by one character is refused",
+			lab.Issuer,
+			testIssuer,
+		)
 	}
 }
 
@@ -327,8 +397,14 @@ func TestFreePortsAreFiveDistinctHighPorts(t *testing.T) {
 
 		for name, port := range chosen {
 			if port < portFloor || port >= portCeil {
-				t.Fatalf("%s got port %d, outside the %d-%d range khaos picks from; a conventional "+
-					"port is the one most likely already taken", name, port, portFloor, portCeil)
+				t.Fatalf(
+					"%s got port %d, outside the %d-%d range khaos picks from; a conventional "+
+						"port is the one most likely already taken",
+					name,
+					port,
+					portFloor,
+					portCeil,
+				)
 			}
 
 			if other, clash := seen[port]; clash {

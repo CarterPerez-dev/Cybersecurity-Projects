@@ -74,6 +74,11 @@ func (s Stream) AcceptedAfter(rejected bool) int {
 			if rejected {
 				count++
 			}
+		default:
+			// A probe that neither answered nor refused is not evidence in
+			// either direction, so it must not move the count OR the latch. An
+			// outage counted as a refusal would manufacture the control giving
+			// way that this function exists to detect.
 		}
 	}
 
@@ -138,6 +143,9 @@ func (s Stream) AcceptedSinceLastRefusal() int {
 			count = 0
 		case Accepted:
 			count++
+		default:
+			// Neither an acceptance nor a refusal, so the run is neither
+			// extended nor broken by it.
 		}
 	}
 
@@ -184,6 +192,8 @@ func (s Stream) RejectedAfter(accepted bool) int {
 			if accepted {
 				count++
 			}
+		default:
+			// Not evidence either way, so neither the count nor the latch moves.
 		}
 	}
 
