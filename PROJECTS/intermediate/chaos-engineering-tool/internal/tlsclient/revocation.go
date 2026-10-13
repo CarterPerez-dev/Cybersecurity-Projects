@@ -37,7 +37,23 @@ func (c *Client) revocation(
 		return Decision{Accepted: true}
 	}
 
-	decision := Decision{Accepted: true}
+	// THE RESUMPTION HOLE, stated exactly as crypto/tls documents it.
+	//
+	// VerifyPeerCertificate does NOT run on a resumed handshake, and the doc
+	// comment says to use VerifyConnection or disable tickets instead
+	// (common.go:645-677). So an application whose pinning, staple validation
+	// or revocation check lives in that hook has a policy that is enforced on
+	// the first handshake and skipped on every resumption for the ticket's
+	// lifetime, which Go caps at seven days (common.go:983-985).
+	//
+	// Expiry cannot survive this: Go's client re-verifies the cached chain for
+	// NotAfter and chain validity before offering a ticket, and drops the entry
+	// if it fails. REVOCATION survives, because nothing anywhere checks it.
+	if state.DidResume && !c.mode.rechecksPerConnection() {
+		return Decision{Accepted: true, Resumed: true}
+	}
+
+	decision := Decision{Accepted: true, Resumed: state.DidResume}
 
 	if reason, ok := c.fromStaple(state, leaf, issuer, &decision); !ok {
 		return Decision{Reason: reason, AskedOCSP: decision.AskedOCSP}

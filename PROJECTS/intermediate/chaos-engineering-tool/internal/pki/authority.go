@@ -109,6 +109,14 @@ type Authority struct {
 	trap  Trap
 	armed *Chain
 
+	// clientID is the identity khaos has issued to the TARGET, for the mutual
+	// TLS traps, and mutual is whether khaos demands one. Both are minted and
+	// set at arm time like everything else the authority serves, so an inert
+	// authority keeps handing out the honest identity and keeps not demanding
+	// anything.
+	clientID *pair
+	mutual   bool
+
 	// swapped is BUILT state, not derived from the trap, and the distinction is
 	// what makes the confirmation oracle honest.
 	//
@@ -297,12 +305,20 @@ func (a *Authority) Arm(trap Trap) error {
 		return err
 	}
 
+	identity, err := a.mintClientIdentity(trap, a.clock())
+	if err != nil {
+		return err
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.trap = trap
 	a.armed = chain
 	a.swapped = trap.Kind == CASwap
+	a.clientID = identity
+	a.mutual = trap.Kind == ClientCertExpired ||
+		trap.Kind == ClientCertAbsent
 
 	return nil
 }
@@ -316,12 +332,22 @@ func (a *Authority) Disarm() error {
 		return err
 	}
 
+	identity, err := a.mintClientIdentity(
+		Trap{Kind: PassThrough},
+		a.clock(),
+	)
+	if err != nil {
+		return err
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.trap = Trap{}
 	a.armed = honest
 	a.swapped = false
+	a.clientID = identity
+	a.mutual = false
 
 	return nil
 }

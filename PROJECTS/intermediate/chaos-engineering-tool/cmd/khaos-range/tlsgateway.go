@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"net/http"
@@ -55,6 +56,12 @@ type tlsGateway struct {
 	authorityBase string
 	certHost      string
 	failMode      string
+
+	// One cache for the gateway's whole lifetime. Resumption is the only thing
+	// that makes the policy-in-peer-callback defect reachable, and a cache that
+	// did not outlive a request would make that mode indistinguishable from a
+	// correct one.
+	sessions tls.ClientSessionCache
 }
 
 func newTLSGateway(
@@ -77,7 +84,31 @@ func newTLSGateway(
 		authorityBase: authorityBase,
 		certHost:      certHost,
 		failMode:      failMode,
+		sessions:      tls.NewLRUClientSessionCache(0),
 	}
+}
+
+// identity fetches the client certificate khaos is currently issuing this
+// gateway, or nil when it is issuing none.
+//
+// Nil is NOT a failure. khaos withholding the identity is the
+// client-cert-absent fault, and a gateway that refused to connect without one
+// would be making khaos's point for it: the finding is whether it connects
+// anyway and whether it notices being refused.
+func (g *tlsGateway) identity(ctx context.Context) *tls.Certificate {
+	body, ok := g.fetch(ctx, pki.RouteIdentity)
+	if !ok {
+		return nil
+	}
+
+	// One PEM bundle carrying both blocks, so the same bytes are handed to
+	// X509KeyPair twice.
+	pair, err := tls.X509KeyPair(body, body)
+	if err != nil {
+		return nil
+	}
+
+	return &pair
 }
 
 // dialAddress reduces a dependency URL to the host:port a dialer wants, and
@@ -108,6 +139,15 @@ func (g *tlsGateway) client(ctx context.Context) *tlsclient.Client {
 		Host:    g.certHost,
 		Roots:   g.trustStore(ctx),
 		Timeout: dependencyTimeout,
+
+		// Fetched per request like the trust store, because khaos can withdraw
+		// or expire it mid-run and a gateway holding one from boot could not
+		// experience either fault.
+		Identity: g.identity(ctx),
+
+		// SHARED across requests, which is the whole precondition for the
+		// resumption hole: a cache built per connection resumes nothing.
+		Sessions: g.sessions,
 	})
 }
 
@@ -196,31 +236,8 @@ func (g *tlsGateway) protected(w http.ResponseWriter, r *http.Request) {
 func (g *tlsGateway) trustStore(ctx context.Context) *x509.CertPool {
 	pool := x509.NewCertPool()
 
-	request, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		strings.TrimSuffix(g.authorityBase, "/")+pki.RouteRoot,
-		nil,
-	)
-	if err != nil {
-		return pool
-	}
-
-	client := &http.Client{Timeout: dependencyTimeout}
-
-	response, err := client.Do(request)
-	if err != nil {
-		return pool
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
-	if response.StatusCode != http.StatusOK {
-		return pool
-	}
-
-	der, err := io.ReadAll(io.LimitReader(response.Body, maxRootBytes))
-	if err != nil {
+	der, ok := g.fetch(ctx, pki.RouteRoot)
+	if !ok {
 		return pool
 	}
 
@@ -232,4 +249,43 @@ func (g *tlsGateway) trustStore(ctx context.Context) *x509.CertPool {
 	pool.AddCert(cert)
 
 	return pool
+}
+
+// fetch reads one of khaos's own endpoints. A failure is reported as false
+// rather than as an error, because every caller's honest response to "khaos is
+// not answering" is to proceed with nothing and let the BASELINE fail, which
+// voids the run instead of making a fault's measurement quietly wrong.
+func (g *tlsGateway) fetch(
+	ctx context.Context,
+	route string,
+) ([]byte, bool) {
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		strings.TrimSuffix(g.authorityBase, "/")+route,
+		nil,
+	)
+	if err != nil {
+		return nil, false
+	}
+
+	client := &http.Client{Timeout: dependencyTimeout}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, false
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxRootBytes))
+	if err != nil {
+		return nil, false
+	}
+
+	return body, true
 }

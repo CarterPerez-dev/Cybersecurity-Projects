@@ -31,6 +31,7 @@ func (a *Authority) routes() http.Handler {
 	mux.HandleFunc(RouteOCSP, a.serveOCSP)
 	mux.HandleFunc(RouteHealth, a.serveHealth)
 	mux.HandleFunc(RouteRoot, a.serveRoot)
+	mux.HandleFunc(RouteIdentity, a.serveIdentity)
 
 	return mux
 }

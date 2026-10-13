@@ -51,6 +51,9 @@ const (
 	observedNoOCSP    = "the served leaf names no OCSP responder, and still names a CRL at %s"
 	observedStapleBad = "the handshake staples %d bytes that are not an OCSP response"
 	observedNoStaple  = "the handshake carries no stapled response, where an honest one carries %d bytes"
+
+	observedClientExpired = "khaos requires mutual TLS and the client identity it issued expired %s ago"
+	observedNoIdentity    = "khaos requires mutual TLS and is issuing no client identity at all"
 )
 
 // Observe confirms khaos's own fault landed, by reading back what the authority
@@ -107,6 +110,9 @@ func (a *Authority) Observe(
 
 	case StapleGarbage, StapleAbsent, NoOCSPServer:
 		return a.observeStaple(armed, chain, honest)
+
+	case ClientCertExpired, ClientCertAbsent:
+		return a.observeMutual(armed)
 
 	case RevokedViaCRL, StaleCRL, CRLUnreachable, OCSPRevoked, OCSPUnknown,
 		OCSPTryLater, OCSPUnreachable, OCSPStale, OCSPWrongSerial,

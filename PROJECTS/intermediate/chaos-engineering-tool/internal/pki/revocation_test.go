@@ -95,6 +95,12 @@ func countRevocationKinds() int {
 		ExcessiveLifetime:               true,
 		KeyUsageWithoutDigitalSignature: true,
 		CASwap:                          true,
+
+		// Accepted by crypto/x509 like the rest of this group, but about the
+		// TARGET's identity rather than about revocation. They have their own
+		// two-sided observable in mutual.go.
+		ClientCertExpired: true,
+		ClientCertAbsent:  true,
 	}
 
 	count := 0

@@ -5,6 +5,7 @@ package pki
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -155,6 +156,13 @@ func (a *Authority) ListenTLS(addr string) error {
 		TLSConfig: &tls.Config{
 			MinVersion:     tls.VersionTLS12,
 			GetCertificate: a.getCertificate,
+
+			// Per handshake, so arming an mTLS trap takes effect on the next
+			// connection without the listener moving. ClientAuth fixed at bind
+			// time would mean those traps could only be armed before the target
+			// was ever pointed at khaos, which is not when an experiment arms
+			// anything.
+			GetConfigForClient: a.configForClient,
 		},
 	}
 
@@ -170,6 +178,44 @@ func (a *Authority) ListenTLS(addr string) error {
 	}()
 
 	return nil
+}
+
+// configForClient decides, per handshake, whether khaos demands a client
+// certificate.
+//
+// RequireAndVerifyClientCert specifically, and not VerifyClientCertIfGiven.
+// Research 04 measured the whole matrix and that mode is the fail-open trap: it
+// rejects a BAD certificate and accepts NONE, so it reads as secure while its
+// failure mode is a total authentication bypass. khaos's own server must not be
+// the thing being wrong here -- the fault is in the identity it ISSUED, and a
+// server that let an identity-less client through would make both mTLS traps
+// unobservable.
+func (a *Authority) configForClient(
+	*tls.ClientHelloInfo,
+) (*tls.Config, error) {
+	cfg := &tls.Config{
+		MinVersion:     tls.VersionTLS12,
+		GetCertificate: a.getCertificate,
+	}
+
+	if a.RequiresMutualTLS() {
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+		cfg.ClientCAs = a.issuingPool()
+	}
+
+	return cfg, nil
+}
+
+// issuingPool is the CA that signed the target's identity, which is what khaos
+// verifies that identity against. It is the real intermediate rather than
+// whatever TrustedRoot currently reports, because a CA swap changes what the
+// TARGET trusts and has nothing to do with who issued the client.
+func (a *Authority) issuingPool() *x509.CertPool {
+	pool := x509.NewCertPool()
+	pool.AddCert(a.inter.cert)
+	pool.AddCert(a.root.cert)
+
+	return pool
 }
 
 // getCertificate resolves the armed chain per handshake.

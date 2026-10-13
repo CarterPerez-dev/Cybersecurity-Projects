@@ -164,6 +164,14 @@ func faultTable() []expectation {
 		// chain is genuinely valid under what the target now trusts. Nothing in
 		// a client can detect this.
 		{CASwap, accepted, 0, "", ""},
+
+		// Mutual TLS. Accepted because the DEPENDENCY's certificate is
+		// impeccable for both: the defect is in the target's own identity and
+		// the rejection happens on khaos's side of the connection, which
+		// Certificate.Verify knows nothing about. What a client sees depends on
+		// the protocol version, and under TLS 1.3 it sees a successful Dial.
+		{ClientCertExpired, accepted, 0, "", ""},
+		{ClientCertAbsent, accepted, 0, "", ""},
 	}
 }
 

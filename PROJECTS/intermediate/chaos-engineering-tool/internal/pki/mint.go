@@ -44,6 +44,18 @@ type pair struct {
 	key  crypto.Signer
 }
 
+// rsaKeyOf recovers the concrete RSA key from a pair. Every key this package
+// mints is RSA, so a failed assertion is a bug in this file rather than
+// something a caller can cause.
+func rsaKeyOf(p *pair) *rsa.PrivateKey {
+	key, ok := p.key.(*rsa.PrivateKey)
+	if !ok {
+		return nil
+	}
+
+	return key
+}
+
 func newKey(bits int) (*rsa.PrivateKey, error) {
 	key, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {

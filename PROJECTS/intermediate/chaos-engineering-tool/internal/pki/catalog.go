@@ -125,6 +125,9 @@ func Kinds() []string {
 		string(StapleAbsent),
 
 		string(CASwap),
+
+		string(ClientCertExpired),
+		string(ClientCertAbsent),
 	}
 }
 
@@ -152,6 +155,13 @@ func GoAccepts(kind Kind) bool {
 		OCSPRevoked, OCSPUnknown, OCSPTryLater, OCSPUnreachable,
 		OCSPStale, OCSPWrongSerial, OCSPWrongSigner, NoOCSPServer,
 		StapleGarbage, StapleAbsent, CASwap:
+		return true
+
+	case ClientCertExpired, ClientCertAbsent:
+		// The DEPENDENCY's certificate is impeccable for both of these, so
+		// crypto/x509 has no objection to it: the defect is in the target's own
+		// identity and the rejection happens on khaos's side of the connection.
+		// Go accepts the chain, and then the server refuses the client.
 		return true
 
 	case PassThrough, LeafExpired, LeafNotYetValid, IntermediateExpired,
@@ -186,6 +196,12 @@ func (t Trap) Describe(target string) string {
 	case WeakKey, ExcessiveLifetime, KeyUsageWithoutDigitalSignature,
 		CASwap:
 		return t.describePolicy(target)
+
+	case ClientCertExpired:
+		return fmt.Sprintf(describeClientExpired, target, t.window())
+
+	case ClientCertAbsent:
+		return fmt.Sprintf(describeClientAbsent, target)
 
 	case PassThrough:
 		return ""

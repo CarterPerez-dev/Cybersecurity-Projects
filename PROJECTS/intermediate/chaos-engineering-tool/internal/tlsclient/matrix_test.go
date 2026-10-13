@@ -5,6 +5,9 @@ package tlsclient_test
 
 import (
 	"context"
+	"crypto/tls"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -82,6 +85,17 @@ const (
 	// byAvailability is an answer that could not be obtained at all, which only
 	// a hard-failing client treats as a refusal.
 	byAvailability
+
+	// byReading is the mutual TLS group, and it is the only guard that is not
+	// about a check the client performs at all.
+	//
+	// khaos's server rejects these handshakes itself, correctly, whatever the
+	// client verifies. The only question is whether the client FINDS OUT, and
+	// under TLS 1.3 that depends entirely on whether it reads: research 04
+	// measured every row of the ClientAuth matrix returning a successful
+	// tls.Dial even where the server served nothing. So every mode catches
+	// these except the one that never reads a byte.
+	byReading
 
 	// byNothing is a trap no client-side check can catch. CASwap is the only
 	// one, and that is the finding rather than a gap: once the anchor is
@@ -168,6 +182,9 @@ func catches(mode tlsclient.Mode, by guard) bool {
 		return mode != tlsclient.SkipVerify &&
 			mode != tlsclient.NoRevocationCheck &&
 			mode != tlsclient.SoftFailOCSP
+
+	case byReading:
+		return mode != tlsclient.DialOnly
 
 	case byNothing:
 		return false
@@ -260,6 +277,9 @@ func guardFor(kind pki.Kind) guard {
 
 	case pki.CRLUnreachable, pki.OCSPUnreachable, pki.OCSPTryLater:
 		return byAvailability
+
+	case pki.ClientCertExpired, pki.ClientCertAbsent:
+		return byReading
 
 	case pki.CASwap, pki.NoOCSPServer, pki.StapleAbsent:
 		// NoOCSPServer and StapleAbsent are not caught by a refusal at all. A
@@ -358,9 +378,49 @@ func decide(
 		Host:  asking,
 		Roots: a.TrustedPool(),
 		Now:   a.Now,
+
+		// The identity khaos is currently issuing, fetched the way the range's
+		// gateway fetches it. Without this every mutual TLS row would be
+		// refused because the client presented NOTHING, which is one of the two
+		// faults, so the expired row would pass for the absent row's reason.
+		Identity: identityFrom(t, a),
 	})
 
 	return client.Decide(ctx, addr)
+}
+
+// identityFrom fetches the client certificate khaos is issuing, or nil when it
+// is issuing none. Nil is not a failure: it is the client-cert-absent fault.
+func identityFrom(t *testing.T, a *pki.Authority) *tls.Certificate {
+	t.Helper()
+
+	base, err := a.Addr()
+	if err != nil {
+		return nil
+	}
+
+	response, err := http.Get("http://" + base + pki.RouteIdentity)
+	if err != nil {
+		return nil
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil
+	}
+
+	identity, err := tls.X509KeyPair(body, body)
+	if err != nil {
+		return nil
+	}
+
+	return &identity
 }
 
 func TestEveryTrapAgainstEveryReferenceClient(t *testing.T) {

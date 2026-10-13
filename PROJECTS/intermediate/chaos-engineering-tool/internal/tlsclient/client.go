@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -30,6 +31,11 @@ const (
 	// client with no timeout cannot distinguish a slow responder from a dead
 	// one, and that distinction is a fault in its own right.
 	DefaultTimeout = 5 * time.Second
+
+	// probeRequest is the smallest thing that makes a server answer. The
+	// RESPONSE is not inspected at all: the point is only whether the server
+	// was willing to send one.
+	probeRequest = "GET / HTTP/1.1\r\nHost: khaos.probe\r\nConnection: close\r\n\r\n"
 )
 
 const (
@@ -69,6 +75,17 @@ type Config struct {
 	// Now overrides the clock, so a freshness assertion does not race a real
 	// one.
 	Now func() time.Time
+
+	// Identity is the CLIENT certificate this client presents, for a
+	// dependency that requires mutual TLS. Nil means none, which is itself a
+	// fault khaos can inject by withholding it.
+	Identity *tls.Certificate
+
+	// Sessions is the TLS session cache, and it has to be SHARED across
+	// connections or there is no resumption to test. A cache created per
+	// connection resumes nothing, which would make the
+	// policy-in-peer-callback mode indistinguishable from a correct one.
+	Sessions tls.ClientSessionCache
 }
 
 // Client is khaos's reference TLS client: what a correct consumer of a
@@ -84,6 +101,9 @@ type Client struct {
 	timeout time.Duration
 	clock   func() time.Time
 
+	identity *tls.Certificate
+	sessions tls.ClientSessionCache
+
 	http *http.Client
 }
 
@@ -92,11 +112,13 @@ type Client struct {
 // that can decide anything.
 func New(cfg Config) *Client {
 	c := &Client{
-		mode:    cfg.Mode,
-		host:    cfg.Host,
-		roots:   cfg.Roots,
-		timeout: cfg.Timeout,
-		clock:   cfg.Now,
+		mode:     cfg.Mode,
+		host:     cfg.Host,
+		roots:    cfg.Roots,
+		timeout:  cfg.Timeout,
+		clock:    cfg.Now,
+		identity: cfg.Identity,
+		sessions: cfg.Sessions,
 	}
 
 	if c.mode == "" {
@@ -135,6 +157,13 @@ type Decision struct {
 	// one that asked and was satisfied, and only these fields separate them.
 	AskedCRL  bool
 	AskedOCSP bool
+
+	// Resumed is whether this connection reused a TLS session instead of
+	// performing a full handshake. It is recorded because the resumption fault
+	// is otherwise unattributable: an acceptance on a resumed connection and an
+	// acceptance on a fresh one are the same observation until you know which
+	// happened.
+	Resumed bool
 }
 
 // Decide connects to addr and reports whether this client was willing to use
@@ -190,11 +219,53 @@ func (c *Client) handshake(
 		return tls.ConnectionState{}, errors.New("not a TLS connection")
 	}
 
-	// The handshake has already completed by the time DialContext returns, but
-	// under TLS 1.3 a server's rejection of a CLIENT certificate surfaces only
-	// on the first read. khaos does not use client certificates here, so this
-	// state is final; research 04 section 7.2 covers the case where it is not.
-	return tlsConn.ConnectionState(), nil
+	state := tlsConn.ConnectionState()
+
+	// EVERY probe reads, and this is not optional politeness.
+	//
+	// Under TLS 1.3 a server's rejection of the client certificate does NOT
+	// surface at Dial. Research 04 section 7.2 measured the whole ClientAuth
+	// matrix and every single row returned a successful DialContext, including
+	// the rows where the server rejected the identity and served no bytes at
+	// all; the error arrives on the first read. Under TLS 1.2 the same case
+	// fails at Dial.
+	//
+	// So a dial-only probe reports GREEN against a server that refused it. That
+	// was this client's behaviour until the mTLS traps were built -- the
+	// previous comment here reasoned it away on the grounds that khaos used no
+	// client certificates, which stopped being true -- and it is now the
+	// DialOnly mode's declared defect rather than a property of the correct
+	// one.
+	if c.mode.reads() {
+		if err := readOnce(tlsConn, c.timeout); err != nil {
+			return tls.ConnectionState{}, err
+		}
+	}
+
+	return state, nil
+}
+
+// readOnce writes a trivial request and waits for the first byte back, which is
+// the cheapest way to find out whether the server is actually willing to talk.
+func readOnce(conn *tls.Conn, timeout time.Duration) error {
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(conn, probeRequest); err != nil {
+		return err
+	}
+
+	buffer := make([]byte, 1)
+
+	// io.EOF is NOT accepted as success. A server that rejected the handshake
+	// and closed looks like a clean EOF to a reader that treats any completed
+	// read as proof of life, and that is the same fail-open one level down.
+	if _, err := conn.Read(buffer); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Client) tlsConfig() *tls.Config {
@@ -202,6 +273,17 @@ func (c *Client) tlsConfig() *tls.Config {
 		ServerName: c.host,
 		RootCAs:    c.roots,
 		MinVersion: tls.VersionTLS12,
+	}
+
+	if c.identity != nil {
+		cfg.Certificates = []tls.Certificate{*c.identity}
+	}
+
+	// Sessions are only cached for a mode that declares it reuses them.
+	// Resumption is otherwise a property every mode would share, and the one
+	// defect it enables would be unattributable.
+	if c.mode.resumes() && c.sessions != nil {
+		cfg.ClientSessionCache = c.sessions
 	}
 
 	if !c.mode.checksChain() {

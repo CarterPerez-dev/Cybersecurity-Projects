@@ -59,6 +59,14 @@ const (
 	NameStapleAbsent  = "tls.staple_absent"
 
 	NameCASwap = "tls.ca_swap"
+
+	NameClientCertExpired = "tls.mtls_client_expired"
+	NameClientCertAbsent  = "tls.mtls_client_absent"
+
+	// Shares the revoked-via-crl TRAP, because the fault khaos injects really
+	// is revocation. What differs is the finding: whether a session established
+	// before the revocation outlives it.
+	NameResumptionAfterRevocation = "tls.resumption_after_revocation"
 )
 
 const (
@@ -101,6 +109,11 @@ const (
 	sumStapleAbsent  = "omit the stapled response entirely, which finds an application that reads no staple as good instead of asking the responder itself"
 
 	sumCASwap = "replace the root the target trusts with one khaos controls and serve a chain that is valid under it, which NOTHING in a TLS client can detect; the only defences are pinning and certificate transparency, and this experiment exists to show that acceptance here is not a bug in the client"
+
+	sumClientExpired = "require mutual TLS and issue the target an expired client identity, which khaos's server then refuses; under TLS 1.3 the target's tls.Dial SUCCEEDS anyway and the refusal only surfaces on the first read, so this finds a client that treats a completed dial as a working connection"
+	sumClientAbsent  = "require mutual TLS and issue the target no client identity at all, which is what a failed rotation and a bypassed sidecar look like; an attacker does not present a bad certificate, they present nothing"
+
+	sumResumption = "establish a session while the certificate is good and revoke it afterwards, which a resumed connection never notices: crypto/tls does not run VerifyPeerCertificate on a resumed handshake, so an application whose pinning or revocation check lives in that hook enforces it once and skips it for the ticket's lifetime, which Go caps at seven days"
 )
 
 // caSwapPolarity is the one experiment in the family whose acceptance is not a
@@ -127,6 +140,7 @@ func init() {
 		chainExperiments(),
 		policyExperiments(),
 		revocationExperiments(),
+		mutualExperiments(),
 	}
 
 	for _, group := range groups {
@@ -368,6 +382,45 @@ func revocationExperiments() []Definition {
 			summary:  sumStapleAbsent,
 			trap:     pki.StapleAbsent,
 			consults: ConsultsOCSP,
+		}),
+	}
+}
+
+// mutualExperiments are the two faults in the TARGET's own identity, plus the
+// one whose finding is about a session rather than a certificate.
+//
+// The mutual TLS pair does not test khaos's server, which refuses both
+// correctly. It tests whether the target NOTICES being refused, and under TLS
+// 1.3 that comes down to whether it reads: research 04 measured every row of
+// the ClientAuth matrix returning a successful tls.Dial even where the server
+// served nothing at all.
+func mutualExperiments() []Definition {
+	return []Definition{
+		tlsDefinition(tlsSpec{
+			name:    NameClientCertExpired,
+			summary: sumClientExpired,
+			trap:    pki.ClientCertExpired,
+			extra:   []Param{certWindowParam},
+		}),
+		tlsDefinition(tlsSpec{
+			name:    NameClientCertAbsent,
+			summary: sumClientAbsent,
+			trap:    pki.ClientCertAbsent,
+		}),
+
+		// The SAME trap as tls.revoked_via_crl, deliberately. khaos injects
+		// revocation either way; this experiment exists because the question
+		// "does a session established beforehand outlive it" is a different
+		// finding from "does the target check revocation at all", and a target
+		// can pass the first and fail this one.
+		//
+		// It declares the endpoint for the same reason the revocation group
+		// does: a target that never asks has no check to skip on resumption.
+		tlsDefinition(tlsSpec{
+			name:     NameResumptionAfterRevocation,
+			summary:  sumResumption,
+			trap:     pki.RevokedViaCRL,
+			consults: ConsultsCRL,
 		}),
 	}
 }

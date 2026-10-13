@@ -246,6 +246,70 @@ if start_range skip-verify; then
     fi
 fi
 
+echo "== mutual TLS: the client has to NOTICE being refused =="
+
+# khaos's server rejects both of these correctly, whatever the client verifies.
+# The finding is whether the client finds out, and under TLS 1.3 that comes down
+# to whether it reads: research 04 section 7.2 measured every row of the
+# ClientAuth matrix returning a successful tls.Dial even where the server served
+# nothing at all.
+if start_range dial-only; then
+    for experiment in tls.mtls_client_expired tls.mtls_client_absent; do
+        run_experiment "$experiment"
+        assert_confirmed "$experiment"
+        assert_verdict "${experiment} vs a client that never reads" "passed / HELD"
+        assert_exit "${experiment} vs a client that never reads" 2
+
+        if grep -qE 'to be the defect for this control' <<<"$report"; then
+            pass "${experiment} is a defect against a dial-only client"
+        else
+            fail "${experiment} was not called a defect although the target reported a healthy dependency that refused it"
+        fi
+    done
+fi
+
+if start_range closed; then
+    # THE CONTRAST. The same fault against a client that reads is correctly
+    # DENIED, which is what proves the defect above belongs to the client's
+    # behaviour rather than to khaos's server.
+    for experiment in tls.mtls_client_expired tls.mtls_client_absent; do
+        run_experiment "$experiment"
+        assert_verdict "${experiment} vs a client that reads" "deviated / DENIED"
+        assert_exit "${experiment} vs a client that reads" 0
+    done
+fi
+
+echo "== resumption outlives the revocation it was established before =="
+
+# crypto/tls does not run VerifyPeerCertificate on a resumed handshake and its
+# own doc comment says to use VerifyConnection instead. So a policy living in
+# that hook is enforced on the first handshake and skipped for the ticket's
+# lifetime, which Go caps at seven days.
+#
+# Expiry cannot survive it -- Go re-verifies the cached chain for NotAfter
+# before offering a ticket -- but revocation can, because nothing anywhere
+# checks revocation.
+if start_range policy-in-peer-callback; then
+    run_experiment tls.resumption_after_revocation
+    assert_confirmed "resumption-after-revocation"
+    assert_verdict "resumption vs a peer-callback policy" "passed / HELD"
+    assert_exit "resumption vs a peer-callback policy" 2
+
+    if grep -qE 'to be the defect for this control' <<<"$report"; then
+        pass "a revoked certificate surviving resumption is a defect"
+    else
+        fail "a session that outlived its certificate's revocation was not called a defect"
+    fi
+fi
+
+if start_range closed; then
+    # The contrast again: a policy that runs per connection catches the same
+    # revocation, so the hole is the HOOK rather than resumption itself.
+    run_experiment tls.resumption_after_revocation
+    assert_verdict "resumption vs a per-connection policy" "deviated / DENIED"
+    assert_exit "resumption vs a per-connection policy" 0
+fi
+
 if [[ "$failures" -gt 0 ]]; then
     echo "tls: ${failures} assertion(s) failed"
     exit 1

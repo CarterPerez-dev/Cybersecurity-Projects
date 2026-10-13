@@ -89,6 +89,35 @@ const (
 	NoKeyFloor       Mode = "no-key-floor"
 	NoLifetimePolicy Mode = "no-lifetime-policy"
 	NoKeyUsagePolicy Mode = "no-key-usage-policy"
+
+	// DialOnly completes the handshake and never reads a byte.
+	//
+	// Research 04 section 7.2 calls this the most operationally dangerous
+	// finding in the whole TLS surface, and it is measured: under TLS 1.3 every
+	// row of the ClientAuth matrix returned a SUCCESSFUL tls.Dial, including
+	// the rows where the server rejected the client certificate and served
+	// nothing. The error arrives on the first read. Under TLS 1.2 the same case
+	// fails at Dial, so this defect is invisible on the older protocol and
+	// total on the newer one.
+	//
+	// A client in this mode reports a healthy dependency it was refused by.
+	DialOnly Mode = "dial-only"
+
+	// PolicyInPeerCallback puts its revocation policy in
+	// VerifyPeerCertificate and reuses TLS sessions.
+	//
+	// crypto/tls is explicit that VerifyPeerCertificate does NOT run on a
+	// resumed handshake and that VerifyConnection should be used instead
+	// (common.go:645-677). So an application whose pinning, staple validation
+	// or key floor lives in that hook has a policy that is checked on the first
+	// handshake and silently skipped for every resumption afterwards.
+	//
+	// Go's client does re-verify the cached chain for expiry and chain validity
+	// before offering a ticket, so an EXPIRED identity cannot survive
+	// resumption. Revocation can: nothing anywhere checks it, and the ticket
+	// lifetime ceiling is seven days (common.go:983-985). That is the hole this
+	// mode exists to demonstrate.
+	PolicyInPeerCallback Mode = "policy-in-peer-callback"
 )
 
 const (
@@ -115,6 +144,8 @@ func Modes() []string {
 		string(NoKeyFloor),
 		string(NoLifetimePolicy),
 		string(NoKeyUsagePolicy),
+		string(DialOnly),
+		string(PolicyInPeerCallback),
 	}
 }
 
@@ -198,4 +229,26 @@ func (m Mode) checksLifetime() bool {
 // which crypto/x509 never does on a leaf.
 func (m Mode) checksKeyUsage() bool {
 	return m != SkipVerify && m != NoKeyUsagePolicy
+}
+
+// reads reports whether the mode waits for a byte from the server. Only
+// DialOnly does not, and under TLS 1.3 that is the difference between finding
+// out you were refused and reporting success.
+func (m Mode) reads() bool {
+	return m != DialOnly
+}
+
+// resumes reports whether the mode reuses TLS sessions, which is the
+// precondition for the resumption hole: there is nothing to skip a check on
+// unless a session is actually resumed.
+func (m Mode) resumes() bool {
+	return m == PolicyInPeerCallback
+}
+
+// rechecksPerConnection reports whether the mode's policy runs on EVERY
+// connection rather than only on a full handshake. A mode whose policy lives in
+// VerifyPeerCertificate does not, because crypto/tls skips that callback on a
+// resumed handshake.
+func (m Mode) rechecksPerConnection() bool {
+	return m != PolicyInPeerCallback
 }

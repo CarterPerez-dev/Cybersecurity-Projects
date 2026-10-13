@@ -163,6 +163,28 @@ const (
 	// detect this, which is the point: it is the CA-compromise scenario, and the
 	// only defences are pinning or certificate transparency. Row F24.
 	CASwap Kind = "ca-swap"
+
+	// ClientCertExpired and ClientCertAbsent are the two MUTUAL TLS faults, and
+	// they are the only traps that act on the target's own identity rather than
+	// on the dependency's.
+	//
+	// khaos is the server here, so it is khaos that demands a client
+	// certificate and khaos that issues the one the target presents. The fault
+	// is in that issued identity: expired, or withheld entirely, which is what
+	// a failed rotation and a bypassed sidecar actually look like.
+	//
+	// What they catch is NOT the rejection -- khaos's server rejects correctly
+	// either way. It is whether the target NOTICES. Research 04 section 7.2
+	// measured the whole ClientAuth matrix and under TLS 1.3 every single row
+	// returned a successful tls.Dial, including the rows where the server
+	// refused the identity and served nothing at all; the error arrives on the
+	// first read. Under TLS 1.2 the same case fails at Dial. So a client that
+	// dials and does not read reports a healthy dependency that refused it, and
+	// the defect is invisible on the older protocol and total on the newer one.
+	//
+	// Rows F27 and F26.
+	ClientCertExpired Kind = "client-cert-expired"
+	ClientCertAbsent  Kind = "client-cert-absent"
 )
 
 const (
@@ -205,6 +227,9 @@ const (
 	describeStapleAbsent  = "omit the stapled revocation response from %s's handshake entirely"
 
 	describeCASwap = "replace the root %s trusts with one khaos controls, and serve a chain that is valid under it"
+
+	describeClientExpired = "require mutual TLS of %s and issue it a client identity that expired %s ago"
+	describeClientAbsent  = "require mutual TLS of %s and issue it no client identity at all"
 )
 
 const (
