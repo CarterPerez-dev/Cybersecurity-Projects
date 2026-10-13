@@ -16,6 +16,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/rangelab"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
+	"github.com/CarterPerez-dev/khaos/internal/tlsclient"
 	"github.com/CarterPerez-dev/khaos/internal/verifier"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ var ErrUnknownFailMode = errors.New("the range has no such fail mode")
 const (
 	flagFailMode = "fail-mode"
 	flagCacheTTL = "cache-ttl"
+	flagTLSMode  = "tls-mode"
 	flagPort     = "port"
 	flagQuiet    = "quiet"
 
@@ -49,6 +51,7 @@ running.`
 
 	failModeUsage = "which bug the range carries. The introspecting gateways understand closed, open and stale-rearm; khaos's verifier gateway understands closed plus one mode per verifier defect, and `khaos range up --fail-mode ?` lists them all. An unrecognised value is refused rather than quietly leaving the range correct"
 	cacheTTLUsage = "how long the gateway caches an authorization decision"
+	tlsModeUsage  = "which reference TLS client the range's TLS gateway runs. `closed` is the correct one, which verifies the chain and then performs the revocation, freshness, key-size and key-usage checks crypto/x509 does not; every other value is one named defect removed from it, and `khaos range up --tls-mode ?` lists them. An unrecognised value is refused rather than quietly leaving the gateway correct, because a gateway that silently became correct would report every certificate experiment as fail-closed"
 	portUsage     = "host port for the gateway; the default is a random high port chosen at startup"
 	quietUsage    = "suppress compose build and start output"
 
@@ -67,6 +70,7 @@ running.`
 	msgTierDirect   = "docker-native tier  %s"
 	msgTierProxied  = "proxy tier          %s, with khaos's fault proxy expected on host port %d"
 	msgTierVerifier = "identity tier       %s, trusting khaos's provider as %s"
+	msgTierTLS      = "certificate tier    %s, dialling khaos's authority at %s as the %s client"
 )
 
 func newRangeCmd() *cobra.Command {
@@ -99,6 +103,10 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			tlsMode, err := cmd.Flags().GetString(flagTLSMode)
+			if err != nil {
+				return err
+			}
 			port, err := cmd.Flags().GetInt(flagPort)
 			if err != nil {
 				return err
@@ -112,6 +120,7 @@ func newRangeUpCmd() *cobra.Command {
 				cmd.OutOrStdout(),
 				failMode,
 				cacheTTL,
+				tlsMode,
 				port,
 				quiet,
 			)
@@ -120,6 +129,7 @@ func newRangeUpCmd() *cobra.Command {
 
 	cmd.Flags().String(flagFailMode, rangelab.FailModeShut, failModeUsage)
 	cmd.Flags().String(flagCacheTTL, "2s", cacheTTLUsage)
+	cmd.Flags().String(flagTLSMode, string(tlsclient.Correct), tlsModeUsage)
 	cmd.Flags().Int(flagPort, 0, portUsage)
 	cmd.Flags().Bool(flagQuiet, false, quietUsage)
 
@@ -197,13 +207,21 @@ func knownFailModes() []string {
 func runRangeUp(
 	ctx context.Context,
 	out io.Writer,
-	failMode, cacheTTL string,
+	failMode, cacheTTL, tlsMode string,
 	port int,
 	quiet bool,
 ) error {
 	if !slices.Contains(knownFailModes(), failMode) {
 		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
 			strings.Join(knownFailModes(), listSep))
+	}
+
+	// Refused here rather than inside the container, because a gateway handed
+	// an unrecognised mode has nobody to return an error to and a fixture that
+	// silently became correct would report every certificate experiment as
+	// fail-closed. The run would be green and the finding would be gone.
+	if _, err := tlsclient.ParseMode(tlsMode); err != nil {
+		return err
 	}
 
 	work, err := workspace.OpenExclusive(ctx)
@@ -243,7 +261,7 @@ func runRangeUp(
 			return err
 		}
 
-		err = lab.Up(ctx, progress, failMode, cacheTTL)
+		err = lab.Up(ctx, progress, failMode, cacheTTL, tlsMode)
 		if err == nil {
 			break
 		}
@@ -350,6 +368,18 @@ func describeEntryPoints(
 				msgTierVerifier,
 				lab.VerifierProtectedURL(),
 				lab.Issuer,
+			),
+		)
+	}
+
+	if lab.TLSPort != 0 {
+		say(
+			out,
+			fmt.Sprintf(
+				msgTierTLS,
+				lab.TLSProtectedURL(),
+				lab.Dependency,
+				lab.TLSMode,
 			),
 		)
 	}

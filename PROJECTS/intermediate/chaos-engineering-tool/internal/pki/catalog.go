@@ -65,6 +65,18 @@ const (
 	RouteCRL    = "/crl"
 	RouteOCSP   = "/ocsp"
 	RouteHealth = "/healthz"
+
+	// RouteRoot serves the DER of the root the TARGET is configured to trust,
+	// which is how a client discovers its trust anchor from a running
+	// authority.
+	//
+	// It exists because CASwap is otherwise inexpressible. That fault replaces
+	// the anchor at ARM time, after the target started, so a target that
+	// baked a root in at startup could never experience it. Serving the anchor
+	// here and having the target read it per request is what a substituted
+	// trust store actually is: managed out of band, and changed without the
+	// application being asked.
+	RouteRoot = "/root"
 )
 
 // Kinds is the whole catalogue, in the order the research groups it: validity,

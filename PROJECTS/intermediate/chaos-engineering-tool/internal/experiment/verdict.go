@@ -153,10 +153,14 @@ const (
 	reasonRecoveryUnobserved = "khaos collected no usable recovery evidence, so it cannot say whether the target came back; this is not the same as it having come back"
 	reasonPartialOutage      = "the target was unreachable for %d of %d probes during the fault, so the measurement is mixed"
 	reasonDefect             = "this experiment declares %s to be the defect for this control"
-	reasonNotDefect          = "this experiment declares %s to be acceptable for this control, so the deviation is recorded without calling it a defect"
-	reasonInterrupted        = "the run was interrupted before it finished, so nothing it measured is conclusive"
-	reasonRollback           = "the fault could not be fully reverted, so the target may still be degraded"
-	reasonFaultUnconfirmed   = "khaos could not confirm the fault actually took effect, so nothing measured during the run can be attributed to it"
+	// Deliberately NOT "the deviation". Now that HELD is put to the polarity
+	// like every other direction, this sentence has to be true of a run that
+	// held as well as one that deviated, and calling a clean hold a deviation
+	// would be wrong in the report an operator actually reads.
+	reasonNotDefect        = "this experiment declares %s to be acceptable for this control, so it is recorded without calling it a defect"
+	reasonInterrupted      = "the run was interrupted before it finished, so nothing it measured is conclusive"
+	reasonRollback         = "the fault could not be fully reverted, so the target may still be degraded"
+	reasonFaultUnconfirmed = "khaos could not confirm the fault actually took effect, so nothing measured during the run can be attributed to it"
 
 	reasonUnsupported        = "the target never performed %s: it did not contact %s once during the baseline, so there was no check to fail and its acceptance is not a defect. khaos makes no security claim here"
 	reasonNothingToRevoke    = "the credential this experiment intends to revoke was never accepted during the baseline, so the target was not honouring it and revoking it takes nothing away"
@@ -435,13 +439,28 @@ func finish(
 		verdict.Reasons = append(verdict.Reasons, observation.HeldCaveat)
 	}
 
-	if verdict.Direction != Held {
-		verdict.Defect = polarity.IsDefect(verdict.Direction)
-		verdict.Reasons = append(
-			verdict.Reasons,
-			polarity.Explain(verdict.Direction),
-		)
-	}
+	// EVERY direction is put to the polarity, including HELD.
+	//
+	// This used to skip Held, on the assumption that a control which held is
+	// never a defect. That is the same mistake the design document warns about
+	// in the other direction -- "above all, that failing open is always a
+	// defect" -- hard-coded one layer BELOW the mechanism that exists to stop
+	// it being hard-coded. An experiment could declare Held a defect and the
+	// declaration was inert.
+	//
+	// The `tls.` family is where it bites. khaos presents a certificate it
+	// deliberately broke; a target that carries on unchanged has ACCEPTED it,
+	// and "nothing looks wrong" is precisely the finding. Reported as HELD with
+	// no defect, that run exited 0 and cleared a target that will talk to
+	// anything presenting a certificate.
+	//
+	// Undetermined is unaffected: no polarity lists it, so IsDefect is false
+	// for it either way.
+	verdict.Defect = polarity.IsDefect(verdict.Direction)
+	verdict.Reasons = append(
+		verdict.Reasons,
+		polarity.Explain(verdict.Direction),
+	)
 
 	return verdict
 }

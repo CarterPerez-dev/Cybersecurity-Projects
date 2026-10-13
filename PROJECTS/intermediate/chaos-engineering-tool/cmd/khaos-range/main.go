@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/pki"
+	"github.com/CarterPerez-dev/khaos/internal/tlsclient"
 	"github.com/CarterPerez-dev/khaos/internal/verifier"
 )
 
@@ -20,6 +22,7 @@ const (
 	roleIDP      = "idp"
 	roleGateway  = "gateway"
 	roleVerifier = "verifier"
+	roleTLS      = "tls"
 	roleHealth   = "healthcheck"
 
 	envListen   = "KHAOS_RANGE_LISTEN"
@@ -29,6 +32,13 @@ const (
 
 	defaultListen   = ":8080"
 	defaultUpstream = "http://idp:8080"
+
+	// Both deliberately unreachable. khaos's authority is not a container and
+	// its address is chosen per run, so a default that looked plausible would
+	// let the gateway start and silently measure nothing; these fail loudly
+	// and the baseline refuses, which voids the run instead.
+	defaultDependency    = "https://host.docker.internal:0"
+	defaultAuthorityBase = "http://host.docker.internal:0"
 
 	shutdownGrace = 2 * time.Second
 
@@ -40,7 +50,7 @@ const (
 	// header timeout exists only to stop a wedged connection living forever.
 	readHeaderTimeout = 120 * time.Second
 
-	usage       = "usage: khaos-range <idp|gateway|verifier|healthcheck>"
+	usage       = "usage: khaos-range <idp|gateway|verifier|tls|healthcheck>"
 	selfURL     = "http://127.0.0.1:8080/health"
 	healthWait  = 2 * time.Second
 	errorFormat = "khaos-range: %v\n"
@@ -115,6 +125,16 @@ func roleHandler(role string) (http.Handler, error) {
 			envOr(envFailMode, string(verifier.Correct)),
 			durationOr(envKeyTTL, verifier.DefaultKeyTTL),
 			durationOr(envCacheTTL, verifier.DefaultDecisionTTL),
+		).routes(), nil
+	case roleTLS:
+		return newTLSGateway(
+			envOr(envUpstream, defaultUpstream),
+			envOr(envDependency, defaultDependency),
+			envOr(envAuthorityBase, defaultAuthorityBase),
+			envOr(envCertHost, pki.DefaultHost),
+			envOr(envFailMode, FailClosed),
+			envOr(envTLSMode, string(tlsclient.Correct)),
+			durationOr(envCacheTTL, defaultCacheTTL),
 		).routes(), nil
 	default:
 		return nil, errors.New(usage)

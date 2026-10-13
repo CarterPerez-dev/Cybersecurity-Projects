@@ -40,7 +40,7 @@ tidy-check:
 
 check: lint tidy-check test colors
 
-gate: check race smoke survive range-gate proxy-gate identity-gate family-gate
+gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate
 
 colors: build
     ./scripts/colors.sh
@@ -62,6 +62,9 @@ identity-gate: build
 
 family-gate: build
     ./scripts/family.sh
+
+tls-gate: build
+    ./scripts/tls.sh
 
 clean:
     rm -f {{binary}}

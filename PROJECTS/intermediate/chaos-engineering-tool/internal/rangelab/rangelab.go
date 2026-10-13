@@ -54,6 +54,12 @@ const (
 
 	EnvTLSPort = "KHAOS_RANGE_TLS_PORT"
 
+	// The two ports khaos binds in its OWN process for the certificate tier.
+	// They go into the compose file because the gateway's environment is fixed
+	// at container creation and it has to know where to look.
+	EnvAuthorityPort  = "KHAOS_RANGE_AUTHORITY_PORT"
+	EnvDependencyPort = "KHAOS_RANGE_TLS_DEPENDENCY_PORT"
+
 	// EnvDependency is the URL the TLS gateway dials for its dependency, and
 	// EnvAuthorityBase is where it fetches revocation data. khaos reads BOTH
 	// back from the container rather than remembering what it chose, for the
@@ -141,7 +147,15 @@ type Lab struct {
 	ProxyPort    int
 	VerifierPort int
 	IdPPort      int
-	TLSPort      int
+
+	// TLSPort is the gateway's published port. AuthorityPort and
+	// DependencyPort are where khaos binds its own two listeners, and they are
+	// held here only so `range up` can put them in the compose environment:
+	// once the range is running, khaos reads the addresses back out of the
+	// gateway's own configuration rather than trusting these.
+	TLSPort        int
+	AuthorityPort  int
+	DependencyPort int
 
 	// Dependency, AuthorityBase and CertHost are read back from the TLS
 	// gateway's own environment, never remembered from what `range up` chose.
@@ -150,6 +164,12 @@ type Lab struct {
 	Dependency    string
 	AuthorityBase string
 	CertHost      string
+
+	// TLSMode is which reference client the TLS gateway is running. It is read
+	// back like the others and is the only one of them that is optional,
+	// because the gateway has a working default and khaos needs this purely to
+	// tell an operator what the fixture is currently being.
+	TLSMode string
 
 	// Issuer is the EXACT string the verifier gateway was configured with, read
 	// back from its environment. khaos has to mint tokens whose `iss` matches it
@@ -171,7 +191,10 @@ func Locate(ports Ports) (Lab, error) {
 		ProxyPort:    ports.Proxy,
 		VerifierPort: ports.Verifier,
 		IdPPort:      ports.IdP,
-		TLSPort:      ports.TLS,
+
+		TLSPort:        ports.TLS,
+		AuthorityPort:  ports.Authority,
+		DependencyPort: ports.Dependency,
 	}, nil
 }
 
@@ -181,7 +204,15 @@ type Ports struct {
 	Proxy    int
 	Verifier int
 	IdP      int
-	TLS      int
+
+	// TLS is the gateway's own published port. Authority and Dependency are the
+	// two listeners KHAOS binds in its own process: the revocation endpoints
+	// and the faulted dependency. The compose file needs all three, because the
+	// gateway addresses the last two and its environment is fixed at container
+	// creation.
+	TLS        int
+	Authority  int
+	Dependency int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct. Each
@@ -214,6 +245,8 @@ func FreePorts() (Ports, error) {
 		&chosen.Verifier,
 		&chosen.IdP,
 		&chosen.TLS,
+		&chosen.Authority,
+		&chosen.Dependency,
 	} {
 		port, err := pick()
 		if err != nil {
@@ -347,7 +380,7 @@ func (l Lab) ProxiedProtectedURL() string {
 func (l Lab) Up(
 	ctx context.Context,
 	out io.Writer,
-	failMode, cacheTTL string,
+	failMode, cacheTTL, tlsMode string,
 ) error {
 	environ := append(os.Environ(),
 		EnvGatewayPort+"="+strconv.Itoa(l.Port),
@@ -355,8 +388,12 @@ func (l Lab) Up(
 		EnvProxyPort+"="+strconv.Itoa(l.ProxyPort),
 		EnvVerifierPort+"="+strconv.Itoa(l.VerifierPort),
 		EnvIdPPort+"="+strconv.Itoa(l.IdPPort),
+		EnvTLSPort+"="+strconv.Itoa(l.TLSPort),
+		EnvAuthorityPort+"="+strconv.Itoa(l.AuthorityPort),
+		EnvDependencyPort+"="+strconv.Itoa(l.DependencyPort),
 		EnvFailMode+"="+failMode,
 		EnvCacheTTL+"="+cacheTTL,
+		EnvTLSMode+"="+tlsMode,
 	)
 
 	if err := l.compose(
@@ -386,6 +423,9 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvProxyPort+"="+strconv.Itoa(teardownPort),
 		EnvVerifierPort+"="+strconv.Itoa(teardownPort),
 		EnvIdPPort+"="+strconv.Itoa(teardownPort),
+		EnvTLSPort+"="+strconv.Itoa(teardownPort),
+		EnvAuthorityPort+"="+strconv.Itoa(teardownPort),
+		EnvDependencyPort+"="+strconv.Itoa(teardownPort),
 	)
 
 	return l.compose(
@@ -667,6 +707,11 @@ func (l *Lab) readAuthorityWiring(
 
 		*want.into = value
 	}
+
+	// Optional, because the gateway has a working default for it and nothing
+	// khaos decides depends on the value. It is read only so `range up` can
+	// tell an operator which client the fixture is being.
+	l.TLSMode = environ[EnvTLSMode]
 
 	return nil
 }

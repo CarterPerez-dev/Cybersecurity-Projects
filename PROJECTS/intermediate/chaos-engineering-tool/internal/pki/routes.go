@@ -30,8 +30,18 @@ func (a *Authority) routes() http.Handler {
 	mux.HandleFunc(RouteCRL, a.serveCRL)
 	mux.HandleFunc(RouteOCSP, a.serveOCSP)
 	mux.HandleFunc(RouteHealth, a.serveHealth)
+	mux.HandleFunc(RouteRoot, a.serveRoot)
 
 	return mux
+}
+
+// serveRoot answers with the root the TARGET is configured to trust, which is
+// the one CASwap replaces. It is deliberately not the chain's own anchor: for
+// UntrustedCA those two differ, and that difference IS the fault.
+func (a *Authority) serveRoot(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set(headerType, mimeDER)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(a.TrustedRoot().Raw)
 }
 
 // dependencyRoutes is what khaos answers once a client has got through the

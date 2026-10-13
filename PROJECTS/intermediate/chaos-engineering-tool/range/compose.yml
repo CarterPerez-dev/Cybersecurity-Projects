@@ -109,6 +109,58 @@ services:
     networks: [range]
     restart: "no"
 
+  # The fourth gateway, and the only one that reaches a dependency over TLS from
+  # a certificate authority khaos controls. No correct CA will mint an expired,
+  # revoked or wrongly-named certificate at any price, so the whole `tls.`
+  # family needs a target whose dependency is khaos itself.
+  #
+  # It is a FOURTH service for the same reason the others are separate: a
+  # certificate fault lands on a path no other gateway uses, and repointing an
+  # existing gateway would change what the suites already measuring it assert.
+  #
+  # Authorization is the ordinary introspection decision against the idp
+  # container, unchanged. The only thing this gateway adds is a PRECONDITION:
+  # the TLS dependency has to be usable before any authorization happens. That
+  # is what makes the three outcomes distinguishable -- accepting a bad
+  # certificate looks like nothing is wrong, refusing it and declining to serve
+  # is correct, and refusing it and serving anyway is the defect.
+  gateway-tls:
+    container_name: khaos-range-gateway-tls
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["tls"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      # The dependency khaos plays, and where this gateway fetches its trust
+      # anchor and revocation data. Both are host.docker.internal because khaos
+      # runs them in its own process on the host, not in a container.
+      KHAOS_RANGE_DEPENDENCY: "https://host.docker.internal:${KHAOS_RANGE_TLS_DEPENDENCY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_AUTHORITY_BASE: "http://host.docker.internal:${KHAOS_RANGE_AUTHORITY_PORT:?khaos chooses this port; run `khaos range up`}"
+      # The name this gateway asks for. khaos mints for exactly this, or every
+      # certificate is refused on the hostname for a reason unrelated to the
+      # trap.
+      KHAOS_RANGE_CERT_HOST: "${KHAOS_RANGE_CERT_HOST:-dependency.khaos.invalid}"
+      # Which reference client it runs. `closed` is the correct one; the broken
+      # modes are what the exit gate drives it through.
+      KHAOS_RANGE_TLS_MODE: "${KHAOS_RANGE_TLS_MODE:-closed}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_TLS_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks: [range]
+    restart: "no"
+
 networks:
   range:
     name: khaos-range

@@ -18,6 +18,7 @@ const (
 	schemeHTTP  = "http://"
 	mimePKIX    = "application/pkix-crl"
 	mimeOCSP    = "application/ocsp-response"
+	mimeDER     = "application/pkix-cert"
 	headerType  = "Content-Type"
 	healthBody  = "ok"
 	maxOCSPBody = 64 << 10
