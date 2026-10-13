@@ -41,6 +41,12 @@ const (
 	// escaped into something real can never resolve.
 	DefaultHost = "dependency.khaos.invalid"
 
+	// loopbackSAN is the IP the honest leaf carries so that NoIPSAN has
+	// something to take away. khaos binds loopback in tests and a bridge
+	// address in a container, and this SAN only has to exist for the trap to be
+	// expressible -- the hostname faults are what judge the names.
+	loopbackSAN = "127.0.0.1"
+
 	// clockSlack backdates every honest certificate slightly. Without it a leaf
 	// minted and presented in the same millisecond can land on the wrong side
 	// of a NotBefore comparison on a machine whose clock ticks between the two,

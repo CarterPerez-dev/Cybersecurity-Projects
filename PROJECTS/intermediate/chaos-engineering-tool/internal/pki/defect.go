@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"time"
+
+	"golang.org/x/crypto/ocsp"
 )
 
 // build assembles the chain for one trap. Every trap starts from the HONEST
@@ -33,7 +35,48 @@ func (a *Authority) build(trap Trap) (*Chain, error) {
 	// faults produced one, then StapleAbsent would serve exactly what the
 	// baseline serves and the fault would be inert. The control test for this
 	// file is what caught that.
-	return a.staple(trap, chain, now)
+	if chain, err = a.staple(trap, chain, now); err != nil {
+		return nil, err
+	}
+
+	return a.publish(trap, chain, now)
+}
+
+// publish mints the revocation artefacts this chain's endpoints will serve, at
+// ARM time, so that everything the authority does under a trap is decided here
+// and nothing is derived from the trap record at request time.
+func (a *Authority) publish(
+	trap Trap,
+	chain *Chain,
+	now time.Time,
+) (*Chain, error) {
+	chain.crlOut = trap.Kind == CRLUnreachable
+	chain.ocspOut = trap.Kind == OCSPUnreachable
+
+	list, err := a.CRLFor(trap, chain, now)
+	if err != nil {
+		return nil, err
+	}
+
+	chain.crl = list
+
+	if trap.Kind == OCSPTryLater {
+		// A protocol-level refusal rather than a transport one. The responder
+		// IS reachable and IS answering; it is declining to say, which is the
+		// exact shape that exploits a soft-failing client.
+		chain.ocsp = ocsp.TryLaterErrorResponse
+
+		return chain, nil
+	}
+
+	answer, err := a.ocspFor(trap, chain, now)
+	if err != nil {
+		return nil, err
+	}
+
+	chain.ocsp = answer
+
+	return chain, nil
 }
 
 func (a *Authority) chainFor(

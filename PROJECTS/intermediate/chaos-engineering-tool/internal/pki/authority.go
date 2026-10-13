@@ -109,6 +109,17 @@ type Authority struct {
 	trap  Trap
 	armed *Chain
 
+	// swapped is BUILT state, not derived from the trap, and the distinction is
+	// what makes the confirmation oracle honest.
+	//
+	// UntrustedCA and CASwap build the IDENTICAL chain under the rogue
+	// hierarchy; the only difference between them is what the target trusts. So
+	// the trusted root cannot come from the chain, and reading it off trap.Kind
+	// instead meant an INERT authority -- one that records a trap and builds
+	// nothing -- would report the swap as confirmed. The oracle's negative
+	// control would have been passing against a fault that never happened.
+	swapped bool
+
 	// inert makes every arming a no-op while still reporting success. It is the
 	// NEGATIVE CONTROL for the confirmation oracle: without a way to make the
 	// authority refuse to misbehave, a gutted Observe that always says yes
@@ -243,7 +254,7 @@ func (a *Authority) TrustedRoot() *x509.Certificate {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	if a.trap.Kind == CASwap {
+	if a.swapped {
 		return a.rogueRoot.cert
 	}
 
@@ -268,7 +279,16 @@ func (a *Authority) Arm(trap Trap) error {
 		return fmt.Errorf(errArmTrap, ErrInvalidTrap, err)
 	}
 
+	// An inert authority RECORDS the trap and builds nothing. Recording it is
+	// deliberate: it makes the confirmation oracle run its real observable
+	// against honest material, rather than short-circuiting on the
+	// wrong-trap-armed guard and never reaching the branch under test.
 	if a.inert.Load() {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+
+		a.trap = trap
+
 		return nil
 	}
 
@@ -282,6 +302,7 @@ func (a *Authority) Arm(trap Trap) error {
 
 	a.trap = trap
 	a.armed = chain
+	a.swapped = trap.Kind == CASwap
 
 	return nil
 }
@@ -300,6 +321,7 @@ func (a *Authority) Disarm() error {
 
 	a.trap = Trap{}
 	a.armed = honest
+	a.swapped = false
 
 	return nil
 }

@@ -42,6 +42,34 @@ type Chain struct {
 	// staple at all. Go never parses this; it is delivered to the application
 	// verbatim, which is what makes both stapling faults reachable.
 	Staple []byte
+
+	// crl and ocsp are the bytes the endpoints serve, minted at ARM time and
+	// served verbatim.
+	//
+	// They live here rather than being minted per request for two reasons. A
+	// real CA publishes a revocation list and does not regenerate it for each
+	// fetch, so a freshness window that slid forward on every request was
+	// wrong on its own terms. And minting from the trap at request time meant
+	// an INERT authority -- one that records a trap and builds nothing -- still
+	// served a revoked list, so thirteen traps confirmed against a fault that
+	// never happened. The oracle's negative control caught it.
+	crl  []byte
+	ocsp []byte
+
+	// crlOut and ocspOut say whether each endpoint answers at all. Built state
+	// for the same reason, since an unreachable endpoint cannot be expressed in
+	// pre-minted bytes.
+	crlOut  bool
+	ocspOut bool
+}
+
+// CRL and OCSP are what the endpoints serve for this chain.
+func (c *Chain) CRL() ([]byte, bool) {
+	return c.crl, !c.crlOut
+}
+
+func (c *Chain) OCSP() ([]byte, bool) {
+	return c.ocsp, !c.ocspOut
 }
 
 // TLS is the chain as crypto/tls wants it: leaf first, then whatever

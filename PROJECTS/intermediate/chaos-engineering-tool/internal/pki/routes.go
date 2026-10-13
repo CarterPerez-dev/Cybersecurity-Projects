@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	"golang.org/x/crypto/ocsp"
 )
 
 const (
@@ -59,16 +57,16 @@ func (a *Authority) serveHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, healthBody)
 }
 
+// serveCRL and serveOCSP serve what the ARMED CHAIN carries, and dispatch on
+// nothing.
+//
+// Neither reads the trap. Everything either of them does was decided when the
+// chain was built, which is what keeps an authority that armed nothing serving
+// honest material: deriving the answer from the trap record here meant an inert
+// authority still published a revoked list, and thirteen traps confirmed
+// against a fault that had not happened.
 func (a *Authority) serveCRL(w http.ResponseWriter, r *http.Request) {
 	a.countCRL(r)
-
-	trap := a.Trap()
-
-	if trap.Kind == CRLUnreachable {
-		refuse(w)
-
-		return
-	}
 
 	chain, err := a.Served()
 	if err != nil {
@@ -77,9 +75,9 @@ func (a *Authority) serveCRL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	der, err := a.CRLFor(trap, chain, a.clock())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	der, reachable := chain.CRL()
+	if !reachable {
+		refuse(w)
 
 		return
 	}
@@ -92,29 +90,6 @@ func (a *Authority) serveCRL(w http.ResponseWriter, r *http.Request) {
 func (a *Authority) serveOCSP(w http.ResponseWriter, r *http.Request) {
 	a.countOCSP(r)
 
-	trap := a.Trap()
-
-	switch trap.Kind {
-	case OCSPUnreachable:
-		refuse(w)
-
-		return
-
-	case OCSPTryLater:
-		// A protocol-level refusal, not a transport one. The responder IS
-		// reachable and IS answering; it is declining to say. Research 04 calls
-		// soft-fail the reason revocation is near-useless in practice, and this
-		// is the exact shape that exploits it.
-		w.Header().Set(headerType, mimeOCSP)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(ocsp.TryLaterErrorResponse)
-
-		return
-
-	default:
-		// Every other trap answers with a real, signed response.
-	}
-
 	chain, err := a.Served()
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -122,9 +97,9 @@ func (a *Authority) serveOCSP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	der, err := a.ocspFor(trap, chain, a.clock())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	der, reachable := chain.OCSP()
+	if !reachable {
+		refuse(w)
 
 		return
 	}

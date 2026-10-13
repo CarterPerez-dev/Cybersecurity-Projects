@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -149,8 +150,15 @@ func leafTemplate(host string, now time.Time, days int) (
 		SerialNumber: number,
 		Subject:      pkix.Name{CommonName: host},
 		DNSNames:     []string{host},
-		NotBefore:    now.Add(-clockSlack),
-		NotAfter:     now.AddDate(0, 0, days),
+
+		// The honest leaf carries a loopback IP SAN so that NoIPSAN has
+		// something to REMOVE. Without it the honest certificate has no IP SANs
+		// either, that trap serves material identical to the control, and its
+		// observable confirmed against an authority that armed nothing.
+		IPAddresses: []net.IP{net.ParseIP(loopbackSAN)},
+
+		NotBefore: now.Add(-clockSlack),
+		NotAfter:  now.AddDate(0, 0, days),
 		KeyUsage: x509.KeyUsageDigitalSignature |
 			x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
