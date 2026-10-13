@@ -29,6 +29,14 @@ var testAnswers = rangeAnswers{
 	Authority:     "http://127.0.0.1:30009",
 	ProxyListen:   "10.0.0.1:30003",
 	ProxyUpstream: "172.20.0.5:8080",
+
+	// The base URL is NOT the listen address, deliberately. khaos binds a
+	// bridge address and the container addresses host.docker.internal, so a
+	// fixture that made them equal would agree with a bug.
+	AuthorityListen: "10.0.0.1:30006",
+	AuthorityTLS:    "10.0.0.1:30007",
+	AuthorityBase:   "http://host.docker.internal:30006",
+	CertHost:        "dependency.khaos.invalid",
 }
 
 // refuser fails the test if khaos goes looking for a range it was never meant to
@@ -133,7 +141,7 @@ func TestRangeSuppliesIsExactlyTheKeySetOfRangeDefaults(t *testing.T) {
 // allTiers is every tier the range serves. A test that iterated only the two it
 // knew about would go on passing while a whole gateway's answers drifted.
 func allTiers() []tier {
-	return []tier{tierDirect, tierProxy, tierIdP}
+	return []tier{tierDirect, tierProxy, tierIdP, tierTLS}
 }
 
 func tierName(at tier) string {
@@ -142,6 +150,8 @@ func tierName(at tier) string {
 		return "through the proxy"
 	case tierIdP:
 		return "against khaos's own provider"
+	case tierTLS:
+		return "against khaos's own certificate authority"
 	default:
 		return "direct"
 	}
@@ -157,6 +167,11 @@ func fullLab() rangelab.Lab {
 		VerifierPort: 30004,
 		IdPPort:      30005,
 		Issuer:       "http://host.docker.internal:30005",
+
+		TLSPort:       30008,
+		Dependency:    "https://host.docker.internal:30007",
+		AuthorityBase: "http://host.docker.internal:30006",
+		CertHost:      "dependency.khaos.invalid",
 	}
 }
 
@@ -692,13 +707,14 @@ func TestTheRangeCanSatisfyEveryExperimentsRequiredParameters(t *testing.T) {
 	}
 }
 
-// The range carries THREE gateways and they are not interchangeable. Each one
+// The range carries FOUR gateways and they are not interchangeable. Each one
 // exists so one injection tier is measured on a path nothing else contaminates:
 // a proxy-tier experiment arms a fault on the path only the proxied gateway
-// uses, and an identity-tier one arms a provider only the verifier gateway
-// resolves keys from. Pointing either at the wrong gateway measures a service
-// with no causal connection to the fault and reports a clean survival over an
-// armed fault.
+// uses, an identity-tier one arms a provider only the verifier gateway resolves
+// keys from, and a certificate-tier one arms an authority only the TLS gateway
+// dials. Pointing any of them at the wrong gateway measures a service with no
+// causal connection to the fault and reports a clean survival over an armed
+// fault.
 func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 	t *testing.T,
 ) {
@@ -708,6 +724,7 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierDirect: lab.ProtectedURL(),
 		tierProxy:  lab.ProxiedProtectedURL(),
 		tierIdP:    lab.VerifierProtectedURL(),
+		tierTLS:    lab.TLSProtectedURL(),
 	}
 
 	seen := map[string]tier{}
@@ -736,12 +753,21 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 					definition.Name, definition.FaultKind, answered, want[at])
 			}
 
-			// The identity tier's target is the gateway rather than the
+			// The two in-process tiers name their GATEWAY rather than the
 			// dependency, because that is the container khaos needs consent for
-			// and the one it actually measures.
+			// and the one it actually measures. The fault lands on khaos's own
+			// provider or authority, which is not a container at all, so naming
+			// the dependency would ask consent for something this experiment
+			// never touches and leave the measured service unchecked.
 			wantTarget := rangelab.IDPName
-			if at == tierIdP {
+
+			switch at {
+			case tierIdP:
 				wantTarget = rangelab.VerifierGatewayName
+			case tierTLS:
+				wantTarget = rangelab.TLSGatewayName
+			default:
+				// The direct and proxy tiers fault the dependency itself.
 			}
 
 			if answered := defaults[experiment.ParamTarget]; answered != wantTarget {

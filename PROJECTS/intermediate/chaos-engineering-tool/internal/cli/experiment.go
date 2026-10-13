@@ -109,8 +109,11 @@ enforcing in the first place.`
 	errIdPBind                = "khaos could not bind its identity provider on %s, which is where the range's verifier gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
 	errIssuerPort             = "%w: khaos's identity provider must bind the port its issuer names, and %q does not name a usable one (%v); pass --issuer as a URL with an explicit port, such as http://host.docker.internal:45000"
 	msgIdPUp                  = "khaos's identity provider is listening on %s, issuing as %s"
-	errProxyBind              = "khaos could not bind its fault proxy on %s, which is where the range's proxied gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
-	msgProxyUp                = "khaos's fault proxy is listening on %s, forwarding to %s"
+
+	errAuthorityBind = "khaos could not bind its certificate authority on %s, which is where the range's TLS gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
+	msgAuthorityUp   = "khaos's certificate authority is serving the dependency on %s and revocation on %s, minting for %s"
+	errProxyBind     = "khaos could not bind its fault proxy on %s, which is where the range's proxied gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
+	msgProxyUp       = "khaos's fault proxy is listening on %s, forwarding to %s"
 
 	groupExperiments = "experiments"
 	titleExperiments = "Experiments:"
@@ -512,39 +515,12 @@ func runExperiment(
 		return err
 	}
 
-	// The proxy has to be up before the BASELINE, not before the fault. The
-	// baseline is measured through it, so a proxy that arrives at injection time
-	// would make the two phases travel different paths and the difference between
-	// them would be the proxy rather than the fault.
-	env := work.Env()
-
-	if spec.ProxyFault != nil {
-		fault, err := startProxy(ctx, out, work.Docker, spec)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = fault.Close() }()
-
-		env.Proxy = fault
-		env.ProxyFault = *spec.ProxyFault
+	env, closeTiers, err := standUpTiers(ctx, out, work, spec)
+	if err != nil {
+		return err
 	}
 
-	// The provider has to be listening before the BASELINE for the same reason
-	// the proxy does: the baseline is measured through it, so a provider that
-	// arrived at injection time would make the two phases see different
-	// topologies and the difference between them would be khaos rather than the
-	// fault. The experiment already BUILT it, because its probes mint out of it
-	// and minting needs no listener; all that is left is to bind it where the
-	// target is already looking.
-	if spec.IdPTrap != nil {
-		if err := startProvider(ctx, out, work.Docker, spec); err != nil {
-			return err
-		}
-		defer func() { _ = spec.IdP.Close() }()
-
-		env.IdP = spec.IdP
-		env.IdPTrap = *spec.IdPTrap
-	}
+	defer closeTiers()
 
 	session := run.NewSession(env, work.Journal, ttl)
 
@@ -807,6 +783,10 @@ func rangeSupplies() []string {
 		experiment.ParamIssuer,
 		experiment.ParamProxyListen,
 		experiment.ParamProxyUpstream,
+		experiment.ParamAuthorityListen,
+		experiment.ParamAuthorityTLS,
+		experiment.ParamAuthorityBase,
+		experiment.ParamCertHost,
 	}
 }
 
@@ -822,6 +802,7 @@ const (
 	tierDirect tier = iota
 	tierProxy
 	tierIdP
+	tierTLS
 )
 
 func tierOf(kind string) tier {
@@ -830,6 +811,8 @@ func tierOf(kind string) tier {
 		return tierProxy
 	case inject.NeedsIdP(kind):
 		return tierIdP
+	case inject.NeedsPKI(kind):
+		return tierTLS
 	default:
 		return tierDirect
 	}
@@ -856,6 +839,23 @@ type rangeAnswers struct {
 	// `range up` chose, for the reason recorded on proxyPortOf.
 	ProxyListen   string
 	ProxyUpstream string
+
+	// Where khaos binds its certificate authority's two listeners, and the URL
+	// the TLS gateway reaches the revocation endpoints by.
+	//
+	// AuthorityBase is NOT derived from AuthorityListen. khaos binds the bridge
+	// gateway's numeric address and the container addresses
+	// `host.docker.internal`, so the two are different strings for the same
+	// endpoint and conflating them is the identity provider's most expensive
+	// bug.
+	AuthorityListen string
+	AuthorityTLS    string
+	AuthorityBase   string
+
+	// CertHost is the name the TLS gateway asks for, read back from its own
+	// configuration for the same reason the issuer is: khaos has to mint for
+	// the name the target expects, character for character.
+	CertHost string
 }
 
 func rangeDefaults(
@@ -880,6 +880,15 @@ func rangeDefaults(
 		url = lab.VerifierProtectedURL()
 		target = rangelab.VerifierGatewayName
 
+	case tierTLS:
+		// The TLS gateway, for the same reason the identity tier names the
+		// verifier gateway: the fault is applied to khaos's own authority and
+		// the gateway is both the subject and the thing khaos needs consent
+		// for. Naming the dependency would ask consent for a container this
+		// experiment never touches.
+		url = lab.TLSProtectedURL()
+		target = rangelab.TLSGatewayName
+
 	default:
 		// The direct tier probes the protected URL and names the provider
 		// container, both of which are already set above.
@@ -895,6 +904,11 @@ func rangeDefaults(
 
 		experiment.ParamProxyListen:   answers.ProxyListen,
 		experiment.ParamProxyUpstream: answers.ProxyUpstream,
+
+		experiment.ParamAuthorityListen: answers.AuthorityListen,
+		experiment.ParamAuthorityTLS:    answers.AuthorityTLS,
+		experiment.ParamAuthorityBase:   answers.AuthorityBase,
+		experiment.ParamCertHost:        answers.CertHost,
 	}
 }
 
@@ -1115,6 +1129,119 @@ func startProvider(
 	return nil
 }
 
+// standUpTiers starts whichever of khaos's own in-process tiers this experiment
+// needs, and returns a closer for all of them.
+//
+// Every one of them has to be answering before the BASELINE, not before the
+// fault, and that is the same reason three times over: the baseline is measured
+// through them, so a proxy, a provider or an authority that arrived at
+// injection time would make the two phases travel different paths and the
+// difference between them would be KHAOS rather than the fault.
+//
+// The closer is returned rather than deferred here, because deferring inside
+// this function would tear the tiers down before the run that measures through
+// them has started.
+func standUpTiers(
+	ctx context.Context,
+	out io.Writer,
+	work *workspace.Workspace,
+	spec experiment.Experiment,
+) (inject.Env, func(), error) {
+	env := work.Env()
+
+	var closers []func()
+
+	closeAll := func() {
+		for _, close := range closers {
+			close()
+		}
+	}
+
+	if spec.ProxyFault != nil {
+		fault, err := startProxy(ctx, out, work.Docker, spec)
+		if err != nil {
+			return env, closeAll, err
+		}
+
+		closers = append(closers, func() { _ = fault.Close() })
+
+		env.Proxy = fault
+		env.ProxyFault = *spec.ProxyFault
+	}
+
+	// The experiment already BUILT the provider, because its probes mint out of
+	// it and minting needs no listener. All that is left is to bind it where the
+	// target is already looking.
+	if spec.IdPTrap != nil {
+		if err := startProvider(ctx, out, work.Docker, spec); err != nil {
+			return env, closeAll, err
+		}
+
+		closers = append(closers, func() { _ = spec.IdP.Close() })
+
+		env.IdP = spec.IdP
+		env.IdPTrap = *spec.IdPTrap
+	}
+
+	// The authority plays the dependency the target dials, so without it the
+	// baseline measures a dependency that is simply absent.
+	if spec.PKITrap != nil {
+		if err := startAuthority(out, spec); err != nil {
+			return env, closeAll, err
+		}
+
+		closers = append(closers, func() { _ = spec.Authority.Close() })
+
+		env.Authority = spec.Authority
+		env.PKITrap = *spec.PKITrap
+	}
+
+	return env, closeAll, nil
+}
+
+// startAuthority stands khaos's certificate authority up on BOTH of its
+// listeners, before the baseline.
+//
+// Before the baseline and not before the fault, for the same reason the proxy
+// and the provider are: the baseline is measured through this authority, so one
+// that arrived at injection time would make the two phases see different
+// topologies and the difference between them would be khaos rather than the
+// fault.
+//
+// Both addresses come from the experiment's parameters, which the range answers
+// and an operator can override. Nothing here is discovered, because the TLS
+// gateway is already dialling a specific address and khaos does not get to pick
+// a different one.
+func startAuthority(
+	out io.Writer,
+	spec experiment.Experiment,
+) error {
+	if err := spec.Authority.Listen(spec.AuthorityListen); err != nil {
+		return fmt.Errorf(errAuthorityBind, spec.AuthorityListen, err)
+	}
+
+	if err := spec.Authority.ListenTLS(spec.AuthorityTLS); err != nil {
+		return fmt.Errorf(errAuthorityBind, spec.AuthorityTLS, err)
+	}
+
+	// An HONEST chain, minted before anything is probed. Without it the
+	// authority has nothing armed, the baseline handshake falls back to a chain
+	// built per connection, and the leaf's serial changes under the target
+	// while khaos is trying to revoke it.
+	if err := spec.Authority.Disarm(); err != nil {
+		return err
+	}
+
+	note(out, fmt.Sprintf(
+		msgAuthorityUp,
+		spec.AuthorityTLS,
+		spec.AuthorityListen,
+		spec.Authority.Host(),
+	))
+
+	return nil
+}
+
 // portOf reads the port an issuer names. It is the one thing khaos needs from
 // the issuer beyond minting under it, and a missing or unusable port is a
 // refusal by name rather than a bind to something arbitrary.
@@ -1185,6 +1312,24 @@ func askTheRange(
 			return rangeAnswers{}, err
 		}
 		answers.Authority = authority
+	}
+
+	// All four together, because a certificate experiment needs every one of
+	// them and asking for them separately would let a run start with khaos
+	// bound where the gateway is not looking.
+	if want(experiment.ParamAuthorityListen) ||
+		want(experiment.ParamAuthorityTLS) ||
+		want(experiment.ParamAuthorityBase) ||
+		want(experiment.ParamCertHost) {
+		wiring, err := lab.AuthorityEndpoint(ctx, reader)
+		if err != nil {
+			return rangeAnswers{}, err
+		}
+
+		answers.AuthorityListen = wiring.Listen
+		answers.AuthorityTLS = wiring.TLS
+		answers.AuthorityBase = wiring.Base
+		answers.CertHost = wiring.Host
 	}
 
 	return answers, nil

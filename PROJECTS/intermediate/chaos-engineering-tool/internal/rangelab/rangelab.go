@@ -29,11 +29,19 @@ const (
 	GatewayName         = "khaos-range-gateway"
 	ProxiedGatewayName  = "khaos-range-gateway-proxied"
 	VerifierGatewayName = "khaos-range-gateway-verifier"
-	IDPName             = "khaos-range-idp"
-	LabelRange          = "khaos.range"
-	FailModeOpen        = "open"
-	FailModeShut        = "closed"
-	FailModeStaleRearm  = "stale-rearm"
+
+	// TLSGatewayName is the FOURTH gateway. Each one exists so a single
+	// injection tier is measured on a path nothing else contaminates: this one
+	// reaches its dependency over TLS and khaos's certificate authority plays
+	// that dependency, so a certificate fault lands on a path no other gateway
+	// uses.
+	TLSGatewayName = "khaos-range-gateway-tls"
+
+	IDPName            = "khaos-range-idp"
+	LabelRange         = "khaos.range"
+	FailModeOpen       = "open"
+	FailModeShut       = "closed"
+	FailModeStaleRearm = "stale-rearm"
 
 	EnvGatewayPort  = "KHAOS_RANGE_GATEWAY_PORT"
 	EnvProxiedPort  = "KHAOS_RANGE_PROXIED_PORT"
@@ -43,6 +51,26 @@ const (
 	EnvIssuer       = "KHAOS_RANGE_ISSUER"
 	EnvFailMode     = "KHAOS_RANGE_FAIL_MODE"
 	EnvCacheTTL     = "KHAOS_RANGE_CACHE_TTL"
+
+	EnvTLSPort = "KHAOS_RANGE_TLS_PORT"
+
+	// EnvDependency is the URL the TLS gateway dials for its dependency, and
+	// EnvAuthorityBase is where it fetches revocation data. khaos reads BOTH
+	// back from the container rather than remembering what it chose, for the
+	// same reason it reads the issuer back: the container addresses
+	// `host.docker.internal` and khaos binds a numeric bridge address, so the
+	// strings differ for the same endpoint.
+	EnvDependency    = "KHAOS_RANGE_DEPENDENCY"
+	EnvAuthorityBase = "KHAOS_RANGE_AUTHORITY_BASE"
+
+	// EnvCertHost is the name the TLS gateway asks for in its handshake. khaos
+	// mints for exactly this, or every certificate is refused on the hostname
+	// for a reason that has nothing to do with the trap.
+	EnvCertHost = "KHAOS_RANGE_CERT_HOST"
+
+	// EnvTLSMode selects which reference client the TLS gateway runs, so the
+	// range can be a correct client or any one of the broken ones.
+	EnvTLSMode = "KHAOS_RANGE_TLS_MODE"
 
 	composeDir  = "range"
 	composeFile = "compose.yml"
@@ -91,6 +119,7 @@ const (
 	errNoIssuer          = "%w: %s does not carry %s, so khaos cannot tell which issuer that gateway trusts"
 	errBadIssuer         = "%w: %s trusts the issuer %q, which khaos cannot read as a host and port (%v)"
 	errNoVerifierGateway = "%w: this experiment arms khaos's own identity provider, and the running range has no %s; bring the range down and up again to create it"
+	errNoTLSGateway      = "%w: this experiment arms khaos's own certificate authority, and the running range has no %s; bring the range down and up again to create it"
 )
 
 // Port is the direct gateway's published port. ProxiedPort is the second
@@ -112,6 +141,15 @@ type Lab struct {
 	ProxyPort    int
 	VerifierPort int
 	IdPPort      int
+	TLSPort      int
+
+	// Dependency, AuthorityBase and CertHost are read back from the TLS
+	// gateway's own environment, never remembered from what `range up` chose.
+	// The container is the only authority on where it will actually look and
+	// what name it will ask for.
+	Dependency    string
+	AuthorityBase string
+	CertHost      string
 
 	// Issuer is the EXACT string the verifier gateway was configured with, read
 	// back from its environment. khaos has to mint tokens whose `iss` matches it
@@ -133,6 +171,7 @@ func Locate(ports Ports) (Lab, error) {
 		ProxyPort:    ports.Proxy,
 		VerifierPort: ports.Verifier,
 		IdPPort:      ports.IdP,
+		TLSPort:      ports.TLS,
 	}, nil
 }
 
@@ -142,6 +181,7 @@ type Ports struct {
 	Proxy    int
 	Verifier int
 	IdP      int
+	TLS      int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct. Each
@@ -167,7 +207,14 @@ func FreePorts() (Ports, error) {
 
 	chosen := Ports{}
 
-	for _, into := range []*int{&chosen.Gateway, &chosen.Proxied, &chosen.Proxy, &chosen.Verifier, &chosen.IdP} {
+	for _, into := range []*int{
+		&chosen.Gateway,
+		&chosen.Proxied,
+		&chosen.Proxy,
+		&chosen.Verifier,
+		&chosen.IdP,
+		&chosen.TLS,
+	} {
 		port, err := pick()
 		if err != nil {
 			return Ports{}, err
@@ -558,7 +605,70 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return Lab{}, err
 	}
 
+	// The TLS gateway is discovered on the same terms as the other two: absent
+	// is not fatal, because every experiment that does not arm khaos's own
+	// certificate authority has no use for it, and failing the whole discovery
+	// over it would break all of them.
+	tlsGateway, ok := running[TLSGatewayName]
+	if !ok {
+		return lab, nil
+	}
+
+	if lab.TLSPort, err = reader.PublishedPort(
+		ctx,
+		tlsGateway.ID,
+		GatewayInternalPort,
+	); err != nil {
+		return Lab{}, err
+	}
+
+	if err = lab.readAuthorityWiring(
+		ctx,
+		reader,
+		tlsGateway.ID,
+	); err != nil {
+		return Lab{}, err
+	}
+
 	return lab, nil
+}
+
+// readAuthorityWiring reads the three strings the TLS gateway was configured
+// with, out of its own environment, for the same reason issuerOf does: the
+// container is the only authority on what it will dial, where it will fetch
+// revocation data, and what name it will ask for.
+func (l *Lab) readAuthorityWiring(
+	ctx context.Context,
+	reader PortReader,
+	containerID string,
+) error {
+	environ, err := reader.ContainerEnv(ctx, containerID)
+	if err != nil {
+		return err
+	}
+
+	for _, want := range []struct {
+		key  string
+		into *string
+	}{
+		{EnvDependency, &l.Dependency},
+		{EnvAuthorityBase, &l.AuthorityBase},
+		{EnvCertHost, &l.CertHost},
+	} {
+		value := environ[want.key]
+		if value == "" {
+			return fmt.Errorf(
+				errNoIssuer,
+				ErrRangeIncomplete,
+				TLSGatewayName,
+				want.key,
+			)
+		}
+
+		*want.into = value
+	}
+
+	return nil
 }
 
 // issuerOf reads the issuer out of the verifier gateway's own environment rather
@@ -626,6 +736,104 @@ func (l Lab) VerifierGatewayURL() string {
 
 func (l Lab) VerifierProtectedURL() string {
 	return l.VerifierGatewayURL() + protectedPath
+}
+
+func (l Lab) TLSGatewayURL() string {
+	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.TLSPort))
+}
+
+func (l Lab) TLSProtectedURL() string {
+	return l.TLSGatewayURL() + protectedPath
+}
+
+// AuthorityEndpoint says where khaos must bind its certificate authority's two
+// listeners, and the two strings it must mint under.
+//
+// The listen addresses are the DEFAULT bridge's gateway, discovered rather than
+// assumed, which is the same measured fact the fault proxy and the identity
+// provider both rest on: a container reaches a host listener there, a listener
+// on the target network's own gateway is unreachable, and binding only loopback
+// leaves khaos dead to every container.
+//
+// The base URL and the certificate host come back UNCHANGED from the gateway's
+// own environment. They are what the container will actually use, and khaos
+// binding one address while minting for another is how every credential ends up
+// refused for a reason unrelated to the fault.
+func (l Lab) AuthorityEndpoint(
+	ctx context.Context,
+	reader PortReader,
+) (AuthorityWiring, error) {
+	if l.TLSPort == 0 || l.AuthorityBase == "" || l.CertHost == "" {
+		return AuthorityWiring{}, fmt.Errorf(
+			errNoTLSGateway,
+			ErrRangeIncomplete,
+			TLSGatewayName,
+		)
+	}
+
+	gatewayIP, err := reader.BridgeGateway(ctx)
+	if err != nil {
+		return AuthorityWiring{}, err
+	}
+
+	dependencyPort, err := portOfURL(l.Dependency)
+	if err != nil {
+		return AuthorityWiring{}, err
+	}
+
+	basePort, err := portOfURL(l.AuthorityBase)
+	if err != nil {
+		return AuthorityWiring{}, err
+	}
+
+	return AuthorityWiring{
+		Listen: net.JoinHostPort(gatewayIP, strconv.Itoa(basePort)),
+		TLS:    net.JoinHostPort(gatewayIP, strconv.Itoa(dependencyPort)),
+		Base:   l.AuthorityBase,
+		Host:   l.CertHost,
+	}, nil
+}
+
+// AuthorityWiring is everything a certificate experiment needs to stand khaos's
+// authority up where the TLS gateway is already looking for it.
+type AuthorityWiring struct {
+	// Listen and TLS are host addresses khaos binds.
+	Listen string
+	TLS    string
+
+	// Base is the URL the TARGET uses for revocation, and Host is the name it
+	// asks for. Neither is derived from the addresses above.
+	Base string
+	Host string
+}
+
+// portOfURL reads the port the container was configured to use. khaos binds
+// THAT port on the bridge address, because the container is already addressing
+// it and khaos does not get to pick.
+func portOfURL(raw string) (int, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			TLSGatewayName,
+			raw,
+			err,
+		)
+	}
+
+	port, err := strconv.Atoi(parsed.Port())
+	if err != nil || port <= 0 {
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			TLSGatewayName,
+			raw,
+			err,
+		)
+	}
+
+	return port, nil
 }
 
 // IdPEndpoint says where khaos must bind its in-process identity provider and

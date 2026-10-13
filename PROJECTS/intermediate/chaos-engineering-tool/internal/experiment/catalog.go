@@ -14,6 +14,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
+	"github.com/CarterPerez-dev/khaos/internal/pki"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
@@ -68,6 +69,21 @@ type Shape struct {
 	// probes mint out of it.
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
+
+	// Authority and PKITrap are set only by an experiment that arms khaos's own
+	// certificate authority, which plays the dependency whose certificate is
+	// under test.
+	Authority *pki.Authority
+	PKITrap   *pki.Trap
+
+	// AuthorityBase is the URL the TARGET uses to reach the authority's CRL and
+	// OCSP endpoints, and AuthorityListen is where khaos binds them. They are
+	// separate because the target addresses khaos by a name khaos cannot see
+	// from its own listener, and deriving one from the other is the identity
+	// provider's most expensive bug.
+	AuthorityBase   string
+	AuthorityListen string
+	AuthorityTLS    string
 
 	// Defect names what khaos did to the credential, for the verdict's wording.
 	Defect string
@@ -251,15 +267,21 @@ func Build(
 		ProxyUpstream: shape.ProxyUpstream,
 		IdP:           shape.IdP,
 		IdPTrap:       shape.IdPTrap,
-		Defect:        shape.Defect,
-		HeldCaveat:    shape.HeldCaveat,
-		Consulted:     shape.Consulted,
-		ConsultedWhat: shape.ConsultedWhat,
-		Unsupportable: shape.Unsupportable,
-		IdleFor:       shape.IdleFor,
-		Act:           shape.Act,
-		ActDetail:     shape.ActDetail,
-		Timing:        timing,
+
+		Authority:       shape.Authority,
+		PKITrap:         shape.PKITrap,
+		AuthorityBase:   shape.AuthorityBase,
+		AuthorityListen: shape.AuthorityListen,
+		AuthorityTLS:    shape.AuthorityTLS,
+		Defect:          shape.Defect,
+		HeldCaveat:      shape.HeldCaveat,
+		Consulted:       shape.Consulted,
+		ConsultedWhat:   shape.ConsultedWhat,
+		Unsupportable:   shape.Unsupportable,
+		IdleFor:         shape.IdleFor,
+		Act:             shape.Act,
+		ActDetail:       shape.ActDetail,
+		Timing:          timing,
 	}
 
 	if shape.Condition != "" {

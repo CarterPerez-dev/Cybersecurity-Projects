@@ -12,6 +12,7 @@ import (
 
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
+	"github.com/CarterPerez-dev/khaos/internal/pki"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
@@ -132,6 +133,16 @@ type Experiment struct {
 	// listener: the run only has to bind it where the target is already looking.
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
+
+	// Authority and PKITrap are non-nil only for an experiment that arms
+	// khaos's own certificate authority. AuthorityBase is the URL the TARGET
+	// reaches its revocation endpoints by, which is pinned rather than derived
+	// from wherever khaos binds.
+	Authority       *pki.Authority
+	PKITrap         *pki.Trap
+	AuthorityBase   string
+	AuthorityListen string
+	AuthorityTLS    string
 
 	// Defect names what khaos did to the credential the finding is about, in
 	// words, so the verdict can state the actual observation rather than a

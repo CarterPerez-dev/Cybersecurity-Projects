@@ -15,6 +15,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
+	"github.com/CarterPerez-dev/khaos/internal/pki"
 	"github.com/moby/moby/api/types/network"
 )
 
@@ -51,6 +52,13 @@ type Env struct {
 	ProxyFault proxy.Fault
 	IdP        *idp.Provider
 	IdPTrap    idp.Trap
+
+	// Authority and PKITrap are the FOURTH injection tier: khaos's own
+	// certificate authority, playing the dependency whose certificate is under
+	// test. Like the identity provider it holds no capabilities and serves
+	// nothing but the target.
+	Authority *pki.Authority
+	PKITrap   pki.Trap
 }
 
 // Plan discovers everything the revert will need and returns it so the caller
@@ -157,6 +165,19 @@ func NeedsIdP(kind string) bool {
 	}
 	_, isIdP := mutator.(idpMutator)
 	return isIdP
+}
+
+// NeedsPKI reports whether this mutation arms khaos's certificate authority, so
+// the run knows to stand one up before the baseline.
+func NeedsPKI(kind string) bool {
+	mutator, ok := registry[kind]
+	if !ok {
+		return false
+	}
+
+	_, isPKI := mutator.(pkiMutator)
+
+	return isPKI
 }
 
 type pauseMutator struct{}
