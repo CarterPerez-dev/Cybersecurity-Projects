@@ -12,22 +12,10 @@ import (
 
 const caveatOneKeyForm = "this run keyed the forged MAC on the %s serialization only, and the same bug is unreachable under the wrong one; a target that loaded its key differently is not ruled out until each of %s has been tried"
 
-// The forgery experiments. Each one makes khaos's own identity provider mint a
-// credential that is wrong in EXACTLY ONE named way, leaves everything else
-// correct, and asks whether the target notices.
-//
-// Every one of them is anchored to a published CVE or a normative rule, and
-// every one has a different fix. That is why they are ten entries in the
-// catalogue rather than one experiment with a `--trap` flag: an operator reading
-// `khaos catalog` is reading a list of bugs to go and fix, and "accepts an
-// unsigned token" and "ignores the expiry claim" are not two settings of one
-// bug.
-//
-// The forged stream's baseline expectation is ACCEPTED for all ten, and that is
-// not a formality. khaos's provider mints correctly until the trap is armed, so
-// a target that refuses even those credentials is not pointed at khaos's
-// provider at all, and without the guard every one of these experiments would
-// report a clean survival against a target it never actually tested.
+// Each forgery experiment mints a credential wrong in EXACTLY ONE named way and
+// leaves everything else correct. The forged stream's baseline expectation is
+// ACCEPTED for all ten, because khaos's provider mints correctly until the trap
+// is armed: a target refusing even those is not pointed at khaos's provider.
 const (
 	NameAlgNone            = "identity.alg_none"
 	NameAlgConfusion       = "identity.alg_confusion"
@@ -76,8 +64,6 @@ const (
 	conditionSignatureWeakKey   = "%s being offered a token signed under an undersized key"
 )
 
-// The defect phrase goes into the verdict, so it has to read as a sentence
-// fragment naming what was wrong with the credential the target accepted.
 const (
 	defectAlgNone            = "no signature at all and a header saying so"
 	defectAlgConfusion       = "an HMAC keyed on its issuer's own public key"
@@ -92,9 +78,7 @@ const (
 )
 
 // forged declares a forgery experiment. The wiring is identical across all ten
-// because the shape is identical: the provider mints correctly until it is
-// armed, so the forged stream mints per sample and has to have been accepted
-// during the baseline.
+// because the shape is.
 func forged(
 	name, summary, condition, defect string,
 	trap idp.Kind,
@@ -115,10 +99,8 @@ func forged(
 		spec.magnitude = claimShiftMagnitude
 	case idp.AlgConfusion:
 		spec.magnitude = keyFormMagnitude
-		// Research 07's T2 is explicit that this bug is UNREACHABLE under the
-		// wrong serialization, and khaos tries one per run. An unqualified
-		// "no bypass was observed" would be khaos claiming it ruled out
-		// algorithm confusion when it ruled out one of four ways to express it.
+		// This bug is unreachable under the wrong key serialization and khaos
+		// tries one per run, so a HELD rules out one expression, not the bug.
 		spec.heldCaveat = func(params *Params) string {
 			return sprintf(
 				caveatOneKeyForm,
@@ -129,9 +111,6 @@ func forged(
 
 	default:
 		// Every other trap keeps the magnitude and caveat the caller declared.
-		// Falling through is the safe direction here: a missing override leaves a
-		// declared value in place, where a wrong override would change the fault
-		// khaos actually applies.
 	}
 
 	return spec

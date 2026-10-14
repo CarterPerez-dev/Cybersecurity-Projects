@@ -26,26 +26,15 @@ var ErrNoAuthority = errors.New(
 	"this mutation needs khaos's certificate authority, which is not running",
 )
 
-// PKIKind names the mutation that arms one trap on khaos's certificate
-// authority. The trap kinds and the mutation kinds are one-to-one, so `khaos
-// catalog` names the actual defect being provoked rather than a generic
-// "certificate" entry.
+// PKIKind is one-to-one with the trap kinds, so the catalogue names the actual
+// defect rather than a generic "certificate" entry.
 func PKIKind(kind pki.Kind) string {
 	return KindPKIPrefix + string(kind)
 }
 
-// pkiMutator arms a trap on khaos's in-process certificate authority.
-//
-// This is a FOURTH tier, and it exists for the same reason the identity
-// provider does: the other three cannot express the fault. Pausing a dependency
-// or severing the path to it makes it unreachable, where every trap here leaves
-// it REACHABLE and presenting a certificate that is wrong in one specific way.
-// A client's behaviour on an unreachable dependency and its behaviour on one
-// whose identity it cannot verify are different code paths reached by different
-// bugs, and only the second is a TLS finding.
-//
-// No correct CA will mint an expired, revoked or wrongly-named certificate at
-// any price, which is why khaos has to be the CA.
+// pkiMutator leaves the dependency REACHABLE and presenting a certificate
+// wrong in one specific way, which is the only shape that is a TLS finding. No
+// correct CA mints an expired or revoked certificate, so khaos has to be the CA.
 type pkiMutator struct {
 	kind pki.Kind
 }
@@ -66,11 +55,8 @@ func (m pkiMutator) Describe(env Env, target dockerx.Target) string {
 	return fmt.Sprintf(describePKI, trap.Describe(target.Name))
 }
 
-// Plan journals the trap that is about to be armed. Everything this tier needs
-// is known at build time, so unlike the identity tier's revocation there is
-// nothing to resolve here -- but the trap is still validated before it reaches
-// the journal, because a record that cannot be armed is a record `khaos
-// reclaim` would retry forever.
+// Plan validates before journaling, because a record that cannot be armed is
+// one `khaos reclaim` would retry forever.
 func (m pkiMutator) Plan(
 	_ context.Context,
 	env Env,
@@ -120,14 +106,9 @@ func (m pkiMutator) Apply(
 	return env.Authority.Arm(trap)
 }
 
-// Revert disarms, which re-mints an honest chain so the recovery window is
-// measured through a WORKING authority rather than through no authority at all.
-//
-// A cold start has no authority to disarm and that is RESOLVED rather than
-// failed: the authority died with the process that held it, so the fault
-// provably went with it. Reporting that as a failure would wedge the journal
-// record forever and, because `khaos reap` stops on a sweep error, would
-// disable the dead man's switch for every other fault on the machine.
+// Revert re-mints an honest chain, so recovery is measured through a WORKING
+// authority. A cold start has nothing to disarm and is RESOLVED rather than
+// failed: the authority died with the process, so the fault went with it.
 func (m pkiMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
 	if env.Authority == nil {
 		return nil
@@ -136,16 +117,9 @@ func (m pkiMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
 	return env.Authority.Disarm()
 }
 
-// Confirm delegates to the authority's own read-back, which compares what it
-// SERVES against an honest chain from the same authority and returns the
-// specific observable it saw.
-//
-// It deliberately does not read the flag that was set. A flag records which
-// branch was chosen, not what a target would receive, and an authority whose
-// minting broke would confirm a trap it is not producing. The oracle's negative
-// control found fifteen traps that could be confirmed against an authority
-// which had armed nothing at all, every one of them because something was
-// derived from the trap record instead of from the served material.
+// Confirm compares what the authority SERVES against an honest chain from it,
+// never the flag that was set: a flag records which branch was chosen, so an
+// authority whose minting broke would confirm a trap it is not producing.
 func (m pkiMutator) Confirm(
 	ctx context.Context,
 	env Env,
@@ -163,6 +137,5 @@ func (m pkiMutator) Confirm(
 }
 
 // Prefix declares this tier's kinds to the registry, which keeps `khaos inject`
-// from offering them: the certificate authority is a goroutine inside a run and
-// `khaos inject` starts none.
+// from offering them: the authority is a goroutine inside a run.
 func (pkiMutator) Prefix() string { return KindPKIPrefix }

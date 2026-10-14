@@ -179,16 +179,8 @@ func newRangeStatusCmd() *cobra.Command {
 	}
 }
 
-// knownFailModes is every value the range answers to, across both kinds of
-// gateway. The introspecting gateways understand three and khaos's verifier
-// gateway understands ten, and an unrecognised value leaves EVERY gateway
-// behaving correctly.
-//
-// That makes a typo the worst possible outcome: the range comes up, nothing is
-// broken, and all eighteen identity experiments report a clean survival against
-// a stack that was supposed to be carrying the bug. Refusing by name is the only
-// safe behaviour, and the refusal lists what is available because nobody is
-// going to remember ten mode names.
+// knownFailModes is every value the range answers to. An unrecognised one
+// would leave EVERY gateway behaving correctly, so a typo is refused by name.
 func knownFailModes() []string {
 	modes := []string{
 		rangelab.FailModeShut,
@@ -217,10 +209,7 @@ func runRangeUp(
 			strings.Join(knownFailModes(), listSep))
 	}
 
-	// Refused here rather than inside the container, because a gateway handed
-	// an unrecognised mode has nobody to return an error to and a fixture that
-	// silently became correct would report every certificate experiment as
-	// fail-closed. The run would be green and the finding would be gone.
+	// Refused here because the container has nobody to return an error to.
 	if _, err := tlsclient.ParseMode(tlsMode); err != nil {
 		return err
 	}
@@ -243,10 +232,7 @@ func runRangeUp(
 	var lab rangelab.Lab
 
 	for attempt := range portAttempts {
-		// Only the direct gateway's port is pinnable. The other two are khaos's
-		// own plumbing: the second gateway's published port and the port that
-		// gateway expects khaos's fault proxy on. Letting an operator pin those
-		// would be a footgun with no use case.
+		// Only the direct gateway's port is pinnable; the others are plumbing.
 		ports, err := rangelab.FreePorts()
 		if err != nil {
 			return err
@@ -262,10 +248,8 @@ func runRangeUp(
 			return err
 		}
 
-		// A fresh nonce per `range up`, for the same reason khaos mints a fresh
-		// key set per run: a nonce that outlived the range would let anything
-		// that had seen a previous one arm the resolver, and the resolver shares
-		// a network with every target in there.
+		// A fresh nonce per `range up`: one that outlived the range would let
+		// anything that had seen it arm the resolver.
 		nonce, err := newNonce()
 		if err != nil {
 			return err
@@ -290,11 +274,8 @@ func runRangeUp(
 	note(out, msgTokenHint)
 	fmt.Fprintln(out)
 
-	// Printed from the containers rather than from what khaos just chose, which
-	// is the same discipline the proxy port is read back under: the container is
-	// the only authority on where it will actually dial and what issuer it will
-	// actually trust. Printing khaos's intent instead would hide exactly the
-	// mismatch this is most useful for.
+	// Read back from the containers, which are the only authority on where
+	// they will actually dial and which issuer they will trust.
 	describeEntryPoints(ctx, out, work.Docker)
 
 	return nil
@@ -338,12 +319,7 @@ func runRangeStatus(ctx context.Context, out io.Writer) error {
 
 	fmt.Fprintln(out)
 
-	// The entry points, which the container listing cannot give. It shows three
-	// gateways with truncated names and says nothing about which one is reached
-	// how, so an operator could not find the second or third tier from khaos's
-	// own output at all. Each tier is probed at a different URL and the whole
-	// point of running the same experiment against two of them is being able to
-	// address both.
+	// The container listing says nothing about which tier is reached how.
 	describeEntryPoints(ctx, out, work.Docker)
 
 	return nil

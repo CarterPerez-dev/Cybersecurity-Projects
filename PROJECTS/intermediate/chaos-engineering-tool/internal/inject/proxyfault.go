@@ -33,16 +33,14 @@ var ErrProxyFaultMismatch = errors.New(
 	"the armed proxy fault does not match the mutation being applied",
 )
 
-// ProxyKind names the mutation that arms one proxy fault. The proxy fault kinds
-// and the mutation kinds are deliberately one-to-one, so `khaos catalog` names
+// ProxyKind is one-to-one with the proxy fault kinds, so the catalogue names
 // the actual fault rather than a generic "proxy" entry.
 func ProxyKind(kind proxy.Kind) string {
 	return KindProxyPrefix + string(kind)
 }
 
-// proxyMutator arms a fault on khaos's in-process proxy. The whole mutation is a
-// single atomic pointer swap, which is why this tier cannot half-apply and why
-// its rollback cannot partially fail.
+// proxyMutator's whole mutation is a single atomic pointer swap, which is why
+// this tier cannot half-apply and its rollback cannot partially fail.
 type proxyMutator struct {
 	kind proxy.Kind
 }
@@ -54,10 +52,8 @@ func init() {
 	}
 }
 
-// Describe states the fault the operator is about to consent to, with its actual
-// magnitude. Reading the kind alone and leaving the parameters at zero printed
-// "delay every byte ... by 0s" for a three second latency fault, which is the
-// plan line understating the fault it is asking permission for.
+// Describe carries the actual magnitude; the kind alone prints a zero where the
+// magnitude belongs and understates what it asks permission for.
 func (m proxyMutator) Describe(env Env, target dockerx.Target) string {
 	fault := env.ProxyFault
 	if fault.Kind != m.kind {
@@ -67,9 +63,8 @@ func (m proxyMutator) Describe(env Env, target dockerx.Target) string {
 	return fmt.Sprintf(describeProxy, fault.Describe(target.Name))
 }
 
-// Plan journals the fault that is about to be armed. For every other tier the
-// payload is what the revert needs; here it is also the only durable record of
-// what the run actually did, since the proxy itself dies with the process.
+// Plan's payload is also the only durable record of what the run did, since
+// the proxy itself dies with the process.
 func (m proxyMutator) Plan(
 	_ context.Context,
 	env Env,
@@ -113,11 +108,8 @@ func (m proxyMutator) Apply(
 	return env.Proxy.Arm(fault)
 }
 
-// Revert disarms. A cold start has no proxy to disarm, and that is RESOLVED
-// rather than failed: the proxy died with the process that held it, so the fault
-// provably went with it. Reporting that as a failure would wedge the journal
-// record forever and, because `khaos reap` stops on a sweep error, would disable
-// the dead man's switch for every other fault on the machine.
+// Revert on a cold start has no proxy to disarm, and that is RESOLVED rather
+// than failed: the proxy died with the process, so the fault went with it.
 func (m proxyMutator) Revert(
 	_ context.Context,
 	env Env,
@@ -132,13 +124,9 @@ func (m proxyMutator) Revert(
 	return nil
 }
 
-// Confirm delegates to the proxy's own socket-level read-back and returns the
-// specific observable it measured, so the run record says what was actually seen
-// rather than a constant describing the technique. It deliberately does NOT
-// compare counters: a counter incremented by the dispatcher records which branch
-// was chosen, not what reached the wire, so counter comparison confirms a fault
-// that is not armed and confirms a severing fault while the dependency is fully
-// reachable.
+// Confirm returns what the proxy's socket-level read-back measured, never a
+// counter: a counter records which branch the dispatcher chose, so it would
+// confirm a severing fault while the dependency is fully reachable.
 func (m proxyMutator) Confirm(
 	ctx context.Context,
 	env Env,

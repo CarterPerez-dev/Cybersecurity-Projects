@@ -28,21 +28,13 @@ const (
 	mimeJSON          = "application/json"
 	mimeText          = "text/plain"
 
-	// DefaultAudience and DefaultSubject are what khaos's provider puts in every
-	// honest token. They are constants rather than parameters because the target
-	// has to be configured with the same audience at container creation, and a
-	// knob on both ends that must agree is a knob that will disagree.
+	// Fixed, not configurable: the target is built with this audience too.
 	DefaultAudience = "khaos-range"
 	DefaultSubject  = "khaos-operator"
 
-	// ForeignAudience and ForeignIssuer are the second tenant. The wrong-audience
-	// and foreign-issuer traps address tokens to these, and a verifier that
-	// accepts either has stopped treating its own identity as a constraint.
 	ForeignAudience = "khaos-range-other"
 	ForeignIssuerID = "https://khaos.invalid/second-tenant"
 
-	// DefaultLifetime is long enough that no run expires a token it is using and
-	// short enough to be a plausible access-token lifetime.
 	DefaultLifetime = 10 * time.Minute
 
 	opaquePrefix = "khaos-opaque-"
@@ -72,46 +64,25 @@ var ErrTrapNotObserved = errors.New(
 
 var ErrNoSuchGrant = errors.New("that credential was never issued here")
 
-// armedTrap is the whole mutable fault state, swapped as one value so a handler
-// can never read a trap from one revert and a generation from another. It is the
-// same discipline the fault proxy uses, and for the same reason: arming has to
-// be indivisible or a probe can observe a half-applied fault.
+// armedTrap is swapped as one value, so a trap and a generation always agree.
 type armedTrap struct {
 	trap       Trap
 	generation uint64
 }
 
-// keySnapshot is the key state as it stood before a rotating trap was armed.
-// Reverting restores it, so the recovery phase measures the provider the
-// baseline measured rather than a provider the fault permanently changed.
 type keySnapshot struct {
 	signing *Key
 	retired []*Key
 }
 
-// grant is one opaque credential the provider issued. Introspection answers from
-// these, and revoking one flips active rather than deleting it, so a revert can
-// put it back and the recovery phase means something.
+// Revoking a grant flips active rather than deleting it, so Disarm can undo it.
 type grant struct {
 	subject string
 	active  bool
 }
 
-// Provider is khaos's own OIDC-shaped identity provider: a programmable signing
-// oracle with a JWK Set, an introspection endpoint and a kill switch.
-//
-// It is hand-built rather than adopted, and research 07 section 4.2 is blunt
-// about why: ten of the traps need a provider that will deliberately emit a
-// malformed token, and four more need it to break its own endpoints on command
-// and report how many times it was fetched. A correct provider does none of
-// that, and that is not a gap in Keycloak or Dex, it is the definition of their
-// being correct.
-//
-// The cost is stated out loud: this is not a conformance-tested OP and khaos
-// must never claim it validates OIDC conformance. It validates VERIFIERS.
-//
-// Minting needs no listener, which is what lets an experiment build its probes
-// before khaos has discovered the address the target is already addressing.
+// Provider is khaos's own OIDC-shaped signing oracle, built to emit malformed
+// tokens and break its own endpoints on command. It validates VERIFIERS.
 type Provider struct {
 	audience        string
 	foreignAudience string
@@ -130,9 +101,7 @@ type Provider struct {
 	grants   map[string]*grant
 	snapshot *keySnapshot
 
-	// revocable is the credential THIS run intends to revoke. The mutator reads
-	// it at inject time rather than at build time, because the probe that issues
-	// it has not fired yet when the experiment is built.
+	// Read at inject time: the probe that issues it has not fired at build.
 	revocable string
 
 	state  atomic.Pointer[armedTrap]
@@ -144,22 +113,10 @@ type Provider struct {
 	server   *http.Server
 	wg       sync.WaitGroup
 
-	// jwksFetches counts every fetch of the key set, and ownFetches counts the
-	// subset khaos's own confirmation probes made. The accessor reports the
-	// difference, because this number is the measurement research 07 requirement
-	// R5 exists for — how often a verifier refetches, which no third-party
-	// provider exposes — and khaos's instrumentation must not appear in the
-	// measurement khaos is taking.
-	//
-	// Subtracting is used rather than a header the handler skips, because a
-	// header is spoofable and the arithmetic is not.
+	// The accessors report the DIFFERENCE, keeping khaos's probes out of it.
 	jwksFetches atomic.Int64
 	ownFetches  atomic.Int64
 
-	// The same arrangement for introspection. This counter is not decoration:
-	// three experiments fault the introspection endpoint, and without a way to
-	// see that the target ever CALLED it they can only report that the target
-	// survived a fault it never experienced.
 	introspects    atomic.Int64
 	ownIntrospects atomic.Int64
 
@@ -170,14 +127,10 @@ type Config struct {
 	Audience string
 	Lifetime time.Duration
 
-	// Now is the clock. Tests control it so a claim trap can be asserted against
-	// a known instant rather than against whatever the wall clock said.
 	Now func() time.Time
 }
 
-// New builds a provider with every key it might ever sign with, and no listener.
-// All five keys are generated up front so arming a trap is a pointer swap rather
-// than a key generation, which keeps the fault indivisible.
+// New generates every key up front, so arming a trap is a pointer swap.
 func New(config Config) (*Provider, error) {
 	if config.Audience == "" {
 		config.Audience = DefaultAudience
@@ -199,19 +152,13 @@ func New(config Config) (*Provider, error) {
 		return nil, err
 	}
 
-	// Published, and never rotated. It exists so an experiment that measures key
-	// ROTATION can still prove the target is serving without the proof itself
-	// disturbing what is being measured: a control token under the current
-	// signing key becomes new-key traffic the moment the key rotates, and that
-	// traffic is exactly what evicts the retired key.
+	// Published and never rotated: a liveness proof is never new-key traffic.
 	stable, err := NewRSAKey()
 	if err != nil {
 		return nil, err
 	}
 
-	// NOT published, ever. The whole claim of the embedded-key trap is that the
-	// verifier resolved a key the provider never advertised, so publishing this
-	// one would make an acceptance unremarkable.
+	// NOT published, ever: the trap's claim is a key never advertised.
 	attacker, err := NewRSAKey()
 	if err != nil {
 		return nil, err
@@ -252,16 +199,10 @@ func (p *Provider) clock() time.Time {
 	return p.now()
 }
 
-// Listen binds the provider where the target is already looking for it. The
-// address is not khaos's choice: the verifier gateway's environment is fixed at
-// container creation, so khaos binds the port that container is addressing
-// rather than one khaos would have picked.
+// Listen binds the address the target was built to address, not khaos's choice.
 func (p *Provider) Listen(addr string) error {
-	// The guard and the bind are under ONE lock acquisition. Releasing between
-	// them let two concurrent calls both pass the guard and both bind, with the
-	// second orphaning the first listener and its goroutine. Holding the lock
-	// across net.Listen is fine: it is a local syscall, not a round trip, and
-	// nothing else can usefully run until the provider has an address.
+	// Guard and bind under ONE acquisition, or two callers both bind and the
+	// second orphans the first listener and its goroutine.
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -286,24 +227,13 @@ func (p *Provider) Listen(addr string) error {
 	p.listener = listener
 	p.server = server
 
-	// Only when nothing pinned one. An explicitly set issuer is the string the
-	// TARGET was configured to trust, and the address khaos listens on is never
-	// that string: khaos binds the bridge gateway's numeric address while the
-	// container addresses `host.docker.internal`.
-	//
-	// Overwriting it here minted every token with `iss` set to khaos's own
-	// listener, and the target refused all of them on the issuer check. The
-	// symptom was `baseline-not-met / "the valid credential was never accepted"`,
-	// which reads as a broken target rather than as khaos sending the wrong
-	// thing, and no unit test saw it because a test that reads Issuer() after
-	// Listen() agrees with itself by construction.
+	// Only when nothing pinned one. A pinned issuer is the string the TARGET
+	// trusts, and khaos's own listener address is never that string.
 	if p.issuer == "" {
 		p.issuer = "http://" + listener.Addr().String()
 	}
 
-	// wg.Add inside the lock, so a Listen racing a Close cannot add to a
-	// WaitGroup that Close is already waiting on — the one misuse the
-	// sync.WaitGroup documentation calls out by name.
+	// Inside the lock, so a Listen racing Close cannot add to a waited group.
 	p.wg.Add(1)
 
 	go func() {
@@ -314,19 +244,13 @@ func (p *Provider) Listen(addr string) error {
 	return nil
 }
 
-// Issuer is the `iss` claim and the base of the JWKS URI. Before Listen it is
-// whatever SetIssuer was told, because the target is configured with the issuer
-// at container creation and khaos has to mint tokens that match it.
 func (p *Provider) Issuer() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.issuer
 }
 
-// SetIssuer pins the issuer khaos mints under, to the value the target was built
-// expecting. A token whose `iss` disagrees with the target's configuration is
-// rejected for a reason that has nothing to do with the trap under test, which
-// reads exactly like a target that caught the trap.
+// SetIssuer pins the issuer to the value the target was built expecting.
 func (p *Provider) SetIssuer(issuer string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -364,8 +288,7 @@ func (p *Provider) Close() error {
 	return err
 }
 
-// Arm swaps the trap in as one value and snapshots any key state the trap is
-// about to change, so Disarm can put it back.
+// Arm swaps the trap in and snapshots the key state Disarm will put back.
 func (p *Provider) Arm(trap Trap) error {
 	select {
 	case <-p.closed:
@@ -377,16 +300,9 @@ func (p *Provider) Arm(trap Trap) error {
 		return err
 	}
 
-	// The snapshot is taken whether or not the state change happens, because it
-	// is what the confirmation oracle compares the published set against. An
-	// inert arm has to leave the oracle able to say NO, and an oracle with
-	// nothing to compare cannot say anything.
+	// Taken even when the arm is inert, or confirmation has nothing to compare.
 	p.snap()
 
-	// Inert skips the state change and nothing else. That is what makes it a
-	// negative control for the two traps that mutate key material and the one
-	// that mutates a grant: the trap reads as armed, the observable never
-	// appears, and confirmation must refuse.
 	if !p.inert.Load() {
 		switch trap.Kind {
 		case KidRollover:
@@ -402,8 +318,7 @@ func (p *Provider) Arm(trap Trap) error {
 				return err
 			}
 		default:
-			// The token traps hold no provider state. They are expressed when a
-			// token is minted, so arming them is just recording the trap.
+			// The token traps hold no provider state; they act at mint time.
 		}
 	}
 
@@ -413,16 +328,7 @@ func (p *Provider) Arm(trap Trap) error {
 	return nil
 }
 
-// snap records the key state as it stands now, once per arming cycle. Disarm
-// restores it and clears it, so a second arming snapshots afresh.
-//
-// It OVERWRITES rather than keeping the first snapshot. The previous version
-// returned early when one existed, so a second Arm without an intervening
-// Disarm left RetiredKid naming the first retired key and made Disarm restore
-// the wrong one — the confirmation oracle would then compare the published set
-// against a kid two rotations old. No path arms twice today; the mutator arms in
-// Apply and disarms in Revert. This is the behaviour that is correct whether or
-// not that stays true.
+// snap OVERWRITES rather than keeping the first snapshot of a cycle.
 func (p *Provider) snap() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -433,10 +339,7 @@ func (p *Provider) snap() {
 	}
 }
 
-// RetiredKid is the key that was signing before the current arming cycle. The
-// confirmation oracle asserts against the PUBLISHED SET rather than against this
-// value, so reading it here cannot make a failed rotation look like a successful
-// one: a rotation that did not happen leaves this kid still published.
+// RetiredKid is the key that was signing before the current arming cycle.
 func (p *Provider) RetiredKid() (string, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -460,13 +363,7 @@ func (p *Provider) Trap() Trap {
 	return p.state.Load().trap
 }
 
-// Inert makes the provider behave correctly while a trap is still armed. It
-// exists so the confirmation oracle has a negative control.
-//
-// Without a way to arm a trap that does NOT happen, every test can only assert
-// that confirmation SUCCEEDS, and a confirmation gutted to `return true`
-// satisfies all of them. The fault proxy paid for that lesson: measured, that
-// gut left all seventeen packages and the Docker gate green.
+// Inert behaves correctly with a trap armed: the oracle's negative control.
 func (p *Provider) Inert(inert bool) {
 	p.inert.Store(inert)
 }
@@ -478,11 +375,7 @@ func (p *Provider) effective() Trap {
 	return p.Trap()
 }
 
-// rotate installs a fresh signing key. With overlap the retired key stays
-// published, which is the availability-preserving rotation every provider is
-// supposed to perform. Without it the retired key is withdrawn immediately,
-// which is what makes a previously valid token unverifiable to anyone who
-// refetches and still valid to anyone who caches forever.
+// rotate installs a fresh signing key; with overlap the old one stays live.
 func (p *Provider) rotate(overlap bool) error {
 	fresh, err := NewRSAKey()
 	if err != nil {
@@ -516,10 +409,7 @@ func (p *Provider) restoreKeys() {
 	p.snapshot = nil
 }
 
-// revoke flips a grant inactive. It refuses a credential the provider never
-// issued rather than silently succeeding, because a revocation that did not
-// happen makes every later acceptance correct behaviour and the run's finding
-// unreachable.
+// revoke refuses an unknown credential rather than silently succeeding.
 func (p *Provider) revoke(credential string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -543,9 +433,7 @@ func (p *Provider) restoreGrants() {
 	}
 }
 
-// HonestToken is always a correct token, whatever is armed. The valid stream
-// carries it, and a stream that drifted into carrying forged tokens would make
-// every verdict read as a crash.
+// HonestToken is always a correct token, whatever is armed.
 func (p *Provider) HonestToken() (string, error) {
 	return p.mintToken(
 		Trap{},
@@ -553,10 +441,6 @@ func (p *Provider) HonestToken() (string, error) {
 	)
 }
 
-// TrappedToken honours whatever is armed. It is what the forged stream carries,
-// and it is also what the rotation experiment's VALID stream carries, because
-// there the question is whether the target accepts a correctly signed token under
-// the provider's new key.
 func (p *Provider) TrappedToken() (string, error) {
 	return p.mintToken(
 		p.effective(),
@@ -564,19 +448,8 @@ func (p *Provider) TrappedToken() (string, error) {
 	)
 }
 
-// StableToken is a correct JWT signed by a key that is always published and
-// never rotated.
-//
-// It is the valid-stream credential for the rotation experiments, and the reason
-// is an observer effect khaos measured on itself. A valid stream minting under
-// the CURRENT signing key supplies new-key traffic after a rotation, and research
-// 07 section 2.3 establishes that the eviction of a retired key is a side effect
-// of exactly that traffic — so khaos was causing the recovery it then reported.
-//
-// An opaque credential also avoids it, and was the first fix, but it requires
-// the target to support introspection, which a JWT-only verifier does not. This
-// one is a JWT, so it works against any verifier, and its kid is in the key set
-// from the baseline onwards, so resolving it never forces a refetch.
+// StableToken is signed by a key that is always published and never rotated,
+// so a valid stream never supplies the traffic that evicts a retired key.
 func (p *Provider) StableToken() (string, error) {
 	p.mu.RLock()
 	stable := p.stable
@@ -585,9 +458,7 @@ func (p *Provider) StableToken() (string, error) {
 	return p.mintSignedBy(stable)
 }
 
-// Opaque issues a credential that carries no claims, so the only way a verifier
-// can decide anything about it is to ask. It is what the introspection traps are
-// measured with.
+// Opaque issues a credential carrying no claims, so a verifier has to ask.
 func (p *Provider) Opaque() string {
 	credential := opaquePrefix + rand.Text()
 
@@ -598,10 +469,7 @@ func (p *Provider) Opaque() string {
 	return credential
 }
 
-// Revocable issues an opaque credential and records it as the one this run
-// intends to revoke, so the mutator can find it at inject time. The probe that
-// calls this has not fired when the experiment is built, which is why the
-// credential cannot travel on the trap from the start.
+// Revocable issues an opaque credential and records it as this run's target.
 func (p *Provider) Revocable() string {
 	credential := p.Opaque()
 
@@ -623,11 +491,7 @@ func (p *Provider) RevocableCredential() (string, error) {
 	return p.revocable, nil
 }
 
-// PublishedSet is every key a verifier may resolve, which is every key khaos
-// signs with EXCEPT the attacker key. The weak and EC keys are always published
-// rather than published on arming, so that a forgery trap changes only what the
-// provider MINTS and a key trap changes only what it SERVES. Confusing the two
-// would make each one's read-back ambiguous.
+// PublishedSet is every key khaos signs with except the attacker key.
 func (p *Provider) PublishedSet() JWKSet {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -661,8 +525,6 @@ func (p *Provider) JWKSFetches() int64 {
 	return p.jwksFetches.Load() - p.ownFetches.Load()
 }
 
-// Introspections is how many times something OTHER than khaos asked about a
-// credential.
 func (p *Provider) Introspections() int64 {
 	return p.introspects.Load() - p.ownIntrospects.Load()
 }

@@ -48,9 +48,7 @@ container's own address.`
 	resolverNamePrefix = "khaos-resolver-"
 	nonceBytes         = dnsrv.NonceBytes
 
-	// readyTimeout and readyInterval are how long khaos waits for the resolver's
-	// health endpoint. A container starting from a one-file image has nothing to
-	// initialise, so this only ever covers scheduling.
+	// A one-file image has nothing to initialise, so this covers scheduling.
 	readyTimeout  = 15 * time.Second
 	readyInterval = 100 * time.Millisecond
 
@@ -92,9 +90,8 @@ var ErrNoZone = errors.New("a chaos resolver needs at least one zone entry")
 
 var ErrNoNetwork = errors.New("a chaos resolver needs a network to serve")
 
-// newServeResolverCmd is hidden because it is khaos's own plumbing: it runs
-// inside the container khaos builds from its own binary, and an operator running
-// it on the host would be told it cannot bind port 53.
+// newServeResolverCmd is hidden because it runs inside the container khaos
+// builds from its own binary, and on the host it could not bind port 53.
 func newServeResolverCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    dockerx.ResolverCommand,
@@ -122,9 +119,8 @@ func runServeResolver(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// From the ENVIRONMENT, not a flag. A command line is world-readable in
-	// `/proc/<pid>/cmdline` (mode 444, measured) and the nonce is the only
-	// authorisation for arming and disarming khaos's DNS faults.
+	// Not a flag: /proc/<pid>/cmdline is world-readable, and this nonce is the
+	// only authorisation for arming and disarming a DNS fault.
 	nonce := os.Getenv(dockerx.EnvResolverNonce)
 
 	control, err := cmd.Flags().GetString(FlagControl)
@@ -150,10 +146,8 @@ func runServeResolver(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// The container is the fault's lifetime, so the signal handler exists to
-	// make `docker stop` a clean shutdown rather than a kill. There is nothing
-	// to roll back here: the fault is the armed state, and it dies with the
-	// process that holds it.
+	// The container is the fault's lifetime, so there is nothing to roll back;
+	// this only makes `docker stop` a clean shutdown rather than a kill.
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
@@ -283,9 +277,6 @@ func runResolverUp(cmd *cobra.Command, _ []string) error {
 	return err
 }
 
-// waitReady blocks until the resolver answers its own health endpoint, so
-// `resolver up` never prints an address that is not yet listening and an
-// operator never recreates a target against a resolver that failed to start.
 func waitReady(ctx context.Context, resolver dockerx.Resolver) error {
 	client := dnsrv.NewClient(
 		resolver.Address,
@@ -416,9 +407,7 @@ func newNonce() (string, error) {
 	return hex.EncodeToString(buffer), nil
 }
 
-// anyZoneAddress gives the generated control name the same address as a real
-// zone entry, so the control resolves to something that exists. It is only ever
-// used for the name khaos generates when the operator did not name one.
+// anyZoneAddress points a generated control name at a real zone's address.
 func anyZoneAddress(zone map[string]string) string {
 	for _, address := range zone {
 		return address

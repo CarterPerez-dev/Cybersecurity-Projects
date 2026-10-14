@@ -15,22 +15,17 @@ import (
 	"time"
 )
 
-// KeyForm is how a verifier loaded the issuer's public key, which decides what
-// bytes the algorithm-confusion attack has to use as its HMAC secret. Research 07
-// is explicit that this varies by target and that khaos should be able to try
-// each, because the same bug is unreachable under the wrong serialization.
+// KeyForm is how a verifier loaded the key, and so what bytes the forged MAC
+// has to be keyed on.
 type KeyForm string
 
 const (
-	// SPKIPEM is the default because it is overwhelmingly how an RSA public key
-	// reaches a verifier: a `.pem` file read off disk and passed through as a
-	// string.
+	// SPKIPEM is the default: a `.pem` file read off disk.
 	SPKIPEM  KeyForm = "spki-pem"
 	SPKIDER  KeyForm = "spki-der"
 	PKCS1PEM KeyForm = "pkcs1-pem"
 
-	// Modulus is the raw big-endian modulus, which is what a verifier that
-	// reconstructed the key from the JWK's `n` member is holding.
+	// Modulus is what a verifier that rebuilt the key from `n` is holding.
 	Modulus KeyForm = "modulus"
 )
 
@@ -62,32 +57,15 @@ func KeyForms() []string {
 	}
 }
 
-// grantRequest is what a token is minted for. The provider fills it from its own
-// configuration so a caller never chooses the issuer or audience: a probe that
-// could pick its own `aud` would make the wrong-audience trap meaningless.
 type grantRequest struct {
 	subject  string
 	lifetime time.Duration
 }
 
-// mintToken produces one credential under the currently armed trap. Every branch
-// corrupts EXACTLY ONE property and leaves the rest correct, which is what makes
-// a 2xx isolate a single missing check rather than report that something,
-// somewhere, is wrong.
-//
-// `typ` is the property that keeps each trap isolated: every token khaos mints
-// carries `at+jwt`, including the forged ones, so a verifier that implements
-// RFC 8725 section 3.11's explicit typing refuses each forgery for its OWN
-// defect rather than for its type. Setting `typ: JWT` on the three header traps,
-// which is what a careless forger would do, would get them refused on the type
-// instead, and a token rejected for the wrong reason reads exactly like a target
-// that caught the trap.
-//
-// An earlier version of this comment claimed that refusal had been OBSERVED. It
-// had not: the explicit-typing check did not exist anywhere in the repository at
-// the time, so the property this defends was inert against khaos's own fixture
-// and the comment described a measurement nobody took. The check is now
-// implemented in internal/verifier and `TestEveryTrapIsCaught...` exercises it.
+// mintToken produces one credential under the armed trap. Every branch
+// corrupts EXACTLY ONE property, and every token carries `typ: at+jwt` so a
+// verifier implementing RFC 8725's explicit typing refuses each forgery for
+// its OWN defect rather than for its type.
 func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -105,10 +83,6 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		ID:        rand.Text(),
 	}
 
-	// The same three groups the confirmations in observe.go use, so a reader can
-	// put the mint and the observe for one group side by side. Each corrupts
-	// exactly ONE property and leaves the rest internally consistent, because a
-	// token that trips two checks isolates neither.
 	switch trap.Kind {
 	case AlgNone, AlgConfusion, EmbeddedJWK:
 		return p.mintHeaderTrap(trap, header, claims)
@@ -121,17 +95,13 @@ func (p *Provider) mintToken(trap Trap, request grantRequest) (string, error) {
 		return p.mintSignatureTrap(trap, header, claims)
 
 	default:
-		// The endpoint and key-state traps are expressed by the provider's own
-		// behaviour rather than by the token, so an HONEST token is the correct
-		// output for every one of them.
+		// The endpoint traps act on the provider, so honest is correct here.
 		return p.serialize(header, claims, nil, nil)
 	}
 }
 
-// mintHeaderTrap corrupts the JOSE header and nothing else.
-//
-// This and its two siblings run under the read lock mintToken already holds, so
-// none of them may take it again.
+// mintHeaderTrap and its two siblings run under the read lock mintToken
+// already holds, so none of them may take it again.
 func (p *Provider) mintHeaderTrap(
 	trap Trap,
 	header Header,
@@ -169,13 +139,10 @@ func (p *Provider) mintHeaderTrap(
 		return p.serialize(header, claims, p.attacker, nil)
 
 	default:
-		// Unreachable: mintToken routes only the header group here.
 		return p.serialize(header, claims, nil, nil)
 	}
 }
 
-// mintClaimTrap moves exactly one registered claim and leaves the signature
-// valid, so a refusal can only have come from claim validation.
 func (p *Provider) mintClaimTrap(
 	trap Trap,
 	header Header,
@@ -185,9 +152,6 @@ func (p *Provider) mintClaimTrap(
 ) (string, error) {
 	switch trap.Kind {
 	case ClaimExpired:
-		// Internally consistent on purpose: the token is expired and nothing
-		// else. A token that was also not-yet-valid would trip two checks and
-		// isolate neither.
 		claims.IssuedAt = unix(now.Add(-trap.Delay - lifetime))
 		claims.NotBefore = unix(now.Add(-trap.Delay - lifetime))
 		claims.Expires = unix(now.Add(-trap.Delay))
@@ -203,10 +167,7 @@ func (p *Provider) mintClaimTrap(
 		return p.serialize(header, claims, nil, nil)
 
 	case ClaimForeignIssuer:
-		// Signed by a key khaos DOES publish, in the same JWK Set. That is the
-		// multi-tenant shape, and the teaching point is that the key set is not
-		// the trust boundary: the signature verifies and only the `iss` check
-		// can refuse it.
+		// Signed by a key khaos DOES publish, so only `iss` can refuse it.
 		if p.foreign == nil {
 			return "", fmt.Errorf(errNoKey, ErrNoSigningKey, "second issuer")
 		}
@@ -215,13 +176,10 @@ func (p *Provider) mintClaimTrap(
 		return p.serialize(header, claims, p.foreign, nil)
 
 	default:
-		// Unreachable: mintToken routes only the claim group here.
 		return p.serialize(header, claims, nil, nil)
 	}
 }
 
-// mintSignatureTrap corrupts the signature and leaves the header and every
-// claim honest, so a refusal can only have come from signature verification.
 func (p *Provider) mintSignatureTrap(
 	trap Trap,
 	header Header,
@@ -256,13 +214,11 @@ func (p *Provider) mintSignatureTrap(
 		return p.serialize(header, claims, p.weak, nil)
 
 	default:
-		// Unreachable: mintToken routes only the signature group here.
 		return p.serialize(header, claims, nil, nil)
 	}
 }
 
-// serialize marshals, signs and assembles. A nil key means the provider's
-// current signing key; a nil signer means the key's own algorithm.
+// A nil key means the current signing key; a nil signer means the key's alg.
 func (p *Provider) serialize(
 	header Header,
 	claims Claims,
@@ -338,10 +294,7 @@ func (p *Provider) produceSignature(
 	return key.Sign(alg, input)
 }
 
-// publicKeyBytes is the bytes a verifier is holding for this key, under one of
-// the four serializations research 07 says to try. It is the HMAC secret for the
-// algorithm-confusion probe, and it is the whole reason that probe needs a
-// parameter: the bug is unreachable if khaos guesses the wrong form.
+// The HMAC secret for the confusion probe, unreachable under the wrong form.
 func publicKeyBytes(key *Key, form KeyForm) ([]byte, error) {
 	der, err := key.PublicDER()
 	if err != nil {
@@ -378,10 +331,7 @@ func publicKeyBytes(key *Key, form KeyForm) ([]byte, error) {
 	}
 }
 
-// corruptSignature replaces a token's signature with bytes no key produced. It
-// is not a trap: it is what the JWKS-unreachable experiment presents, because
-// that trap asks whether a verifier that cannot fetch keys checks the signature
-// at all, and the token has to be one a reachable verifier would refuse.
+// CorruptSignature is not a trap: the JWKS-unreachable experiment needs it.
 func CorruptSignature(raw string) (string, error) {
 	token, err := Parse(raw)
 	if err != nil {
@@ -392,10 +342,7 @@ func CorruptSignature(raw string) (string, error) {
 		return "", fmt.Errorf(errNothingToCorrupt, ErrNotAJWS)
 	}
 
-	// Flipping a bit of the real signature, rather than substituting random
-	// bytes, keeps the length and the algorithm exactly right. The only thing
-	// wrong with the token is that the signature does not verify, which is what
-	// makes a 2xx mean the verifier never checked it.
+	// A bit flip keeps the length and algorithm right; only the MAC is wrong.
 	forged := make([]byte, len(token.Signature))
 	copy(forged, token.Signature)
 	forged[0] ^= 0xff
@@ -403,8 +350,6 @@ func CorruptSignature(raw string) (string, error) {
 	return assemble(token.HeaderJSON, token.ClaimsJSON, forged), nil
 }
 
-// mintSignedBy produces a correct token under a named key rather than under the
-// provider's current signing key.
 func (p *Provider) mintSignedBy(key *Key) (string, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -425,10 +370,7 @@ func (p *Provider) mintSignedBy(key *Key) (string, error) {
 	return p.serialize(header, claims, key, nil)
 }
 
-// reheader and reclaim mint a correctly signed token with one header or claim
-// rewritten. They are the seam the range verifier's tests need to reach the
-// checks khaos's own published material can never trip, and they sign properly
-// so the token is refused by the check under test rather than by the signature.
+// One header or claim rewritten, correctly signed, so only it can be refused.
 func (p *Provider) reheader(edit func(*Header)) string {
 	return p.remint(edit, nil)
 }

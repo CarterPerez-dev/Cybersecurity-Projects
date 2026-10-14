@@ -23,12 +23,8 @@ const (
 	nameDeepInter   = "khaos over-deep intermediate"
 	nameUndelegated = "khaos undelegated responder"
 
-	// constrainedDomain is what the name-constrained CA is permitted to issue
-	// for. Anything else trips Reason 2, which is the fault.
 	constrainedDomain = "constrained.khaos.invalid"
 
-	// foreignHost is the name WrongSAN puts in the certificate instead of the
-	// one the client asked for.
 	foreignHost = "not-the-host-you-asked-for.khaos.invalid"
 
 	caYears = 10
@@ -39,105 +35,60 @@ const (
 )
 
 var (
-	// ErrNothingArmed is a request for the served chain while the authority is
-	// behaving correctly and no trap has been armed.
+	// ErrNothingArmed is a request for the served chain while behaving correctly.
 	ErrNothingArmed = errors.New(
 		"khaos's certificate authority has no fault armed",
 	)
 
-	// ErrTrapNotObserved is khaos failing to confirm its OWN fault. It is
-	// deliberately loud: an unconfirmed fault means the run must not proceed,
-	// because a measurement under a fault that may not have landed is not
-	// evidence about the target.
+	// ErrTrapNotObserved aborts the run: a measurement under a fault that may
+	// not have landed is no evidence.
 	ErrTrapNotObserved = errors.New(
 		"khaos could not confirm its own certificate fault landed",
 	)
 )
 
-// Config is how a caller aims the authority. Every field has a working default,
-// because an authority that needs configuring before it can serve an honest
-// certificate would make the baseline the hard case.
 type Config struct {
-	// Host is the name honest certificates are minted for.
 	Host string
 
-	// Now overrides the clock, for tests that need a deterministic validity
-	// window rather than one relative to a real wall clock.
 	Now func() time.Time
 }
 
-// Authority is khaos's in-process certificate authority: a CA deliberately
-// willing to be wrong, in one named way at a time.
-//
-// It exists because no correct CA will mint an expired, revoked or
-// wrongly-named certificate at any price, and those are precisely the
-// certificates this family needs. The same argument that justified the in-
-// process identity provider for tokens justifies this for chains.
+// Authority is a CA deliberately willing to be wrong, one named way at a time.
 type Authority struct {
 	mu sync.RWMutex
 
 	clock func() time.Time
 	host  string
 
-	// The hierarchy the target is configured to trust.
 	root  *pair
 	inter *pair
 
-	// A second, complete hierarchy khaos also controls. UntrustedCA serves a
-	// leaf under it while the target still trusts the first; CASwap makes this
-	// one the root the target trusts, which is the CA-compromise scenario and
-	// the one fault nothing in a client can detect.
 	rogueRoot  *pair
 	rogueInter *pair
 
-	// Purpose-built issuers, minted once at construction so that arming a trap
-	// is cheap, deterministic, and cannot fail for a reason unrelated to the
-	// fault.
 	constrained *pair
 	ekuLimited  *pair
 	notACA      *pair
 	undelegated *pair
 
-	// deepInter sits under deepCapped, whose MaxPathLen is zero. BOTH have to
-	// be presented in the handshake: a client given only deepInter cannot reach
-	// the root at all, and the fault then reads as an unknown authority rather
-	// than the path-length violation it is. That is measured, not theorised --
-	// the first draft presented one and the differential caught it.
+	// deepCapped has MaxPathLen zero, and BOTH are presented: with only
+	// deepInter the client cannot reach the root and Go blames the authority.
 	deepInter  *pair
 	deepCapped *pair
 
 	trap  Trap
 	armed *Chain
 
-	// clientID is the identity khaos has issued to the TARGET, for the mutual
-	// TLS traps, and mutual is whether khaos demands one. Both are minted and
-	// set at arm time like everything else the authority serves, so an inert
-	// authority keeps handing out the honest identity and keeps not demanding
-	// anything.
 	clientID *pair
 	mutual   bool
 
-	// swapped is BUILT state, not derived from the trap, and the distinction is
-	// what makes the confirmation oracle honest.
-	//
-	// UntrustedCA and CASwap build the IDENTICAL chain under the rogue
-	// hierarchy; the only difference between them is what the target trusts. So
-	// the trusted root cannot come from the chain, and reading it off trap.Kind
-	// instead meant an INERT authority -- one that records a trap and builds
-	// nothing -- would report the swap as confirmed. The oracle's negative
-	// control would have been passing against a fault that never happened.
+	// BUILT state: UntrustedCA and CASwap build the identical chain.
 	swapped bool
 
-	// inert makes every arming a no-op while still reporting success. It is the
-	// NEGATIVE CONTROL for the confirmation oracle: without a way to make the
-	// authority refuse to misbehave, a gutted Observe that always says yes
-	// leaves the whole suite green. The identity family learned this the
-	// expensive way.
+	// The only way to hand the confirmation oracle an input it MUST reject.
 	inert atomic.Bool
 
-	// crlFetches and ocspQueries count what the TARGET asked for. khaos's own
-	// confirmation probes are counted separately and subtracted, or khaos would
-	// be measuring itself.
+	// What the TARGET asked for, with khaos's own probes counted apart.
 	crlFetches  atomic.Int64
 	ocspQueries atomic.Int64
 	ownCRL      atomic.Int64
@@ -148,10 +99,8 @@ type Authority struct {
 	closed    chan struct{}
 }
 
-// New builds the authority and every CA it will ever need. All of the minting
-// happens here rather than at arm time, so a trap that cannot be armed is a
-// real fault in the trap and never a key generation that happened to fail
-// mid-experiment.
+// New builds every CA up front, so a trap that cannot be armed is its own
+// fault and never a key generation that failed mid-experiment.
 func New(cfg Config) (*Authority, error) {
 	a := &Authority{
 		clock:  cfg.Now,
@@ -231,8 +180,6 @@ func (a *Authority) buildSpecialIssuers() error {
 	return a.buildResponders(from, until)
 }
 
-// mintCA is the one path every CA in this package comes from, so a defect in
-// CA construction cannot differ between the honest hierarchy and a trap's.
 func (a *Authority) mintCA(
 	name string,
 	parent *pair,
@@ -251,13 +198,11 @@ func (a *Authority) mintCA(
 	return issue(template, parent, key)
 }
 
-// Host is the name honest certificates are minted for.
 func (a *Authority) Host() string {
 	return a.host
 }
 
-// TrustedRoot is the anchor the TARGET is configured with. CASwap is the one
-// trap that changes what this returns, which is exactly why the trap works.
+// TrustedRoot is the anchor the TARGET holds, and CASwap is what moves it.
 func (a *Authority) TrustedRoot() *x509.Certificate {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -269,7 +214,6 @@ func (a *Authority) TrustedRoot() *x509.Certificate {
 	return a.root.cert
 }
 
-// TrustedPool is TrustedRoot as a pool, which is what a client actually needs.
 func (a *Authority) TrustedPool() *x509.CertPool {
 	pool := x509.NewCertPool()
 	pool.AddCert(a.TrustedRoot())
@@ -277,20 +221,15 @@ func (a *Authority) TrustedPool() *x509.CertPool {
 	return pool
 }
 
-// Arm applies a trap and mints the chain it will serve. The chain is built HERE
-// rather than per handshake so that every handshake in one experiment presents
-// the same certificate: a leaf re-minted per connection would get a new serial
-// each time, and a revocation answer about a serial the client is no longer
-// holding is not a fault, it is khaos racing itself.
+// Arm applies a trap and mints the chain HERE rather than per handshake, so a
+// leaf is not re-minted with a new serial while revocation names the old one.
 func (a *Authority) Arm(trap Trap) error {
 	if err := trap.Validate(); err != nil {
 		return fmt.Errorf(errArmTrap, ErrInvalidTrap, err)
 	}
 
-	// An inert authority RECORDS the trap and builds nothing. Recording it is
-	// deliberate: it makes the confirmation oracle run its real observable
-	// against honest material, rather than short-circuiting on the
-	// wrong-trap-armed guard and never reaching the branch under test.
+	// An inert authority RECORDS the trap and builds nothing, so the oracle
+	// still reaches its observable.
 	if a.inert.Load() {
 		a.mu.Lock()
 		defer a.mu.Unlock()
@@ -323,9 +262,8 @@ func (a *Authority) Arm(trap Trap) error {
 	return nil
 }
 
-// Disarm returns the authority to behaving correctly and re-mints an honest
-// chain, so the recovery window is measured through a working authority rather
-// than through no authority at all.
+// Disarm re-mints an honest chain, so recovery is measured through a working
+// authority.
 func (a *Authority) Disarm() error {
 	honest, err := a.build(Trap{Kind: PassThrough, Host: a.host})
 	if err != nil {
@@ -352,13 +290,10 @@ func (a *Authority) Disarm() error {
 	return nil
 }
 
-// Inert makes arming a no-op that still reports success, which is the only way
-// to give the confirmation oracle an input it MUST reject.
 func (a *Authority) Inert(on bool) {
 	a.inert.Store(on)
 }
 
-// Trap is what is currently armed.
 func (a *Authority) Trap() Trap {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -366,7 +301,6 @@ func (a *Authority) Trap() Trap {
 	return a.trap
 }
 
-// Served is the chain the authority is presenting right now.
 func (a *Authority) Served() (*Chain, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -378,9 +312,7 @@ func (a *Authority) Served() (*Chain, error) {
 	return a.armed, nil
 }
 
-// CRLFetches and OCSPQueries report what the TARGET did, with khaos's own
-// confirmation probes subtracted. A count that included khaos's probes would
-// make "the target checked revocation" true for every run.
+// CRLFetches and OCSPQueries report what the TARGET did, probes subtracted.
 func (a *Authority) CRLFetches() int64 {
 	return a.crlFetches.Load() - a.ownCRL.Load()
 }

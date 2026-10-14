@@ -10,79 +10,40 @@ import (
 )
 
 const (
-	// StrongBits is the modulus khaos mints when it is NOT attacking the key
-	// size. 2048 is the floor every current policy agrees on, and x509 path
-	// validation enforces none of them.
 	StrongBits = 2048
 
-	// LifetimeCapDays is the CA/Browser Forum maximum leaf lifetime. Nothing
-	// outside a browser enforces it, which is what ExcessiveLifetime measures.
+	// The CA/Browser Forum cap, which nothing outside a browser enforces.
 	LifetimeCapDays = 200
 
-	// DefaultLeafDays is an ordinary, unremarkable lifetime for every honest
-	// certificate khaos serves.
 	DefaultLeafDays = 90
 
-	// DefaultWindow is how far a time-based trap moves its boundary when the
-	// experiment does not say. It is far longer than any plausible clock skew,
-	// because a fault inside the skew tolerance is not a fault.
+	// Far longer than any clock skew: a fault inside the tolerance is none.
 	DefaultWindow = 24 * time.Hour
 
-	// DefaultWeakBits is the modulus WeakKey mints by default. Measured on
-	// go1.26.5: a 1024-bit leaf chains and verifies with a nil error.
 	DefaultWeakBits = 1024
 
-	// DefaultExcessiveDays is comfortably past the CABF cap and past every
-	// shorter policy a target might have adopted instead.
 	DefaultExcessiveDays = 2000
 
-	// DefaultHost is the name khaos mints honest certificates for when the
-	// caller does not say. It is a .invalid name per RFC 2606, so a chain that
-	// escaped into something real can never resolve.
 	DefaultHost = "dependency.khaos.invalid"
 
-	// loopbackSAN is the IP the honest leaf carries so that NoIPSAN has
-	// something to take away. khaos binds loopback in tests and a bridge
-	// address in a container, and this SAN only has to exist for the trap to be
-	// expressible -- the hostname faults are what judge the names.
 	loopbackSAN = "127.0.0.1"
 
-	// clockSlack backdates every honest certificate slightly. Without it a leaf
-	// minted and presented in the same millisecond can land on the wrong side
-	// of a NotBefore comparison on a machine whose clock ticks between the two,
-	// which would make the CONTROL flaky and leave khaos unable to establish
-	// anything.
+	// Backdates honest certificates, so one minted and presented at once
+	// cannot land on the wrong side of NotBefore.
 	clockSlack = time.Minute
 )
 
 const (
-	// RouteCRL, RouteOCSP and RouteHealth are the authority's HTTP surface.
-	//
-	// RouteHealth exists to be the CONTROL for the two unreachable traps. Its
-	// whole job is to stay up while the CRL or OCSP endpoint refuses, because
-	// "khaos broke one endpoint" and "khaos fell over" are different claims and
-	// only the first one is a fault.
+	// RouteHealth keeps answering while CRL or OCSP refuses, so khaos can show
+	// it broke one endpoint rather than fell over.
 	RouteCRL    = "/crl"
 	RouteOCSP   = "/ocsp"
 	RouteHealth = "/healthz"
 
-	// RouteRoot serves the DER of the root the TARGET is configured to trust,
-	// which is how a client discovers its trust anchor from a running
-	// authority.
-	//
-	// It exists because CASwap is otherwise inexpressible. That fault replaces
-	// the anchor at ARM time, after the target started, so a target that
-	// baked a root in at startup could never experience it. Serving the anchor
-	// here and having the target read it per request is what a substituted
-	// trust store actually is: managed out of band, and changed without the
-	// application being asked.
+	// Read per request, because CASwap replaces the anchor at arm time.
 	RouteRoot = "/root"
 )
 
-// Kinds is the whole catalogue, in the order the research groups it: validity,
-// identity, authority, algorithm, policy, CRL revocation, OCSP revocation,
-// stapling, trust store. Tests census against this, so a new trap without a
-// case of its own turns them red.
 func Kinds() []string {
 	return []string{
 		string(LeafExpired),
@@ -135,19 +96,9 @@ func joinKinds() string {
 	return strings.Join(Kinds(), trapSep)
 }
 
-// GoAccepts reports whether go1.26.5's own certificate verification returns a
-// NIL error for this trap. It is the single most important predicate in the
-// package, because it decides what a target's acceptance MEANS.
-//
-// For a trap Go refuses, an acceptance proves the target weakened or skipped
-// verification. For a trap Go accepts, an acceptance proves nothing of the
-// kind: there was no check to skip, and the finding is that the target has no
-// policy of its own. Reporting the second as the first would be khaos accusing
-// a target of a defect that only exists in the operator's expectations.
-//
-// Every entry here was measured, not assumed; research 04's fault table records
-// the run, and the CRL and SHA-1 rows were re-measured on this box before this
-// family was built.
+// GoAccepts reports whether go1.26.5's own verification returns a NIL error
+// for this trap, which decides what an acceptance means: for a trap Go
+// refuses, the target skipped a check; for one Go accepts, there was none.
 func GoAccepts(kind Kind) bool {
 	switch kind {
 	case WeakKey, ExcessiveLifetime, KeyUsageWithoutDigitalSignature,
@@ -158,10 +109,7 @@ func GoAccepts(kind Kind) bool {
 		return true
 
 	case ClientCertExpired, ClientCertAbsent:
-		// The DEPENDENCY's certificate is impeccable for both of these, so
-		// crypto/x509 has no objection to it: the defect is in the target's own
-		// identity and the rejection happens on khaos's side of the connection.
-		// Go accepts the chain, and then the server refuses the client.
+		// The DEPENDENCY's certificate is impeccable; khaos rejects the client.
 		return true
 
 	case PassThrough, LeafExpired, LeafNotYetValid, IntermediateExpired,
@@ -172,16 +120,14 @@ func GoAccepts(kind Kind) bool {
 		return false
 
 	default:
-		// An unknown kind is treated as refused, which is the conservative
-		// direction: it makes khaos claim LESS about a target than it could.
+		// An unknown kind is refused, which claims less about a target.
 		return false
 	}
 }
 
-// Describe states the trap with its actual magnitude, for the consent prompt
-// and the plan output. The identity family established that a description
-// naming a parameter without its VALUE is worse than none, because the operator
-// approves a sentence and then gets a different fault.
+// Describe states the trap with its actual magnitude, for the consent prompt.
+// Naming a parameter without its value would have the operator approve one
+// sentence and get a different fault.
 func (t Trap) Describe(target string) string {
 	switch t.Kind {
 	case LeafExpired, LeafNotYetValid, IntermediateExpired, WrongSAN,
@@ -211,8 +157,6 @@ func (t Trap) Describe(target string) string {
 	}
 }
 
-// describeSubject covers the faults in WHEN the certificate is valid and WHO it
-// is for.
 func (t Trap) describeSubject(target string) string {
 	switch t.Kind {
 	case LeafExpired:
@@ -234,8 +178,6 @@ func (t Trap) describeSubject(target string) string {
 	}
 }
 
-// describeChain covers the faults in the path from leaf to trusted root, plus
-// the two that are structurally the same question about signing and usage.
 func (t Trap) describeChain(target string) string {
 	switch t.Kind {
 	case SelfSigned:
@@ -263,8 +205,6 @@ func (t Trap) describeChain(target string) string {
 	}
 }
 
-// describePolicy covers the faults crypto/x509 ACCEPTS, where the finding is
-// the absence of a policy rather than a skipped check.
 func (t Trap) describePolicy(target string) string {
 	switch t.Kind {
 	case WeakKey:
@@ -281,8 +221,6 @@ func (t Trap) describePolicy(target string) string {
 	}
 }
 
-// describeRevocation covers everything that acts on revocation rather than on
-// the certificate.
 func (t Trap) describeRevocation(target string) string {
 	switch t.Kind {
 	case RevokedViaCRL:

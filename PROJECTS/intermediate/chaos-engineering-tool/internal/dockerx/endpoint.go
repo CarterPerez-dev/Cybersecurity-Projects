@@ -67,17 +67,10 @@ func ResolveEndpoint(
 		return Endpoint{Host: host, Source: SourceEnvHost}, nil
 	}
 
-	// An explicit DOCKER_CONTEXT=default SELECTS the default endpoint. It does
-	// not mean "unset", and treating it as unset is a divergence from the CLI
-	// that `khaos range` shells out to.
-	//
-	// Measured: with a saved current context of `ag-server` and DOCKER_CONTEXT
-	// set to `default`, the Docker CLI uses the LOCAL daemon while khaos used
-	// ag-server. khaos would then inject on one machine while `docker compose`
-	// acted on another, which is the worst shape this resolver can take.
-	//
-	// DOCKER_HOST outranks DOCKER_CONTEXT, measured on docker 29.1.3, which is
-	// why it is checked first above.
+	// An explicit DOCKER_CONTEXT=default SELECTS the default endpoint rather
+	// than meaning "unset". Treating it as unset diverges from the CLI, so
+	// khaos would inject on one machine while `docker compose` acted on
+	// another. DOCKER_HOST outranks DOCKER_CONTEXT, hence the order here.
 	if name := environ(EnvDockerContext); name == defaultContext {
 		return defaultEndpoint(environ)
 	}

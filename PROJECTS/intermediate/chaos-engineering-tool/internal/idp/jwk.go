@@ -23,11 +23,8 @@ const (
 
 var ErrNoSuchKey = errors.New("that key is not in the published JWK Set")
 
-// JWK is the published form of one key: the thumbprint-derived `kid`, the
-// algorithm it is bound to, and the public material. The `alg` member is present
-// deliberately, because RFC 8725 rule 2 says a verifier MUST cross-check it
-// against the token header, and a provider that omits it denies the verifier the
-// means to comply.
+// JWK is the published form of one key. The `alg` member is deliberate:
+// RFC 8725 rule 2 says a verifier MUST cross-check it against the header.
 type JWK struct {
 	Kid string `json:"kid"`
 	Kty string `json:"kty"`
@@ -88,9 +85,8 @@ func joinKids(kids []string) string {
 	return out
 }
 
-// PublicJWK is the published form. It carries the full member set a verifier
-// needs, which is a superset of the required members the thumbprint is computed
-// over, so the two forms are built separately on purpose.
+// PublicJWK is the published form. It is a superset of the members the
+// thumbprint covers, so the two forms are built separately.
 func (k *Key) PublicJWK() JWK {
 	out := JWK{
 		Kid: k.ID,
@@ -116,17 +112,10 @@ func (k *Key) PublicJWK() JWK {
 	return out
 }
 
-// RSAPublicKey rebuilds a verifiable key from a published JWK, and refuses
-// material that is absent or does not fit. khaos needs it on its own
-// confirmation path: proving a minted token actually verifies under the key it
-// names is what makes a target's acceptance of a DIFFERENT token mean
-// something.
-//
-// Both refusals were missing. decodeBigInt("") returns zero with a nil error, so
-// an empty JWK yielded `{N: 0, E: 0}` and no error at all; and `int(e.Int64())`
-// is documented as undefined on overflow, which measured as `"e":"AQAAAAAAAAAB"`
-// (2^64 + 1) silently becoming e = 1 — the one exponent that makes the signature
-// and the encoded message the same bytes.
+// RSAPublicKey rebuilds a verifiable key from a published JWK. Both guards are
+// load-bearing: decodeBigInt("") yields zero with a nil error, and
+// big.Int.Int64 is undefined on overflow, where 2^64 + 1 truncates to e = 1,
+// the one exponent that makes the signature and the encoded message identical.
 func (j JWK) RSAPublicKey() (*rsa.PublicKey, error) {
 	if j.N == "" || j.E == "" {
 		return nil, fmt.Errorf(errIncompleteJWK, ErrNoSuchKey, j.Kid, "n and e")
@@ -151,10 +140,6 @@ func (j JWK) RSAPublicKey() (*rsa.PublicKey, error) {
 }
 
 // ECPublicKey rebuilds an EC key, and refuses a curve khaos does not serve.
-//
-// It used to ignore `crv` entirely and always build a P-256 key, so a P-224 JWK
-// came back labelled P-256 with a zero-padded coordinate, which is a different
-// key under a different thumbprint.
 func (j JWK) ECPublicKey() (*ecdsa.PublicKey, error) {
 	if j.Crv != curveP256 {
 		return nil, fmt.Errorf(
@@ -211,7 +196,5 @@ func bigFromBytes(raw []byte) *big.Int {
 	return new(big.Int).SetBytes(raw)
 }
 
-// UseSignature is RFC 7517's `use` value for a signing key. It is exported so
-// the range's verifier can check it against the same constant khaos publishes,
-// rather than against a string literal that could drift from it silently.
+// UseSignature is RFC 7517's `use` value for a signing key.
 const UseSignature = useSignature

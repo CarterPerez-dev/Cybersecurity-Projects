@@ -56,11 +56,8 @@ func (p Paths) Journal() string {
 	return filepath.Join(p.Root, journalName)
 }
 
-// Settle is the short-lived lock around a read-decide-append transition on the
-// journal. It is SEPARATE from Lock, which is the instance lock a run holds for
-// its whole lifetime: the reaper deliberately runs beside a live run, so it
-// cannot take that one, and without a second lock the two raced over the same
-// records.
+// Settle guards a read-decide-append on the journal. It is separate from Lock
+// because the reaper runs beside a live run and cannot take that one.
 func (p Paths) Settle() string {
 	return p.Journal() + ".settle"
 }

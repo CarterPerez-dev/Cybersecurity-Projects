@@ -8,15 +8,8 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
-// The key experiments. These three change what khaos's provider SERVES rather
-// than what it mints, and between them they cover the two halves of key rotation
-// plus the trap research 07 calls the highest-value one in its archive.
-//
-// They need almost no new machinery, and that is a result rather than a
-// coincidence: `kid_rollover` is a credential that was legitimately accepted and
-// then taken away, which is exactly what the revoked stream already means, and
-// `key_rotation` is a correctly signed credential the target may refuse, which
-// is exactly what the directional axis already measures.
+// The key experiments change what khaos's provider SERVES rather than what it
+// mints.
 const (
 	NameJWKSUnreachable = "identity.jwks_unreachable"
 	NameKidRollover     = "identity.kid_rollover"
@@ -39,16 +32,12 @@ const (
 
 const (
 	defectJWKSUnreachable = "a signature that does not verify under any published key"
-	// A withdrawal, not a revocation call, and the provider stays reachable
-	// throughout. Saying "while the authority was unreachable" here would be
-	// false.
+	// A withdrawal, not a revocation call: the provider stays reachable.
 	defectKidRollover = "withdrawing the key that signed it from a key set the target can still fetch"
 )
 
-// The idleness discriminator applies to the rollover, and it is the same
-// question in a different place: a target still honouring a withdrawn key either
-// re-arms its key cache on every failed refetch, or never expires it at all.
-// Those are two different fixes.
+// A target still honouring a withdrawn key either re-arms its key cache on every
+// failed refetch or never expires it, and those are two different fixes.
 const defaultKeyIdleFor = "6s"
 
 func init() {
@@ -61,12 +50,8 @@ func init() {
 			trap:      idp.JWKSUnreachable,
 			consults:  ConsultsJWKS,
 			wiring: streams{
-				// REJECTED, the opposite of every forgery experiment, and the
-				// reason the expectation is declared rather than derived. This
-				// credential is malformed from the moment it is minted, so a
-				// target that did not refuse it while the key set was reachable
-				// was never checking signatures and its acceptance during the
-				// fault proves nothing changed.
+				// REJECTED, the opposite of every forgery experiment: this
+				// credential is malformed from the moment it is minted.
 				forged:      probe.ExpectRejected,
 				forgedFixed: corruptedToken,
 			},
@@ -77,23 +62,9 @@ func init() {
 			condition: conditionKidRollover,
 			defect:    defectKidRollover,
 			trap:      idp.KidRollover,
-			// The revoked stream, not the forged one. This credential was
-			// LEGITIMATE when it was issued and the rotation is what took it
-			// away, which is the revoked stream's exact meaning, and it brings
-			// the idleness discriminator with it for free.
-			//
-			// The valid stream is a JWT under a key that is NEVER rotated, and
-			// this experiment is not correct without that. A valid stream under
-			// the current signing key supplies the new-key traffic that evicts
-			// the retired one, so khaos caused the recovery it then reported:
-			// measured with the verifier's key cache set to an hour, the run
-			// still returned `passed / HELD` against a target with an unbounded
-			// stale window.
-			//
-			// An opaque credential also avoids that and was the first fix, but it
-			// demands the target support introspection — a JWT-only verifier
-			// cannot establish a baseline at all, which trades one blind spot for
-			// another.
+			// The valid stream must use a key that is never rotated: one under the
+			// current signing key would supply the new-key traffic that evicts
+			// the retired one, so khaos would cause the recovery it reports.
 			wiring: streams{revoked: honestToken, validStable: true},
 			extra:  []Param{{Name: ParamIdleFor, Usage: usageIdleFor, Default: defaultKeyIdleFor}},
 		},
@@ -103,10 +74,8 @@ func init() {
 			condition: conditionKeyRotation,
 			trap:      idp.KeyRotation,
 			polarity:  rotationPolarity,
-			// No forged stream and no revoked one. The VALID stream mints under
-			// the armed trap, so it carries the new key's token during the fault,
-			// and a target that refuses it registers on the directional axis as
-			// DENIED. There is nothing forged anywhere in this experiment.
+			// The VALID stream mints under the armed trap, so a target that
+			// refuses the new key's token registers as DENIED. Nothing is forged.
 			wiring: streams{validTrapped: true},
 		},
 	} {
@@ -115,22 +84,15 @@ func init() {
 	}
 }
 
-// honestToken mints the credential the rollover will orphan. It is minted at
-// BUILD time, which is before the fault by construction, so it is signed by the
-// key the rotation is about to withdraw. A credential minted after the rotation
-// would be signed by the new key and would prove nothing.
+// honestToken mints the credential the rollover will orphan, at BUILD time, so
+// it is signed by the key the rotation is about to withdraw.
 func honestToken(provider *idp.Provider) (string, error) {
 	return provider.HonestToken()
 }
 
-// corruptedToken mints a correct credential and then breaks one bit of its
-// signature. Everything else about it is right: the header, the kid, the claims
-// and the signature's length, so the only thing a verifier can refuse it for is
-// the signature itself.
-//
-// That precision is the whole experiment. A garbage string would be refused by
-// anything, including a verifier that skipped signature verification entirely,
-// so it could never distinguish the two.
+// corruptedToken breaks one bit of a correct credential's signature and leaves
+// everything else right, so only the signature can be refused: a garbage string
+// would be refused even by a verifier that never checks one.
 func corruptedToken(provider *idp.Provider) (string, error) {
 	honest, err := provider.HonestToken()
 	if err != nil {

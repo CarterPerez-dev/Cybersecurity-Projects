@@ -40,9 +40,8 @@ const (
 	detailIdle      = "a credential leaked; pausing traffic for %s to see whether the cache is being re-armed"
 	detailResume    = "resuming traffic with the fault still applied"
 
-	// Jitter breaks aliasing against periodic target behaviour: cache TTLs,
-	// token refresh and crons are exactly what these experiments measure, and
-	// a probe locked to a fixed period can sit in phase with them.
+	// Breaks aliasing against the periodic target behaviour these experiments
+	// measure: cache TTLs, token refresh and crons.
 	jitterFraction = 0.2
 )
 
@@ -54,8 +53,8 @@ type Event struct {
 
 type Reporter func(Event)
 
-// Injector is whatever can apply, confirm and undo the fault. The engine never
-// talks to Docker, so the whole lifecycle is testable without a daemon.
+// Injector keeps the engine away from Docker, so the lifecycle is testable
+// without a daemon.
 type Injector interface {
 	Inject(ctx context.Context, kind, target string) error
 	Confirm(ctx context.Context) (string, error)
@@ -72,13 +71,9 @@ type Engine struct {
 	Now      func() time.Time
 }
 
-// abandon reverts the fault and then concludes, which is what every failure
-// AFTER a successful injection has to do. It is one function rather than one
-// block per branch because there is more than one such branch, and a branch
-// that returned a verdict without reverting would leave khaos's own fault
-// applied while reporting a result -- the single outcome this tool must never
-// produce. The cause is joined with the rollback error rather than replaced by
-// it, because the caller maps a rollback failure to its own exit code.
+// abandon reverts the fault and then concludes. The cause is joined with the
+// rollback error, not replaced by it: the caller maps a rollback failure to its
+// own exit code.
 func (e Engine) abandon(
 	ctx context.Context,
 	spec Experiment,
@@ -97,16 +92,8 @@ func (e Engine) abandon(
 	)
 }
 
-// measureBaseline samples the healthy target and records how many times it
-// consulted the dependency across that window. The delta is measured HERE, in
-// the one window where the target is healthy and doing whatever it normally
-// does, because a delta of zero means the target never used the dependency this
-// experiment is about to break -- and an experiment against a dependency the
-// target ignores can only ever report HELD for the wrong reason.
-//
-// Measurement only. The two decisions that follow a baseline, whether the
-// operator interrupted it and whether it was ever a steady state, stay in Run
-// where they are visible beside the phases they skip.
+// measureBaseline counts the dependency consultations while the target is still
+// healthy: zero means it never used the dependency khaos is about to break.
 func (e Engine) measureBaseline(
 	ctx context.Context,
 	spec Experiment,
@@ -131,10 +118,8 @@ func (e Engine) measureBaseline(
 	observation.CacheRequired = spec.CacheRequired
 	observation.Consulted = after - before
 
-	// EITHER end failing voids the count, and a negative delta is impossible
-	// from a monotonic counter so it can only mean khaos misread one end. Both
-	// are recorded rather than silently absorbed, because the guards downstream
-	// read zero as a statement about the TARGET.
+	// Recorded rather than absorbed: the guards downstream read zero as a
+	// statement about the TARGET.
 	if beforeErr != nil || afterErr != nil || observation.Consulted < 0 {
 		observation.CounterUnreadable = errors.Join(beforeErr, afterErr)
 		observation.Consulted = 0
@@ -143,11 +128,8 @@ func (e Engine) measureBaseline(
 	return observation
 }
 
-// injectionFailed is a conclusion of its own rather than a call to conclude,
-// because a fault that never landed leaves nothing to judge: there is no
-// behaviour under fault to have a direction, only an error to report. The
-// rollback is still attempted, since a failed Inject can still have changed
-// something before it failed.
+// injectionFailed concludes without judging, because a fault that never landed
+// leaves no behaviour to have a direction.
 func (e Engine) injectionFailed(
 	ctx context.Context,
 	result Result,
@@ -165,22 +147,11 @@ func (e Engine) injectionFailed(
 	}
 	result.Duration = e.now().Sub(result.StartedAt)
 
-	// Joined, not discarded. The caller maps the rollback failure to its own
-	// exit code, and keeping only a boolean here meant the CLI returned this
-	// error first and never reached the boolean.
 	return result, errors.Join(cause, revertErr)
 }
 
-// act performs the mid-run action, which happens AFTER the fault is confirmed
-// and BEFORE anything is measured under it. That ordering is forced rather than
-// convenient: revoking a credential while the authority is still reachable
-// makes the target cache a DENY, which a correct stale-serving implementation
-// then serves correctly. The bug only exists when the cache holds an ALLOW at
-// the moment the authority goes away, so the revocation has to be real and the
-// authority has to already be unreachable. It happens here or not at all.
-//
-// An experiment with no action returns unchanged, so the caller does not need
-// to know which kind it is holding.
+// act runs after the fault is confirmed because the ordering is forced: the bug
+// only exists when the cache holds an ALLOW as the authority goes away.
 func (e Engine) act(
 	ctx context.Context,
 	spec Experiment,
@@ -204,14 +175,8 @@ func (e Engine) act(
 	return observation, nil
 }
 
-// restore reverts the fault and then measures what the target does once it is
-// gone, which together are khaos's Recovery axis: a target that never comes
-// back is a different finding from one that held throughout, and only the
-// second window can tell them apart.
-//
-// Both halves run on a context that cannot be cancelled. An operator's Ctrl-C
-// must not be able to skip the rollback, and it must not be able to skip the
-// evidence that the rollback worked either.
+// restore runs uncancellable: an operator's Ctrl-C must not skip the rollback,
+// nor the evidence that it worked.
 func (e Engine) restore(
 	ctx context.Context,
 	spec Experiment,
@@ -316,17 +281,9 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	return e.conclude(result, observation, spec.Polarity, revertErr)
 }
 
-// measureFault samples under the fault and records whether the target ever MET
-// it, which is a different question from whether khaos armed it.
-//
-// The baseline's count asks whether the target uses the thing khaos faulted at
-// all; this asks whether it went back to it WHILE the fault was armed. A DNS
-// fault is the case that forced the distinction: it can be armed, confirmed at
-// khaos's own resolver, and reach nothing, because Go's HTTP transport resolves
-// a name once per kept-alive connection. Measured on the range's own gateway at
-// two lookups across forty-six requests. Every other tier collapses the two
-// questions safely, because a severed path or a broken certificate sits on a
-// route the target cannot avoid using.
+// measureFault records whether the target ever MET the fault, not just whether
+// khaos armed it: Go's HTTP transport resolves a name once per kept-alive
+// connection, so a DNS fault can be armed, confirmed, and reach nothing.
 func (e Engine) measureFault(
 	ctx context.Context,
 	spec Experiment,
@@ -361,16 +318,8 @@ func (e Engine) measureFault(
 	return observation
 }
 
-// discriminate is the idleness phase: stop sending traffic for longer than any
-// plausible cache lifetime, with the fault still applied, then resume and measure
-// again.
-//
-// It runs ONLY when the fault window actually leaked. The two causes it separates
-// are both causes of a PERMITTED credential, so on a target that held there is
-// nothing to diagnose and the pause would spend a minute of the operator's run
-// learning what khaos already knows. It also runs only when the experiment asks
-// for it, because the pause is meaningless without a cache lifetime to outlast
-// and khaos cannot invent one.
+// discriminate pauses traffic past any plausible cache lifetime with the fault
+// still applied, then resumes, and only when the fault window actually leaked.
 func (e Engine) discriminate(
 	ctx context.Context,
 	spec Experiment,
@@ -431,15 +380,8 @@ func (e Engine) conclude(
 	return result, err
 }
 
-// consulted reads the experiment's endpoint counter, or zero when it declares
-// none.
-// consulted reads the experiment's counter, and a FAILURE to read is reported
-// rather than folded into zero.
-//
-// Zero is the sentinel three separate guards branch on, so a swallowed error
-// becomes "the target never did it" and khaos blames the target for khaos's own
-// unreachable instrument. An experiment with no counter is a different thing
-// again and returns zero with no error, because it declared no question.
+// consulted reports a FAILURE to read rather than folding it into zero, which is
+// the sentinel three separate guards read as a statement about the target.
 func (e Engine) consulted(spec Experiment) (int64, error) {
 	if spec.Consulted == nil {
 		return 0, nil
@@ -452,10 +394,8 @@ func markInterrupted(observation Observation) Observation {
 	return observation
 }
 
-// sample fires both probes on a true period: the time the probes themselves
-// take is subtracted from the wait, so a slow target reduces latency headroom
-// rather than silently collapsing the sample count below the floor a verdict
-// needs.
+// sample fires both probes on a true period: probe time comes out of the wait,
+// so a slow target cannot collapse the sample count below a verdict's floor.
 func (e Engine) sample(
 	ctx context.Context,
 	pair probe.Pair,
@@ -498,8 +438,6 @@ func jitter(interval time.Duration) time.Duration {
 	if span <= 0 {
 		return 0
 	}
-	// Spread between probes, so a periodic sampler does not beat in lockstep
-	// with whatever the target does periodically. Statistical, not secret.
 	//nolint:gosec // probe spread, not a secret
 	return time.Duration(rand.Float64() * span)
 }

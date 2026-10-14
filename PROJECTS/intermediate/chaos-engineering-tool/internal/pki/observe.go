@@ -56,19 +56,9 @@ const (
 	observedNoIdentity    = "khaos requires mutual TLS and is issuing no client identity at all"
 )
 
-// Observe confirms khaos's own fault landed, by reading back what the authority
-// actually serves and comparing it against an HONEST chain from the same
-// authority.
-//
-// Every branch asserts two things, not one: that the served material carries
-// the defect AND that the control does not. An authority that was never armed
-// must not be able to confirm a trap, which is what the inert flag exists to
-// prove, and a one-sided assertion would let it.
-//
-// It reads the SERVED artefacts rather than the flag that was set. A flag
-// records which branch khaos chose; it says nothing about what a target would
-// receive, and an authority whose minting broke would happily confirm a fault
-// it is not producing.
+// Observe confirms khaos's own fault landed by reading back what the authority
+// serves. Every branch asserts the served material carries the defect AND that
+// an HONEST chain does not, so an unarmed authority cannot confirm a trap.
 func (a *Authority) Observe(
 	ctx context.Context,
 	expected Kind,
@@ -127,8 +117,6 @@ func (a *Authority) Observe(
 	}
 }
 
-// observeSubject confirms the faults in when the certificate is valid and who
-// it is for, all of which are visible in the served leaf itself.
 func (a *Authority) observeSubject(
 	trap Trap,
 	chain, honest *Chain,
@@ -156,8 +144,7 @@ func (a *Authority) observeSubject(
 		}
 
 	case IntermediateExpired:
-		// The leaf has to be BLAMELESS, or this is just LeafExpired wearing a
-		// different name and monitoring that watches leaf expiry would catch it.
+		// The leaf has to be BLAMELESS, or this is LeafExpired renamed.
 		if chain.Issuer.NotAfter.Before(now) &&
 			chain.Leaf.NotAfter.After(now) {
 			return sprintf(
@@ -191,16 +178,14 @@ func (a *Authority) observeSubject(
 		}
 
 	default:
-		// Unreachable: Observe routes only the subject group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeChainFault confirms the faults in the path from leaf to trusted root.
-// Five of these produce byte-identical client errors in two groups, so what
-// khaos knows it SERVED is the only thing that can tell them apart, and that is
-// precisely what these branches record.
+// Five of these produce byte-identical client errors, so what khaos knows it
+// SERVED is the only thing that can tell them apart.
 func (a *Authority) observeChainFault(
 	trap Trap,
 	chain, honest *Chain,
@@ -259,16 +244,12 @@ func (a *Authority) observeChainFault(
 		return a.observeSigning(trap, chain, honest)
 
 	default:
-		// Unreachable: Observe routes only the chain group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeSigning confirms the three faults in HOW the certificate is signed or
-// what it may be used for. They sit apart from the path faults because none of
-// them breaks the chain: the path is intact and the signature or the usage is
-// what a correct client rejects.
 func (a *Authority) observeSigning(
 	trap Trap,
 	chain, honest *Chain,
@@ -293,14 +274,8 @@ func (a *Authority) observeSigning(
 		}
 
 	case EKUConstrainedIntermediate:
-		// The LEAF is blameless, which is what separates this from the leaf
-		// level fault above. Both come back as Reason 4 and are otherwise
-		// indistinguishable to the target.
-		//
-		// The length check is load-bearing. An EMPTY ExtKeyUsage on a CA means
-		// UNCONSTRAINED, not "no server auth", so testing serverAuth alone
-		// confirmed this trap against khaos's own honest intermediate, which
-		// enumerates nothing. The inert control caught it.
+		// The length check is load-bearing: an EMPTY ExtKeyUsage on a CA means
+		// UNCONSTRAINED, so serverAuth alone would confirm against the control.
 		if len(chain.Issuer.ExtKeyUsage) > 0 &&
 			!serverAuth(chain.Issuer.ExtKeyUsage) &&
 			serverAuth(chain.Leaf.ExtKeyUsage) {
@@ -311,15 +286,12 @@ func (a *Authority) observeSigning(
 		}
 
 	default:
-		// Unreachable: observeChainFault routes only the signing group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observePolicy confirms the faults crypto/x509 ACCEPTS. There is no refusal to
-// read back, so the only evidence is the served material differing from the
-// control, which makes the control load-bearing rather than decorative here.
 func (a *Authority) observePolicy(
 	trap Trap,
 	chain, honest *Chain,
@@ -346,9 +318,6 @@ func (a *Authority) observePolicy(
 		}
 
 	case CASwap:
-		// The confirmation is that the TRUSTED ROOT moved, not that the chain is
-		// odd. The chain is deliberately impeccable under the new anchor, which
-		// is the entire point: nothing in a client can detect this.
 		if a.TrustedRoot().Equal(a.rogueRoot.cert) {
 			return sprintf(
 				observedCASwap,
@@ -357,14 +326,12 @@ func (a *Authority) observePolicy(
 		}
 
 	default:
-		// Unreachable: Observe routes only the policy group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeStaple confirms the three faults that act on what the handshake
-// carries rather than on what a responder says.
 func (a *Authority) observeStaple(
 	trap Trap,
 	chain, honest *Chain,
@@ -375,9 +342,6 @@ func (a *Authority) observeStaple(
 			return "", false, nil
 		}
 
-		// The parse FAILING is the confirmation: the staple is garbage, which is
-		// the fault. nilerr reads this as swallowing an error, and it is the
-		// opposite -- the error is the evidence.
 		if _, err := ocsp.ParseResponse(
 			chain.Staple,
 			chain.Issuer,
@@ -392,8 +356,7 @@ func (a *Authority) observeStaple(
 		}
 
 	case NoOCSPServer:
-		// The CRL pointer has to SURVIVE, or this is a total revocation outage
-		// rather than the end of OCSP that it models.
+		// The CRL pointer has to SURVIVE, or this is a revocation outage.
 		if len(chain.Leaf.OCSPServer) == 0 &&
 			len(chain.Leaf.CRLDistributionPoints) > 0 {
 			return sprintf(
@@ -403,14 +366,12 @@ func (a *Authority) observeStaple(
 		}
 
 	default:
-		// Unreachable: Observe routes only the stapling group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// names and permits are small readers over a certificate's identity, kept
-// separate so the branches above read as assertions rather than as parsing.
 type nameSet []string
 
 func names(cert *x509.Certificate) nameSet {
@@ -461,9 +422,6 @@ func sprintf(format string, args ...any) string {
 	return fmt.Sprintf(format, args...)
 }
 
-// health is the control for both unreachable traps. Its whole job is to still
-// answer while one endpoint refuses, because "khaos broke one endpoint" and
-// "khaos fell over" are different claims and only the first is a fault.
 func (a *Authority) health(ctx context.Context) (int, error) {
 	base, err := a.Addr()
 	if err != nil {

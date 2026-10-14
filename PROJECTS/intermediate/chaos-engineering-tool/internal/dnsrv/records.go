@@ -12,35 +12,25 @@ import (
 )
 
 const (
-	// chainLabel and loopLabel prefix the hops khaos synthesizes. They are
-	// deliberately readable rather than random, because the whole point of the
-	// CNAME faults is that an operator reading the target's logs can see the
-	// name it actually connected to was not the name it asked for.
 	chainLabel = "hop"
 	loopLabel  = "cycle"
 
 	// chainExit is the zone the chain ends OUTSIDE. `.invalid` is reserved by
-	// RFC 2606 and can never resolve publicly, so a target that follows the
-	// chain and connects anyway is observably following it rather than quietly
-	// reaching a real service.
+	// RFC 2606 and can never resolve publicly.
 	chainExit = "khaos-elsewhere.invalid."
 
 	errRecord = "build a %s record for %s: %w"
 )
 
-// ErrNoRecord is returned when a question asks for a type khaos's synthesizing
-// faults do not produce. It is not a failure: a target asking for SRV while
-// khaos is faulting an address record should be forwarded, not answered with
-// something invented.
+// ErrNoRecord means the question asked for a type these faults do not
+// synthesize, so it should be forwarded rather than answered with an invention.
 var ErrNoRecord = errors.New(
 	"this fault does not synthesize an answer for that query type",
 )
 
-// addressAnswer is WrongAddress: the name resolves, to somewhere nobody
-// approved. It answers A for an IPv4 address and AAAA for an IPv6 one, and it
-// answers the question that was ASKED rather than both, because a target that
-// asked only for A and received a AAAA has been sent something it never
-// requested and the fault would be about khaos rather than about the address.
+// addressAnswer is WrongAddress. It answers the question that was ASKED rather
+// than both families, since a target handed a AAAA it never requested would
+// make the fault about khaos instead of about the address.
 func addressAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	address := trap.address()
 
@@ -57,21 +47,15 @@ func addressAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	case question.Qtype == dns.TypeAAAA && !isV4:
 		return newRR(dns.TypeAAAA, question.Name, trap.ttl(), address)
 	default:
-		// The family the target asked for is not the family of the address khaos
-		// was given, so there is no honest record to make. An empty NOERROR is
-		// the right answer: the name exists and has no record of that type,
-		// which is exactly true.
+		// The family asked for is not the family of the address khaos was
+		// given, so an empty NOERROR is the only honest answer.
 		return nil, nil
 	}
 }
 
 // chainAnswer is CNAMEChain: a multi-hop CNAME whose last hop lands in a
-// different zone from the one the target asked about.
-//
-// It is built as a `file`-zone-shaped full chain rather than a single CNAME,
-// because research 05 section 8.2 measured that a resolver answering one CNAME
-// at a time is a different thing to test than one answering the whole chain, and
-// the whole chain is what a real authoritative server returns.
+// different zone from the one the target asked about. The whole chain is
+// returned at once, which is what a real authoritative server does.
 func chainAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	if question.Qtype != dns.TypeA && question.Qtype != dns.TypeAAAA {
 		return nil, nil
@@ -104,10 +88,9 @@ func chainAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	return append(records, final...), nil
 }
 
-// loopAnswer is CNAMELoop: two CNAMEs pointing at each other, plus the entry
-// hop. The server answering it does not hang, which the research measured; what
-// is under test is the CLIENT's loop handling, and a client with none spins or
-// exhausts its own retry budget.
+// loopAnswer is CNAMELoop: two CNAMEs pointing at each other plus the entry
+// hop. Serving it does not hang the server; the client's loop handling is what
+// is under test.
 func loopAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	if question.Qtype != dns.TypeA && question.Qtype != dns.TypeAAAA {
 		return nil, nil
@@ -136,13 +119,9 @@ func loopAnswer(question dns.Question, trap Trap) ([]dns.RR, error) {
 	return records, nil
 }
 
-// rettl rewrites every TTL in an answer, which is how the two TTL faults corrupt
-// exactly one property of a real answer rather than inventing one.
-//
-// It rewrites the authority and additional sections too. A caching resolver
-// keyed off an SOA's TTL in the authority section would otherwise honour a
-// lifetime khaos did not set, and the fault would be partially applied with
-// nothing saying so.
+// rettl rewrites every TTL in an answer, including the authority and additional
+// sections: a resolver keyed off an SOA's TTL there would otherwise honour a
+// lifetime khaos did not set, leaving the fault partially applied.
 func rettl(msg *dns.Msg, ttl uint32) *dns.Msg {
 	if msg == nil {
 		return nil
@@ -160,10 +139,9 @@ func rettl(msg *dns.Msg, ttl uint32) *dns.Msg {
 	return msg
 }
 
-// validAddress refuses a WrongAddress magnitude that is not an address, before
-// the trap reaches the journal. The fault's whole observable is the address the
-// target connected to, so a malformed one would arm, answer an empty NOERROR
-// and be reported as a target that resolved nothing.
+// validAddress refuses a malformed WrongAddress magnitude before the trap arms,
+// where it would answer an empty NOERROR and read as a target that resolved
+// nothing.
 func validAddress(address string) error {
 	if net.ParseIP(address) == nil {
 		return fmt.Errorf(errBadAddress, ErrBadAddress, address)

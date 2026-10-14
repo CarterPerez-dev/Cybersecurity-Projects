@@ -5,19 +5,13 @@ package experiment
 
 import "github.com/CarterPerez-dev/khaos/internal/pki"
 
-// FamilyTLS is the family name every certificate experiment carries, which
-// `khaos catalog` groups by.
+// FamilyTLS is the family name every certificate experiment carries.
 const FamilyTLS = "tls"
 
-// The `tls.` family. One experiment per certificate trap, named for what khaos
-// does rather than for what it hopes to find.
-//
-// The summaries say what the fault CATCHES, because that is the only thing that
-// makes an entry in `khaos catalog` worth reading. Several of them catch the
-// same client-side error and are told apart only by what khaos knows it served:
-// self-signed, untrusted-CA and missing-intermediate all produce
-// `x509: certificate signed by unknown authority`, and the two extended
-// key-usage faults both produce Reason 4, measured on go1.26.5.
+// One experiment per certificate trap. The summaries say what the fault CATCHES,
+// because several produce byte-identical client errors: self-signed, untrusted-CA
+// and missing-intermediate all give `x509: certificate signed by unknown
+// authority`.
 const (
 	NameLeafExpired         = "tls.leaf_expired"
 	NameLeafNotYetValid     = "tls.leaf_not_yet_valid"
@@ -63,9 +57,8 @@ const (
 	NameClientCertExpired = "tls.mtls_client_expired"
 	NameClientCertAbsent  = "tls.mtls_client_absent"
 
-	// Shares the revoked-via-crl TRAP, because the fault khaos injects really
-	// is revocation. What differs is the finding: whether a session established
-	// before the revocation outlives it.
+	// Shares the revoked-via-crl TRAP; what differs is the finding, whether a
+	// session established before the revocation outlives it.
 	NameResumptionAfterRevocation = "tls.resumption_after_revocation"
 )
 
@@ -116,24 +109,13 @@ const (
 	sumResumption = "establish a session while the certificate is good and revoke it afterwards, which a resumed connection never notices: crypto/tls does not run VerifyPeerCertificate on a resumed handshake, so an application whose pinning or revocation check lives in that hook enforces it once and skips it for the ticket's lifetime, which Go caps at seven days"
 )
 
-// caSwapPolarity is the one experiment in the family whose acceptance is not a
-// finding about the target at all.
-//
-// Once the anchor is replaced the chain is genuinely valid, and no client-side
-// check can see it. Declaring HELD a defect here would accuse every correct TLS
-// implementation in existence of a bug. The experiment is worth running anyway,
-// because the lesson is what it takes to detect this -- pinning, or certificate
-// transparency -- and khaos can show that neither is in crypto/x509.
+// caSwapPolarity is the one experiment whose acceptance is not a finding: once
+// the anchor is replaced the chain is genuinely valid and no client can see it.
 var caSwapPolarity = Polarity{
 	Defects:   []Direction{Permitted},
 	Rationale: "a replaced trust anchor makes the chain genuinely valid and no client-side check can detect it, so accepting it is correct behaviour rather than a defect; only dropping enforcement would be one",
 }
 
-// The definitions are split by group rather than listed in one block, because
-// the groups are how research 04 organises the fault table and how every other
-// file in this family reads. certificateExperiments covers the faults in the
-// certificate itself; revocationExperiments covers the ones in what an
-// authority SAYS about it.
 func init() {
 	groups := [][]Definition{
 		subjectExperiments(),
@@ -150,8 +132,7 @@ func init() {
 	}
 }
 
-// subjectExperiments are the faults in WHEN a certificate is valid and WHO it
-// is for.
+// subjectExperiments are the faults in WHEN a certificate is valid and WHO for.
 func subjectExperiments() []Definition {
 	return []Definition{
 		// Validity.
@@ -195,14 +176,9 @@ func subjectExperiments() []Definition {
 
 // chainExperiments are the faults in the path from leaf to trusted root, plus
 // the two in how it is signed and what it may be used for.
-//
-// Five of these produce byte-identical client errors in two groups: the first
-// three all give `x509: certificate signed by unknown authority`, and the two
-// extended key-usage faults both give Reason 4. Nothing a target logs can tell
-// them apart, which is why khaos reports what it SERVED.
 func chainExperiments() []Definition {
 	return []Definition{
-		// The chain. The first three are the byte-identical group.
+		// The chain.
 		tlsDefinition(tlsSpec{
 			name:    NameSelfSigned,
 			summary: sumSelfSigned,
@@ -234,7 +210,7 @@ func chainExperiments() []Definition {
 			trap:    pki.PathLengthExceeded,
 		}),
 
-		// Signing and usage. The last two are the second identical group.
+		// Signing and usage.
 		tlsDefinition(tlsSpec{
 			name:    NameSHA1Signature,
 			summary: sumSHA1,
@@ -254,11 +230,9 @@ func chainExperiments() []Definition {
 }
 
 // policyExperiments are the faults crypto/x509 ACCEPTS, so none of them tests
-// the library at all: they test whether the target imposed a policy of its own.
-// An acceptance here is the absence of a floor, not a bypassed check.
+// the library: they test whether the target imposed a policy of its own.
 func policyExperiments() []Definition {
 	return []Definition{
-		// Policy: the faults crypto/x509 accepts.
 		tlsDefinition(tlsSpec{
 			name:    NameWeakKey,
 			summary: sumWeakKey,
@@ -277,9 +251,8 @@ func policyExperiments() []Definition {
 			trap:    pki.KeyUsageWithoutDigitalSignature,
 		}),
 
-		// The trust store. It sits with the certificate faults rather than the
-		// revocation ones because nothing about revocation is involved: the
-		// chain is impeccable under an anchor khaos replaced.
+		// The trust store, which sits here because the chain is impeccable under
+		// an anchor khaos replaced.
 		tlsDefinition(tlsSpec{
 			name:     NameCASwap,
 			summary:  sumCASwap,
@@ -290,12 +263,7 @@ func policyExperiments() []Definition {
 }
 
 // revocationExperiments are the faults in what an authority SAYS about a
-// certificate rather than in the certificate.
-//
-// Every one of them declares its endpoint, and that declaration is what turns
-// on the UNSUPPORTED reading: a target that never asked has no revocation check
-// that could have failed, and reporting its acceptance as a bypass would
-// accuse it of skipping something it never had.
+// certificate, each declaring the endpoint that turns on the UNSUPPORTED reading.
 func revocationExperiments() []Definition {
 	return []Definition{
 		// By CRL.
@@ -319,7 +287,7 @@ func revocationExperiments() []Definition {
 			consults: ConsultsCRL,
 		}),
 
-		// Revocation by OCSP.
+		// By OCSP.
 		tlsDefinition(tlsSpec{
 			name:     NameOCSPRevoked,
 			summary:  sumOCSPRevoked,
@@ -386,14 +354,8 @@ func revocationExperiments() []Definition {
 	}
 }
 
-// mutualExperiments are the two faults in the TARGET's own identity, plus the
-// one whose finding is about a session rather than a certificate.
-//
-// The mutual TLS pair does not test khaos's server, which refuses both
-// correctly. It tests whether the target NOTICES being refused, and under TLS
-// 1.3 that comes down to whether it reads: research 04 measured every row of
-// the ClientAuth matrix returning a successful tls.Dial even where the server
-// served nothing at all.
+// mutualExperiments test whether the target NOTICES being refused, which under
+// TLS 1.3 comes down to whether it reads: the dial succeeds either way.
 func mutualExperiments() []Definition {
 	return []Definition{
 		tlsDefinition(tlsSpec{
@@ -408,14 +370,8 @@ func mutualExperiments() []Definition {
 			trap:    pki.ClientCertAbsent,
 		}),
 
-		// The SAME trap as tls.revoked_via_crl, deliberately. khaos injects
-		// revocation either way; this experiment exists because the question
-		// "does a session established beforehand outlive it" is a different
-		// finding from "does the target check revocation at all", and a target
-		// can pass the first and fail this one.
-		//
-		// It declares the endpoint for the same reason the revocation group
-		// does: a target that never asks has no check to skip on resumption.
+		// The same trap as tls.revoked_via_crl, deliberately: a target can check
+		// revocation and still never notice it on a resumed session.
 		tlsDefinition(tlsSpec{
 			name:     NameResumptionAfterRevocation,
 			summary:  sumResumption,

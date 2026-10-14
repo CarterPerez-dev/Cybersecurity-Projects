@@ -12,21 +12,15 @@ import (
 )
 
 const (
-	// slowMargin is how much slower the faulted name has to be than the control
-	// before khaos will call a delay confirmed. It is a differential rather than
-	// an absolute threshold, which is the proxy tier's most expensive lesson
-	// restated: an absolute threshold confirms `hang` or `latency` for free
-	// against any dependency that is simply slow.
+	// slowMargin is a differential against the control rather than an absolute
+	// threshold, which would confirm a delay for free against any dependency
+	// that is merely slow.
 	slowMargin = 500 * time.Millisecond
 
-	// chainMinimum is how many CNAME hops have to be present before a chain is
-	// a chain. One CNAME is an ordinary alias and every second zone has them;
-	// the fault is the indirection, so two is the floor.
+	// chainMinimum is two because one CNAME is an ordinary alias; the fault is
+	// the indirection.
 	chainMinimum = 2
 
-	// unknownHonest stands in when khaos has not read the resolver's zone back.
-	// It is named rather than blank so a reader can tell a missing read-back from
-	// an address that happens to be empty.
 	unknownHonest = "the address it really has"
 )
 
@@ -62,21 +56,10 @@ const (
 	refuteMasked           = "%s is a fault khaos refuses to deliver, so there is nothing to confirm"
 )
 
-// Observe measures what the resolver actually SERVES and reports the observable
-// alongside the verdict. It never reads the armed state back.
-//
-// That distinction is the whole design of this function. A state echo from
-// /arm says which branch was chosen, not what a target would receive, and the
-// PKI tier's inert-authority control caught fifteen traps confirming themselves
-// off exactly that kind of read-back. Here the resolver is asked the same
-// question the target asks, over the same transports, and the answer is the
-// evidence.
-//
-// Every observation is TWO-SIDED. The faulted name has to show the fault AND
-// the control name has to keep resolving, because those two failures look
-// identical from one query: a resolver that has crashed answers nothing for
-// both, and calling that a confirmed NXDOMAIN fault would be a finding
-// manufactured out of khaos's own breakage.
+// Observe measures what the resolver actually SERVES, never the armed state.
+// Every observation is TWO-SIDED: the faulted name must show the fault AND the
+// control must keep resolving, because a crashed resolver answers nothing for
+// either and that would read as a confirmed fault.
 func (c *Client) Observe(trap Trap) (string, bool, error) {
 	if !Deliverable(trap.Kind) {
 		return "", false, fmt.Errorf(
@@ -138,15 +121,8 @@ func (c *Client) Observe(trap Trap) (string, bool, error) {
 	}
 }
 
-// rcodeObservation requires the rcode AND the authoritative bit.
-//
-// AA is what separates the armed fault from khaos's own breakage. Five paths in
-// serveFault answer SERVFAIL — the armed arm, the unreachable-kind arm, the
-// default, a record-building failure and a forwarding failure — so deleting
-// `case ServFail:` fell through to `default`, served the same rcode, and left
-// every test and the whole gate green. khaos IS authoritative for a name in its
-// own zone, so the fault sets AA and the failure paths do not, which makes the
-// two distinguishable from the outside by exactly the thing that differs.
+// rcodeObservation requires the rcode AND the authoritative bit: several paths
+// in serveFault answer SERVFAIL, and only the armed fault sets AA.
 func rcodeObservation(
 	trap Trap,
 	faulted answer,
@@ -174,15 +150,9 @@ func rcodeObservation(
 	return fmt.Sprintf(observed, trap.Host, controlName), true, nil
 }
 
-// wrongObservation requires the wrong address to be answered DIRECTLY, with no
-// CNAME in the reply, and the isolation control is what forced that too.
-//
-// Once the chain fault was made to end at the same address — which it has to, or
-// the indirection goes nowhere and there is nothing for a control to have failed
-// to notice — its final A record satisfied this observable and the two faults
-// alibi each other again. The claims really are different: this one is "the name
-// resolves somewhere else", and the chain's is "the name resolves somewhere else
-// THROUGH indirection that defeats matching on the name you asked for".
+// wrongObservation requires the wrong address DIRECTLY, with no CNAME in the
+// reply. The chain fault ends at the same address, so without the hop check
+// either fault would satisfy both observables.
 func wrongObservation(
 	trap Trap,
 	faulted answer,
@@ -199,9 +169,8 @@ func wrongObservation(
 		return refutation(refuteWrongIndirect, trap.Host, hops)
 	}
 
-	// The HONEST address, not the one khaos was told to serve. Naming the served
-	// address on both sides of "instead of" states the same thing twice and
-	// tells a reader nothing about what was replaced.
+	// The HONEST address, since naming the served address on both sides of
+	// "instead of" states the same thing twice.
 	if honest == "" {
 		honest = unknownHonest
 	}
@@ -209,8 +178,6 @@ func wrongObservation(
 	return fmt.Sprintf(observeWrong, trap.Host, addresses, honest), true, nil
 }
 
-// honest reports the address this resolver really serves for a name, read back
-// from the resolver rather than assumed.
 func (c *Client) honest(host string) string {
 	if c.Zone == nil {
 		return ""
@@ -219,14 +186,8 @@ func (c *Client) honest(host string) string {
 	return c.Zone[dns.CanonicalName(host)]
 }
 
-// chainObservation requires hops that do NOT cycle, and the isolation control
-// is what forced that.
-//
-// A loop also has three CNAME hops, so a hop count alone confirmed CNAMELoop's
-// answer as a chain. Two observables that accept the same reply alibi each
-// other: gut whichever one builds the records and the other's control stays
-// green. The chain's claim is indirection ENDING somewhere, so it has to reject
-// indirection that goes nowhere.
+// chainObservation requires hops that do NOT cycle. A loop answers the same
+// number of hops, and the chain's claim is indirection that ENDS somewhere.
 func chainObservation(trap Trap, faulted answer) (string, bool, error) {
 	hops := faulted.cnames()
 	if len(hops) < chainMinimum {
@@ -246,9 +207,7 @@ func chainObservation(trap Trap, faulted answer) (string, bool, error) {
 }
 
 // loopObservation requires an actual cycle rather than merely several hops,
-// because a chain also has several hops and the two faults would then alibi
-// each other: gut whichever one produces the records and the other's control
-// still passes.
+// which a chain has too.
 func loopObservation(trap Trap, faulted answer) (string, bool, error) {
 	hops := faulted.cnames()
 
@@ -270,27 +229,9 @@ func hasCycle(hops []string) bool {
 	return false
 }
 
-// slowObservation requires the slow answer to be an ANSWER, and the first
-// version did not.
-//
-// It was the only observable in this file that never looked at `faulted.err` or
-// `faulted.resolved()`. `ask` records a failure as `answer{elapsed, err}` and
-// `probeTimeout` is 10s, and `miekg/dns` Client.Exchange is one dial, one write,
-// one read with no retry — so a single dropped UDP datagram on khaos's own
-// confirmation query produced `elapsed ≈ 10s` with a non-nil error and this
-// returned CONFIRMED, wording it as "answering <name> after 10s". khaos had
-// received nothing. It then measured a full fault window and attributed what it
-// saw to a delay it could not prove was served.
-//
-// Every sibling already failed safe on exactly this — both truncation arms
-// refute an unreachable TCP path BY NAME. The lesson was written in this file
-// and not applied to the UDP case.
-//
-// The honest-address check is the second half. The kind promises an answer that
-// is "correct but late", so a slow NXDOMAIN or a slow redirect satisfied the old
-// predicate and the report said it answered correctly. The ordered cross-product
-// cannot catch that, because it only ever confronts this fault with faults that
-// are FAST.
+// slowObservation requires the slow answer to be an ANSWER, and the honest one.
+// `miekg/dns` does not retry, so one dropped datagram elapses the full
+// probeTimeout and would read as a served delay.
 func slowObservation(
 	trap Trap,
 	faulted answer,
@@ -337,14 +278,9 @@ func slowObservation(
 	), true, nil
 }
 
-// truncObservation needs BOTH halves. A truncated UDP answer alone does not
-// distinguish this fault from TruncationNoTCP, and the difference between them
-// is the entire point: one tests whether the client makes the RFC 5966 retry,
-// the other tests whether the retry is permitted to leave the network.
-//
-// The decision is split from the measuring so each arm has a control. Every arm
-// below was reachable only through a live resolver before, and the gutting pass
-// showed what that costs: deleting one left the whole suite green.
+// truncObservation needs BOTH halves: a truncated UDP answer alone does not
+// distinguish this fault from TruncationNoTCP, which asks whether the retry is
+// allowed to leave the network rather than whether the client makes it.
 func truncObservation(
 	trap Trap,
 	overUDP answer,
@@ -378,8 +314,7 @@ func truncObservation(
 }
 
 // truncNoTCPObservation requires the truncation bit ON TCP, not merely a TCP
-// path that produced no answer. "The resolver truncates on both transports" and
-// "TCP is unreachable" are different findings and only the first is this fault.
+// path that produced no answer: an unreachable TCP path is a different finding.
 func truncNoTCPObservation(
 	trap Trap,
 	overUDP answer,
@@ -405,12 +340,8 @@ func truncNoTCPObservation(
 }
 
 // ttlObservation requires the armed TTL on the faulted name AND a different one
-// on the control.
-//
-// The control half is load-bearing rather than decorative. A zone that happens
-// to serve a zero TTL would confirm TTLZero against a resolver with nothing
-// armed, so the fault has to be a DIFFERENCE from what the same resolver serves
-// for a name it is not faulting.
+// on the control, since a zone that happens to serve a zero TTL would otherwise
+// confirm TTLZero against a resolver with nothing armed.
 func ttlObservation(
 	trap Trap,
 	faulted answer,

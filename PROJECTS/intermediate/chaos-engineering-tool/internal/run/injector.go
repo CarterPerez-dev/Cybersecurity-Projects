@@ -19,7 +19,7 @@ type Resolver interface {
 }
 
 // Injector adapts a Session to the experiment engine, so the engine never
-// touches Docker, a journal or a lease and stays testable without a daemon.
+// touches Docker, a journal or a lease.
 type Injector struct {
 	Session  *Session
 	Resolver Resolver
@@ -59,13 +59,9 @@ func (i *Injector) Inject(ctx context.Context, kind, target string) error {
 	return nil
 }
 
-// Confirm reads the fault back from the daemon. An injection the API accepted
-// is not the same as a fault that took effect, and a run that measures an
-// unconfirmed fault is indistinguishable from a run with no fault at all,
-// which reads as a pass.
-// The method reported is the one each mutation actually measured, not a constant
-// naming the technique. A run record that says how the fault was confirmed is
-// auditable; one that says only that something was confirmed is not.
+// Confirm reads the fault back from the daemon, because an injection the API
+// accepted is not the same as a fault that took effect, and a run measuring no
+// fault at all reads as a pass.
 func (i *Injector) Confirm(ctx context.Context) (string, error) {
 	first := ""
 

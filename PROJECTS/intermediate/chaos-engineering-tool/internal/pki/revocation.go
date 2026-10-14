@@ -14,38 +14,22 @@ import (
 )
 
 const (
-	// reasonKeyCompromise is RFC 5280 section 5.3.1. Reason code 0 is NOT used
-	// anywhere in khaos: when creating a CRL, 0 means the reasonCode extension
-	// is omitted entirely, and when parsing, 0 is ambiguous between "extension
-	// absent" and "extension present, value zero". An ambiguous signal cannot
-	// carry a finding.
+	// RFC 5280 5.3.1. Reason code 0 is never used: on creation it omits the
+	// extension, and on parsing it cannot be told from an absent one.
 	reasonKeyCompromise = 1
 
-	// crlNumber is the cRLNumber extension. khaos issues one CRL per arming, so
-	// it does not need to increment.
 	crlNumber = 1
 
-	// wrongSerialOffset is added to the leaf's serial to mint an OCSP response
-	// that is about a DIFFERENT certificate. Any value works; a fixed offset
-	// makes the resulting serial reproducible in a failure message.
 	wrongSerialOffset = 1
 
-	// garbageStaple is bytes that are definitively not an OCSP response. Go
-	// never parses a staple, so these reach the application verbatim and only
-	// its own handling decides.
 	garbageStaple = "khaos: this is not an OCSP response"
 
 	errCRL     = "%w: minting a CRL: %v"
 	errOCSPGen = "%w: minting an OCSP response: %v"
 )
 
-// buildRevocation mints the chain for every fault that acts on revocation
-// rather than on the certificate itself.
-//
-// Go performs NO revocation checking of any kind, so every chain in this group
-// verifies with a nil error. That is not a weakness of the faults, it IS the
-// finding: the certificate is impeccable and the only thing wrong with it is
-// something the standard library will never look at.
+// Go performs NO revocation checking, so every chain in this group verifies
+// with a nil error, and that is the finding rather than a weak fault.
 func (a *Authority) buildRevocation(
 	trap Trap,
 	host string,
@@ -57,18 +41,12 @@ func (a *Authority) buildRevocation(
 	}
 
 	if trap.Kind == NoOCSPServer {
-		// Models Let's Encrypt after it ended OCSP in 2025. The CRL pointer
-		// stays, so the honest answer for a target is to fall back to it; the
-		// question is whether it does, or treats "nothing to ask" as "fine".
 		template.OCSPServer = nil
 	}
 
 	return a.assemble(template, a.inter, a.root.cert, StrongBits, true)
 }
 
-// staple attaches whatever stapled response the trap calls for. A nil staple is
-// not an error: it is the StapleAbsent fault, and it is also what every
-// non-stapling trap serves.
 func (a *Authority) staple(
 	trap Trap,
 	chain *Chain,
@@ -82,22 +60,14 @@ func (a *Authority) staple(
 		chain.Staple = nil
 
 	case OCSPTryLater, OCSPUnreachable, CRLUnreachable:
-		// NOTHING is stapled. These three faults are about an answer the client
-		// cannot OBTAIN, and a stapled Good is an answer obtained for free: the
-		// client would read it, be satisfied, and never contact the endpoint
-		// khaos broke. The fault would be completely unreachable.
-		//
-		// The matrix caught exactly this. Nine modes, including the correct
-		// one, accepted ocsp-try-later and ocsp-unreachable because the staple
-		// answered first.
+		// NOTHING is stapled. These three are about an answer the client cannot
+		// OBTAIN, and a stapled Good would be read before the broken endpoint.
 		chain.Staple = nil
 
 	case OCSPRevoked, OCSPStale, OCSPWrongSerial, OCSPWrongSigner,
 		OCSPUnknown:
-		// The responder faults also staple what they would have answered, so a
-		// target that reads the staple instead of querying sees the same fault.
-		// Without this, an app that trusts staples would be measured against a
-		// responder it never contacts and would read as fail-closed.
+		// The responder faults staple what they would have answered, or an app
+		// that trusts staples never contacts the responder under test.
 		der, err := a.ocspFor(trap, chain, now)
 		if err != nil {
 			return nil, err
@@ -106,8 +76,6 @@ func (a *Authority) staple(
 		chain.Staple = der
 
 	default:
-		// Every other trap staples an honest Good, which is what a correct
-		// authority serving a good certificate would do.
 		der, err := a.ocspGood(chain, now, now.Add(DefaultWindow))
 		if err != nil {
 			return nil, err
@@ -119,10 +87,7 @@ func (a *Authority) staple(
 	return chain, nil
 }
 
-// CRLFor mints the revocation list the authority serves for this chain. The
-// trap decides whether the leaf is listed and whether the list is fresh, and
-// those are INDEPENDENT: a stale CRL that revokes nothing finds nothing, and a
-// fresh CRL that revokes the leaf is the baseline every correct client passes.
+// Whether the leaf is listed and whether the list is fresh are INDEPENDENT.
 func (a *Authority) CRLFor(
 	trap Trap,
 	chain *Chain,
@@ -135,25 +100,15 @@ func (a *Authority) CRLFor(
 	}
 
 	if trap.Kind == StaleCRL {
-		// ThisUpdate has to move with NextUpdate, or the list is both stale and
-		// not yet issued and a client rejecting it cannot say which it rejected.
+		// ThisUpdate moves with NextUpdate, or the list is also not yet issued.
 		window := trap.window()
 		template.ThisUpdate = now.Add(-window - DefaultWindow)
 		template.NextUpdate = now.Add(-window)
 	}
 
-	// Only RevokedViaCRL lists the serial. StaleCRL deliberately does NOT, and
-	// that is the difference between the two faults.
-	//
-	// The first draft had the stale list also revoke the leaf, which made the
-	// fault catch nothing: a client that ignores freshness still reaches the
-	// serial scan, still finds the entry, and still refuses, so the broken
-	// client behaved exactly like the correct one. The matrix caught it.
-	//
-	// The real scenario is a three-week-old list that PREDATES the revocation.
-	// A correct client refuses because a list it cannot trust is not an answer;
-	// a client that skips step five reads "not listed" as "not revoked" and
-	// accepts. That differential is the whole fault.
+	// Only RevokedViaCRL lists the serial. StaleCRL deliberately does NOT: it
+	// models an old list that PREDATES the revocation, and one that revoked the
+	// leaf as well would be refused by broken and correct clients alike.
 	if trap.Kind == RevokedViaCRL {
 		template.RevokedCertificateEntries = []x509.RevocationListEntry{{
 			SerialNumber:   chain.Leaf.SerialNumber,
@@ -175,28 +130,14 @@ func (a *Authority) CRLFor(
 	return der, nil
 }
 
-// ocspFor mints the response the trap calls for. Each branch corrupts exactly
-// one property of an otherwise correct Good response, so a client that refuses
-// one of them has refused for the reason khaos intended.
 func (a *Authority) ocspFor(
 	trap Trap,
 	chain *Chain,
 	now time.Time,
 ) ([]byte, error) {
-	// The chain's OWN issuer signs, acting as its own responder, which RFC 6960
-	// section 2.6 permits alongside a delegated one.
-	//
-	// A single delegated responder cannot work here, and the matrix proved it.
-	// Seven of these traps serve a chain under a DIFFERENT CA -- the rogue
-	// hierarchy, a non-CA issuer, an over-deep intermediate, or the leaf
-	// itself -- and a response signed by a responder delegated by the honest
-	// intermediate does not verify against any of them. Six traps were being
-	// refused for `the stapled response is not a usable OCSP response`, which
-	// is khaos's own mismatch wearing the wrong-signer fault's clothes.
-	//
-	// Signing with the chain's issuer is always consistent with the chain by
-	// construction. The delegation path is still exercised, from the other
-	// side, by OCSPWrongSigner.
+	// The chain's OWN issuer signs, which RFC 6960 section 2.6 permits. One
+	// delegated responder cannot work: several traps serve a chain under a
+	// DIFFERENT CA.
 	signer := &pair{cert: chain.Issuer, key: chain.issuerKey}
 
 	template := ocsp.Response{
@@ -213,8 +154,6 @@ func (a *Authority) ocspFor(
 		template.RevocationReason = reasonKeyCompromise
 
 	case OCSPUnknown:
-		// Unknown from the AUTHORITATIVE responder is not good. Collapsing the
-		// two is its own fail-open and a common one.
 		template.Status = ocsp.Unknown
 
 	case OCSPStale:
@@ -223,10 +162,6 @@ func (a *Authority) ocspFor(
 		template.NextUpdate = now.Add(-window)
 
 	case OCSPWrongSerial:
-		// The highest-value trap in the group: the bypass is one word of caller
-		// code. ParseResponseForCert rejects this; ParseResponse does not bind
-		// the response to the certificate at all and returns a nil error, so a
-		// caller reading Status accepts a Good minted for another certificate.
 		template.SerialNumber = new(big.Int).Add(
 			chain.Leaf.SerialNumber,
 			big.NewInt(wrongSerialOffset),
@@ -236,19 +171,13 @@ func (a *Authority) ocspFor(
 		signer = a.undelegated
 
 	default:
-		// Good, fresh, correctly signed, for this serial.
+		// Every other kind leaves the response honest.
 	}
 
-	// Embedded ONLY for the wrong-signer fault, and only after the switch has
-	// decided who signs.
-	//
-	// x/crypto embeds the responder certificate just when template.Certificate
-	// is non-nil (ocsp.go:783), and ParseResponse branches on whether one is
-	// present: with a certificate it checks the response against that and that
-	// against the issuer, and without one it checks the response against the
-	// issuer directly. The issuer signs its own responses here, so leaving this
-	// nil is what makes them verify. Setting it for the undelegated signer is
-	// what makes that response fail at the SECOND check, which is the fault.
+	// x/crypto embeds the responder certificate only when this is non-nil, and
+	// ParseResponse branches on its presence: with one it checks the response
+	// against that and that against the issuer. Nil is what lets a
+	// self-issued response verify.
 	if signer != nil && signer.cert != chain.Issuer {
 		template.Certificate = signer.cert
 	}
@@ -266,8 +195,6 @@ func (a *Authority) ocspFor(
 	return der, nil
 }
 
-// ocspGood is the honest response, and the control for every responder fault.
-// Signed by the chain's own issuer for the same reason ocspFor is.
 func (a *Authority) ocspGood(
 	chain *Chain,
 	now, until time.Time,

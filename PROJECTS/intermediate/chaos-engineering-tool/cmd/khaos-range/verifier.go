@@ -21,15 +21,9 @@ const (
 	headerVerifierReason = "X-Khaos-Reason"
 )
 
-// verifierGateway is the third gateway the range runs, and the only one whose
-// identity provider is khaos itself. The other two introspect the range's own
-// provider container, which khaos cannot make lie; this one resolves keys and
-// introspects against khaos's in-process provider, which khaos can arm.
-//
-// It serves BOTH validation strategies, chosen by the shape of the credential,
-// because research 07 section 3.1 establishes that local validation and
-// introspection have genuinely different outage shapes and the `identity.`
-// family spans both. Real gateways dispatch the same way.
+// verifierGateway is the only gateway whose identity provider is khaos itself,
+// so it is the only one khaos can arm. It serves both validation strategies,
+// chosen by the credential's shape, as real gateways do.
 type verifierGateway struct {
 	verifier *verifier.Verifier
 }
@@ -76,10 +70,7 @@ func (g *verifierGateway) protected(w http.ResponseWriter, r *http.Request) {
 
 	decision := g.verifier.Decide(token)
 
-	// The reason is a convenience for a human reading the fixture's responses,
-	// and khaos must never consume it. khaos judges a target from the outside and
-	// a real target volunteers nothing, so an experiment that read this header
-	// would pass against the range and be inert against everything else.
+	// For a human reading the fixture's responses; khaos must never consume it.
 	w.Header().Set(headerVerifierReason, decision.Reason)
 
 	if decision.Allow {

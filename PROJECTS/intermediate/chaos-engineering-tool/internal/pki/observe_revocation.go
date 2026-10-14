@@ -16,14 +16,8 @@ import (
 
 const maxReadBack = 1 << 20
 
-// observeRevocation confirms the faults that act on revocation rather than on
-// the certificate.
-//
-// Every one of these serves a chain crypto/x509 accepts, so there is no refusal
-// anywhere to read back and nothing in the certificate differs from the
-// control. The ONLY evidence is what khaos's own endpoints answer, which is why
-// this reads them over HTTP exactly as a target would rather than inspecting
-// the state that produced them.
+// Every one of these serves a chain crypto/x509 accepts, so the only evidence
+// is what khaos's endpoints answer, read over HTTP as a target would.
 func (a *Authority) observeRevocation(
 	ctx context.Context,
 	trap Trap,
@@ -48,10 +42,7 @@ func (a *Authority) observeRevocation(
 	}
 }
 
-// observeUnreachable confirms that ONE endpoint refuses while the health route
-// still answers. Both halves are required: an authority that fell over would
-// satisfy the first on its own, and khaos would be reporting its own crash as a
-// fault it injected.
+// Both halves: one endpoint refuses AND the health route still answers.
 func (a *Authority) observeUnreachable(
 	ctx context.Context,
 	trap Trap,
@@ -74,22 +65,13 @@ func (a *Authority) observeUnreachable(
 	return sprintf(observedUnreached, route, status), true, nil
 }
 
-// observeCRL reads the list khaos serves. The two CRL faults are distinguished
-// HERE and not by what they were asked to do: one lists the serial in a fresh
-// list, the other omits it from a stale one, and a mix-up either way makes one
-// of them inert.
 func (a *Authority) observeCRL(
 	ctx context.Context,
 	trap Trap,
 	chain *Chain,
 	root string,
 ) (string, bool, error) {
-	// Every failure below returns NOT CONFIRMED rather than an error, and that
-	// is the same discipline the identity provider's oracle uses: khaos being
-	// unable to read its own fault back is a refusal to confirm, which makes
-	// the engine abort the run. Returning the read error instead would make
-	// khaos fail with a plumbing complaint when the honest answer is "khaos
-	// could not see this fault land".
+	// Failing to read khaos's own fault back is NOT CONFIRMED, not an error.
 	der, err := a.read(ctx, root+RouteCRL)
 	if err != nil {
 		return "", false, nil //nolint:nilerr // not confirmed, not an error
@@ -101,8 +83,6 @@ func (a *Authority) observeCRL(
 	}
 
 	if err := list.CheckSignatureFrom(chain.Issuer); err != nil {
-		// A list a correct client would discard proves nothing about the
-		// target: it would refuse for khaos's defect rather than the fault's.
 		return "", false, nil //nolint:nilerr // not confirmed, not an error
 	}
 
@@ -120,8 +100,8 @@ func (a *Authority) observeCRL(
 		return "", false, nil
 	}
 
-	// StaleCRL. The serial must be ABSENT, or a client that ignores freshness
-	// still finds it and refuses, and the fault catches nothing.
+	// StaleCRL. The serial must be ABSENT, or a client ignoring freshness
+	// still finds it and refuses.
 	if !listed && list.NextUpdate.Before(now) {
 		return sprintf(
 			observedStale,
@@ -133,9 +113,6 @@ func (a *Authority) observeCRL(
 	return "", false, nil
 }
 
-// observeResponder reads what the OCSP endpoint answers. Each branch asserts
-// the ONE property its fault corrupts, so a responder that was wrong in some
-// other way cannot confirm a trap it is not producing.
 func (a *Authority) observeResponder(
 	ctx context.Context,
 	trap Trap,
@@ -148,9 +125,6 @@ func (a *Authority) observeResponder(
 	}
 
 	if trap.Kind == OCSPTryLater {
-		// TryLater is a RESPONSE status, so it must NOT parse as an answer. A
-		// successful parse here would mean khaos served a real verdict and the
-		// soft-fail trap never gets its chance.
 		var unusable ocsp.ResponseError
 		if _, parseErr := ocsp.ParseResponse(
 			der,
@@ -164,15 +138,11 @@ func (a *Authority) observeResponder(
 	}
 
 	if trap.Kind == OCSPWrongSigner {
-		// Rejected when bound to the certificate is the whole fault. Parsing it
-		// successfully would mean the CA did issue the signer after all.
 		if _, bindErr := ocsp.ParseResponseForCert(
 			der,
 			chain.Leaf,
 			chain.Issuer,
 		); bindErr != nil {
-			// The binding FAILING is the confirmation, not an error being
-			// swallowed: the CA never issued this signer, which is the fault.
 			//nolint:nilerr // the rejection IS the observable
 			return observedBadSigner, true, nil
 		}
@@ -180,9 +150,8 @@ func (a *Authority) observeResponder(
 		return "", false, nil //nolint:nilerr // not confirmed, not an error
 	}
 
-	// The remaining three answer about SOMETHING, so they have to parse. The
-	// loose call is used deliberately: ParseResponseForCert refuses the
-	// wrong-serial response, which is the fault khaos is trying to read back.
+	// The loose call is deliberate: ParseResponseForCert refuses the
+	// wrong-serial response, which is the fault khaos is reading back.
 	response, err := ocsp.ParseResponse(der, chain.Issuer)
 	if err != nil {
 		return "", false, nil //nolint:nilerr // not confirmed, not an error
@@ -210,8 +179,6 @@ func (a *Authority) judgeResponse(
 		}
 
 	case OCSPStale:
-		// Good AND stale. A stale Revoked would be refused for its status, so a
-		// client refusing it would prove nothing about freshness.
 		if response.Status == ocsp.Good &&
 			response.NextUpdate.Before(now) {
 			return sprintf(
@@ -222,9 +189,8 @@ func (a *Authority) judgeResponse(
 		}
 
 	case OCSPWrongSerial:
-		// Good, and about a DIFFERENT certificate. Both halves: a Revoked for
-		// the wrong serial would be refused on status by a client that never
-		// checks the binding.
+		// Good, and about a DIFFERENT certificate: a Revoked for the wrong
+		// serial would be refused on status instead.
 		if response.Status == ocsp.Good &&
 			response.SerialNumber.Cmp(chain.Leaf.SerialNumber) != 0 {
 			return sprintf(
@@ -235,16 +201,12 @@ func (a *Authority) judgeResponse(
 		}
 
 	default:
-		// Unreachable: observeResponder handles the other kinds itself.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// probe and read are khaos's OWN requests, marked so the counters can subtract
-// them. Without the header, "the target consulted revocation" would be true for
-// every run in which khaos confirmed its own fault, and the UNSUPPORTED verdict
-// would never fire.
 func (a *Authority) probe(ctx context.Context, url string) (int, error) {
 	response, err := a.send(ctx, url)
 	if err != nil {

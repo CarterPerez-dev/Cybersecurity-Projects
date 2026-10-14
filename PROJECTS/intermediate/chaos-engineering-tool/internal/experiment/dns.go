@@ -5,19 +5,9 @@ package experiment
 
 import "github.com/CarterPerez-dev/khaos/internal/dnsrv"
 
-// The `dns.` family. Each entry is a row of research 05 section 9's injectable
-// fault matrix, and the two khaos cannot deliver are entries as well, so that
-// asking for one gets the mechanism and a fault to run instead rather than
-// silence.
-//
-// What this family tests that no other one can: the dependency is HEALTHY and
-// the target cannot find it, or finds something else. A paused container and a
-// severed path both make a dependency unreachable, and a broken certificate
-// makes it unverifiable. Name resolution failing is a third branch, and research
-// 05 section 10 is the argument for why the fail-open lives there: a control
-// whose allowlist entry is a hostname has to resolve that name to make a
-// decision, which moves its trust boundary into DNS, which nobody operating it
-// controls.
+// The `dns.` family, where the dependency is HEALTHY and the target cannot find
+// it, or finds something else. The two faults khaos cannot deliver are entries
+// as well, so asking for one gets the mechanism instead of silence.
 const (
 	NameDNSNXDomain        = "dns.nxdomain"
 	NameDNSServFail        = "dns.servfail"
@@ -59,8 +49,6 @@ const (
 	summaryTimeout = "a dropped query through Docker's embedded resolver, which khaos refuses to approximate; the resolver answers SERVFAIL itself at a measured 4.001s and a client never sees a socket timeout"
 )
 
-// dnsCatalogue is the whole family in one list, so a census can walk it and the
-// catalogue, the refusals and the gate cannot disagree about what exists.
 var dnsCatalogue = []dnsSpec{
 	{
 		name:    NameDNSNXDomain,
@@ -135,8 +123,7 @@ func init() {
 	}
 }
 
-// DNSNames is the family, in catalogue order, for a census that has to prove it
-// ran every one.
+// DNSNames is the family in catalogue order.
 func DNSNames() []string {
 	out := make([]string, 0, len(dnsCatalogue))
 	for _, spec := range dnsCatalogue {
@@ -146,8 +133,7 @@ func DNSNames() []string {
 }
 
 // DNSDeliverable splits the family into the faults khaos serves and the ones it
-// refuses by name, derived from the resolver's own list so the catalogue cannot
-// drift from what the resolver will actually accept.
+// refuses, derived from the resolver's own list so the two cannot drift.
 func DNSDeliverable() (deliverable, refused []string) {
 	for _, spec := range dnsCatalogue {
 		if dnsrv.Deliverable(spec.fault) {

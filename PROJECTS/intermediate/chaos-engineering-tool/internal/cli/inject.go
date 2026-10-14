@@ -116,9 +116,8 @@ func onlyKnownKind(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// A registered kind that `inject` cannot apply alone has to be refused by
-	// name rather than attempted. It would otherwise fail deep inside the
-	// mutation with a message about a proxy the operator never asked for.
+	// Refused by name, because attempting it fails deep inside the mutation
+	// with a message about a proxy the operator never asked for.
 	if !inject.IsDirect(args[0]) {
 		return fmt.Errorf(
 			errNotDirect,

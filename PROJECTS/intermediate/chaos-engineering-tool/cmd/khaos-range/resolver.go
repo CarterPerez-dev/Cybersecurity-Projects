@@ -34,21 +34,9 @@ var errZoneMissing = errors.New(
 	"a chaos resolver needs at least one zone entry",
 )
 
-// serveResolver runs khaos's chaos resolver as a range service.
-//
-// It is the SAME `internal/dnsrv` package khaos runs outside the range, behind a
-// different entry point, and that matters for what the range proves. If the
-// range ran a separate implementation, every DNS experiment the gate asserts
-// would be asserting something an operator's khaos never executes.
-//
-// Outside the range khaos imports its own binary as a one-layer image, because
-// an operator's khaos has no source tree to build from. In here the image
-// already exists, so the resolver is an ordinary compose service with the labels
-// khaos matches on, and khaos finds it exactly as it finds one it started
-// itself.
-//
-// It does not go through roleHandler, because it is the one role that is not an
-// HTTP service: it binds UDP and TCP on 53 and its control surface separately.
+// serveResolver runs the same internal/dnsrv package khaos runs outside the
+// range, behind a different entry point. It skips roleHandler because it is the
+// one role that is not an HTTP service.
 func serveResolver(args []string) error {
 	flags := flag.NewFlagSet(roleResolver, flag.ContinueOnError)
 
@@ -66,8 +54,7 @@ func serveResolver(args []string) error {
 		return err
 	}
 
-	// From the ENVIRONMENT, for the measured reason in resolverArgs: a command
-	// line is world-readable in the host's process table and this is a secret.
+	// Never from the command line, which is world-readable in the process table.
 	resolver, err := dnsrv.New(dnsrv.Config{
 		Nonce:   os.Getenv(dockerx.EnvResolverNonce),
 		Control: *control,
@@ -98,9 +85,8 @@ func serveResolver(args []string) error {
 	return resolver.Shutdown()
 }
 
-// zoneEntries collects a repeated flag. It is a flag.Value rather than a
-// StringArray because this binary has no cobra, and the repetition matters: a
-// resolver with one zone entry has no control name to confirm against.
+// zoneEntries collects a repeated flag, as a flag.Value because this binary
+// has no cobra.
 type zoneEntries []string
 
 func (z *zoneEntries) String() string {

@@ -30,9 +30,7 @@ const (
 	envListen   = "KHAOS_RANGE_LISTEN"
 	envUpstream = "KHAOS_RANGE_UPSTREAM"
 
-	// envReresolve makes this gateway resolve its dependency's name on EVERY
-	// request instead of once per kept-alive connection. Only the DNS gateway
-	// sets it; the other tiers are measured on the ordinary pooled path.
+	// envReresolve resolves the dependency's name on EVERY request. DNS only.
 	envReresolve = "KHAOS_RANGE_RERESOLVE"
 	trueValue    = "true"
 	envFailMode  = "KHAOS_RANGE_FAIL_MODE"
@@ -41,21 +39,16 @@ const (
 	defaultListen   = ":8080"
 	defaultUpstream = "http://idp:8080"
 
-	// Both deliberately unreachable. khaos's authority is not a container and
-	// its address is chosen per run, so a default that looked plausible would
-	// let the gateway start and silently measure nothing; these fail loudly
-	// and the baseline refuses, which voids the run instead.
+	// Deliberately unreachable: a plausible default would let the gateway
+	// start and measure nothing.
 	defaultDependency    = "https://host.docker.internal:0"
 	defaultAuthorityBase = "http://host.docker.internal:0"
 
 	shutdownGrace = 2 * time.Second
 
-	// Generous on purpose. At three seconds this fixture closed khaos's upstream
-	// before a `--delay` beyond that could be observed, so khaos's one graduated
-	// fault had a usable window of roughly 500ms to 3s against its own range and
-	// aborted above it. That ceiling belonged to the fixture, not to the fault.
-	// This is a deliberately-breakable test stack, not a hardened service, so the
-	// header timeout exists only to stop a wedged connection living forever.
+	// Generous on purpose: a short header timeout closes the connection before
+	// a longer injected delay can be observed, making the fixture's ceiling
+	// look like the fault's.
 	readHeaderTimeout = 120 * time.Second
 
 	usage       = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|healthcheck>"
@@ -81,9 +74,7 @@ func run() error {
 		return selfCheck()
 	}
 
-	// The resolver is the one role that is not an HTTP service: it binds UDP and
-	// TCP on 53 and its own control surface, so it never reaches the server
-	// below.
+	// The resolver binds UDP and TCP, so it never reaches the server below.
 	if os.Args[1] == roleResolver {
 		return serveResolver(os.Args[2:])
 	}

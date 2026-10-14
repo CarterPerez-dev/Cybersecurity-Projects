@@ -13,23 +13,15 @@ import (
 )
 
 const (
-	// ControlPort is where the resolver's control surface listens INSIDE its
-	// container. Nothing is published to the host, and khaos reaches it on the
-	// container's own address the same way it reaches the resolver's DNS port,
-	// so this never collides with anything on the operator's machine and never
-	// needs remapping.
+	// ControlPort listens INSIDE the resolver's container and is never
+	// published, so it cannot collide with anything on the operator's machine.
 	ControlPort = 9053
 
 	// NonceHeader authorises a control request. The resolver shares a network
-	// with the target, so the target can reach this surface; the nonce is what
-	// stops it arming or disarming khaos's own fault. khaos generates it,
-	// passes it at container creation, and reads it back out of the container
-	// rather than remembering what it chose.
+	// with the target, so the nonce is what stops the target arming or
+	// disarming khaos's own fault.
 	NonceHeader = "X-Khaos-Nonce"
 
-	// NonceBytes is 16, so a target cannot find the nonce by trying. Every
-	// refused attempt is counted and reported in Stats, which turns guessing
-	// into evidence rather than noise.
 	NonceBytes = 16
 
 	PathArm     = "/arm"
@@ -53,13 +45,9 @@ var ErrControlServing = errors.New(
 	"that resolver's control surface is already serving",
 )
 
-// Health is what /healthz answers. It is a liveness signal and deliberately NOT
-// nonce-protected, because khaos has to be able to wait for the container to
-// come up before it has read the nonce back out of it, and because a readiness
-// probe that needs a secret is one khaos cannot use from a `range status`.
-//
-// It reports nothing about the armed fault. A target that reads it learns only
-// that a resolver exists, which it already knows from its own resolv.conf.
+// Health is what /healthz answers. It is deliberately NOT nonce-protected,
+// because khaos has to wait for the container to come up before it has read
+// the nonce out of it. It reports nothing about the armed fault.
 type Health struct {
 	OK       bool   `json:"ok"`
 	Upstream string `json:"upstream"`
@@ -100,9 +88,8 @@ func (r *Resolver) ServeControl(listen string) error {
 	r.controlAddr = listener.Addr().String()
 	r.mu.Unlock()
 
-	// The goroutine serves the LOCALS it was handed. Reading them back off the
-	// struct is the exact shape that gave `internal/pki` three data races, and
-	// the plain test suite was green for both of its new packages.
+	// The goroutine serves the LOCALS it was handed; reading them back off the
+	// struct would race a concurrent shutdown.
 	go func() {
 		_ = server.Serve(listener)
 	}()
@@ -110,8 +97,8 @@ func (r *Resolver) ServeControl(listen string) error {
 	return nil
 }
 
-// ControlAddr reports where the control surface bound, which a test needs when
-// it asked for port 0.
+// ControlAddr reports the address the control surface actually bound, which
+// matters when port 0 was requested.
 func (r *Resolver) ControlAddr() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -132,9 +119,8 @@ func (r *Resolver) shutdownControl() error {
 	return server.Close()
 }
 
-// guard refuses a request carrying the wrong nonce and COUNTS it. A refusal
-// that is merely returned tells khaos nothing; a refusal that is counted is
-// evidence khaos can read in the run record.
+// guard refuses a request carrying the wrong nonce and counts the refusal, so
+// a target probing the surface shows up in the run record.
 func (r *Resolver) guard(
 	next func(http.ResponseWriter, *http.Request),
 ) func(http.ResponseWriter, *http.Request) {
@@ -166,14 +152,9 @@ func (r *Resolver) handleState(w http.ResponseWriter, _ *http.Request) {
 	r.writeJSON(w, r.Stats())
 }
 
-// handleArm installs a fault and answers with the resolver's resulting state,
-// so the caller gets a synchronous acknowledgement of what is now armed.
-//
-// The acknowledgement is deliberately NOT what khaos confirms the fault by. A
-// state echo says which branch was chosen, not what a target would receive, and
-// the PKI tier's inert-authority control caught fifteen traps confirming
-// themselves off exactly that kind of read-back. Confirmation measures the
-// SERVED answer.
+// handleArm installs a fault and echoes the resulting state. The echo says
+// which branch was chosen, not what a target would receive, so it is never
+// what a fault is confirmed by.
 func (r *Resolver) handleArm(w http.ResponseWriter, req *http.Request) {
 	var trap Trap
 

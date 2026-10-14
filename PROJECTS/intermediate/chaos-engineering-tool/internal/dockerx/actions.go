@@ -143,10 +143,9 @@ func (c *Client) Paused(ctx context.Context, containerID string) (bool, error) {
 	return result.Container.State != nil && result.Container.State.Paused, nil
 }
 
-// ContainerEnv reads a container's environment. khaos uses it to learn where a
-// target is ALREADY addressing its dependency, rather than assuming the address
-// khaos would have chosen: environment is fixed at container creation, so the
-// container is the only authority on what it will actually dial.
+// ContainerEnv reads where a target is ALREADY addressing its dependency.
+// Environment is fixed at creation, so the container is the only authority on
+// what it will dial.
 func (c *Client) ContainerEnv(
 	ctx context.Context,
 	containerID string,
@@ -199,11 +198,9 @@ func (c *Client) NetworkAddress(
 	return settings.IPAddress.String(), nil
 }
 
-// BridgeGateway is the address a container reaches the host on. It is the DEFAULT
-// bridge's gateway and that is measured, not assumed: `host-gateway` resolves
-// there, a listener on a user-defined network's own gateway is unreachable from
-// containers on it, and the value is NOT the commonly cited 172.17.0.1 on every
-// host. Discovering it is the only correct way to find it.
+// BridgeGateway is the address a container reaches the host on: the DEFAULT
+// bridge's gateway, discovered rather than assumed, since it is not 172.17.0.1
+// on every host and a user-defined network's own gateway is not reachable.
 func (c *Client) BridgeGateway(ctx context.Context) (string, error) {
 	result, err := c.api.NetworkInspect(
 		ctx,
@@ -223,20 +220,13 @@ func (c *Client) BridgeGateway(ctx context.Context) (string, error) {
 	return "", errors.New(errNoBridge)
 }
 
-// classify turns a daemon NotFound into ErrContainerGone, which callers treat as
-// "the fault went with the target" and record as successfully reverted.
+// classify turns a daemon NotFound into ErrContainerGone, so it is only valid
+// where the MISSING THING IS THE CONTAINER; NetworkConnect returns NotFound for
+// a missing NETWORK, so see classifyNetwork.
 //
-// It must therefore only be used where the MISSING THING IS THE CONTAINER. A
-// NetworkConnect returns NotFound when the NETWORK is gone, and routing that
-// through here told the session a detached container had been restored. See
-// classifyNetwork.
 // The daemon's error is formatted with %v and NOT wrapped, here and in
-// classifyNetwork. Wrapping it would let a caller match on the Docker SDK's own
-// error taxonomy through khaos's error, which is the precise coupling this
-// translation exists to remove: the whole point is that "NotFound" means
-// different things depending on WHICH resource was not found, and only khaos's
-// sentinel carries that distinction. The daemon's text is for the operator to
-// read, not for code to branch on.
+// classifyNetwork: wrapping would let callers match on the Docker SDK's own
+// error taxonomy, which is the coupling this translation exists to remove.
 func (c *Client) classify(err error) error {
 	if errdefs.IsNotFound(err) {
 		//nolint:errorlint // %v is deliberate: see above
@@ -245,13 +235,9 @@ func (c *Client) classify(err error) error {
 	return err
 }
 
-// classifyNetwork is the same question for an operation that names two
-// resources. A NotFound here can mean either one is missing, and only the
-// container's absence makes the fault moot — a missing network leaves the
-// container detached and khaos still owing a restore.
-//
-// It resolves the ambiguity by ASKING: if the container still exists, the
-// network was the missing resource and the failure stays a failure.
+// classifyNetwork resolves the ambiguity by ASKING, because only the
+// container's absence makes the fault moot: if the container still exists, the
+// network was the missing resource and khaos still owes a restore.
 func (c *Client) classifyNetwork(
 	ctx context.Context,
 	containerID string,

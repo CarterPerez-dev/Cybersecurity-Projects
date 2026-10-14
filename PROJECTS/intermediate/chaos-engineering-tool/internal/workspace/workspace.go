@@ -19,9 +19,7 @@ import (
 const errDockerHint = "%w (run `khaos doctor` for the fix)"
 
 type Workspace struct {
-	// Reconciled is what the startup sweep of EXPIRED orphans did, so a command
-	// can tell the operator that khaos cleaned up before it started rather than
-	// leaving it to be discovered later.
+	// Reconciled is what the startup sweep of EXPIRED orphans did.
 	Reconciled run.Sweep
 
 	Docker  *dockerx.Client
@@ -67,16 +65,9 @@ func open(ctx context.Context, exclusive bool) (*Workspace, error) {
 
 	work := &Workspace{Docker: client, Journal: log, Paths: paths, held: held}
 
-	// The promise `khaos inject --ttl` makes is "before `khaos reap` or the next
-	// khaos invocation reclaims it". Nothing implemented the second half: only
-	// the explicit reclaim command and the reap loop ever called run.Reclaim, so
-	// a fault whose controller was killed outlived its TTL indefinitely unless
-	// the operator happened to run one of those two commands.
-	//
-	// EXPIRED leases only, and only on an exclusive open. A live lease belongs to
-	// a session that is still running and reverting it would steal another run's
-	// fault out from under it; a shared open is a read-only command and must not
-	// mutate anything. That is the same split `khaos reap` already uses.
+	// The half of the `--ttl` promise that says "or the next khaos invocation
+	// reclaims it". Expired leases only, and only on an exclusive open: a live
+	// lease belongs to a session that is still running.
 	if exclusive {
 		work.Reconciled = run.Reclaim(
 			ctx,

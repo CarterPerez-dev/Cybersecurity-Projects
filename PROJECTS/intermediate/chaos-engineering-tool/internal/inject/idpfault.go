@@ -31,21 +31,15 @@ var ErrTrapMismatch = errors.New(
 	"the armed trap does not match the mutation being applied",
 )
 
-// IdPKind names the mutation that arms one trap on khaos's identity provider.
-// The trap kinds and the mutation kinds are one-to-one, so `khaos catalog` names
-// the actual defect being provoked rather than a generic "identity provider"
-// entry.
+// IdPKind is one-to-one with the trap kinds, so the catalogue names the actual
+// defect rather than a generic "identity provider" entry.
 func IdPKind(kind idp.Kind) string {
 	return KindIdPPrefix + string(kind)
 }
 
-// idpMutator arms a trap on khaos's in-process identity provider. This is a
-// THIRD injection tier alongside the Docker-native one and the fault proxy, and
-// it exists because the other two cannot express the fault at all: pausing a
-// provider or severing the path to it makes it unreachable, where every trap in
-// this tier leaves it REACHABLE and wrong. A verifier's behaviour on an
-// unreachable authority and its behaviour on a lying one are different code
-// paths reached by different bugs.
+// idpMutator leaves the provider REACHABLE and wrong, where pausing it or
+// severing the path would only make it unreachable, which is a different code
+// path in the verifier.
 type idpMutator struct {
 	kind idp.Kind
 }
@@ -66,13 +60,9 @@ func (m idpMutator) Describe(env Env, target dockerx.Target) string {
 	return fmt.Sprintf(describeIdP, trap.Describe(target.Name))
 }
 
-// Plan journals the trap that is about to be armed, and resolves the one piece
-// of it that cannot be known at build time.
-//
-// The revocation's credential is issued by a PROBE, and no probe has fired when
-// the experiment is built, so the trap travels without it and picks it up here.
-// Inject runs after the baseline, by which time the credential exists and the
-// target has been honouring it, which is exactly the state the finding needs.
+// Plan resolves the one piece not knowable at build time: the revocation's
+// credential is issued by a PROBE, so the trap picks it up here, after the
+// baseline, once the target has been honouring it.
 func (m idpMutator) Plan(
 	_ context.Context,
 	env Env,
@@ -126,12 +116,9 @@ func (m idpMutator) Apply(
 	return env.IdP.Arm(trap)
 }
 
-// Revert disarms, which also restores any key material or grant the trap
-// changed. A cold start has no provider to disarm and that is RESOLVED rather
-// than failed: the provider died with the process that held it, so the fault
-// provably went with it. Reporting that as a failure would wedge the journal
-// record forever and, because `khaos reap` stops on a sweep error, would disable
-// the dead man's switch for every other fault on the machine.
+// Revert also restores any key material or grant the trap changed. A cold
+// start has nothing to disarm and is RESOLVED rather than failed: the provider
+// died with the process, so the fault went with it.
 func (m idpMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
 	if env.IdP == nil {
 		return nil
@@ -142,12 +129,9 @@ func (m idpMutator) Revert(_ context.Context, env Env, _ journal.Record) error {
 	return nil
 }
 
-// Confirm delegates to the provider's own read-back, which measures the trap
-// through the provider's public surface against a control and returns the
-// specific observable it saw. It deliberately does NOT read the flag that was
-// set: a flag records which branch was chosen, not what a verifier would
-// actually receive, and a provider whose minting broke would confirm a trap it
-// is not producing.
+// Confirm measures through the provider's public surface against a control,
+// never the flag that was set: a provider whose minting broke would otherwise
+// confirm a trap it is not producing.
 func (m idpMutator) Confirm(
 	ctx context.Context,
 	env Env,

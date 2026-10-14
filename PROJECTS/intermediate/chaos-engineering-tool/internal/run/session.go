@@ -72,10 +72,8 @@ func newSessionWith(
 	}
 }
 
-// daemon is the identity of the daemon this session is attached to, or empty
-// when there is none. A session built without a client is a test session; an
-// empty value is already the "khaos could not establish it" case the reclaim
-// path treats as ambiguous rather than as a match.
+// daemon is empty when there is no client, which the reclaim path treats as
+// ambiguous.
 func (s *Session) daemon() string {
 	if s.env.Docker == nil {
 		return ""
@@ -142,15 +140,11 @@ func (s *Session) Inject(
 	return s.log.Append(record)
 }
 
-// Renew re-reads the journal before extending the lease. A mutation that some
-// other process already reverted is dropped rather than resurrected, and a
-// session whose faults have all been taken away stops renewing and says so,
-// instead of continuing to claim a fault it no longer holds.
+// Renew re-reads the journal first, so a mutation something else already
+// reverted is dropped rather than resurrected.
 func (s *Session) Renew() error {
-	// The same settle lock Reclaim takes. Reading the outstanding set and
-	// appending the renewal are two operations, and the reaper runs beside this
-	// deliberately: without the lock a renewal could read a record as live,
-	// stall while a sweep reverted it, and then write back a fresh expiry.
+	// The same settle lock Reclaim takes: read-then-append is two operations
+	// and the reaper runs beside this.
 	if settle, err := lock.Acquire(s.log.Path() + settleSuffix); err == nil {
 		defer func() { _ = settle.Release() }()
 	}
@@ -197,9 +191,7 @@ func (s *Session) RevertAll(ctx context.Context, progress Progress) error {
 	}
 
 	if firstErr != nil {
-		// ErrRevertFailed is what callers branch on, and khaos's exit policy
-		// ranks it above every other outcome. The first underlying failure is
-		// diagnostic text for the operator, not a second identity to match.
+		// Callers branch on ErrRevertFailed; the cause is diagnostic text.
 		//nolint:errorlint // %v is deliberate
 		return fmt.Errorf("%w: %v", ErrRevertFailed, firstErr)
 	}

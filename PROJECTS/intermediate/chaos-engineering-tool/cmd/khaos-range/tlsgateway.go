@@ -30,24 +30,8 @@ const (
 	maxRootBytes = 64 << 10
 )
 
-// tlsGateway is the FOURTH gateway, and the only one whose dependency is
-// reached over TLS from a certificate authority khaos controls.
-//
-// It composes the introspection gateway rather than reimplementing it, because
-// the authorization half of this fixture is not what the `tls.` family is
-// about: the certificate is. So the token decision, the cache and the fail mode
-// are exactly the ones the other gateways use, and the only thing this adds is
-// a PRECONDITION -- the dependency has to be usable before any authorization
-// happens at all.
-//
-// That precondition is what makes the three outcomes distinguishable:
-//
-//   - the certificate is accepted, the dependency is reached, authorization
-//     proceeds normally, and nothing looks wrong. HELD, and it means the
-//     gateway talked to a dependency whose identity it could not verify.
-//   - the certificate is refused and the gateway declines to serve. DENIED,
-//     which is the correct outcome for a certificate fault.
-//   - the certificate is refused and the gateway serves anyway. PERMITTED.
+// tlsGateway reaches its dependency over TLS and composes the introspection
+// gateway for the authorization half.
 type tlsGateway struct {
 	auth *gateway
 
@@ -57,10 +41,8 @@ type tlsGateway struct {
 	certHost      string
 	failMode      string
 
-	// One cache for the gateway's whole lifetime. Resumption is the only thing
-	// that makes the policy-in-peer-callback defect reachable, and a cache that
-	// did not outlive a request would make that mode indistinguishable from a
-	// correct one.
+	// One cache for the whole lifetime: resumption is what makes the
+	// policy-in-peer-callback path reachable at all.
 	sessions tls.ClientSessionCache
 }
 
@@ -72,13 +54,7 @@ func newTLSGateway(
 		auth: newGateway(upstream, failMode, cacheTTL, false),
 		mode: resolveTLSMode(tlsMode),
 
-		// Normalised to host:port, because Decide DIALS this and a URL is not
-		// an address. The environment carries a URL on purpose -- it is
-		// self-documenting and khaos parses the port out of it -- and handing
-		// that straight to the dialer produced
-		// `too many colons in address https://host.docker.internal:58520`,
-		// which reached the verdict as a failed handshake and voided the
-		// baseline of every certificate experiment.
+		// The environment carries a URL, but Decide dials this.
 		dependency: dialAddress(dependency),
 
 		authorityBase: authorityBase,
@@ -88,21 +64,14 @@ func newTLSGateway(
 	}
 }
 
-// identity fetches the client certificate khaos is currently issuing this
-// gateway, or nil when it is issuing none.
-//
-// Nil is NOT a failure. khaos withholding the identity is the
-// client-cert-absent fault, and a gateway that refused to connect without one
-// would be making khaos's point for it: the finding is whether it connects
-// anyway and whether it notices being refused.
+// identity is the client certificate khaos is currently issuing. Nil is not a
+// failure: a withheld identity is itself one of the faults.
 func (g *tlsGateway) identity(ctx context.Context) *tls.Certificate {
 	body, ok := g.fetch(ctx, pki.RouteIdentity)
 	if !ok {
 		return nil
 	}
 
-	// One PEM bundle carrying both blocks, so the same bytes are handed to
-	// X509KeyPair twice.
 	pair, err := tls.X509KeyPair(body, body)
 	if err != nil {
 		return nil
@@ -111,8 +80,7 @@ func (g *tlsGateway) identity(ctx context.Context) *tls.Certificate {
 	return &pair
 }
 
-// dialAddress reduces a dependency URL to the host:port a dialer wants, and
-// passes through anything that is already an address.
+// dialAddress reduces a dependency URL to host:port.
 func dialAddress(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Host == "" {
@@ -122,55 +90,32 @@ func dialAddress(raw string) string {
 	return parsed.Host
 }
 
-// client is built PER REQUEST, with the trust anchor re-read each time.
-//
-// A pool fetched once at startup would make CASwap inexpressible: that fault
-// replaces the anchor after the gateway is already running, so a gateway
-// holding a root from boot would never experience it and the experiment would
-// report HELD over a fault that never reached it. Re-reading models what a
-// substituted trust store IS -- managed out of band, changed without the
-// application being asked.
-//
-// The client itself is configuration and no state, so building one per request
-// costs nothing worth saving.
+// client is built per request, because a trust store or certificate held from
+// boot could never experience a fault armed after startup.
 func (g *tlsGateway) client(ctx context.Context) *tlsclient.Client {
 	return tlsclient.New(tlsclient.Config{
-		Mode:    g.mode,
-		Host:    g.certHost,
-		Roots:   g.trustStore(ctx),
-		Timeout: dependencyTimeout,
-
-		// Fetched per request like the trust store, because khaos can withdraw
-		// or expire it mid-run and a gateway holding one from boot could not
-		// experience either fault.
+		Mode:     g.mode,
+		Host:     g.certHost,
+		Roots:    g.trustStore(ctx),
+		Timeout:  dependencyTimeout,
 		Identity: g.identity(ctx),
-
-		// SHARED across requests, which is the whole precondition for the
-		// resumption hole: a cache built per connection resumes nothing.
 		Sessions: g.sessions,
 	})
 }
 
-// resolveTLSMode refuses an unknown mode rather than falling back to the
-// correct client. A fixture that quietly became correct would report every
-// experiment as fail-closed, which is the most expensive way to be wrong.
+// resolveTLSMode falls back to the client that verifies nothing, never to the
+// correct one, so a misconfigured fixture fails loudly.
 func resolveTLSMode(name string) tlsclient.Mode {
 	mode, err := tlsclient.ParseMode(name)
 	if err != nil {
-		// The range is a fixture, so there is nobody to return an error to. It
-		// picks the mode that cannot silently flatter the target: a client that
-		// verifies nothing fails every experiment loudly rather than passing
-		// one quietly.
 		return tlsclient.SkipVerify
 	}
 
 	return mode
 }
 
-// routes builds its OWN mux rather than taking the auth gateway's and
-// overriding a pattern. ServeMux PANICS on a duplicate registration, so
-// mutating the composed gateway's routes crashed the container on startup with
-// exit 2 and no useful message.
+// routes builds its own mux rather than overriding a pattern on the composed
+// gateway's, because net/http.ServeMux panics on a duplicate registration.
 func (g *tlsGateway) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -180,8 +125,6 @@ func (g *tlsGateway) routes() *http.ServeMux {
 
 	mux.HandleFunc(routeProtected, g.protected)
 
-	// Credential administration is forwarded to the identity provider so the
-	// range needs exactly one host port per gateway, the same as the others.
 	mux.HandleFunc(issuePath, g.auth.forward(issuePath))
 	mux.HandleFunc(revokePath, g.auth.forward(revokePath))
 
@@ -202,15 +145,10 @@ func (g *tlsGateway) protected(w http.ResponseWriter, r *http.Request) {
 
 	decision := g.client(r.Context()).Decide(r.Context(), g.dependency)
 
-	// A convenience for a human reading the fixture's responses, and khaos must
-	// never consume it. khaos judges a target from the outside and a real target
-	// volunteers nothing, so an experiment that read this header would pass
-	// against the range and be inert against everything else.
+	// For a human reading the fixture's responses; khaos must never consume it.
 	w.Header().Set(headerTLSReason, decision.Reason)
 
 	if decision.Accepted {
-		// The dependency is usable, so the ordinary authorization decision
-		// applies and the certificate fault has changed nothing.
 		g.auth.protected(w, r)
 
 		return
@@ -225,14 +163,9 @@ func (g *tlsGateway) protected(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusForbidden)
 }
 
-// trustStore reads the anchor khaos's authority currently publishes.
-//
-// An EMPTY pool on failure, never the system roots. A nil pool would fall back
-// to the host's real CAs, which cannot verify anything khaos mints, so every
-// experiment would report the same refusal whether or not the fault landed and
-// khaos could not tell its own plumbing failure from a target behaving
-// correctly. An empty pool refuses too, but it refuses the BASELINE as well,
-// which makes the run void instead of quietly wrong.
+// trustStore reads the anchor khaos's authority publishes, and on failure
+// returns an EMPTY pool rather than nil, which would fall back to the host's
+// real CAs.
 func (g *tlsGateway) trustStore(ctx context.Context) *x509.CertPool {
 	pool := x509.NewCertPool()
 
@@ -251,10 +184,6 @@ func (g *tlsGateway) trustStore(ctx context.Context) *x509.CertPool {
 	return pool
 }
 
-// fetch reads one of khaos's own endpoints. A failure is reported as false
-// rather than as an error, because every caller's honest response to "khaos is
-// not answering" is to proceed with nothing and let the BASELINE fail, which
-// voids the run instead of making a fault's measurement quietly wrong.
 func (g *tlsGateway) fetch(
 	ctx context.Context,
 	route string,

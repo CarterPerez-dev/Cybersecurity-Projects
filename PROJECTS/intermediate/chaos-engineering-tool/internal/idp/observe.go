@@ -21,10 +21,7 @@ const (
 	observeTimeout = 5 * time.Second
 	observeBudget  = 4
 
-	// Slack on a measured hold, for the same reason the fault proxy carries it:
-	// the threshold is a lower bound with no tolerance otherwise, and on a host
-	// that also serves real traffic CPU contention routinely shaves a few
-	// percent off a sleep.
+	// Slack: contention routinely shaves a few percent off a measured sleep.
 	slackNumerator   = 9
 	slackDenominator = 10
 
@@ -53,15 +50,8 @@ const (
 	errHonestToken   = "%w: khaos's own provider cannot mint an honest token (%v), so nothing it mints under a trap can be compared with one"
 )
 
-// Observe confirms the armed trap through the provider's OWN public surface and
-// against a control, never by reading the flag that was set.
-//
-// The discipline is the fault proxy's, and it was expensive to learn: a
-// confirmation that can only succeed is not an oracle. Gutting the proxy's
-// equivalent to `return true` left every package and the Docker gate green, and
-// the fix was a way to arm a fault that does not happen. Every branch below
-// therefore has a control that must disagree with the fault, and `Inert` makes
-// the fault not happen so a test can prove the branch says NO.
+// Observe confirms the armed trap through the provider's OWN public surface
+// and against a control, never by reading the flag that was set.
 func (p *Provider) Observe(
 	ctx context.Context,
 	expected Kind,
@@ -95,8 +85,7 @@ func (p *Provider) Observe(
 }
 
 // observeForgery mints on BOTH paths and requires them to differ. The honest
-// token is the control: if khaos's own provider cannot produce a correct token,
-// nothing it produces under a trap can be attributed to the trap.
+// token is the control: khaos has to be able to mint a correct one.
 func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 	honest, err := p.mintHonestForControl()
 	if err != nil {
@@ -108,10 +97,6 @@ func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 		return "", false, err
 	}
 
-	// Grouped by WHAT the trap corrupts, which is the split the catalogue
-	// already uses: the JOSE header, a registered claim, or the signature. Each
-	// group is confirmed the same way within itself and differently from the
-	// others, so the three read as three questions rather than one long one.
 	switch trap.Kind {
 	case AlgNone, AlgConfusion, EmbeddedJWK:
 		return p.observeHeader(trap, honest, forged)
@@ -124,18 +109,10 @@ func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 		return p.observeSignature(trap, honest, forged)
 
 	default:
-		// The endpoint and key-state traps are confirmed by observeEndpoint,
-		// not from the token. Everything else is deliberately left unconfirmed,
-		// which is the fail-closed direction: khaos will not measure a fault it
-		// could not see land.
 		return "", false, nil
 	}
 }
 
-// observeHeader confirms the traps that corrupt the JOSE header. Each is two
-// assertions, not one: the forged token says the wrong thing AND the honest
-// control says the right thing, so a provider that was never armed cannot
-// confirm its own trap.
 func (p *Provider) observeHeader(
 	trap Trap,
 	honest, forged Token,
@@ -152,10 +129,6 @@ func (p *Provider) observeHeader(
 		}
 
 	case AlgConfusion:
-		// Both halves. The header has to say HS256, and the MAC has to actually
-		// verify under the bytes a verifier would be holding, or khaos is
-		// sending a token no target could accept and an acceptance would mean
-		// something else entirely.
 		if forged.Header.Alg != string(HS256) {
 			return "", false, nil
 		}
@@ -182,24 +155,18 @@ func (p *Provider) observeHeader(
 		}
 
 	default:
-		// Unreachable: observeForgery routes only the header group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeClaims confirms the traps that corrupt a registered claim. Every one
-// of them first asserts that the signature still VERIFIES, because a claim trap
-// whose token also failed its signature check would be confirmed by the wrong
-// evidence and would tell khaos nothing about claim validation.
+// observeClaims requires the signature to still VERIFY: a claim trap whose
+// token also failed that check would be confirmed by the wrong evidence.
 func (p *Provider) observeClaims(
 	trap Trap,
 	honest, forged Token,
 ) (string, bool, error) {
-	// Hoisted out of all four cases, which each asserted it separately. It is
-	// the precondition the whole group shares: a claim trap whose token ALSO
-	// failed its signature check would be confirmed by the wrong evidence and
-	// would tell khaos nothing about whether the target validates claims.
 	if !verifiesUnderSet(p.PublishedSet(), forged) {
 		return "", false, nil
 	}
@@ -242,9 +209,6 @@ func (p *Provider) observeClaims(
 		}
 
 	case ClaimForeignIssuer:
-		// The key IS published, deliberately. That is the multi-tenant shape and
-		// the teaching point: the key set is not the trust boundary, so the
-		// signature verifies and only the `iss` check can refuse it.
 		if forged.Claims.Issuer != honest.Claims.Issuer &&
 			forged.Claims.Issuer != "" {
 			return sprintf(
@@ -255,13 +219,12 @@ func (p *Provider) observeClaims(
 		}
 
 	default:
-		// Unreachable: observeForgery routes only the claim group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeSignature confirms the traps that corrupt the signature itself.
 func (p *Provider) observeSignature(
 	trap Trap,
 	honest, forged Token,
@@ -288,22 +251,8 @@ func (p *Provider) observeSignature(
 		}
 
 	case SignatureWeakKey:
-		// Three assertions, and none of them is redundant. The modulus has to be
-		// below the library floor, khaos's own arithmetic has to ACCEPT the
-		// signature, or khaos is sending an unverifiable token and an acceptance
-		// means something else, and the standard library has to REFUSE it.
-		//
-		// That last one looks implied by the first and is not: the floor is a
-		// GODEBUG. Under `rsa1024min=0` crypto/rsa verifies below it, so khaos's
-		// claim that a correct verifier cannot accept this token would be false
-		// in that environment, and the trap declines to confirm rather than
-		// asserting it anyway.
-		//
-		// A confirmation that cannot be MADE is not an error either. The returns
-		// below report "not confirmed" and let the engine refuse the run, which
-		// is the fail-closed answer. Returning the lookup error instead would
-		// make khaos abort with a key-management complaint when the honest
-		// reading is "khaos could not see this fault land".
+		// The library REFUSING this is not implied by the bit length: the floor
+		// is a GODEBUG, so under `rsa1024min=0` crypto/rsa verifies below it.
 		key, err := p.PublishedSet().Lookup(forged.Header.Kid)
 		if err != nil {
 			return "", false, nil //nolint:nilerr // not confirmed, not an error
@@ -328,19 +277,14 @@ func (p *Provider) observeSignature(
 		}
 
 	default:
-		// Unreachable: observeForgery routes only the signature group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// mintHonestForControl and mintTrappedForControl mint WITHOUT counting, because
-// the mint counter is a measurement and khaos's own confirmation must not move
-// the thing it is confirming.
-//
-// Both are needed. An earlier version had only the honest one and then called
-// the counting TrappedToken on the next line, so the comment on this function
-// described a property the function beside it broke.
+// These mint WITHOUT counting, because the mint counter is a measurement and
+// khaos's own confirmation must not move the thing it is confirming.
 func (p *Provider) mintHonestForControl() (Token, error) {
 	return p.parseMint(Trap{})
 }
@@ -360,9 +304,6 @@ func (p *Provider) parseMint(trap Trap) (Token, error) {
 	return Parse(raw)
 }
 
-// confusionSecret reads the TRAP's key form, and so does mintToken. They used to
-// read two different fields that Arm copied one into the other, which agreed
-// only by that copy and which Disarm never cleared.
 func (p *Provider) confusionSecret(form KeyForm) ([]byte, error) {
 	p.mu.RLock()
 	signing := p.signing
@@ -371,11 +312,8 @@ func (p *Provider) confusionSecret(form KeyForm) ([]byte, error) {
 	return publicKeyBytes(signing, form)
 }
 
-// observeEndpoint confirms the traps that change what the provider SERVES rather
-// than what it mints. Every one of them is measured over the provider's own HTTP
-// surface, with the health route as the control: it is never faulted, so an
-// unhealthy control means khaos's provider is broken rather than lying and
-// nothing seen elsewhere can be attributed to the trap.
+// observeEndpoint confirms what the provider SERVES. The health route is the
+// control: it is never faulted, so an unhealthy one means khaos is broken.
 func (p *Provider) observeEndpoint(
 	ctx context.Context,
 	trap Trap,
@@ -413,17 +351,10 @@ func (p *Provider) observeEndpoint(
 		return p.observeIntrospection(ctx, trap, at)
 
 	default:
-		// The token traps are confirmed against the minted token, not against
-		// the endpoint. Leaving them unconfirmed here is the fail-closed answer.
 		return "", false, nil
 	}
 }
 
-// probeAt is the measurement context both endpoint groups need: where to reach
-// the provider, a client whose timeout already accounts for the trap's own
-// delay, and what the health route answered. The health route is never faulted,
-// which is what makes it the control every confirmation below measures against
-// rather than a threshold someone picked.
 type probeAt struct {
 	client       *http.Client
 	root         string
@@ -431,8 +362,6 @@ type probeAt struct {
 	healthTook   time.Duration
 }
 
-// observeKeySet confirms the traps that act on the PUBLISHED KEY SET rather
-// than on a token: the set going away, and a key leaving or joining it.
 func (p *Provider) observeKeySet(
 	ctx context.Context,
 	trap Trap,
@@ -455,16 +384,6 @@ func (p *Provider) observeKeySet(
 		if err != nil {
 			return "", false, err
 		}
-		// `retired != p.SigningKid()` used to be a third conjunct here and it was
-		// INERT: it is implied by the other two, because `!Has(retired)` and
-		// `Has(SigningKid)` cannot both hold when the two are the same kid.
-		//
-		// Worse, it ALIBIED the live one. Measured: with it present, replacing
-		// `!set.Has(retired)` with `true` left both the positive and the inert
-		// case green and the whole suite passing, because the implied conjunct
-		// was carrying the negative control on its own. Withdrawing the retired
-		// key is the entire claim this branch makes, so that assertion has to be
-		// the one the control exercises.
 		if !set.Has(retired) && set.Has(p.SigningKid()) {
 			return sprintf(observedRollover, retired, p.SigningKid()), true, nil
 		}
@@ -478,19 +397,11 @@ func (p *Provider) observeKeySet(
 		if err != nil {
 			return "", false, err
 		}
+		// An unchanged kid is no rotation at all, not a confirmed one.
 		if retired == p.SigningKid() || !set.Has(retired) ||
 			!set.Has(p.SigningKid()) {
 			return "", false, nil
 		}
-		// The three assertions above are the live ones, and the first carries the
-		// negative control: an inert arm never rotates, so retired and signing
-		// are the same kid.
-		//
-		// A fourth, `minted.Header.Kid == p.SigningKid()`, used to follow and was
-		// unconditionally true: mintToken's default branch always stamps the
-		// current signing kid and KeyRotation is not a forgery trap. It is gone
-		// rather than kept for symmetry, because an assertion that cannot fail
-		// reads in a review as evidence and is not.
 		minted, err := p.mintTrappedForControl()
 		if err != nil {
 			return "", false, err
@@ -504,15 +415,13 @@ func (p *Provider) observeKeySet(
 		), true, nil
 
 	default:
-		// Unreachable: observeEndpoint routes only the key-set group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeIntrospection confirms the traps that act on the introspection
-// endpoint, which is how a target asks about a credential it cannot verify
-// locally. Each one needs its own control, because "inactive" and "no answer"
+// observeIntrospection needs a control per trap: "inactive" and "no answer"
 // are also what a provider khaos had broken by accident would say.
 func (p *Provider) observeIntrospection(
 	ctx context.Context,
@@ -556,9 +465,7 @@ func (p *Provider) observeIntrospection(
 		if err != nil || status != http.StatusOK {
 			return "", false, nil //nolint:nilerr // not confirmed, not an error
 		}
-		// A differential, not a threshold. The health route is the control and it
-		// is never faulted, so the comparison separates khaos's own hold from a
-		// generally slow machine.
+		// A differential, not a threshold: the health route is never faulted.
 		if took-at.healthTook >= slack(trap.Delay) {
 			return sprintf(
 				observedIntroSlow,
@@ -571,23 +478,18 @@ func (p *Provider) observeIntrospection(
 		return p.observeRevocation(ctx, trap, at)
 
 	default:
-		// Unreachable: observeEndpoint routes only the introspection group here.
+		// Kinds from the other groups reach their own observer.
 	}
 
 	return "", false, nil
 }
 
-// observeRevocation is the only endpoint confirmation that needs TWO reads, so
-// it is the only one that can tell a revoked credential from a provider that
-// lost every grant it ever issued.
+// Two reads, so a revoked credential differs from a provider that lost all.
 func (p *Provider) observeRevocation(
 	ctx context.Context,
 	trap Trap,
 	at probeAt,
 ) (string, bool, error) {
-	// A control credential, issued now and never revoked. Without it,
-	// "inactive" is also what a provider that lost every grant would say, and
-	// the finding would be khaos's own bug reported as the target's.
 	control := p.Opaque()
 
 	revoked, err := fetchIntrospection(
@@ -615,12 +517,7 @@ func (p *Provider) observeRevocation(
 	return "", false, nil
 }
 
-// introspectURL records the call as khaos's own, so the exported count stays a
-// measurement of the TARGET's behaviour: every caller of this is a confirmation
-// probe. It keeps the query form on
-// purpose: these probes exist to observe the endpoint's BEHAVIOUR, and reading
-// the token the same way a conforming client does is the fixture's job to prove,
-// not the oracle's. The contract test covers the specified wire format directly.
+// Counted as khaos's own, so the exported count measures the TARGET only.
 func (p *Provider) introspectURL(root, credential string) string {
 	p.ownIntrospects.Add(1)
 	return root + RouteIntrospect + "?" + ParamToken + "=" + credential
@@ -673,8 +570,7 @@ func readRoute(
 	return response.StatusCode, body, nil
 }
 
-// fetchSet is khaos's own read-back of the key set, so it records the fetch as
-// khaos's and the exported count stays a measurement of the TARGET's behaviour.
+// Recorded as khaos's own fetch, keeping the exported count the target's.
 func (p *Provider) fetchSet(
 	ctx context.Context,
 	client *http.Client,
@@ -727,9 +623,6 @@ func fetchIntrospection(
 	return out, nil
 }
 
-// verifiesUnderSet is the control half of every claim trap. A claim trap's whole
-// claim is that the SIGNATURE is correct and exactly one claim is not, so a
-// token whose signature does not verify is not the token the trap describes.
 func verifiesUnderSet(set JWKSet, token Token) bool {
 	key, err := set.Lookup(token.Header.Kid)
 	if err != nil {

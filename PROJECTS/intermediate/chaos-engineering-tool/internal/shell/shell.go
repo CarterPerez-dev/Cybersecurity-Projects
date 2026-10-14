@@ -79,12 +79,8 @@ func newExitCmd(out io.Writer) *cobra.Command {
 	}
 }
 
-// leaveOrSayWhyNot is the interrupt path's leave. An interrupt callback cannot
-// return an error, so the refusal has to be WRITTEN here or it is lost, and
-// losing it made Ctrl-D a silent no-op while a fault was still outstanding: the
-// same guard the `exit` command explains itself through, reached a second way
-// and saying nothing at all. An operator who gets no answer reasonably concludes
-// the key did not register and presses it again.
+// leaveOrSayWhyNot is the interrupt path's leave. The callback cannot return an
+// error, so a refusal has to be written here or Ctrl-D is a silent no-op.
 func leaveOrSayWhyNot(out io.Writer) {
 	if err := leave(out); err != nil {
 		_, _ = io.WriteString(out, err.Error()+newline)

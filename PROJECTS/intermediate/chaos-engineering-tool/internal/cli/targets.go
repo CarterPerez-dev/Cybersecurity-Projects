@@ -130,8 +130,7 @@ func runTargets(
 	return nil
 }
 
-// printNoTargets is its own answer rather than an empty table, because the
-// operator needs the fix and an empty table does not carry one.
+// printNoTargets is its own answer because an empty table carries no fix.
 func printNoTargets(out io.Writer) {
 	fmt.Fprintf(
 		out,
@@ -148,9 +147,7 @@ func printNoTargets(out io.Writer) {
 	fmt.Fprintln(out)
 }
 
-// printTargetTable writes the header and one row per target, and returns how
-// many were REFUSED. The count comes back as a value because the caller's
-// closing hint is the only thing that depends on it.
+// printTargetTable returns how many targets were REFUSED.
 func printTargetTable(
 	out io.Writer,
 	targets []dockerx.Target,

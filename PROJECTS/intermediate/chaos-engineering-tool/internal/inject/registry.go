@@ -41,12 +41,8 @@ var ErrUnknownKind = errors.New(
 	"no injector is registered for this mutation kind",
 )
 
-// Proxy, ProxyFault, IdP and IdPTrap are nil and zero for every tier that does
-// not use them. Both the fault proxy and khaos's identity provider are per-run,
-// in-process state rather than something addressable through the daemon, so they
-// travel with the environment a mutation is applied in. Nothing else can hand
-// either one to a mutator, because they do not exist until the run that owns
-// them starts and they stop existing when that run ends.
+// Env carries per-run, in-process state, nil and zero for every tier that does
+// not use it, because none of it exists outside the run that owns it.
 type Env struct {
 	Docker     *dockerx.Client
 	Proxy      *proxy.Proxy
@@ -54,38 +50,25 @@ type Env struct {
 	IdP        *idp.Provider
 	IdPTrap    idp.Trap
 
-	// Authority and PKITrap are the FOURTH injection tier: khaos's own
-	// certificate authority, playing the dependency whose certificate is under
-	// test. Like the identity provider it holds no capabilities and serves
-	// nothing but the target.
 	Authority *pki.Authority
 	PKITrap   pki.Trap
 
-	// Resolver, ResolverNetwork and DNSTrap are the FIFTH injection tier, and
-	// the only one whose authority is not in khaos's own process.
-	//
-	// It could not be. `--dns` carries an address with no port, the daemon
-	// refuses one at container start, and an unprivileged process cannot bind
-	// port 53 on any address. So the resolver runs in a container on the
-	// target's network with nothing published, and khaos holds a CLIENT for it
-	// rather than the resolver itself. ResolverNetwork travels with it so a
-	// cold-start revert can find the container again by label.
+	// The one authority NOT in khaos's process, so khaos holds a CLIENT for a
+	// container. ResolverNetwork travels so a cold-start revert finds it.
 	Resolver        *dnsrv.Client
 	ResolverNetwork string
 	DNSTrap         dnsrv.Trap
 }
 
-// Plan discovers everything the revert will need and returns it so the caller
-// can journal it BEFORE Apply runs. Apply consumes that payload rather than
-// re-deriving it, so a process killed mid-apply still leaves a journal record
-// that fully describes how to put the target back.
+// Mutator is one injectable fault. Plan returns what the revert needs so the
+// caller can journal it BEFORE Apply runs, and Apply consumes that payload, so
+// a process killed mid-apply still leaves a record that undoes the fault.
 type Mutator interface {
 	Describe(Env, dockerx.Target) string
 	Plan(context.Context, Env, dockerx.Target) (json.RawMessage, error)
 	Apply(context.Context, Env, dockerx.Target, json.RawMessage) error
-	// Confirm returns the observable it actually measured along with the verdict.
-	// A constant describing the technique is not evidence, and the run record has
-	// to carry what was seen or a reader cannot audit the run.
+	// Confirm returns the observable it measured; a constant describing the
+	// technique is not evidence.
 	Confirm(context.Context, Env, dockerx.Target) (string, bool, error)
 	Revert(context.Context, Env, journal.Record) error
 }
@@ -95,9 +78,8 @@ var registry = map[string]Mutator{
 	KindDisconnect: disconnectMutator{},
 }
 
-// Lookup names only the kinds the operator can ask for directly. Listing the
-// proxy kinds here sends a typo straight to a kind that a different message then
-// refuses, which is two refusals for one mistake.
+// Lookup names only the kinds the operator can ask for directly; listing the
+// per-run kinds would make one typo produce two different refusals.
 func Lookup(kind string) (Mutator, error) {
 	mutator, ok := registry[kind]
 	if !ok {
@@ -120,13 +102,9 @@ func Kinds() []string {
 	return kinds
 }
 
-// DirectKinds are the mutations `khaos inject` can apply on its own: the ones
-// whose whole subject is a container the daemon can be told about. A proxy fault
-// is not one, because it acts on the PATH between a target and its dependency
-// and only exists for as long as the run that owns the proxy. An identity
-// provider trap is not one either, for the same reason: the provider is a
-// goroutine inside the run. Advertising either under `khaos inject` would offer
-// a command that cannot succeed.
+// DirectKinds are the mutations whose whole subject is a container the daemon
+// can be told about. A proxy fault or provider trap only exists inside its own
+// run, so advertising one would offer a command that cannot work.
 func DirectKinds() []string {
 	kinds := make([]string, 0, len(registry))
 	for kind, mutator := range registry {
@@ -139,30 +117,21 @@ func DirectKinds() []string {
 	return kinds
 }
 
-// perRun is implemented by every tier whose authority exists only while the run
-// that owns it does, so `khaos inject` can decline to offer a mutation that
-// cannot succeed outside a run.
-//
-// An interface rather than a type switch: a new tier declares itself by
-// implementing one method, where a switch has to be remembered. The direct set
-// is additionally pinned by name in the tests, because a tier that forgets this
-// method is simply absent from anything derived from it.
+// perRun is an interface rather than a type switch, so a new tier declares
+// itself by implementing one method instead of by being remembered.
 type perRun interface {
 	Prefix() string
 }
 
-// inProcess reports whether a mutation acts on state that lives inside the run
-// rather than in the daemon. It is derived from the mutator's TYPE rather than
-// from the kind's spelling, so a mutation cannot be given an in-process-shaped
-// name and then quietly be offered under `khaos inject`, or the reverse.
+// inProcess reads the mutator's TYPE, not the kind's spelling, so an
+// in-process-shaped name cannot be quietly offered under `khaos inject`.
 func inProcess(mutator Mutator) bool {
 	_, ok := mutator.(perRun)
 	return ok
 }
 
 // PerRunPrefixes is every prefix belonging to a tier that lives inside a run,
-// read out of the registry. A test that needs the list derives it from here
-// instead of restating it, which is the specific thing that failed before.
+// read out of the registry rather than restated.
 func PerRunPrefixes() []string {
 	seen := map[string]bool{}
 
@@ -187,10 +156,8 @@ func IsDirect(kind string) bool {
 	return slices.Contains(DirectKinds(), kind)
 }
 
-// NeedsProxy reports whether a mutation requires the run to stand up khaos's
-// in-process fault proxy. It is derived from the registry rather than from the
-// kind's spelling, so a mutation cannot be given a proxy-shaped name and then
-// quietly fail to get one, or the reverse.
+// NeedsProxy is derived from the registry rather than from the kind's
+// spelling, so a proxy-shaped name cannot quietly fail to get one.
 func NeedsProxy(kind string) bool {
 	mutator, ok := registry[kind]
 	if !ok {
@@ -200,9 +167,7 @@ func NeedsProxy(kind string) bool {
 	return isProxy
 }
 
-// NeedsIdP reports whether a mutation requires the run to stand up khaos's own
-// identity provider, derived from the registry rather than from the kind's
-// spelling for the same reason NeedsProxy is.
+// NeedsIdP reports whether a mutation requires khaos's own identity provider.
 func NeedsIdP(kind string) bool {
 	mutator, ok := registry[kind]
 	if !ok {
@@ -236,18 +201,9 @@ type pausePayload struct {
 	AlreadyPaused bool `json:"already_paused"`
 }
 
-// Plan refuses a target that is already paused.
-//
-// A paused container still reports Running, so it passes every refusal
-// predicate. Docker then rejects the second pause, the session records a failed
-// mutation and immediately reverts it, and the revert sees a paused container
-// and unpauses it — khaos resuming a container the OPERATOR had paused, as
-// cleanup for a fault khaos never applied.
-//
-// Refusing here rather than recording the precondition is deliberate: khaos
-// cannot pause something already paused, so there is no experiment to run, and
-// a fault that cannot be applied should be refused by name before anything is
-// journaled.
+// Plan refuses a target that is already paused. A paused container still
+// reports Running, so it passes every refusal predicate, and the revert would
+// then unpause a container the OPERATOR had paused.
 func (pauseMutator) Plan(
 	ctx context.Context,
 	env Env,
@@ -274,8 +230,8 @@ func (pauseMutator) Apply(
 	return env.Docker.Pause(ctx, t.ID)
 }
 
-// Revert unpauses only what khaos paused. The journaled precondition is what
-// makes that knowable from a cold start, where khaos has no memory of the run.
+// Revert unpauses only what khaos paused, which the journaled precondition
+// makes knowable from a cold start.
 func (pauseMutator) Revert(
 	ctx context.Context,
 	env Env,
@@ -416,10 +372,8 @@ func (disconnectMutator) Revert(
 		return err
 	}
 
-	// Every attachment is attempted, and the failures are joined. Returning on
-	// the first one abandoned the rest: a container on three networks that lost
-	// one of them stayed detached from the other two as well, because the first
-	// failure ended the loop.
+	// Every attachment is attempted and the failures joined, because returning
+	// on the first one leaves the container detached from all the rest.
 	var failures []error
 
 	for _, entry := range payload.Attachments {

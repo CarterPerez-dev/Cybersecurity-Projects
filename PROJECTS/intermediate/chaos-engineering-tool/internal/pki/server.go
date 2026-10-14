@@ -29,19 +29,10 @@ const (
 	errAlreadyUp  = "%w: the authority is already listening on %s"
 )
 
-// ErrListener is any failure to stand up or reach the authority's own
-// endpoints. It is separate from a trap failing, because khaos being
-// unreachable is khaos's bug and a trap landing is the product working.
 var ErrListener = errors.New("khaos's certificate authority listener")
 
-// listenerState holds both of the authority's listeners. There are two because
-// they serve different protocols to the same target: a TLS endpoint where khaos
-// IS the dependency whose certificate is under test, and a plain HTTP endpoint
-// for the revocation data that certificate points at.
-//
-// They cannot be one listener. The revocation endpoints have to stay reachable
-// while the TLS certificate is broken, or every revocation fault would also be
-// an outage and khaos could not attribute what it measured.
+// Two listeners, because the revocation endpoints have to stay reachable while
+// the TLS certificate is broken, or every revocation fault is also an outage.
 type listenerState struct {
 	mu sync.Mutex
 
@@ -55,16 +46,8 @@ type listenerState struct {
 	wg   sync.WaitGroup
 }
 
-// Base is the URL the TARGET uses to reach the CRL and OCSP endpoints.
-//
-// It is configured rather than derived from the listener, and that distinction
-// cost a full debugging session in the identity family. khaos binds the Docker
-// bridge gateway's numeric address while the target addresses
-// `host.docker.internal`, so a URL built from khaos's own listener address is
-// unreachable from inside the target's network namespace. Every revocation
-// fetch would then fail for a reason that has nothing to do with the trap, and
-// the run would report the target as fail-closed when khaos had simply pointed
-// it at nowhere.
+// Configured, not derived from the listener: khaos binds the Docker bridge
+// gateway while the target addresses `host.docker.internal`.
 func (a *Authority) Base() string {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
@@ -72,9 +55,6 @@ func (a *Authority) Base() string {
 	return a.listener.base
 }
 
-// SetBase pins the externally-reachable base URL. It refuses to overwrite one
-// that is already set, because Listen used to do exactly that in the identity
-// provider and silently invalidated every credential it minted.
 func (a *Authority) SetBase(base string) {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
@@ -84,9 +64,6 @@ func (a *Authority) SetBase(base string) {
 	}
 }
 
-// Listen binds the revocation endpoints. If no base URL has been pinned, the
-// listener's own address becomes it, which is right for a test on loopback and
-// wrong for a container, hence SetBase.
 func (a *Authority) Listen(addr string) error {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
@@ -118,9 +95,8 @@ func (a *Authority) Listen(addr string) error {
 
 	a.listener.wg.Add(1)
 
-	// The goroutine serves the LOCAL, not the field. Reading a.listener.revSrv
-	// in here is a data race against shutdown, which nils it under the mutex
-	// this goroutine does not hold, and `go test -race` catches it.
+	// Serves the LOCAL, not the field: reading a.listener.revSrv here races
+	// shutdown, which nils it under a mutex this goroutine does not hold.
 	go func() {
 		defer a.listener.wg.Done()
 		_ = server.Serve(listener)
@@ -129,10 +105,7 @@ func (a *Authority) Listen(addr string) error {
 	return nil
 }
 
-// ListenTLS binds the endpoint where khaos plays the dependency, presenting
-// whatever chain is armed. The certificate is resolved per handshake through
-// GetCertificate rather than fixed at bind time, so arming a trap takes effect
-// on the next connection without the listener moving.
+// Resolved per handshake, so arming takes effect on the next connection.
 func (a *Authority) ListenTLS(addr string) error {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
@@ -157,11 +130,7 @@ func (a *Authority) ListenTLS(addr string) error {
 			MinVersion:     tls.VersionTLS12,
 			GetCertificate: a.getCertificate,
 
-			// Per handshake, so arming an mTLS trap takes effect on the next
-			// connection without the listener moving. ClientAuth fixed at bind
-			// time would mean those traps could only be armed before the target
-			// was ever pointed at khaos, which is not when an experiment arms
-			// anything.
+			// Per handshake too, so an mTLS trap can be armed later.
 			GetConfigForClient: a.configForClient,
 		},
 	}
@@ -171,7 +140,6 @@ func (a *Authority) ListenTLS(addr string) error {
 
 	a.listener.wg.Add(1)
 
-	// Serves the LOCAL, for the same reason Listen does.
 	go func() {
 		defer a.listener.wg.Done()
 		_ = server.ServeTLS(listener, "", "")
@@ -180,16 +148,8 @@ func (a *Authority) ListenTLS(addr string) error {
 	return nil
 }
 
-// configForClient decides, per handshake, whether khaos demands a client
-// certificate.
-//
-// RequireAndVerifyClientCert specifically, and not VerifyClientCertIfGiven.
-// Research 04 measured the whole matrix and that mode is the fail-open trap: it
-// rejects a BAD certificate and accepts NONE, so it reads as secure while its
-// failure mode is a total authentication bypass. khaos's own server must not be
-// the thing being wrong here -- the fault is in the identity it ISSUED, and a
-// server that let an identity-less client through would make both mTLS traps
-// unobservable.
+// RequireAndVerifyClientCert, not VerifyClientCertIfGiven: that mode rejects a
+// BAD certificate and accepts NONE, which would be khaos itself failing open.
 func (a *Authority) configForClient(
 	*tls.ClientHelloInfo,
 ) (*tls.Config, error) {
@@ -206,10 +166,6 @@ func (a *Authority) configForClient(
 	return cfg, nil
 }
 
-// issuingPool is the CA that signed the target's identity, which is what khaos
-// verifies that identity against. It is the real intermediate rather than
-// whatever TrustedRoot currently reports, because a CA swap changes what the
-// TARGET trusts and has nothing to do with who issued the client.
 func (a *Authority) issuingPool() *x509.CertPool {
 	pool := x509.NewCertPool()
 	pool.AddCert(a.inter.cert)
@@ -218,11 +174,6 @@ func (a *Authority) issuingPool() *x509.CertPool {
 	return pool
 }
 
-// getCertificate resolves the armed chain per handshake.
-//
-// A handshake that arrives with nothing armed is served the honest chain rather
-// than refused, because the baseline is measured through this listener and a
-// baseline that cannot connect establishes nothing.
 func (a *Authority) getCertificate(
 	*tls.ClientHelloInfo,
 ) (*tls.Certificate, error) {
@@ -243,7 +194,6 @@ func (a *Authority) getCertificate(
 	return &certificate, nil
 }
 
-// Addr is where the revocation endpoints are bound.
 func (a *Authority) Addr() (string, error) {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
@@ -255,7 +205,6 @@ func (a *Authority) Addr() (string, error) {
 	return a.listener.revocation.Addr().String(), nil
 }
 
-// TLSAddr is where khaos is playing the dependency.
 func (a *Authority) TLSAddr() (string, error) {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()

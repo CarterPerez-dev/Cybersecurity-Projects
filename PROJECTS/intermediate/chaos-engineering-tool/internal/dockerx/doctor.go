@@ -38,18 +38,10 @@ const (
 	checkTargets  = "consenting targets"
 
 	// checkDNSTier is the one check whose subject is khaos's OWN binary rather
-	// than the operator's Docker. `khaos resolver up` imports that binary as a
-	// one-layer container image with no base, so a dynamically linked build
-	// cannot CREATE a resolver — and it finds out at run time, with an error
-	// about a loader path the operator never typed. `doctor` is where khaos is
-	// supposed to turn that into a named cause and a fix.
-	//
-	// It does NOT lose the family, and the first wording of this check said it
-	// did. Arming is independent of importing: a dynamically linked khaos drives
-	// a resolver that already exists perfectly well, including the range's own,
-	// which was measured by running `dns.nxdomain` from such a build and getting
-	// a real verdict. Saying otherwise would have sent an operator to rebuild
-	// over a limit they were not hitting.
+	// than the operator's Docker: `khaos resolver up` imports that binary as a
+	// one-layer image with no base, so a dynamically linked build cannot CREATE
+	// a resolver. It does not lose the family, because arming a resolver that
+	// already exists is independent of importing one.
 	checkDNSTier = "dns tier"
 
 	fixNoEndpoint   = "install Docker, or set DOCKER_HOST to a reachable daemon"
@@ -160,19 +152,13 @@ func DiagnoseWith(
 }
 
 // dnsTierCheck reports whether khaos can stand its chaos resolver up at all,
-// and how many it already has.
-//
-// The linkage half is checked here rather than discovered during a run, because
-// the failure is otherwise invisible until the worst moment: `khaos run dns.*`
-// imports an image, creates a container, starts it, and the container dies
-// looking for `/lib64/ld-linux-x86-64.so.2`. The operator sees an exec error
-// about a path they never typed. One line in `doctor` turns that into the build
-// flag that fixes it.
+// and how many it already has. The linkage half is checked here because
+// otherwise the container only dies at run time, looking for a loader path the
+// operator never typed.
 func dnsTierCheck(ctx context.Context, cli *Client) Check {
-	// Counted first, because it changes what a dynamic build's refusal MEANS.
-	// A failure to list is not a failure of the tier: khaos can still stand a
-	// resolver up, it just cannot say what is already there, and reporting that
-	// as a broken tier would send an operator to rebuild a binary that is fine.
+	// Counted first, because a failure to LIST is not a failure of the tier:
+	// khaos can still stand a resolver up, and calling that a broken tier would
+	// send an operator to rebuild a binary that is fine.
 	running := -1
 	if resolvers, err := cli.Resolvers(ctx); err == nil {
 		running = len(resolvers)

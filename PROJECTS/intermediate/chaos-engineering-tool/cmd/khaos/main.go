@@ -27,10 +27,7 @@ const (
 	exitError  = 1
 	exitDefect = 2
 
-	// Design section 8 assigns 4 to an inconclusive run. An interrupted run is a
-	// kind of inconclusive one, and Chaos Toolkit's lattice keeps `interrupted`
-	// on the same epistemic axis, so they share it until M10 builds the full
-	// taxonomy out. What matters here is that neither is 0.
+	// An interrupted run is a kind of inconclusive one, so they share a code.
 	exitInconclusive = 4
 	exitInterrupted  = 4
 
@@ -87,9 +84,8 @@ func interactive(args []string, stdin, stdout *os.File) bool {
 	return term.IsTerminal(fd(stdin)) && term.IsTerminal(fd(stdout))
 }
 
-// fd narrows a descriptor for the syscall wrappers that want an int. A file
-// descriptor is bounded by RLIMIT_NOFILE, orders of magnitude below MaxInt, so
-// the conversion cannot overflow.
+// fd narrows a descriptor for the syscall wrappers that want an int.
+// RLIMIT_NOFILE bounds it far below MaxInt, so it cannot overflow.
 func fd(file *os.File) int {
 	return int(file.Fd()) //nolint:gosec // bounded by RLIMIT_NOFILE
 }
@@ -107,14 +103,9 @@ func noColorRequested(args []string) bool {
 	return false
 }
 
-// fail maps an error to an exit code, and the ORDER is the contract.
-//
-// Anything about the state khaos left the target in outranks anything about the
-// verdict, and both outrank interruption. Cancellation used to be checked first,
-// so an interrupted run that ALSO failed to revert its fault returned
-// "interrupted" and silently dropped the rollback failure — the one outcome an
-// operator must never miss, hidden by the one they already know about, because
-// `errors.Join` carries both and the first branch won.
+// fail maps an error to an exit code, and the ORDER is the contract: the state
+// khaos left the target in outranks the verdict, and both outrank interruption.
+// errors.Join carries several at once, so the first match decides.
 func fail(err error) int {
 	if errors.Is(err, run.ErrRevertFailed) {
 		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)

@@ -14,41 +14,29 @@ import (
 type Kind string
 
 const (
-	// PassThrough is not a fault. It is what the proxy does when nothing is
-	// armed, and it has to be a real mode rather than the absence of one,
-	// because the baseline is measured through the proxy and a baseline
-	// measured through a different code path than the fault window proves
-	// nothing about the difference between them.
+	// A real mode rather than the absence of one, because the baseline is
+	// measured through the proxy as well.
 	PassThrough Kind = "pass-through"
 
-	// Hang accepts the connection and never answers. The research found this
-	// and Reset to be the two shapes that most reliably separate a fail-closed
-	// implementation from a fail-open one, because a refused connection and a
-	// hung one hit different branches in almost every HTTP client, and the hang
-	// branch is the one carrying the badly-chosen default timeout.
+	// Accepts and never answers. A refused connection and a hung one hit
+	// different client branches, and the hang branch carries the bad default.
 	Hang Kind = "hang"
 
-	// Reset answers with RST rather than FIN. Reaching this needs SO_LINGER 0,
-	// because an ordinary close with an empty receive queue sends FIN.
+	// RST rather than FIN, which needs SO_LINGER 0.
 	Reset Kind = "reset"
 
-	// EOF accepts and closes cleanly, which is what a stopped or killed
-	// dependency looks like to its peer. Measured in research 06 section 6.1:
-	// even SIGKILL produces an orderly FIN.
+	// Closes cleanly, as a stopped dependency does; even SIGKILL sends FIN.
 	EOF Kind = "eof"
 
-	// Latency delays both directions. It is the graduated fault, for finding a
-	// timeout that is too generous rather than one that is missing.
+	// Delays both directions, for a timeout too generous rather than missing.
 	Latency Kind = "latency"
 
-	// Partial forwards a prefix of the dependency's answer and then closes, so
-	// the target receives a truncated body with a valid status line. This is the
-	// shape that finds a parser treating a short read as an empty-but-successful
-	// response, which an outage-shaped fault never reaches.
+	// Forwards a prefix then closes, which finds a parser treating a short read
+	// as empty-but-successful.
 	Partial Kind = "partial"
 
-	// SlowClose forwards the whole answer and then holds the connection open.
-	// A client that waits for close rather than for Content-Length stalls.
+	// Forwards everything, then holds the connection open, stalling a client
+	// that waits for close rather than for Content-Length.
 	SlowClose Kind = "slow-close"
 )
 
@@ -74,9 +62,8 @@ var ErrFaultIncomplete = errors.New(
 	"that proxy fault needs a parameter it was not given",
 )
 
-// Fault is the whole mutable state of an armed proxy. Reverting is assigning
-// PassThrough over it, which is why the tier rolls back by freeing a struct
-// rather than by undoing anything.
+// Fault is the whole mutable state of an armed proxy, so reverting is
+// assigning PassThrough over it rather than undoing anything.
 type Fault struct {
 	Kind  Kind
 	Delay time.Duration
@@ -105,10 +92,8 @@ func ParseKind(name string) (Kind, error) {
 	return kind, nil
 }
 
-// Validate refuses a fault that cannot express itself. A latency fault with no
-// delay and a partial fault with no byte count are both indistinguishable from
-// pass-through at runtime, which is a run that measures nothing and reports a
-// clean survival.
+// Validate refuses a fault that cannot express itself: a latency with no delay
+// or a partial with no byte count is pass-through that reports as armed.
 func (f Fault) Validate() error {
 	switch f.Kind {
 	case Latency, SlowClose:
@@ -121,10 +106,9 @@ func (f Fault) Validate() error {
 		}
 	case Hang, Reset, EOF:
 	default:
-		// The whitelist is the point. A switch that only names the parameterised
-		// kinds accepts the zero Fault, a misspelling and a trailing space, all of
-		// which forward every byte untouched while reporting as armed. An
-		// unmarshalled journal payload reaches this with no other guard.
+		// The whitelist is the point: naming only the parameterised kinds
+		// accepts the zero Fault and a misspelling, and an unmarshalled journal
+		// payload reaches here with no other guard.
 		return fmt.Errorf(
 			errUnknownKind,
 			ErrUnknownKind,
@@ -155,11 +139,8 @@ func (f Fault) Describe(target string) string {
 	}
 }
 
-// Severs reports whether the fault prevents the dependency from being reached at
-// all. khaos confirms a severing fault by proving the dependency is unreachable
-// THROUGH the proxy, and a forwarding fault by proving the proxy altered the
-// stream, because those are different observations and one cannot stand in for
-// the other.
+// Severs separates the two confirmations: unreachability THROUGH the proxy, or
+// an altered stream. Neither observation can stand in for the other.
 func (f Fault) Severs() bool {
 	return f.Kind == Hang || f.Kind == Reset || f.Kind == EOF
 }

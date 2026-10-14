@@ -31,10 +31,8 @@ var ErrUndeclaredParam = errors.New(
 	"that is not a parameter of this experiment",
 )
 
-// Param declares one input an experiment needs. The declaration is the single
-// place the CLI registers flags from, the range fills defaults into, and Bind
-// validates against, so an experiment can neither be handed an input it never
-// asked for nor be given one it silently ignores.
+// Param declares one input an experiment needs, and is the single place the CLI
+// registers flags from and Bind validates against.
 type Param struct {
 	Name     string
 	Usage    string
@@ -42,9 +40,8 @@ type Param struct {
 	Default  string
 }
 
-// Params is the bound, validated parameter set for one build. Get records every
-// read so Build can reject a builder reaching for a name nobody declared, which
-// is otherwise an empty string with no symptom.
+// Params records every read, so Build can reject a builder reaching for a name
+// nobody declared, which is otherwise an empty string with no symptom.
 type Params struct {
 	values map[string]string
 	read   map[string]bool
@@ -78,11 +75,8 @@ func Bind(declared []Param, supplied map[string]string) (*Params, error) {
 		stray:  map[string]bool{},
 	}
 
-	// Presence decides whether the default applies, not emptiness. An operator who
-	// explicitly asked for an empty value has asked for something meaningful: an
-	// empty credential is sent as no Authorization header, which is the
-	// unauthenticated negative control. Overwriting it with the default makes that
-	// control impossible to express.
+	// Presence decides whether the default applies, not emptiness: an empty
+	// credential is the unauthenticated negative control, sent as no header.
 	for _, param := range declared {
 		value, given := supplied[param.Name]
 		if !given {
@@ -133,10 +127,8 @@ func sorted[V any](m map[string]V) []string {
 	return out
 }
 
-// Duration and Count parse a declared parameter and refuse a value the fault
-// cannot use. The refusal names the flag and what was typed, because a fault
-// whose magnitude failed to parse would otherwise fall back to zero, and a zero
-// delay or a zero byte budget is indistinguishable from no fault at all.
+// Duration and Count refuse a value the fault cannot use, because a magnitude
+// that failed to parse would fall back to zero: no fault at all.
 func (p *Params) Duration(name string) (time.Duration, error) {
 	raw := p.Get(name)
 
@@ -153,18 +145,7 @@ func (p *Params) Duration(name string) (time.Duration, error) {
 }
 
 // AtLeast is Duration with a floor, for the magnitudes where a value the target
-// is ALLOWED to tolerate is not a smaller fault but a different and false
-// finding.
-//
-// Measured: `identity.claim_expired --delay 30s` against a textbook verifier
-// that allows 60 seconds of clock skew, which RFC 7519 section 4.1.4 explicitly
-// permits, produced `deviated / PERMITTED`, defect, exit 2. khaos confirmed the
-// trap honestly — the token really was expired — and then reported a correct
-// target as broken, because an expiry inside the skew allowance is one a correct
-// verifier is supposed to accept.
-//
-// The refusal names the floor AND why it exists, because an operator's first
-// instinct on seeing it will be that khaos is being fussy about a magnitude.
+// is ALLOWED to tolerate is not a smaller fault but a false finding.
 func (p *Params) AtLeast(
 	name string,
 	floor time.Duration,

@@ -80,9 +80,8 @@ func (l *Lock) Release() error {
 	return l.file.Close()
 }
 
-// fd narrows a descriptor for the flock wrapper, which wants an int. A file
-// descriptor is bounded by RLIMIT_NOFILE, orders of magnitude below MaxInt, so
-// the conversion cannot overflow.
+// fd narrows a descriptor for the flock wrapper, which wants an int. RLIMIT_NOFILE
+// bounds it far below MaxInt, so the conversion cannot overflow.
 func fd(file *os.File) int {
 	return int(file.Fd()) //nolint:gosec // bounded by RLIMIT_NOFILE
 }

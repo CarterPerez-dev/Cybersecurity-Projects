@@ -9,61 +9,34 @@ import (
 	"crypto/x509"
 )
 
-// Chain is one assembled certificate chain as it will be PRESENTED in a
-// handshake, together with what revocation needs in order to talk about it.
-//
-// Presented and Issuer are separate fields on purpose, and the distinction is
-// the whole of the MissingIntermediate fault: the server can withhold a CA from
-// the handshake while that CA is still the one that signed the leaf and still
-// the one whose CRL covers it. Collapsing them would make that fault
-// inexpressible.
+// Chain is one chain as it will be PRESENTED in a handshake. Issuer is kept
+// apart from presented so a CA can be withheld from the handshake while still
+// signing the leaf and the CRL that covers it.
 type Chain struct {
-	// Leaf is the served certificate.
 	Leaf    *x509.Certificate
 	leafDER []byte
 	leafKey crypto.Signer
 
-	// presented is the intermediate DER the handshake carries, leaf-first
-	// ordering excluded. It can be empty even when the real chain has an
-	// intermediate.
+	// Can be empty even when the real chain has an intermediate.
 	presented [][]byte
 
-	// Issuer signed the leaf. Revocation answers are always issued by this,
-	// even when the handshake withholds it.
 	Issuer    *x509.Certificate
 	issuerKey crypto.Signer
 
-	// Root is the anchor a correct client needs to verify this chain. For
-	// CASwap it is a root khaos minted rather than the one the target was
-	// originally given.
 	Root *x509.Certificate
 
-	// Staple is the DER OCSP response stapled into the handshake, or nil for no
-	// staple at all. Go never parses this; it is delivered to the application
-	// verbatim, which is what makes both stapling faults reachable.
+	// Go never parses this; the application receives it verbatim.
 	Staple []byte
 
-	// crl and ocsp are the bytes the endpoints serve, minted at ARM time and
-	// served verbatim.
-	//
-	// They live here rather than being minted per request for two reasons. A
-	// real CA publishes a revocation list and does not regenerate it for each
-	// fetch, so a freshness window that slid forward on every request was
-	// wrong on its own terms. And minting from the trap at request time meant
-	// an INERT authority -- one that records a trap and builds nothing -- still
-	// served a revoked list, so thirteen traps confirmed against a fault that
-	// never happened. The oracle's negative control caught it.
+	// Minted at ARM time, as a real CA publishes a list rather than per fetch.
 	crl  []byte
 	ocsp []byte
 
-	// crlOut and ocspOut say whether each endpoint answers at all. Built state
-	// for the same reason, since an unreachable endpoint cannot be expressed in
-	// pre-minted bytes.
+	// An unreachable endpoint cannot be expressed in pre-minted bytes.
 	crlOut  bool
 	ocspOut bool
 }
 
-// CRL and OCSP are what the endpoints serve for this chain.
 func (c *Chain) CRL() ([]byte, bool) {
 	return c.crl, !c.crlOut
 }
@@ -72,8 +45,6 @@ func (c *Chain) OCSP() ([]byte, bool) {
 	return c.ocsp, !c.ocspOut
 }
 
-// TLS is the chain as crypto/tls wants it: leaf first, then whatever
-// intermediates the server is willing to admit to.
 func (c *Chain) TLS() tls.Certificate {
 	certificate := tls.Certificate{
 		Certificate: append([][]byte{c.leafDER}, c.presented...),
@@ -88,8 +59,6 @@ func (c *Chain) TLS() tls.Certificate {
 	return certificate
 }
 
-// RootPool is the trust anchor set a correct client needs for this chain. It is
-// what the range hands its reference client, and what CASwap quietly changes.
 func (c *Chain) RootPool() *x509.CertPool {
 	pool := x509.NewCertPool()
 	if c.Root != nil {
@@ -98,16 +67,11 @@ func (c *Chain) RootPool() *x509.CertPool {
 	return pool
 }
 
-// Presented is how many intermediates the handshake actually carries, which is
-// the observable MissingIntermediate is confirmed by.
 func (c *Chain) Presented() int {
 	return len(c.presented)
 }
 
-// PresentedPool is the intermediate set a client receives in the handshake, and
-// therefore the only one it may use to build a path. Supplying khaos's real
-// intermediate here instead would quietly repair MissingIntermediate, which is
-// the mistake that makes that fault untestable.
+// Supplying khaos's real intermediate here would repair MissingIntermediate.
 func (c *Chain) PresentedPool() (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 

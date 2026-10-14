@@ -18,9 +18,7 @@ import (
 	"math/big"
 )
 
-// Algorithm is the JWS `alg` header value. khaos needs to mint tokens under
-// algorithms a correct provider would refuse to use at all, so this is the set
-// khaos can SIGN with rather than a set it endorses.
+// Algorithm is a JWS `alg` khaos can SIGN with, not one it endorses.
 type Algorithm string
 
 const (
@@ -28,9 +26,6 @@ const (
 	ES256 Algorithm = "ES256"
 	HS256 Algorithm = "HS256"
 
-	// None is RFC 7515's "No digital signature or MAC performed". It exists here
-	// because a verifier that routes on it is trap T1, and khaos cannot test for
-	// that without being willing to emit it.
 	None Algorithm = "none"
 )
 
@@ -42,31 +37,19 @@ const (
 
 	useSignature = "sig"
 
-	// The modulus size khaos signs its honest tokens with. 2048 is what a real
-	// provider uses and it is comfortably above the floor crypto/rsa enforces.
 	strongBits = 2048
 
-	// Deliberately below that floor. Measured on go1.26.5: crypto/rsa refuses a
-	// key this size at GenerateKey, at SignPKCS1v15 AND at VerifyPKCS1v15, all
-	// three through checkKeySize, so a token signed under it cannot be produced
-	// or checked by the standard library at all. That is the whole point of the
-	// weak-key probe, and it is why khaos carries its own PKCS#1 v1.5 path below.
+	// Below crypto/rsa's floor, which refuses a key this size at GenerateKey,
+	// at SignPKCS1v15 and at VerifyPKCS1v15 alike, hence the raw path below.
 	weakBits = 512
 
-	// Each prime is half the modulus. Assembling the key by hand is what lets
-	// khaos hold one crypto/rsa will not generate.
 	weakPrimeBits = weakBits / 2
 
-	// crypto/rsa's own floor, read from the source rather than remembered:
-	// checkKeySize returns nil at or above this and an error below it unless the
-	// rsa1024min GODEBUG is set. khaos never sets that GODEBUG, because doing so
-	// to enable one probe would weaken every other thing khaos does with RSA.
+	// crypto/rsa's floor, waived only by the rsa1024min GODEBUG khaos never sets.
 	libraryFloorBits = 1024
 
 	primeAttempts = 64
 
-	// ES256 signatures are the fixed-width concatenation of r and s, each padded
-	// to the curve's coordinate size. RFC 7518 section 3.4.
 	p256CoordinateBytes = 32
 
 	errNoPrime      = "khaos could not find a %d-bit prime for its deliberately weak signing key after %d attempts"
@@ -85,10 +68,7 @@ var ErrKeyAlgorithmMismatch = errors.New(
 	"that key cannot sign under that algorithm",
 )
 
-// Key is one signing key the provider publishes and signs with. The thumbprint
-// is its `kid`, so a rotated key's identity is derived from the key material
-// rather than from a counter khaos increments: two providers holding the same
-// key agree on its name, and a `kid` cannot be reused for different bytes.
+// Key is one signing key, whose RFC 7638 thumbprint is its `kid`.
 type Key struct {
 	ID  string
 	Alg Algorithm
@@ -97,16 +77,11 @@ type Key struct {
 	ecKey  *ecdsa.PrivateKey
 }
 
-// NewRSAKey mints a key a real provider would use.
 func NewRSAKey() (*Key, error) {
 	return newRSAKey(strongBits)
 }
 
-// NewWeakRSAKey mints a key below the size crypto/rsa will accept, by assembling
-// the struct from primes khaos finds itself. Nothing in crypto/rsa validates a
-// PrivateKey on construction, so the value is well-formed and usable right up to
-// the moment a crypto/rsa function is called with it, which is exactly the
-// position a verifier that reimplements RSA puts itself in.
+// Built by hand: crypto/rsa validates no PrivateKey on construction.
 func NewWeakRSAKey() (*Key, error) {
 	key, err := weakRSAPrivateKey()
 	if err != nil {
@@ -136,9 +111,6 @@ func keyFromRSA(key *rsa.PrivateKey) (*Key, error) {
 	return out, nil
 }
 
-// NewECKey mints khaos's ES256 key. The curve is P-256 because ES256 is defined
-// over it, and the surrounding code derives its widths from the curve rather
-// than from that fact, so adding ES384 later is a constructor and not a hunt.
 func NewECKey() (*Key, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -157,17 +129,10 @@ func NewECKey() (*Key, error) {
 	return out, nil
 }
 
-// Weak reports whether this key is below the size crypto/rsa accepts. It is
-// derived from the modulus rather than remembered from construction, so a key
-// cannot claim to be strong while carrying weak material.
 func (k *Key) Weak() bool {
 	return k.rsaKey != nil && k.rsaKey.N.BitLen() < libraryFloorBits
 }
 
-// PublicDER is the SPKI encoding of the public key. It is what the algorithm
-// confusion probe uses as its HMAC secret, because an RSA public key loaded from
-// a PEM file is these bytes and a verifier that hands them to an HMAC function
-// is trap T2.
 func (k *Key) PublicDER() ([]byte, error) {
 	return x509.MarshalPKIXPublicKey(k.public())
 }
@@ -179,10 +144,6 @@ func (k *Key) public() crypto.PublicKey {
 	return &k.ecKey.PublicKey
 }
 
-// Sign produces the JWS signature over the signing input. It refuses an
-// algorithm the key cannot carry rather than silently producing a signature
-// nothing can check, because a probe that fails for the wrong reason reads
-// exactly like a target that refused it.
 func (k *Key) Sign(alg Algorithm, signingInput []byte) ([]byte, error) {
 	switch alg {
 	case RS256:
@@ -205,10 +166,6 @@ func (k *Key) Sign(alg Algorithm, signingInput []byte) ([]byte, error) {
 	}
 }
 
-// signRSA uses the standard library wherever the standard library will accept
-// the key, and khaos's own PKCS#1 v1.5 path only where it will not. The two are
-// pinned to agree byte for byte at a legal key size, so the weak-key path is
-// exercised against a known-good reference rather than trusted on its own.
 func (k *Key) signRSA(signingInput []byte) ([]byte, error) {
 	digest := sha256.Sum256(signingInput)
 
@@ -234,10 +191,7 @@ func (k *Key) signEC(signingInput []byte) ([]byte, error) {
 	return out, nil
 }
 
-// Thumbprint is the RFC 7638 JWK thumbprint: the required members only, in
-// lexicographic order, with no whitespace, SHA-256, base64url with no padding.
-// It is implemented from the specification text and pinned by the worked example
-// in RFC 7638 section 3.1.
+// Thumbprint is the RFC 7638 JWK thumbprint, which khaos uses as the `kid`.
 func (k *Key) Thumbprint() (string, error) {
 	canonical, err := k.canonicalJWK()
 	if err != nil {
@@ -259,10 +213,8 @@ func (k *Key) canonicalJWK() ([]byte, error) {
 	return nil, fmt.Errorf(errBadAlg, ErrUnsupportedAlgorithm, k.Alg)
 }
 
-// canonicalRSAJWK is the required-members-only RSA form. The member order is
-// e, kty, n, which is lexicographic, and it is written literally rather than
-// marshalled, because encoding/json orders struct fields by declaration and a
-// field reorder would silently change every kid khaos derives.
+// Written literally rather than marshalled, because encoding/json orders
+// fields by declaration and a reorder would change every kid khaos derives.
 func canonicalRSAJWK(pub *rsa.PublicKey) []byte {
 	return []byte(fmt.Sprintf(
 		`{"e":%q,"kty":%q,"n":%q}`,
@@ -272,16 +224,11 @@ func canonicalRSAJWK(pub *rsa.PublicKey) []byte {
 	))
 }
 
-// exponentBytes is the base64url-ready form of the public exponent: big-endian,
-// with no leading zero octets. RFC 7518 section 6.3.1.2 calls for the
-// "base64urlUInt-encoded value", and a leading zero would change the thumbprint
-// for the same key.
+// Big-endian with no leading zero octets, which would change the thumbprint.
 func exponentBytes(e int) []byte {
 	return new(big.Int).SetInt64(int64(e)).Bytes()
 }
 
-// canonicalECJWK is the required-members-only EC form, in the lexicographic
-// order crv, kty, x, y.
 func canonicalECJWK(pub *ecdsa.PublicKey) []byte {
 	name, size := curveShape(pub.Curve)
 	x, y := coordinates(pub, size)
@@ -295,14 +242,8 @@ func canonicalECJWK(pub *ecdsa.PublicKey) []byte {
 	))
 }
 
-// curveShape is the curve's JWK name and its coordinate width, DERIVED from the
-// curve rather than hardcoded.
-//
-// Hardcoding P-256 in three places made a larger curve PANIC inside the `jwks`
-// HTTP handler — math/big's FillBytes refuses a buffer too small for the value —
-// and made a smaller one serialize as a zero-padded 28-byte coordinate labelled
-// P-256, which is a different key under a different thumbprint. Neither was
-// reachable through NewECKey, which is why neither was noticed.
+// Derived from the curve rather than hardcoded: FillBytes panics on a buffer
+// too small, and a padded short coordinate is a different key.
 func curveShape(curve elliptic.Curve) (string, int) {
 	switch curve {
 	case elliptic.P384():
@@ -314,9 +255,6 @@ func curveShape(curve elliptic.Curve) (string, int) {
 	}
 }
 
-// coordinates is the fixed-width big-endian pair RFC 7518 section 6.2.1.2 calls
-// for. The width comes from the curve, so a short coordinate is padded and a
-// long one cannot overflow the buffer.
 func coordinates(pub *ecdsa.PublicKey, size int) ([]byte, []byte) {
 	x := make([]byte, size)
 	y := make([]byte, size)
@@ -335,9 +273,6 @@ func b64(raw []byte) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
-// weakRSAPrivateKey assembles a key crypto/rsa will not generate. It is built
-// the long way round rather than with GenerateKey because GenerateKey enforces
-// the same floor as the signing and verifying paths.
 func weakRSAPrivateKey() (*rsa.PrivateKey, error) {
 	exponent := big.NewInt(defaultExponent)
 
@@ -361,9 +296,6 @@ func weakRSAPrivateKey() (*rsa.PrivateKey, error) {
 			continue
 		}
 
-		// Carmichael's totient, which is what PKCS#1 actually requires. Using
-		// Euler's would also work but produces a larger private exponent for no
-		// benefit.
 		pMinus := new(big.Int).Sub(p, one)
 		qMinus := new(big.Int).Sub(q, one)
 		totient := new(
@@ -393,22 +325,14 @@ const defaultExponent = 65537
 
 var one = big.NewInt(1)
 
-// sha256DigestInfo is the DER-encoded DigestInfo prefix for SHA-256, from
-// RFC 8017 section 9.2 note 1. PKCS#1 v1.5 signs this prefix followed by the
-// digest, so the value is fixed and not computed.
+// RFC 8017's DER DigestInfo prefix for SHA-256: fixed, not computed.
 var sha256DigestInfo = []byte{
 	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
 	0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
 }
 
-// signPKCS1v15Raw is RFC 8017's RSASSA-PKCS1-v1_5 over a modulus crypto/rsa
-// refuses to touch. It exists for exactly one probe and it is pinned against
-// rsa.SignPKCS1v15 at a legal key size, so the arithmetic is verified against
-// the standard library rather than asserted.
-//
-// There is no constant-time concern here: the key is a throwaway khaos generated
-// to be weak on purpose, published in khaos's own JWK Set, and discarded with the
-// run.
+// RFC 8017's RSASSA-PKCS1-v1_5 over a modulus crypto/rsa refuses. No
+// constant-time concern: the key is a throwaway, weak on purpose.
 func signPKCS1v15Raw(key *rsa.PrivateKey, digest []byte) ([]byte, error) {
 	size := (key.N.BitLen() + 7) / 8
 	framed := len(sha256DigestInfo) + len(digest)
@@ -437,21 +361,9 @@ func signPKCS1v15Raw(key *rsa.PrivateKey, digest []byte) ([]byte, error) {
 	return out, nil
 }
 
-// verifyPKCS1v15Raw is the mirror, and it is here rather than in the range
-// fixture because the confirmation oracle needs it: khaos has to be able to
-// prove the token it just minted really does verify under the weak key it
-// published, or "the target accepted it" says nothing about what khaos sent.
 func verifyPKCS1v15Raw(pub *rsa.PublicKey, digest, signature []byte) bool {
-	// The exponent is validated because this function is EXPORTED with a comment
-	// inviting reuse, and a caller who built the key from an attacker-supplied
-	// JWK can hand it anything.
-	//
-	// Measured: with e = 1 the modular exponentiation is the identity, so the
-	// signature IS the encoded message and khaos accepted a forgery that
-	// rsa.VerifyPKCS1v15 refused. The standard library's FIPS path rejects e < 2
-	// and even exponents; this path rejected neither. An `"e":"AQAAAAAAAAAB"`
-	// (2^64+1) also truncated to 1 through big.Int.Int64, whose behaviour is
-	// documented as undefined on overflow.
+	// Load-bearing: with e = 1 the exponentiation is the identity, so the
+	// signature IS the encoded message. crypto/rsa's FIPS path rejects e < 2.
 	if pub.N == nil || pub.E < 3 || pub.E%2 == 0 {
 		return false
 	}
@@ -499,23 +411,12 @@ func verifyPKCS1v15Raw(pub *rsa.PublicKey, digest, signature []byte) bool {
 	return true
 }
 
-// VerifyPKCS1v15Raw is khaos's own PKCS#1 v1.5 verification, exported for the
-// range's reference verifier. The fixture needs it to express the one bug Go's
-// standard library makes unreachable: crypto/rsa enforces a 1024-bit floor, so a
-// verifier that accepts an undersized key has to have reimplemented RSA, which
-// is what most libraries in other ecosystems have done.
-//
-// It is pinned against rsa.SignPKCS1v15 at a legal key size by this package's
-// own tests, in both directions.
+// VerifyPKCS1v15Raw verifies under a modulus crypto/rsa refuses to touch.
 func VerifyPKCS1v15Raw(pub *rsa.PublicKey, digest, signature []byte) bool {
 	return verifyPKCS1v15Raw(pub, digest, signature)
 }
 
-// SPKIPEMBytes is the serialization a verifier is overwhelmingly holding when it
-// was handed "the issuer's public key": a PEM file read off disk. It is exported
-// because the algorithm-confusion bug is only reachable when the forged MAC and
-// the verifier's secret are the SAME bytes, so khaos and the fixture have to
-// agree on which bytes those are.
+// The bytes a verifier handed "the issuer's public key" is usually holding.
 func SPKIPEMBytes(pub *rsa.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {

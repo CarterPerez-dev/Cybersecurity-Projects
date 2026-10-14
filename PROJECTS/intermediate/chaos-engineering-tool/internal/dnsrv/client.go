@@ -18,10 +18,8 @@ import (
 )
 
 const (
-	// probeTimeout has to clear the largest delay khaos can arm plus the time a
-	// client spends noticing a truncated answer and re-asking over TCP. At the
-	// MaxDelay ceiling of 3.999s a tighter budget would time out on khaos's own
-	// confirmation and report the resolver as dead.
+	// probeTimeout must clear the largest delay khaos can arm plus a client's
+	// re-ask over TCP, or confirmation times out and reports the resolver dead.
 	probeTimeout = 10 * time.Second
 
 	controlTimeout = 5 * time.Second
@@ -36,30 +34,22 @@ var ErrControlRefused = errors.New(
 	"the resolver's control surface refused this request",
 )
 
-// Client is how khaos, on the host, talks to a resolver running in a container.
-// Both addresses are the CONTAINER's own, reached directly: the host routes to
-// container addresses on a bridge network, so neither the DNS port nor the
-// control port is ever published, which is what keeps the whole tier at zero
-// host ports.
+// Client talks to a resolver running in a container. Both addresses are the
+// CONTAINER's own, reached directly over the bridge network, so neither the DNS
+// port nor the control port is ever published to the host.
 type Client struct {
-	// DNS is the resolver's address:port, used for arming confirmation by
-	// MEASURING what it serves.
 	DNS string
 
-	// Control is the base URL of the resolver's control surface.
 	Control string
 
-	// Nonce authorises every control call. Without it the target, which shares
-	// the network, could arm or disarm khaos's own fault.
+	// Nonce authorises every control call. The target shares the network, so
+	// without it the target could arm or disarm khaos's own fault.
 	Nonce string
 
-	// ControlName is the zone name no fault touches, used as the confirmation
-	// oracle's positive control.
 	ControlName string
 
-	// Zone is the honest answer the resolver serves for each name it owns, read
-	// back from it rather than remembered. A redirect's observable needs it to
-	// name the address the fault replaced.
+	// Zone is read back from the resolver rather than remembered, so a
+	// redirect's observable can name the address the fault replaced.
 	Zone map[string]string
 
 	http *http.Client
@@ -92,8 +82,8 @@ func (c *Client) State(ctx context.Context) (Stats, error) {
 	return c.call(ctx, http.MethodGet, PathState, nil)
 }
 
-// Healthy reports whether the resolver is up, without the nonce, so khaos can
-// wait for a container to come up before it has read the nonce back out of it.
+// Healthy reports whether the resolver is up without sending the nonce, so
+// khaos can wait on a container before it has read the nonce back out of it.
 func (c *Client) Healthy(ctx context.Context) bool {
 	request, err := http.NewRequestWithContext(
 		ctx,
@@ -174,8 +164,6 @@ func (c *Client) client() *http.Client {
 	return c.http
 }
 
-// answer is one measured DNS exchange. Everything the confirmation oracle
-// decides on is in here, and all of it came off the wire.
 type answer struct {
 	rcode     int
 	truncated bool
@@ -183,9 +171,8 @@ type answer struct {
 	elapsed   time.Duration
 	err       error
 
-	// authoritative is the AA bit, and it is what separates the armed fault
-	// from khaos's own failure paths. Five paths in serveFault answer SERVFAIL,
-	// so the rcode alone could not tell the armed arm from the default.
+	// authoritative is the AA bit. Several paths in serveFault answer SERVFAIL,
+	// so the rcode alone cannot tell an armed fault from khaos's own failure.
 	authoritative bool
 }
 
@@ -212,8 +199,6 @@ func (a answer) cnames() []string {
 	return out
 }
 
-// ttls returns every TTL in the answer section, so a confirmation can require
-// the armed value rather than merely the presence of a record.
 func (a answer) ttls() []uint32 {
 	out := make([]uint32, 0, len(a.records))
 	for _, rr := range a.records {
@@ -232,8 +217,8 @@ func (a answer) resolved() bool {
 }
 
 // ask performs one exchange and records what came back, including the failure.
-// A timeout is data here rather than an error to propagate: TruncationNoTCP's
-// whole observable is that neither transport ever completes.
+// A timeout is data rather than an error to propagate, because
+// TruncationNoTCP's whole observable is that neither transport ever completes.
 func (c *Client) ask(name, proto string) answer {
 	client := &dns.Client{Net: proto, Timeout: probeTimeout}
 
@@ -280,12 +265,9 @@ func firstLine(payload []byte, fallback string) string {
 	return text
 }
 
-// Queries reads how many times one source asked khaos's resolver about one name
-// it is authoritative for.
-//
-// A count of zero is the sentinel every guard downstream branches on, so a
-// failed read must not become one: it would make khaos report the TARGET as
-// never having asked when khaos simply could not count.
+// Queries reads how many times one source asked about one name the resolver is
+// authoritative for. A read failure returns an error rather than zero, because
+// zero is the sentinel meaning the target never asked.
 func (c *Client) Queries(
 	ctx context.Context,
 	source, zoneName string,
@@ -299,13 +281,8 @@ func (c *Client) Queries(
 }
 
 // Health reads the resolver's liveness endpoint, which also reports the control
-// name no fault touches.
-//
-// khaos reads that name back out of the resolver rather than remembering what
-// it passed, for the reason the identity provider's most expensive bug
-// established: the resolver is the only authority on which name it will refuse
-// to fault, and a confirmation built on khaos's own idea of it would refute
-// every fault the moment the two disagreed.
+// name no fault touches. That name is read back rather than remembered, since
+// the resolver is the only authority on which name it will refuse to fault.
 func (c *Client) Health(ctx context.Context) (Health, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,

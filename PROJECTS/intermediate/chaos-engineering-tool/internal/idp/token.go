@@ -27,48 +27,24 @@ const (
 
 var ErrNotAJWS = errors.New("that is not a JWS compact serialization")
 
-// Header is the JOSE header khaos emits. Every field a trap needs to corrupt is
-// here, including the ones a correct provider never sets: `jwk` exists so khaos
-// can embed an attacker key, which is trap T2b, and `alg` is a plain string
-// rather than an Algorithm so khaos can emit a value it does not itself support.
+// Header carries the fields a correct provider never sets, and `alg` is a
+// plain string so khaos can emit a value it does not itself support.
 type Header struct {
 	Alg string `json:"alg"`
 	Typ string `json:"typ,omitempty"`
 	Kid string `json:"kid,omitempty"`
 
-	// JWK is RFC 7515's in-token key. khaos sets it only for the key-injection
-	// probe. A verifier that resolves a key from here instead of from the trusted
-	// JWK Set has violated RFC 8725 rule 4, and that is the finding.
+	// JWK is RFC 7515's in-token key. A verifier that resolves a key from here
+	// rather than from the trusted set has violated RFC 8725 rule 4.
 	JWK *JWK `json:"jwk,omitempty"`
 
-	// JKU is the in-token key-set URL, and khaos does not set it.
-	//
-	// An earlier comment here claimed khaos pointed it at its own provider and
-	// counted the hit. It did not: nothing in the repository ever assigned this
-	// field. Research 07's trap T2b does ask for that probe — a verifier that
-	// FETCHES an attacker-supplied URL is a finding even when the token is then
-	// rejected — but the fetch is not an outcome in any probe stream, so
-	// surfacing it needs an observation channel khaos does not have. The
-	// omission is recorded in the design contract's fault catalogue rather than
-	// described here as a feature.
-	//
-	// The field stays so a verifier's non-following of it is a property khaos can
-	// express later without reshaping the header.
+	// JKU is the in-token key-set URL, and khaos does not set it. The field
+	// stays so non-following can be expressed without reshaping the header.
 	JKU string `json:"jku,omitempty"`
 }
 
-// Claims is the payload. Every time field is a pointer so khaos can emit a token
-// with a claim genuinely ABSENT rather than present and zero: a verifier that
-// rejects `exp: 0` while accepting a missing `exp` is a different bug, and
-// encoding/json cannot express the difference without this.
-// Audience is RFC 7519 section 4.1.3's `aud`, which is "an array of
-// case-sensitive strings" in the general case and "MAY be a single
-// case-sensitive string" when there is one audience.
-//
-// It is a type rather than a plain string because a plain string made the
-// general case fail to unmarshal, and a verifier that dispatched on parse
-// success then treated a perfectly legal multi-audience JWT as an opaque
-// credential.
+// Audience is RFC 7519 section 4.1.3's `aud`: an array of case-sensitive
+// strings, which MAY be a single string when there is one audience.
 type Audience []string
 
 func (a *Audience) UnmarshalJSON(raw []byte) error {
@@ -88,9 +64,6 @@ func (a *Audience) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the single-string form for one audience, because that is
-// what a real provider emits and khaos's forged tokens have to be ordinary in
-// every respect except the one property each trap corrupts.
 func (a Audience) MarshalJSON() ([]byte, error) {
 	if len(a) == 1 {
 		return json.Marshal(a[0])
@@ -111,6 +84,8 @@ func (a Audience) String() string {
 	return strings.Join(a, ", ")
 }
 
+// Claims keeps every time field as a pointer, so khaos can emit a claim that
+// is genuinely ABSENT rather than present and zero.
 type Claims struct {
 	Issuer    string   `json:"iss,omitempty"`
 	Subject   string   `json:"sub,omitempty"`
@@ -122,9 +97,7 @@ type Claims struct {
 	Scope     string   `json:"scope,omitempty"`
 }
 
-// Token is a parsed JWS with its segments kept verbatim. The raw signing input
-// is retained because re-deriving it from the decoded parts would re-serialize
-// the JSON, and a signature is over the bytes that were actually sent.
+// Token keeps its segments verbatim: a signature is over the bytes as sent.
 type Token struct {
 	Raw          string
 	SigningInput []byte
@@ -135,9 +108,6 @@ type Token struct {
 	ClaimsJSON   []byte
 }
 
-// assemble builds the compact serialization. It takes the already-marshalled
-// header and claims so a trap can corrupt either one before signing, and it
-// takes the signature as bytes so a trap can replace it after signing.
 func assemble(headerJSON, claimsJSON, signature []byte) string {
 	return b64(
 		headerJSON,
@@ -152,9 +122,6 @@ func signingInput(headerJSON, claimsJSON []byte) []byte {
 	return []byte(b64(headerJSON) + segmentSep + b64(claimsJSON))
 }
 
-// Parse reads a compact JWS without verifying anything. khaos uses it on its own
-// confirmation path, where the question is what khaos actually emitted rather
-// than whether it is acceptable.
 func Parse(raw string) (Token, error) {
 	parts := strings.Split(raw, segmentSep)
 	if len(parts) != jwsSegments {
@@ -200,9 +167,8 @@ func Parse(raw string) (Token, error) {
 	return out, nil
 }
 
-// decodeSegment is strict base64url with no padding, which is what RFC 7515
-// section 2 specifies. A lenient decoder would let khaos's own confirmation read
-// a token a verifier would reject for a different reason.
+// Strict base64url with no padding, per RFC 7515 section 2: a lenient decoder
+// would read a token a verifier rejects for a different reason.
 func decodeSegment(encoded string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(encoded)
 }
@@ -216,15 +182,7 @@ func unix(t time.Time) *int64 {
 	return &seconds
 }
 
-// Retarget rewrites a token's `kid` and nothing else, leaving its signature
-// intact and therefore unverifiable under the key it now names.
-//
-// It exists for the range verifier's own tests rather than for any khaos
-// experiment: a header that disagrees with its key about the algorithm is
-// forbidden by RFC 8725 rule 2, and no token an attacker could actually forge
-// isolates that rule, because anything that trips it also fails the signature
-// check. The fixture still has to carry the rule, so the rule still has to be
-// exercised.
+// Retarget rewrites only the `kid`, so the intact signature stops verifying.
 func Retarget(token Token, kid string) string {
 	header := token.Header
 	header.Kid = kid
@@ -237,13 +195,8 @@ func Retarget(token Token, kid string) string {
 	return assemble(headerJSON, token.ClaimsJSON, token.Signature)
 }
 
-// LooksLikeJWS reports whether a credential has the SHAPE of a compact JWS:
-// three dot-separated segments whose first decodes to JSON with an `alg`.
-//
-// A verifier has to choose between local validation and introspection before it
-// can parse anything, and choosing on "did my parser succeed" is wrong in a way
-// that matters: a token carrying a legal array `aud` fails a parser whose field
-// is a string, and would then be introspected as though it were opaque.
+// LooksLikeJWS tests the SHAPE, because choosing on "did my parser succeed"
+// rejects a legal array `aud` and then introspects it as though it were opaque.
 func LooksLikeJWS(credential string) bool {
 	parts := strings.Split(credential, segmentSep)
 	if len(parts) != jwsSegments {
@@ -266,17 +219,10 @@ func LooksLikeJWS(credential string) bool {
 	return probe.Alg != ""
 }
 
-// Retyped re-mints an honest token with a different `typ` and a valid signature.
-// It exists so the range verifier's explicit-typing check can be exercised: a
-// token whose signature does not verify would be refused before the claim checks
-// are reached, and the typ check sits among them.
 func Retyped(p *Provider, typ string) string {
 	return p.reheader(func(header *Header) { header.Typ = typ })
 }
 
-// WithoutExpiry re-mints an honest token with no `exp` member at all, correctly
-// signed. The pointer field is what makes an ABSENT claim expressible rather
-// than a present zero.
 func WithoutExpiry(p *Provider) string {
 	return p.reclaim(func(claims *Claims) { claims.Expires = nil })
 }

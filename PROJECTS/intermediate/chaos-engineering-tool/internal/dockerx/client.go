@@ -67,11 +67,9 @@ func Connect(ctx context.Context, endpoint Endpoint) (*Client, error) {
 
 	c := &Client{api: api, endpoint: endpoint, version: ping.APIVersion}
 
-	// The daemon's own ID, read once. It is what the journal records so khaos
-	// can tell its own faults from another machine's, and it has to come from
-	// the daemon rather than from the endpoint string: the same daemon is
-	// reachable as a socket path, a TCP address and an SSH context, and all
-	// three are the same place.
+	// The daemon's own ID, read from the daemon rather than derived from the
+	// endpoint string: one daemon is reachable as a socket path, a TCP address
+	// and an SSH context, and all three are the same place.
 	if info, err := api.Info(ctx, client.InfoOptions{}); err == nil {
 		c.daemon = info.Info.ID
 	}
@@ -79,9 +77,9 @@ func Connect(ctx context.Context, endpoint Endpoint) (*Client, error) {
 	return c, nil
 }
 
-// Daemon is a stable identity for the daemon this client is attached to. It is
-// empty when the daemon would not say, which callers must treat as unknown
-// rather than as a match.
+// Daemon is a stable identity for the daemon this client is attached to, empty
+// when the daemon would not say, which callers must treat as unknown rather
+// than as a match.
 func (c *Client) Daemon() string {
 	return c.daemon
 }

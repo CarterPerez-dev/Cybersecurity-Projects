@@ -26,29 +26,15 @@ var ErrNoResolver = errors.New(
 	"this mutation needs khaos's chaos resolver, which is not running",
 )
 
-// DNSKind names the mutation that arms one fault on khaos's chaos resolver. The
-// fault kinds and the mutation kinds are one-to-one, so `khaos catalog` names
-// the actual defect being provoked rather than a generic "DNS" entry.
+// DNSKind is one-to-one with the fault kinds, so the catalogue names the actual
+// defect rather than a generic "DNS" entry.
 func DNSKind(kind dnsrv.Kind) string {
 	return KindDNSPrefix + string(kind)
 }
 
-// dnsMutator arms a fault on khaos's chaos resolver.
-//
-// This is a FIFTH tier, and the reason it is its own tier rather than a fourth
-// authority is measured rather than architectural taste. Every other authority
-// khaos plays — the identity provider, the certificate authority — is a
-// goroutine in khaos's own process, bound on a high host port the target was
-// told to dial. A DNS resolver cannot be: `--dns` carries an address and no
-// port, the daemon rejects one at container start, and an unprivileged process
-// gets `bind: permission denied` on port 53 at every address including
-// loopback. So this authority lives in a container, which is the only place a
-// process can hold port 53 without khaos holding a capability.
-//
-// The fault it injects is also unlike the others. The dependency is healthy and
-// reachable; the target cannot FIND it, or finds something else. That is a third
-// branch of the target's code, distinct from both an unreachable dependency and
-// one whose certificate will not verify.
+// dnsMutator's authority is a CONTAINER, not a goroutine like the others:
+// `--dns` carries no port and an unprivileged process cannot bind 53. The
+// dependency also stays healthy here; the target simply cannot find it.
 type dnsMutator struct {
 	kind dnsrv.Kind
 }
@@ -69,12 +55,8 @@ func (m dnsMutator) Describe(env Env, target dockerx.Target) string {
 	return fmt.Sprintf(describeDNS, trap.Describe(target.Name))
 }
 
-// dnsPayload is what the journal carries. It records how to reach the resolver
-// as well as the fault, because the revert has to work from a COLD START where
-// khaos remembers nothing — and unlike every other in-process tier, this one's
-// authority outlives the khaos process that armed it. A fault left armed by a
-// killed khaos is a target whose dependency stays unresolvable, so the record
-// has to be enough to undo it without the run that made it.
+// dnsPayload records how to reach the resolver as well as the fault, because
+// this tier's authority outlives the khaos process that armed it.
 type dnsPayload struct {
 	Trap    dnsrv.Trap `json:"trap"`
 	Network string     `json:"network"`
@@ -134,17 +116,9 @@ func (m dnsMutator) Apply(
 	return err
 }
 
-// Revert disarms, which restores khaos's own honest answer so the recovery
-// window is measured through a WORKING resolver rather than through no
-// resolution at all.
-//
-// A cold start rebuilds the client from the daemon rather than giving up, and
-// that is the difference between this tier and the in-process ones. An identity
-// provider or a certificate authority dies with the khaos process that held it,
-// so the fault provably went with it and there is nothing to undo. A resolver
-// container does not die: it keeps serving NXDOMAIN for the target's dependency
-// until something disarms it. The nonce is read off the container's own label,
-// so the revert needs nothing khaos remembered.
+// Revert disarms, so recovery is measured through a WORKING resolver rather
+// than no resolution at all. The container does not die with khaos, so a cold
+// start rebuilds the client and reads the nonce off the container's own label.
 func (m dnsMutator) Revert(
 	ctx context.Context,
 	env Env,
@@ -163,11 +137,8 @@ func (m dnsMutator) Revert(
 		client = reconnectResolver(ctx, env, payload)
 	}
 
-	// Nothing left to disarm, which is SUCCESS rather than a failure to report.
-	// The resolver the record named is gone, so it took the fault with it, and
-	// reporting that as an error would wedge the record forever and, because
-	// `khaos reap` stops on a sweep error, disable the dead man's switch for
-	// every other fault on the machine.
+	// Nothing left to disarm is SUCCESS: the resolver named is gone, so it took
+	// the fault with it.
 	if client == nil {
 		return nil
 	}
@@ -177,15 +148,9 @@ func (m dnsMutator) Revert(
 	return err
 }
 
-// reconnectResolver finds the resolver a journal record names and builds a
-// client for it, or nil if there is none to find.
-//
-// It returns no error ON PURPOSE, and the single return is the honest signature
-// rather than a convenience. Every way this can fail to produce a client means
-// the same thing: the resolver that held the fault is not there, so the fault is
-// not there either. A record with no network, a daemon khaos cannot reach from a
-// cold start, a container somebody already removed -- each of those is a revert
-// that has nothing left to do, and the caller treats nil as done.
+// reconnectResolver returns no error ON PURPOSE: every way it can fail to
+// produce a client means the resolver that held the fault is not there, so the
+// caller treats nil as a revert with nothing left to do.
 func reconnectResolver(
 	ctx context.Context,
 	env Env,
@@ -208,16 +173,8 @@ func reconnectResolver(
 	)
 }
 
-// Confirm delegates to the resolver client's own read-back, which asks the
-// resolver the same question the target asks and reports what came off the
-// wire.
-//
-// It deliberately does not read the armed state back. The control surface
-// answers /arm with the resolver's state, which would be the easy thing to
-// check and would confirm a fault against a resolver whose serving path is
-// broken. The PKI tier's inert-authority control caught fifteen traps doing
-// exactly that, every one of them reading the trap RECORD instead of what was
-// served.
+// Confirm asks the resolver the same question the target asks, never reading
+// the armed state back, which would confirm against a broken serving path.
 func (m dnsMutator) Confirm(
 	_ context.Context,
 	env Env,
@@ -239,9 +196,8 @@ func (m dnsMutator) Confirm(
 	return env.Resolver.Observe(trap)
 }
 
-// NeedsResolver reports whether this mutation arms khaos's chaos resolver, so
-// the run knows to find one before the baseline. It is derived from the registry
-// rather than from the kind's spelling, for the same reason NeedsProxy is.
+// NeedsResolver tells the run to find a resolver before the baseline, derived
+// from the registry rather than from the kind's spelling.
 func NeedsResolver(kind string) bool {
 	mutator, ok := registry[kind]
 	if !ok {
@@ -253,7 +209,5 @@ func NeedsResolver(kind string) bool {
 	return isDNS
 }
 
-// Prefix declares this tier's kinds to the registry. The chaos resolver outlives
-// the khaos process, but it is still per-RUN state: `khaos inject` neither
-// stands one up nor knows which network it would serve.
+// Prefix declares this tier's kinds to the registry.
 func (dnsMutator) Prefix() string { return KindDNSPrefix }

@@ -25,7 +25,7 @@ const (
 	NameDependencyOutage = "network.dependency_outage"
 
 	// Not a signed token in any format, so a target that honours it is not
-	// verifying anything.
+	// verifying anything at all.
 	DefaultInvalidToken = "khaos.invalid.credential.not.a.signed.token"
 
 	probeValidName   = "valid-credential"
@@ -45,22 +45,18 @@ var ErrStrayParam = errors.New(
 	"an experiment read a parameter it never declared",
 )
 
-// Shape is the part of an experiment that depends on the operator's parameters.
-// Identity, polarity, fault kind and timing come from the declaration instead, so
-// a builder cannot disagree with the catalogue about what it is.
+// Shape is the part of an experiment that depends on the operator's parameters;
+// identity, polarity, fault kind and timing come from the declaration instead.
 type Shape struct {
 	Condition string
 	Target    string
 	Probes    probe.Pair
 
-	// The experiment owns the magnitude because the operator declares it as a
-	// parameter, so the CLI never has to infer a fault from a kind.
 	ProxyFault *proxy.Fault
 
 	ProxyListen   string
 	ProxyUpstream string
 
-	// Built by the builder because its probes mint out of it.
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
 
@@ -71,19 +67,17 @@ type Shape struct {
 	ResolverNetwork string
 	DNSHost         string
 
-	// AuthorityBase is the URL the TARGET reaches the CRL and OCSP endpoints by,
-	// AuthorityListen where khaos binds them. They are separate because the
-	// target addresses khaos by a name khaos cannot see from its own listener.
+	// Separate fields because the target addresses khaos by a name khaos cannot
+	// see from its own listener, so neither can be derived from the other.
 	AuthorityBase   string
 	AuthorityListen string
 	AuthorityTLS    string
 
-	Defect     string
+	Defect string
+
 	HeldCaveat string
 
-	// Consulted reads how many times the target has reached the faulted endpoint,
-	// and ConsultedWhat names it; together they are the liveness guard for a fault
-	// whose landing the probe streams cannot see.
+	// The liveness guard for a fault whose landing the probe streams cannot see.
 	Consulted     func() (int64, error)
 	ConsultedWhat string
 
@@ -91,11 +85,10 @@ type Shape struct {
 	CacheRequired string
 	DeliveredWhat string
 
-	// IdleFor asks the engine for the idleness discriminator.
 	IdleFor time.Duration
 
 	// Act is the change khaos makes at an authority once the target can no longer
-	// reach it, and ActDetail is what the operator is told about it.
+	// reach it.
 	Act       func(context.Context) error
 	ActDetail string
 }

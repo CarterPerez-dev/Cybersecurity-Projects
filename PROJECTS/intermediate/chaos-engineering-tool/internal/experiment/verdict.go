@@ -20,25 +20,9 @@ const (
 	Interrupted    Epistemic = "interrupted"
 	Errored        Epistemic = "error"
 
-	// Unsupported is a clean, well-measured run whose QUESTION does not apply
-	// to the target. It is not a pass, not a defect, and not a measurement
-	// failure, and conflating it with any of the three is a lie in a different
-	// direction each time.
-	//
-	// It exists because of revocation. Go's crypto/x509 performs no revocation
-	// checking of any kind and has no option to turn it on, so a Go target
-	// handed a certificate revoked in a valid, in-date, correctly signed CRL
-	// from its own issuer accepts it with a nil error. Calling that PERMITTED
-	// would accuse the target of skipping a check it never had; calling it
-	// PASSED would be worse, because the certificate really was revoked and
-	// really was used. Research 04 is explicit: a revoked assertion must report
-	// unsupported, never pass.
-	//
-	// khaos decides this by MEASUREMENT, not by being told the target's
-	// language. The authority counts what the target fetched, so "it never
-	// asked about revocation" is an observation rather than an assumption, and
-	// a target that DID ask and then used the certificate anyway is a genuine
-	// defect that still reports as one.
+	// Unsupported is a clean run whose QUESTION does not apply to the target:
+	// not a pass, not a defect, not a measurement failure. It is decided by
+	// counting what the target actually did, never by assuming its language.
 	Unsupported Epistemic = "unsupported"
 )
 
@@ -52,66 +36,37 @@ const (
 	Undetermined Direction = "UNDETERMINED"
 )
 
-// Cause is a THIRD axis, and it is deliberately not a value on the directional
-// one. Direction answers which way the target broke; cause answers why it is
-// still broken, and the two are orthogonal. `PERMITTED` has two causes that look
-// identical from outside under steady traffic and need completely different
-// fixes, so collapsing them into the direction would lose the distinction khaos
-// exists to draw here.
+// Cause is a third axis rather than a value on the directional one: direction
+// answers which way the target broke, cause answers why it is still broken.
 type Cause string
 
 const (
-	// Undiagnosed is the honest default. Nothing ran that could tell the causes
-	// apart, so khaos says so rather than guessing one.
+	// Undiagnosed means nothing ran that could tell the causes apart.
 	Undiagnosed Cause = "UNDIAGNOSED"
 
-	// TTLExtension is the decision cache being re-armed on every failed check.
-	// Research 07 section 3.3 pins it to one line inside an error branch:
-	// `cache.Set(tok, stale, ttl)`. The TTL stops bounding staleness and starts
-	// bounding IDLENESS, so a cached allow becomes permanent exactly when the
-	// authority that could revoke it is unreachable. It survives any amount of
-	// steady traffic and dies the moment traffic pauses.
+	// TTLExtension is a cache re-armed by every failed check, so its lifetime
+	// bounds idleness rather than staleness: it survives any amount of steady
+	// traffic and dies the moment traffic pauses.
 	TTLExtension Cause = "TTL-EXTENSION"
 
-	// LapsedOnPause is enforcement returning after the pause, with khaos unable
-	// to say WHY. It is the honest middle between the two diagnoses.
-	//
-	// TTL-EXTENSION claims the cache was being re-armed by traffic. That only
-	// follows if steady traffic kept the credential alive for at least as long
-	// as the pause then killed it: otherwise an ordinary fixed expiry explains
-	// the same observation, and khaos would prescribe removing a cache write
-	// that does not exist.
+	// LapsedOnPause is enforcement returning after the pause with khaos unable
+	// to say why, because an ordinary fixed expiry between the steady window and
+	// the pause produces the same observation as re-arming.
 	LapsedOnPause Cause = "LAPSED-ON-PAUSE"
 
-	// StalePastPause is a cached state the traffic pause did not let lapse.
-	//
-	// It is NOT called NO-EXPIRY, and the rename is a correctness fix rather than
-	// a wording preference. Research 07's open question 5 is explicit: khaos
-	// cannot tell a cache with no expiry from one whose lifetime simply exceeds
-	// the experiment, "not without running longer than the TTL", and the
-	// experiment "should report an observed lower bound on the stale window and
-	// label it as a bound, never as 'caches forever'".
-	//
-	// A label asserting an unbounded cache cannot be earned from a window of
-	// seconds: any cache whose lifetime exceeds the observation looks identical
-	// to one that never expires, and a bounded cache is a defensible design
-	// rather than a defect.
+	// StalePastPause is a cached state the pause did not let lapse. It is not
+	// called NO-EXPIRY because a lifetime merely longer than the observation is
+	// indistinguishable from an absent one.
 	StalePastPause Cause = "STALE-PAST-PAUSE"
 )
 
-// Recovery is what khaos saw after it reverted the fault. It is three-valued
-// because "not observed" and "observed healthy" are different facts, and
-// collapsing them let an empty recovery window read as a clean comeback.
+// Recovery is what khaos saw after reverting the fault. Three-valued because an
+// unobserved recovery window is not an observed healthy one.
 type Recovery string
 
 const (
-	// Recovered is a healthy run of consecutive pairs after the revert.
-	Recovered Recovery = "recovered"
-
-	// Degraded is measured and NOT healthy: the target did not come back.
-	Degraded Recovery = "degraded"
-
-	// Unobserved is no usable evidence either way. It is not a pass.
+	Recovered  Recovery = "recovered"
+	Degraded   Recovery = "degraded"
 	Unobserved Recovery = "unobserved"
 )
 
@@ -125,25 +80,19 @@ const (
 )
 
 const (
-	// A single accepted credential that the target had already rejected is
-	// PROOF of a bypass, so PERMITTED needs n=1. The absence of one is not
-	// proof of its absence, so HELD needs a sample-size argument. The
-	// asymmetry is deliberate.
+	// The evidence bar is asymmetric on purpose. One accepted credential the
+	// target had already rejected PROVES a bypass; the absence of one does not
+	// prove there is none, so a clean hold needs a sample-size argument.
 	MinimumToProveOpen   = 1
 	MinimumToClaimClosed = 30
 	MinimumPaired        = 5
 
-	// queriesPerLookup is how many queries one hostname lookup puts on khaos's
-	// resolver, measured rather than assumed: Go fires A and AAAA in parallel
-	// per name, and under a negative fault the forced `search` domain doubles
-	// the names tried. Four is the figure the 16.003s dropped-query measurement
-	// in research 05 section 14.6 is built from.
+	// Go fires A and AAAA in parallel per name, so one hostname lookup is two
+	// queries at khaos's resolver.
 	queriesPerLookup = 2
 
-	// cacheLookupGrace is how many whole lookups a target is allowed inside the
-	// baseline before khaos will say it holds no cached answer. One would be
-	// exact; two leaves room for a retry or a second name without khaos
-	// claiming more than it saw.
+	// Whole lookups allowed inside the baseline before khaos will say the target
+	// holds no cached answer.
 	cacheLookupGrace  = 2
 	RecoveryRunLength = 2
 	crashFraction     = 0.5
@@ -240,14 +189,9 @@ type Observation struct {
 	// about to apply is one the target cannot experience.
 	Consulted int64 `json:"consulted,omitempty"`
 
-	// CounterUnreadable is khaos failing to read its OWN instrument, which is a
-	// different thing from the target not having used it and must never be
-	// reported as the second.
-	//
-	// Three guards branch on a count of zero -- checkNotImplemented,
-	// cacheNotObserved and endpointNeverConsulted -- and each of them makes a
-	// statement about the TARGET. A swallowed read error reaching them produces
-	// a paragraph blaming the target's connection pool for khaos's own timeout.
+	// CounterUnreadable is khaos failing to read its OWN instrument. Three
+	// guards read a count of zero as a statement about the TARGET, so a failed
+	// read must never reach them as one.
 	CounterUnreadable error  `json:"-"`
 	ConsultedWhat     string `json:"consulted_what,omitempty"`
 
@@ -262,66 +206,30 @@ type Observation struct {
 	Delivered     int64  `json:"delivered,omitempty"`
 	DeliveredWhat string `json:"delivered_what,omitempty"`
 
-	// CacheRequired names the behaviour an experiment can only measure in a
-	// target that CACHES, and it is the INVERSE of Unsupportable rather than a
-	// variation on it.
-	//
-	// Unsupportable reads a count of ZERO as the answer: the target never
-	// performed the check, so there was none to fail. This reads a count of ONE
-	// PER PROBE as the answer: the target re-resolved every single time, so it
-	// holds no cached answer and the lifetime this experiment manipulates
-	// governs nothing it does.
-	//
-	// It is declared rather than derived because the same observation is a
-	// finding for one experiment and noise for another. A target that
-	// re-resolves per request is exactly correct for every other DNS fault, and
-	// only the two TTL faults have nothing left to measure in it. Go has no
-	// answer cache and ignores TTL entirely, proven against a 604800 TTL, so
-	// against a Go target this is the honest verdict every time -- and khaos
-	// MEASURES it rather than inferring it from a language it was never told.
+	// CacheRequired is the INVERSE of Unsupportable: that reads a count of zero
+	// as the answer, this reads a count that scales with traffic. Declared per
+	// experiment, because a target re-resolving per request is correct for every
+	// DNS fault except the two about a cached answer's lifetime.
 	CacheRequired string `json:"cache_required,omitempty"`
 
-	// MintedByKhaos records that the valid credential came from khaos's own
-	// identity provider rather than from the operator. It changes only the
-	// wording of one refusal, and that wording is the difference between telling
-	// an operator their target is down and telling them what to check.
+	// MintedByKhaos changes the wording of one refusal: whether the operator is
+	// told their target is down or told what to check.
 	MintedByKhaos bool `json:"minted_by_khaos,omitempty"`
 
-	// HeldCaveat qualifies a HELD verdict for the experiments whose absence of a
-	// finding covers less than it appears to. An unqualified "no bypass was
-	// observed" from a probe that tried one of four key serializations, or a
-	// hold the target's timeout may simply have absorbed, is khaos claiming more
-	// than it measured.
+	// HeldCaveat qualifies a HELD verdict whose absence of a finding covers less
+	// than it appears to.
 	HeldCaveat string `json:"held_caveat,omitempty"`
 
-	// Defect names what khaos DID to the credential the finding is about, in
-	// words, so the verdict can state the actual observation.
-	//
-	// It is per experiment rather than a constant because the three experiments
-	// with a revoked stream invalidate their credential in three different ways,
-	// and one constant said all of them happened "while that authority was
-	// unreachable". That is true only of the outage experiment: a key rollover
-	// and a plain revocation both leave the provider fully reachable and
-	// answering, so the constant had khaos asserting something false about its
-	// own run on two of the three.
+	// Defect names what khaos DID to the credential, in words, per experiment:
+	// the three experiments with a revoked stream invalidate it three different
+	// ways and a shared constant would describe two of them falsely.
 	Defect string `json:"defect,omitempty"`
 }
 
-// Judge resolves two independent axes. The epistemic one answers whether the
-// run can be believed; the directional one answers which way the target broke.
-// A single-axis verdict cannot tell a target that failed closed from one that
-// was never enforcing to begin with.
-// epistemic is khaos's first axis on its own: every reason a run cannot be
-// believed AT ALL, checked in the order that lets the most fundamental finding
-// win. The bool is whether Judge may go on to ask which way the target broke;
-// false means the returned verdict is the whole answer.
-//
-// A warning accumulated here travels with the verdict either way, which is why
-// a rollback failure is recorded before the first early return rather than
-// after it.
+// epistemic answers whether the run can be believed at all, checked in the order
+// that lets the most fundamental finding win. The bool is whether the caller may
+// go on to ask which way the target broke.
 func epistemic(observation Observation) (Verdict, bool) {
-	// Every verdict carries an explicit cause. An empty one would read as a field
-	// khaos forgot rather than a diagnosis it never attempted.
 	verdict := Verdict{Direction: Undetermined, Cause: Undiagnosed}
 
 	if observation.RollbackFailed {
@@ -399,18 +307,10 @@ func epistemic(observation Observation) (Verdict, bool) {
 		return verdict, false
 	}
 
-	// AFTER confirmation, which is now true of the CODE and not only of an
-	// invariant in another file. The comment claimed this ordering while the
-	// check sat above the confirmation test; it was unreachable out of order
-	// through Engine.Run, because DeliveredWhat is only set inside measureFault,
-	// but Judge is exported and the verdict tests call it directly, so the
-	// sentence was one refactor away from lying.
-	//
-	// The two claims are genuinely different. Confirmed means khaos really armed
-	// the fault; delivered means the target really met it. Every other tier
-	// collapses them safely, because a severed path or a broken certificate sits
-	// on a route the target cannot avoid. A DNS answer is one it can simply not
-	// ask for again.
+	// After confirmation, because the two are different claims: confirmed means
+	// khaos armed the fault, delivered means the target met it. They only come
+	// apart for a fault on a route the target can avoid using, such as a DNS
+	// answer it need not ask for again.
 	if reason, undelivered := faultNeverDelivered(observation); undelivered {
 		verdict.Epistemic = Aborted
 		verdict.Reasons = append(verdict.Reasons, reason)
@@ -418,9 +318,8 @@ func epistemic(observation Observation) (Verdict, bool) {
 		return verdict, false
 	}
 
-	// A failed mid-run action is NOT a clean run. The credential khaos measured
-	// was never revoked, so every acceptance of it is correct behaviour and the
-	// finding this experiment exists to produce was unreachable.
+	// A failed mid-run action leaves the credential un-revoked, so every
+	// acceptance of it was correct and the finding was unreachable.
 	if observation.ActFailed {
 		verdict.Epistemic = Aborted
 		verdict.Reasons = append(verdict.Reasons, reasonActFailed)
@@ -437,15 +336,8 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	}
 
 	// A proven bypass is reported even on thin evidence, because one leaked
-	// request is a proof. Everything else waits for the sample floor.
-	//
-	// The three streams make three DIFFERENT claims and every one that fired is
-	// stated. "A credential khaos revoked at the authority was still accepted"
-	// is not "a credential the target had already rejected was accepted", and
-	// neither is "a credential khaos minted with a deliberate defect was
-	// accepted". Reporting one claim when a different stream carried the finding
-	// would be khaos describing an observation it never made, and returning on
-	// the first one would drop the others from a run where several are true.
+	// request is a proof. Every stream that fired is stated, because the three
+	// make three different claims and a run can carry several at once.
 	if leaks := leaked(observation); len(leaks) > 0 {
 		verdict.Epistemic = Deviated
 		verdict.Direction = Permitted
@@ -465,15 +357,11 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 		return verdict
 	}
 
-	// The stream that carries THIS experiment's hypothesis has to have produced
-	// usable decisions too. Paired() counts only the valid and invalid streams,
-	// so a run where every forged probe failed or timed out still cleared the
-	// floor above and fell through to HELD — reporting that the target refused a
-	// credential it was never successfully shown.
-	//
-	// This sits AFTER the leak checks on purpose: one observed acceptance of a
-	// credential khaos proved defective is a finding on its own, and must not be
-	// discarded for thin evidence.
+	// Paired() counts only the valid and invalid streams, so the stream carrying
+	// this experiment's own hypothesis is checked separately or a run whose
+	// forged probes all failed reads as the target refusing something it was
+	// never shown. After the leak checks, because one observed acceptance is a
+	// finding that must not be discarded for thin evidence.
 	if reason, thin := requiredStreamThin(observation); thin {
 		verdict.Epistemic = ProbeError
 		verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
@@ -537,23 +425,9 @@ func finish(
 		verdict.Reasons = append(verdict.Reasons, observation.HeldCaveat)
 	}
 
-	// EVERY direction is put to the polarity, including HELD.
-	//
-	// This used to skip Held, on the assumption that a control which held is
-	// never a defect. That is the same mistake the design document warns about
-	// in the other direction -- "above all, that failing open is always a
-	// defect" -- hard-coded one layer BELOW the mechanism that exists to stop
-	// it being hard-coded. An experiment could declare Held a defect and the
-	// declaration was inert.
-	//
-	// The `tls.` family is where it bites. khaos presents a certificate it
-	// deliberately broke; a target that carries on unchanged has ACCEPTED it,
-	// and "nothing looks wrong" is precisely the finding. Reported as HELD with
-	// no defect, that run exited 0 and cleared a target that will talk to
-	// anything presenting a certificate.
-	//
-	// Undetermined is unaffected: no polarity lists it, so IsDefect is false
-	// for it either way.
+	// EVERY direction is put to the declared polarity, including HELD. For a
+	// certificate fault a target that carries on unchanged has ACCEPTED the
+	// broken certificate, so "nothing looks wrong" is the finding.
 	verdict.Defect = polarity.IsDefect(verdict.Direction)
 	verdict.Reasons = append(
 		verdict.Reasons,
@@ -580,11 +454,8 @@ func leaked(observation Observation) []string {
 			),
 		)
 
-		// The exposure as a NUMBER, so the finding is checkable rather than a
-		// count whose duration the reader has to infer from the timing flags.
-		// Research 07 section 2.2 calls this `stale_accept_window`, "the real
-		// exposure window of a leaked key", and it is explicitly a lower bound:
-		// khaos stopped looking when the run ended.
+		// The exposure as a number, and explicitly a lower bound: khaos
+		// stopped looking when the run ended.
 		if span := staleWindow(observation); span > 0 {
 			reasons = append(
 				reasons,
@@ -613,32 +484,14 @@ func leaked(observation Observation) []string {
 	return reasons
 }
 
-// Leaking reports whether ANY mechanism found a bypass. It is exported because
-// the ENGINE needs the answer mid-run: the idleness discriminator costs a traffic
-// pause and a second measurement window, and there is nothing to diagnose on a
-// target that never leaked.
-//
-// It has to cover every stream. Keyed on the monotonicity count alone, a
-// revocation experiment's finding sat entirely in the revoked stream and the
-// discriminator never ran, so the cause came back UNDIAGNOSED on a run that had
-// just proved a bypass.
+// Leaking reports whether ANY stream found a bypass. The engine needs it
+// mid-run, because the idleness discriminator costs a traffic pause and there is
+// nothing to diagnose on a target that never leaked. It must cover every stream:
+// keyed on monotonicity alone it misses a finding carried by the revoked one.
 func Leaking(observation Observation) bool {
 	return len(leaked(observation)) > 0
 }
 
-// forgedAccepted counts acceptances of a credential khaos minted with one
-// deliberate defect.
-//
-// There is no monotonicity test here and that is deliberate, but the reason it
-// is sound differs by experiment and the shared sentence used to overstate it.
-// For the ten forgery traps the oracle reads the minted token back and inspects
-// the wrongness, so the credential is PROVED malformed before it is presented.
-// For `identity.jwks_unreachable` the confirmed observable is the key set
-// answering non-200 and nothing inspects the credential at all; its
-// defectiveness comes from CorruptSignature plus the ExpectRejected baseline
-// guard, which is adequate evidence but not the evidence the sentence named.
-// The reason now states only what is true of both, and the per-trap confirm line
-// carries the specific evidence.
 // staleWindow is the span from the first acceptance of the invalidated
 // credential to the last, across the fault window and the resumed one.
 func staleWindow(observation Observation) time.Duration {
@@ -691,56 +544,28 @@ func leakedMonotonic(observation Observation) int {
 // revokedHonoured counts acceptances of a credential khaos invalidated at the
 // authority that were never followed by a refusal.
 //
-// Order-sensitive, for the same reason the DENIED test is. A target with a
-// correct BOUNDED cache serves the invalidated credential for exactly its cache
-// lifetime and then refuses it forever, which is the defensible bounded-stale
-// pattern research 07 section 3.3 lists as a PASS. Counting every acceptance in
-// the window reported that as a bypass.
-//
-// The outage experiment only escaped it by accident: its proxy confirmation
-// spends two seconds measuring both paths, which happens to be the range's cache
-// lifetime, so the stale allow had lapsed before the window opened. The identity
-// tier's confirmation is two local HTTP calls, so the same experiment shape
-// would have reported a false finding against a correct target.
+// Order-sensitive on purpose: a target with a correct BOUNDED cache serves the
+// invalidated credential for its cache lifetime and then refuses it forever,
+// which is a defensible design. Counting every acceptance in the window reports
+// that as a bypass.
 func revokedHonoured(observation Observation) int {
 	return observation.Fault.Revoked.AcceptedDespiteLapse()
 }
 
 // diagnose separates the two causes of a permitted credential. Both look
-// identical under steady traffic; they separate completely across a pause.
-//
-// The test is order-sensitive for the same reason the monotonicity rule is. The
-// fault window already established that the target accepts a credential it had
-// rejected. The only question left is whether it STILL accepts one once traffic
-// has stopped for longer than any plausible cache lifetime.
+// identical under steady traffic and separate completely across a pause, so the
+// question is whether the credential is STILL accepted once traffic has stopped
+// for longer than any plausible cache lifetime.
 func diagnose(observation Observation, reasons []string) (Cause, []string) {
-	// An experiment that never ran the pause has nothing to say on this axis,
-	// and saying nothing is the correct answer.
-	//
-	// Without this guard every PERMITTED verdict in the families that do not use
-	// the discriminator -- `network.`, `tls.` and `dns.` -- carried "the resumed
-	// window produced 0 usable samples in 0s and never a refusal, so khaos saw
-	// nothing that could tell a cache being re-armed from one that outlasts the
-	// pause". Every clause of that is true of the data and the sentence as a
-	// whole is not: it describes a measurement khaos declined to attempt as one
-	// it attempted and learned nothing from. The causal axis exists to answer
-	// WHY a credential is still honoured, and the idleness pause is the only
-	// instrument that answers it.
+	// An experiment that never ran the pause has nothing to say on this axis.
+	// The idleness pause is the only instrument that answers it.
 	if observation.IdleFor <= 0 {
 		return Undiagnosed, reasons
 	}
 
-	// Deliberately NOT gated on Resumed.Paired(). That counts only the valid and
-	// invalid streams, so a resumed window full of decisions about the REVOKED
-	// credential — the stream that actually leaked — read as no evidence at all
-	// and skipped the diagnosis entirely. resolveCause below decides from the
-	// stream that carried the finding, and says so when that stream is empty.
-
 	// A forged credential getting through is not a caching bug, so there is no
-	// cause to diagnose. No experiment pairs a forged stream with the idleness
-	// pause today, and this guard is what stops the next one that does from
-	// being diagnosed off the INVALID stream's resumed window, which is a stream
-	// that never leaked.
+	// cause to diagnose — and without this guard it would be diagnosed off the
+	// invalid stream's resumed window, which never leaked.
 	if forgedAccepted(observation) > 0 &&
 		revokedHonoured(observation) == 0 &&
 		leakedMonotonic(observation) == 0 {
@@ -752,11 +577,6 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 	// wrong one would report the pause's effect on something that never leaked.
 	//
 	// It is read with the same order-sensitive test the fault window uses, and
-	// for the same reason. The question is whether the credential is STILL being
-	// honoured once the pause has had its chance, so a window that starts
-	// accepted and settles into refusal is a cache that lapsed, however long it
-	// took. "Was it ever accepted after the pause" calls that one NO-EXPIRY,
-	// which is the opposite diagnosis and the opposite fix.
 	if revokedHonoured(observation) > 0 {
 		return resolveCause(
 			observation.Resumed.Revoked,
@@ -775,19 +595,9 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 }
 
 // resolveCause reads one resumed stream and refuses to diagnose from a window
-// that contains no evidence.
-//
-// Both halves are needed, and the second one was missing. `Resumed.Paired()`
-// ignores the revoked stream entirely, and AcceptedSinceLastRefusal returns zero
-// for a window that is ALL timeouts, because a timeout is neither an acceptance
-// nor a refusal. So a run whose resumed probes could not reach the target at all
-// fell through to TTL-EXTENSION and asserted that "pausing traffic restored
-// enforcement" — of a target that had stopped answering.
-//
-// That is reachable: `identity.idp_outage` severs the upstream with a proxy
-// hang, so a resumed probe against a wedged path times out rather than being
-// refused. TTL-EXTENSION also prescribes a fix, "stop writing to the cache in
-// the error branch", so the wrong diagnosis sends somebody to the wrong line.
+// with no evidence in it. A window of pure timeouts contains neither an
+// acceptance nor a refusal, which is reachable whenever the fault wedges the
+// path, and must not read as enforcement having returned.
 func resolveCause(
 	resumed probe.Stream,
 	steady, idle time.Duration,
@@ -806,10 +616,9 @@ func resolveCause(
 			resumed.Countable(), idle))
 	}
 
-	// The soundness condition for the causal claim. A fixed, never-re-armed cache
-	// whose lifetime sits between the fault window and the pause produces exactly
-	// this observation, so without a steady-traffic window at least as long as
-	// the pause khaos cannot separate re-arming from ordinary expiry.
+	// The soundness condition for the causal claim: a fixed, never-re-armed
+	// cache whose lifetime sits between the fault window and the pause produces
+	// this same observation.
 	if steady < idle {
 		return LapsedOnPause, append(
 			reasons,
@@ -842,23 +651,17 @@ func baselineUnmet(
 	}
 
 	if !baseline.Valid.Any(probe.Accepted) {
-		// The identity tier gets its own wording, because the generic sentence is
-		// misleading there in the most likely failure case. A target whose key
+		// Its own wording for a khaos-minted credential: a target whose key
 		// cache never expires is serving perfectly well and simply does not know
-		// khaos's keys, which khaos regenerates every run: measured against the
-		// range's forever-cache gateway, a second consecutive run could not
-		// establish a baseline and the generic reason said the target was not
-		// serving.
+		// khaos's keys, which are regenerated every run.
 		if minted {
 			return reasonNoServiceMinted, true
 		}
 		return reasonNoService, true
 	}
 
-	// An experiment that revokes a credential mid-run needs the target to have
-	// been HONOURING that credential first. If it was never accepted there is
-	// nothing for the revocation to take away, and every later rejection is the
-	// target being correct rather than khaos finding anything.
+	// A mid-run revocation needs the target to have been HONOURING the
+	// credential first, or there is nothing to take away.
 	if baseline.Revoked.Countable() > 0 &&
 		!baseline.Revoked.Any(probe.Accepted) {
 		return reasonNothingToRevoke, true
@@ -868,13 +671,9 @@ func baselineUnmet(
 }
 
 // checkNotImplemented reports that the target never performed the check this
-// experiment probes, for an experiment that declared the check optional.
-//
-// This is the measured half of the UNSUPPORTED verdict. khaos is not told the
-// target's language; it counts what the target fetched from the authority, so
-// "it never asked about revocation" is an observation. A target that DID ask
-// and then used the certificate anyway falls through to the ordinary
-// directional reading and is reported as the defect it is.
+// experiment probes, for an experiment that declared the check optional. It
+// counts what the target fetched rather than assuming its language, so a target
+// that DID ask and then proceeded anyway falls through to the ordinary reading.
 func checkNotImplemented(observation Observation) (string, bool) {
 	if observation.Unsupportable == "" || observation.Consulted > 0 {
 		return "", false
@@ -888,13 +687,8 @@ func checkNotImplemented(observation Observation) (string, bool) {
 }
 
 // faultNeverDelivered reports a fault that was armed and confirmed and that the
-// target never met.
-//
-// It is ABORTED rather than HELD, and that distinction is the whole value of it.
-// HELD would say the target withstood the fault; aborted says khaos could not
-// put the fault in front of it. The second is true and the first is a clean
-// survival khaos never earned, which is the single failure mode this project
-// treats as a blocker every time it appears.
+// target never met. Aborted rather than HELD: HELD would say the target
+// withstood the fault, which is a survival khaos never earned.
 func faultNeverDelivered(observation Observation) (string, bool) {
 	if observation.DeliveredWhat == "" || observation.Delivered > 0 {
 		return "", false
@@ -904,41 +698,19 @@ func faultNeverDelivered(observation Observation) (string, bool) {
 }
 
 // cacheNotObserved reports that the target holds no cached answer, for an
-// experiment whose whole subject is how long a cached answer is honoured.
+// experiment whose subject is how long a cached answer is honoured.
 //
-// The threshold is one query per PAIRED BASELINE SAMPLE, which is deliberately
-// generous toward "no cache": a target that caches for the TTL khaos serves
-// asks once for the entire baseline, so the two populations are an order of
-// magnitude apart rather than adjacent. A target somewhere in between -- a
-// short cache, a pool that re-resolves occasionally -- falls through to the
-// ordinary reading, which is correct, because the experiment can then observe
-// the difference the TTL makes.
+// Measured against the LIFETIME khaos served, not against how many requests
+// khaos made. A target's DNS lookups do not scale with khaos's traffic — a
+// target that caches its own decisions calls its dependency less often than
+// khaos probes it — so any denominator built from khaos's request count
+// measures the wrong cache. The baseline runs for seconds against a ten-minute
+// TTL, so a target honouring it resolves once for the whole window.
 func cacheNotObserved(observation Observation) (string, bool) {
 	if observation.CacheRequired == "" {
 		return "", false
 	}
 
-	// Measured against the TTL khaos itself served, not against how many
-	// requests khaos made.
-	//
-	// khaos cannot scale this by its own traffic, because the target's DNS
-	// lookups do not scale with it: the range's gateway caches its DECISIONS
-	// for two seconds, so it calls its dependency fewer times than khaos probes
-	// it, and a DNS lookup happens only when it does call. Any denominator
-	// built from khaos's request count therefore measures the target's decision
-	// cache rather than its DNS cache.
-	//
-	// What khaos does control is the lifetime it served. The baseline runs for
-	// seconds against an honest TTL of HonestTTL, so a target honouring that
-	// TTL resolves ONCE for the whole window. Go fires A and AAAA in parallel
-	// per name, so one lookup is queriesPerLookup queries; more than that means
-	// it resolved repeatedly inside a window orders of magnitude shorter than
-	// the lifetime it was given, which is the definition of not holding the
-	// answer.
-	//
-	// The margin is deliberately generous in the direction of NOT making this
-	// claim: at twice one lookup, the target has to have resolved at least
-	// twice before khaos says it caches nothing.
 	if observation.Consulted < queriesPerLookup*cacheLookupGrace {
 		return "", false
 	}
@@ -964,17 +736,11 @@ func endpointNeverConsulted(observation Observation) (string, bool) {
 }
 
 // forgedBaselineUnmet applies the guard the experiment DECLARED for its forged
-// stream. The two expectations point in opposite directions and both are
-// liveness guards rather than findings.
-//
-// ExpectAccepted catches the single most likely misconfiguration in the whole
-// family: a target that is not pointed at khaos's identity provider at all. It
-// refuses every credential khaos mints, for reasons that have nothing to do with
-// any trap, and without this guard a run against it reports a clean HELD for
-// every one of the forgery experiments.
-//
-// ExpectRejected catches the mirror: a target that was not checking the thing
-// the fault is about to break, so its later acceptance proves nothing changed.
+// stream. Both expectations are liveness guards and they point in opposite
+// directions: ExpectAccepted catches a target not pointed at khaos's provider at
+// all, which refuses everything khaos mints for reasons unrelated to any trap,
+// and ExpectRejected catches a target that was not checking the thing the fault
+// is about to break.
 func forgedBaselineUnmet(
 	baseline probe.Window,
 	expect probe.Expectation,
@@ -1035,14 +801,9 @@ func unanswered(window probe.Window) (int, int) {
 	return down, total
 }
 
-// recoveryOf requires a run of consecutive healthy pairs, because declaring a
-// state transition on a single lucky sample is how a flaky recovery reads as a
-// clean one.
-//
-// An empty window is UNOBSERVED rather than recovered. Returning true there
-// meant a run that collected no recovery evidence at all — an interrupted run,
-// a target that stopped answering, a recovery window too short to pair —
-// reported that the target came back, and exited 0.
+// recoveryOf requires a run of consecutive healthy pairs, because a state
+// transition declared on one lucky sample is how a flaky recovery reads as a
+// clean one. An empty window is UNOBSERVED, never recovered.
 func recoveryOf(recovery probe.Window) Recovery {
 	if recovery.Paired() == 0 {
 		return Unobserved

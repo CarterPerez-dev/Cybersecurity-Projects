@@ -39,20 +39,12 @@ type HTTPOptions struct {
 	Credential Credential
 	Timeout    time.Duration
 
-	// Unique appends a per-request nonce to the token. A negative control that
-	// reuses one fixed credential keeps the target's decision cache warm, so
-	// the cached refusal answers every probe and a control that stops
-	// enforcing during the fault is never exercised.
+	// Unique appends a per-request nonce, because one fixed credential keeps
+	// the target's decision cache warm.
 	Unique bool
 
-	// Mint supplies the credential per request instead of Token. A forged stream
-	// needs it: the provider's arming changes between the baseline and the fault,
-	// so a credential captured once would carry the baseline's honest token into
-	// the fault window and the trap would never be presented at all.
-	//
-	// A mint failure is khaos's own fault and is reported as ProbeFailed, which
-	// every rate already excludes. Folding it into a target outcome would
-	// manufacture a finding out of khaos's own bug.
+	// Mint supplies the credential per request instead of Token, for a stream
+	// whose provider is armed between the baseline and the fault.
 	Mint func(context.Context) (string, error)
 }
 
@@ -74,18 +66,14 @@ func NewHTTP(options HTTPOptions) *HTTPProbe {
 		client: &http.Client{
 			Timeout: options.Timeout,
 			Transport: &http.Transport{
-				// TLS session resumption does not repeat chain verification, so
-				// a probe that resumes passes against a certificate that has
-				// since expired. A nil cache is what actually disables it:
-				// crypto/tls only stores and loads sessions when one is set.
+				// Resumption does not repeat chain verification, and a nil cache
+				// is what disables it.
 				TLSClientConfig: &tls.Config{
 					ClientSessionCache: nil,
 					MinVersion:         tls.VersionTLS12,
 				},
 				DisableKeepAlives: true,
-				// Setting TLSClientConfig disables automatic HTTP/2 unless this
-				// is set, and h2 connection reuse is itself a fail-open khaos
-				// needs to be able to observe.
+				// Setting TLSClientConfig disables automatic HTTP/2.
 				ForceAttemptHTTP2: true,
 			},
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -164,9 +152,8 @@ func (p *HTTPProbe) Run(ctx context.Context) Outcome {
 	}
 	defer func() { _ = response.Body.Close() }()
 
-	// The body must be read. Under TLS 1.3 a handshake rejection surfaces on
-	// the first read rather than at dial, so a probe that never reads reports
-	// success against a server that refused its identity.
+	// Under TLS 1.3 a handshake rejection surfaces on the first read, not at
+	// dial, so the body must be read.
 	if _, err := io.Copy(io.Discard, response.Body); err != nil {
 		outcome.Disposition = transportDisposition(err)
 		outcome.Detail = fmt.Sprintf(detailError, err)
@@ -181,9 +168,8 @@ func (p *HTTPProbe) Run(ctx context.Context) Outcome {
 	return outcome
 }
 
-// credential resolves what this request carries. A minted credential is never
-// given a nonce: the mint already produced a fresh one, and appending to a
-// signed token would corrupt it into a different fault than the one armed.
+// credential never nonces a minted token, because appending to a signed token
+// would corrupt it into a different fault than the one armed.
 func (p *HTTPProbe) credential(ctx context.Context) (string, error) {
 	if p.options.Mint != nil {
 		return p.options.Mint(ctx)
@@ -207,8 +193,8 @@ func transportDisposition(err error) Disposition {
 	return Unavailable
 }
 
-// statusDisposition maps a status to what it says about the CREDENTIAL, which
-// is not the same question as whether the request succeeded.
+// statusDisposition maps a status to what it says about the CREDENTIAL, not to
+// whether the request succeeded.
 func statusDisposition(status int) Disposition {
 	switch {
 	case status == http.StatusTooManyRequests:
@@ -218,9 +204,7 @@ func statusDisposition(status int) Disposition {
 	case status >= http.StatusInternalServerError:
 		return Unavailable
 	case status >= http.StatusMultipleChoices && status < http.StatusBadRequest:
-		// A redirect is how most browser-facing gateways refuse an
-		// unauthenticated request, and it is also how they route an
-		// authenticated one. It decides nothing about the credential.
+		// Gateways refuse and route the same way, so this decides nothing.
 		return Redirected
 	case status >= http.StatusOK && status < http.StatusMultipleChoices:
 		return Accepted

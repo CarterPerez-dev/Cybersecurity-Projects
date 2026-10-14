@@ -21,14 +21,8 @@ const (
 	ParamDelay = "delay"
 	ParamBytes = "bytes"
 
-	// Where khaos binds its fault proxy, and what that proxy forwards to.
-	//
-	// They are declared PARAMETERS rather than something startProxy discovers,
-	// because discovery made every proxy experiment require the bundled range.
-	// khaos's own refusal text invited the opposite — "or point khaos at your
-	// own stack instead" — and then failed when an operator did.
-	//
-	// The range answers both, so a run against it still takes no flags.
+	// Declared PARAMETERS rather than something startProxy discovers, because
+	// discovery made every proxy experiment require the bundled range.
 	ParamProxyListen   = "proxy-listen"
 	ParamProxyUpstream = "proxy-upstream"
 
@@ -38,14 +32,12 @@ const (
 	usageDelay = "how long khaos's proxy holds each exchange with the dependency"
 	usageBytes = "how many bytes of the dependency's answer to deliver before closing"
 
-	// Two seconds is past the range gateway's own upstream timeout, so the
-	// default reaches the branch the experiment exists to test rather than
-	// producing a slow success.
+	// Past the range gateway's own upstream timeout, so the default reaches the
+	// branch the experiment exists to test rather than producing a slow success.
 	defaultDelay = "2s"
 
 	// Enough for a status line and the start of a body, so the target receives a
-	// well-formed beginning and a truncated end. That is the shape that finds a
-	// parser treating a short read as an empty-but-successful answer.
+	// well-formed beginning and a truncated end.
 	defaultBytes = "16"
 
 	hangCondition      = "%s accepting connections and never answering them"
@@ -85,7 +77,6 @@ func proxyParams(extra ...Param) []Param {
 	}, extra...)
 }
 
-// proxyEndpoint reads the two addresses every proxy-tier experiment needs.
 func proxyEndpoint(params *Params) (string, string) {
 	return params.Get(ParamProxyListen), params.Get(ParamProxyUpstream)
 }
@@ -102,8 +93,7 @@ var bytesParam = Param{
 	Default: defaultBytes,
 }
 
-// plainProxyShape covers the three faults that carry no magnitude. The condition
-// is resolved against the real target so the hypothesis names what was broken.
+// plainProxyShape covers the three faults that carry no magnitude.
 func plainProxyShape(
 	kind proxy.Kind,
 	condition string,

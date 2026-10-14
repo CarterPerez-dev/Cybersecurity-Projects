@@ -13,17 +13,11 @@ const (
 	routeDependency = "/"
 	dependencyBody  = "khaos range dependency"
 
-	// headerProbe marks a request as khaos's OWN confirmation probe, so the
-	// counters can subtract it. Without this, "the target fetched the CRL"
-	// would be true for every run in which khaos confirmed its own fault.
+	// Marks a request as khaos's OWN probe, so the counters can subtract it.
 	headerProbe = "X-Khaos-Probe"
 	probeValue  = "confirmation"
 )
 
-// routes is the revocation surface. RouteHealth is not decoration: it is the
-// CONTROL for the two unreachable traps, and its entire job is to keep
-// answering while the CRL or OCSP endpoint refuses. Without it, "khaos broke
-// one endpoint" and "khaos fell over" are the same observation.
 func (a *Authority) routes() http.Handler {
 	mux := http.NewServeMux()
 
@@ -36,19 +30,13 @@ func (a *Authority) routes() http.Handler {
 	return mux
 }
 
-// serveRoot answers with the root the TARGET is configured to trust, which is
-// the one CASwap replaces. It is deliberately not the chain's own anchor: for
-// UntrustedCA those two differ, and that difference IS the fault.
+// The root the TARGET trusts, which for UntrustedCA is not the chain's own.
 func (a *Authority) serveRoot(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set(headerType, mimeDER)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(a.TrustedRoot().Raw)
 }
 
-// dependencyRoutes is what khaos answers once a client has got through the
-// handshake. The body is deliberately trivial: this endpoint exists so that a
-// client which ACCEPTED a bad certificate has something to succeed at, and the
-// finding is the acceptance, not anything in the response.
 func (a *Authority) dependencyRoutes() http.Handler {
 	mux := http.NewServeMux()
 
@@ -68,14 +56,8 @@ func (a *Authority) serveHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, healthBody)
 }
 
-// serveCRL and serveOCSP serve what the ARMED CHAIN carries, and dispatch on
-// nothing.
-//
-// Neither reads the trap. Everything either of them does was decided when the
-// chain was built, which is what keeps an authority that armed nothing serving
-// honest material: deriving the answer from the trap record here meant an inert
-// authority still published a revoked list, and thirteen traps confirmed
-// against a fault that had not happened.
+// Both handlers serve what the ARMED CHAIN carries and read no trap, which
+// keeps an authority that armed nothing serving honest material.
 func (a *Authority) serveCRL(w http.ResponseWriter, r *http.Request) {
 	a.countCRL(r)
 
@@ -120,15 +102,8 @@ func (a *Authority) serveOCSP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(der)
 }
 
-// refuse drops the connection without answering, which is what makes one route
-// unreachable while its neighbour on the same listener keeps serving.
-//
-// Dropping the whole listener would be the more literal reading of "the
-// responder is down", and it is the wrong choice: it would take RouteHealth
-// with it, and then khaos could not show that it had broken one endpoint rather
-// than fallen over. A hijacked connection is a transport failure the client
-// cannot tell from a dead port, scoped to the route that is supposed to be
-// dead.
+// Hijacked rather than shut down, so one route dies while its neighbour on the
+// same listener keeps serving, RouteHealth included.
 func refuse(w http.ResponseWriter) {
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
@@ -161,8 +136,6 @@ func (a *Authority) countOCSP(r *http.Request) {
 	}
 }
 
-// Now is the authority's clock, which the experiments need in order to assert
-// about a validity window without racing a real one.
 func (a *Authority) Now() time.Time {
 	return a.clock()
 }

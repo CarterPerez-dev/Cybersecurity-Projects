@@ -11,12 +11,8 @@ import (
 	"golang.org/x/crypto/ocsp"
 )
 
-// build assembles the chain for one trap. Every trap starts from the HONEST
-// leaf template and corrupts exactly one property of it, which is the same
-// discipline the token family uses and for the same reason: a certificate that
-// is wrong twice trips two checks and isolates neither.
-//
-// The groups are the ones research 04 uses, and each is confirmed differently.
+// Every trap starts from the HONEST leaf template and corrupts exactly one
+// property of it, because a certificate wrong twice isolates neither check.
 func (a *Authority) build(trap Trap) (*Chain, error) {
 	now := a.clock()
 
@@ -30,11 +26,8 @@ func (a *Authority) build(trap Trap) (*Chain, error) {
 		return nil, err
 	}
 
-	// EVERY chain staples, not just the stapling traps. A well-configured
-	// server staples, so the honest chain has to as well: if only the stapling
-	// faults produced one, then StapleAbsent would serve exactly what the
-	// baseline serves and the fault would be inert. The control test for this
-	// file is what caught that.
+	// EVERY chain staples, not just the stapling traps, or StapleAbsent would
+	// serve exactly what the baseline serves and the fault would be inert.
 	if chain, err = a.staple(trap, chain, now); err != nil {
 		return nil, err
 	}
@@ -42,9 +35,6 @@ func (a *Authority) build(trap Trap) (*Chain, error) {
 	return a.publish(trap, chain, now)
 }
 
-// publish mints the revocation artefacts this chain's endpoints will serve, at
-// ARM time, so that everything the authority does under a trap is decided here
-// and nothing is derived from the trap record at request time.
 func (a *Authority) publish(
 	trap Trap,
 	chain *Chain,
@@ -61,9 +51,6 @@ func (a *Authority) publish(
 	chain.crl = list
 
 	if trap.Kind == OCSPTryLater {
-		// A protocol-level refusal rather than a transport one. The responder
-		// IS reachable and IS answering; it is declining to say, which is the
-		// exact shape that exploits a soft-failing client.
 		chain.ocsp = ocsp.TryLaterErrorResponse
 
 		return chain, nil
@@ -117,14 +104,6 @@ func (a *Authority) chainFor(
 	}
 }
 
-// honest is the control every other chain is compared against: a correctly
-// signed, in-date leaf under the trusted intermediate, naming both revocation
-// endpoints so that a target which WANTS to check revocation can.
-//
-// Carrying the pointers on the honest chain matters. If only the revocation
-// traps named a responder, then "the target queried OCSP" would be true only
-// when khaos was already attacking it, and the baseline could never establish
-// that the target checks revocation at all.
 func (a *Authority) honest(host string, now time.Time) (*Chain, error) {
 	template, err := a.leaf(host, now, DefaultLeafDays)
 	if err != nil {
@@ -134,8 +113,8 @@ func (a *Authority) honest(host string, now time.Time) (*Chain, error) {
 	return a.assemble(template, a.inter, a.root.cert, StrongBits, true)
 }
 
-// leaf is the honest template plus the revocation pointers, which depend on the
-// configured base URL rather than on wherever khaos happens to be listening.
+// The honest leaf names both revocation endpoints too, or "the target queried
+// OCSP" would be true only when khaos was already attacking it.
 func (a *Authority) leaf(
 	host string,
 	now time.Time,
@@ -154,9 +133,7 @@ func (a *Authority) leaf(
 	return template, nil
 }
 
-// assemble mints the leaf and wraps it with what the handshake and revocation
-// both need. presentChain says whether the intermediate is admitted to the
-// handshake, which is the entire MissingIntermediate fault.
+// presentChain is the entire MissingIntermediate fault.
 func (a *Authority) assemble(
 	template *x509.Certificate,
 	issuer *pair,
@@ -190,10 +167,6 @@ func (a *Authority) assemble(
 	return chain, nil
 }
 
-// buildValidity moves a NotBefore or NotAfter. Both leaf faults come back as
-// InvalidReason 1 with no separate not-yet-valid reason, so the only thing
-// distinguishing them is the Detail wording, and the experiments assert on that
-// rather than on the reason alone.
 func (a *Authority) buildValidity(
 	trap Trap,
 	host string,
@@ -212,9 +185,7 @@ func (a *Authority) buildValidity(
 
 	switch trap.Kind {
 	case LeafExpired:
-		// Internally consistent: the certificate is expired and nothing else.
-		// Its NotBefore moves with its NotAfter so it was never also
-		// not-yet-valid, which would trip the same reason for the other cause.
+		// NotBefore moves with NotAfter, so it is expired and nothing else.
 		template.NotBefore = now.Add(-window - DefaultWindow)
 		template.NotAfter = now.Add(-window)
 
@@ -223,15 +194,13 @@ func (a *Authority) buildValidity(
 		template.NotAfter = now.Add(window).AddDate(0, 0, DefaultLeafDays)
 
 	default:
-		// Unreachable: build routes only the validity group here.
+		// Every other kind leaves the validity window honest.
 	}
 
 	return a.assemble(template, a.inter, a.root.cert, StrongBits, true)
 }
 
-// underExpiredCA mints an in-date leaf under an intermediate that has expired.
-// The leaf is deliberately blameless: monitoring that watches leaf expiry only
-// sees nothing wrong, which is the fail-open this catches.
+// The leaf is deliberately blameless, so leaf-expiry monitoring sees nothing.
 func (a *Authority) underExpiredCA(
 	host string,
 	now time.Time,
@@ -264,9 +233,6 @@ func (a *Authority) underExpiredCA(
 	return a.assemble(leaf, expired, a.root.cert, StrongBits, true)
 }
 
-// buildIdentity corrupts who the certificate is FOR. All three are
-// HostnameError, which carries no reason code, so the experiments assert on the
-// error type and on which name the certificate actually carries.
 func (a *Authority) buildIdentity(
 	trap Trap,
 	host string,
@@ -283,30 +249,21 @@ func (a *Authority) buildIdentity(
 		template.Subject = pkix.Name{CommonName: foreignHost}
 
 	case CommonNameOnly:
-		// No SAN extension at all, with the host named only in the legacy
-		// CommonName. Go removed the CommonName fallback outright, so this
-		// produces a DIFFERENT message from a plain mismatch: it names the
-		// legacy field, which is the teaching point.
+		// Go removed the CommonName fallback, so this is not a plain mismatch.
 		template.DNSNames = nil
 		template.Subject = pkix.Name{CommonName: host}
 
 	case NoIPSAN:
-		// Named by DNS but carrying no IP SAN, so a client that dials by
-		// address has nothing to match against. The fail-open is a service
-		// dialled by pod IP with verification disabled because it is internal.
 		template.DNSNames = []string{host}
 		template.IPAddresses = nil
 
 	default:
-		// Unreachable: build routes only the identity group here.
+		// Every other kind leaves the identity fields honest.
 	}
 
 	return a.assemble(template, a.inter, a.root.cert, StrongBits, true)
 }
 
-// buildChainFault breaks the path from leaf to trusted root. Three of these
-// produce a BYTE-IDENTICAL client error and the experiments exist to tell them
-// apart by what khaos knows it served, never by the string.
 func (a *Authority) buildChainFault(
 	trap Trap,
 	host string,
@@ -322,8 +279,6 @@ func (a *Authority) buildChainFault(
 		return a.selfSigned(template)
 
 	case UntrustedCA:
-		// Signed by khaos's OTHER complete hierarchy. The chain is internally
-		// valid and simply anchors somewhere the target does not trust.
 		return a.assemble(
 			template,
 			a.rogueInter,
@@ -333,8 +288,6 @@ func (a *Authority) buildChainFault(
 		)
 
 	case MissingIntermediate:
-		// A perfectly good chain with the intermediate withheld from the
-		// handshake. Works in a browser that chases AIA, fails in Go.
 		return a.assemble(template, a.inter, a.root.cert, StrongBits, false)
 
 	case IssuerNotCA:
@@ -353,19 +306,12 @@ func (a *Authority) buildChainFault(
 		return a.overDeep(template)
 
 	default:
-		// Unreachable: build routes only the chain group here.
 		return a.honest(host, now)
 	}
 }
 
-// overDeep serves a leaf two intermediates below the root, under a CA whose
-// MaxPathLen is zero.
-//
-// BOTH intermediates are presented. A handshake carrying only the lower one
-// leaves the client unable to reach the root at all, and Go then reports an
-// unknown authority rather than the path-length violation: the fault would
-// still fail the connection, for a reason khaos did not inject and could not
-// attribute. The differential caught exactly that in the first draft.
+// BOTH intermediates are presented. With only the lower one the client cannot
+// reach the root, and Go reports an unknown authority instead.
 func (a *Authority) overDeep(
 	template *x509.Certificate,
 ) (*Chain, error) {
@@ -385,20 +331,11 @@ func (a *Authority) overDeep(
 	return chain, nil
 }
 
-// selfSigned signs the leaf with its own key, which needs the CA bits on the
-// template because Go refuses to let a non-CA certificate sign anything,
-// including itself.
 func (a *Authority) selfSigned(
 	template *x509.Certificate,
 ) (*Chain, error) {
-	// CertSign because Go refuses to let a non-CA certificate sign anything,
-	// including itself. CRLSign because this leaf is its OWN issuer, so it is
-	// also the thing that has to sign the CRL covering it, and
-	// CreateRevocationList refuses an issuer without that bit.
-	//
-	// Omitting CRLSign made the CRL endpoint answer 500 for this trap, which
-	// reached the client as "no usable revocation answer was obtained" -- a
-	// refusal caused by khaos rather than by the fault. The matrix caught it.
+	// CertSign because Go refuses to let a non-CA sign anything, itself
+	// included. CRLSign because this leaf is its own issuer and signs its CRL.
 	template.IsCA = true
 	template.BasicConstraintsValid = true
 	template.KeyUsage |= x509.KeyUsageCertSign | x509.KeyUsageCRLSign
@@ -423,9 +360,6 @@ func (a *Authority) selfSigned(
 	}, nil
 }
 
-// buildAlgorithm corrupts how the certificate is signed or what it is permitted
-// to be used for. Two of the three surface as an authority failure unless the
-// caller unwraps the error, which is itself the finding.
 func (a *Authority) buildAlgorithm(
 	trap Trap,
 	host string,
@@ -438,17 +372,13 @@ func (a *Authority) buildAlgorithm(
 
 	switch trap.Kind {
 	case SHA1Signature:
-		// Measured on go1.26.5: CreateCertificate emits this without
-		// complaint and Verify refuses it, wrapping InsecureAlgorithmError
-		// inside UnknownAuthorityError.
 		template.SignatureAlgorithm = x509.SHA1WithRSA
 
 	case EKUClientAuthOnly:
 		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
 
 	case EKUConstrainedIntermediate:
-		// The LEAF is blameless here. The constraint is on the CA above it,
-		// which is what separates this from the leaf-level EKU fault.
+		// The LEAF is blameless; the constraint is on the CA above it.
 		return a.assemble(
 			template,
 			a.ekuLimited,
@@ -458,16 +388,12 @@ func (a *Authority) buildAlgorithm(
 		)
 
 	default:
-		// Unreachable: build routes only the algorithm group here.
+		// Every other kind leaves the signature algorithm honest.
 	}
 
 	return a.assemble(template, a.inter, a.root.cert, StrongBits, true)
 }
 
-// buildPolicy mints the certificates Go ACCEPTS. Verify returns nil for all
-// three, so they do not test x509 at all -- they test whether the target
-// imposed a floor of its own, and an acceptance here is not proof of a skipped
-// check because there was no check to skip.
 func (a *Authority) buildPolicy(
 	trap Trap,
 	host string,
@@ -490,23 +416,15 @@ func (a *Authority) buildPolicy(
 	}
 
 	if trap.Kind == KeyUsageWithoutDigitalSignature {
-		// Verify enforces EXTENDED key usage, nested down the chain, and does
-		// not look at the basic KeyUsage bits on a leaf at all. A leaf without
-		// digitalSignature is unusable for TLS per RFC 5280 and Go will not say
-		// a word about it.
+		// Verify enforces EXTENDED key usage down the chain and never looks at
+		// the basic KeyUsage bits RFC 5280 requires of a TLS leaf.
 		template.KeyUsage = x509.KeyUsageCRLSign
 	}
 
-	// bits, not StrongBits. Passing the constant here is what the first draft
-	// did, and it made WeakKey mint a 2048-bit key: the trap armed, reported
-	// success, and served a certificate with nothing wrong with it.
+	// bits, not StrongBits, or WeakKey arms and serves a strong key.
 	return a.assemble(template, a.inter, a.root.cert, bits, true)
 }
 
-// buildCASwap serves a chain that is VALID under a root khaos controls, having
-// made that root the one the target trusts. Nothing in the client can detect
-// it, which is the point: the only defences are pinning and certificate
-// transparency, and neither is in crypto/x509.
 func (a *Authority) buildCASwap(
 	host string,
 	now time.Time,

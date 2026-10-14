@@ -29,11 +29,8 @@ type introspection struct {
 	Active bool   `json:"active"`
 	User   string `json:"user,omitempty"`
 
-	// Asked is how many times the ROGUE provider has been introspected, and it
-	// is only ever set by that fixture. It is the measurement that separates a
-	// DNS redirect that landed from a dependency outage: a gateway that failed
-	// open because it could not resolve anything never asked anybody, and one
-	// that was redirected asked the wrong service.
+	// Asked counts introspections of the ROGUE provider and is only ever set
+	// by that fixture.
 	Asked int64 `json:"asked,omitempty"`
 }
 

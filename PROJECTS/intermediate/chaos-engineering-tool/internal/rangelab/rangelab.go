@@ -30,39 +30,22 @@ const (
 	ProxiedGatewayName  = "khaos-range-gateway-proxied"
 	VerifierGatewayName = "khaos-range-gateway-verifier"
 
-	// TLSGatewayName is the FOURTH gateway. Each one exists so a single
-	// injection tier is measured on a path nothing else contaminates: this one
-	// reaches its dependency over TLS and khaos's certificate authority plays
-	// that dependency, so a certificate fault lands on a path no other gateway
-	// uses.
 	TLSGatewayName = "khaos-range-gateway-tls"
 
-	// DNSGatewayName is the FIFTH gateway, and the only one that reaches its
-	// dependency BY NAME through khaos's chaos resolver. RogueName is the
-	// service a redirect fault points it at, and ResolverName is the resolver
-	// itself.
 	DNSGatewayName = "khaos-range-gateway-dns"
 	RogueName      = "khaos-range-rogue"
 	ResolverName   = "khaos-range-resolver"
 
-	// The addresses the DNS tier PINS, and they are pinned because they have to
-	// be. `dns:` on the gateway and the resolver's zone are both fixed at
-	// container creation, so neither can be filled in from an address khaos
-	// discovered afterwards. The range network declares its own subnet so Docker
-	// will accept them.
+	// Pinned because `dns:` on the gateway and the resolver's zone are fixed at
+	// container creation, so neither can be filled from a discovered address.
 	ResolverAddress   = "10.244.244.5"
 	DependencyAddress = "10.244.244.10"
 	RogueAddress      = "10.244.244.20"
 
-	// DNSDependencyName is the name the DNS gateway asks for. It is NOT a
-	// container name or a network alias, and that is measured rather than
-	// stylistic: the target's own embedded resolver answers those out of its own
-	// table and never forwards them, so a fault aimed at one would never be
-	// seen.
+	// NOT a container name or a network alias: the target's own embedded
+	// resolver answers those from its own table and never forwards them.
 	DNSDependencyName = "dependency.khaos.test."
 
-	// DNSControlName is the name khaos's resolver answers that no fault ever
-	// touches, used as the confirmation oracle's positive control.
 	DNSControlName = "control.khaos.invalid."
 
 	IDPName            = "khaos-range-idp"
@@ -82,36 +65,17 @@ const (
 
 	EnvTLSPort = "KHAOS_RANGE_TLS_PORT"
 
-	// EnvDNSPort is the DNS gateway's published port, and EnvResolverNonce
-	// authorises its resolver's control surface. The nonce goes in the compose
-	// environment because the resolver's command line is fixed at container
-	// creation, and khaos reads it BACK off the container's label rather than
-	// remembering what it chose.
 	EnvDNSPort       = "KHAOS_RANGE_DNS_PORT"
 	EnvResolverNonce = "KHAOS_RANGE_RESOLVER_NONCE"
 
-	// The two ports khaos binds in its OWN process for the certificate tier.
-	// They go into the compose file because the gateway's environment is fixed
-	// at container creation and it has to know where to look.
 	EnvAuthorityPort  = "KHAOS_RANGE_AUTHORITY_PORT"
 	EnvDependencyPort = "KHAOS_RANGE_TLS_DEPENDENCY_PORT"
 
-	// EnvDependency is the URL the TLS gateway dials for its dependency, and
-	// EnvAuthorityBase is where it fetches revocation data. khaos reads BOTH
-	// back from the container rather than remembering what it chose, for the
-	// same reason it reads the issuer back: the container addresses
-	// `host.docker.internal` and khaos binds a numeric bridge address, so the
-	// strings differ for the same endpoint.
 	EnvDependency    = "KHAOS_RANGE_DEPENDENCY"
 	EnvAuthorityBase = "KHAOS_RANGE_AUTHORITY_BASE"
 
-	// EnvCertHost is the name the TLS gateway asks for in its handshake. khaos
-	// mints for exactly this, or every certificate is refused on the hostname
-	// for a reason that has nothing to do with the trap.
 	EnvCertHost = "KHAOS_RANGE_CERT_HOST"
 
-	// EnvTLSMode selects which reference client the TLS gateway runs, so the
-	// range can be a correct client or any one of the broken ones.
 	EnvTLSMode = "KHAOS_RANGE_TLS_MODE"
 
 	composeDir  = "range"
@@ -120,8 +84,7 @@ const (
 	dockerBinary = "docker"
 	loopback     = "127.0.0.1"
 
-	// Every host port khaos binds is a randomly chosen high one. The port a
-	// service conventionally uses is the one most likely already taken.
+	// A conventional port is the one most likely already taken on the host.
 	portFloor = 30000
 	portCeil  = 60000
 	portTries = 40
@@ -150,10 +113,8 @@ const (
 	stderrLines   = 4
 	teardownPort  = 1
 
-	// teardownNonce satisfies the compose file's required variable during a
-	// teardown, where no resolver is being created and the value is never used.
-	// The alternative is `range down` failing on a missing variable, which would
-	// leave the range running with no way to remove it.
+	// The compose file requires every variable even for a teardown that creates
+	// no resolver, or `range down` fails and the range cannot be removed at all.
 	teardownNonce = "teardown"
 
 	EnvComposeDir = "KHAOS_RANGE_DIR"
@@ -172,18 +133,8 @@ const (
 	errNoRangeResolver   = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
 )
 
-// Port is the direct gateway's published port. ProxiedPort is the second
-// gateway's, the one whose upstream runs through khaos's fault proxy, and
-// ProxyPort is where that gateway expects to find the proxy on the host.
-// VerifierPort is the third gateway's, the one whose identity provider is khaos
-// itself, and IdPPort is where that gateway expects to find khaos's in-process
-// provider.
-//
-// Both khaos-side ports are chosen at `range up` rather than at run time,
-// because extra_hosts and environment are fixed at container creation and
-// cannot be changed on a running container. khaos then reads each one back out
-// of the container that will dial it, because the container is the only
-// authority on where it will actually look.
+// Lab is a located range. The khaos-side ports are chosen at `range up` rather
+// than at run time, because a container's environment is fixed at creation.
 type Lab struct {
 	Dir          string
 	Port         int
@@ -192,40 +143,22 @@ type Lab struct {
 	VerifierPort int
 	IdPPort      int
 
-	// TLSPort is the gateway's published port. AuthorityPort and
-	// DependencyPort are where khaos binds its own two listeners, and they are
-	// held here only so `range up` can put them in the compose environment:
-	// once the range is running, khaos reads the addresses back out of the
-	// gateway's own configuration rather than trusting these.
 	TLSPort        int
 	AuthorityPort  int
 	DependencyPort int
 
-	// DNSPort is the DNS gateway's published port. ResolverNonce is held only
-	// so `range up` can put it in the compose environment; once the range is
-	// running khaos reads it back off the resolver container's own label.
 	DNSPort       int
 	ResolverNonce string
 
-	// Dependency, AuthorityBase and CertHost are read back from the TLS
-	// gateway's own environment, never remembered from what `range up` chose.
-	// The container is the only authority on where it will actually look and
-	// what name it will ask for.
+	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
 	AuthorityBase string
 	CertHost      string
 
-	// TLSMode is which reference client the TLS gateway is running. It is read
-	// back like the others and is the only one of them that is optional,
-	// because the gateway has a working default and khaos needs this purely to
-	// tell an operator what the fixture is currently being.
 	TLSMode string
 
-	// Issuer is the EXACT string the verifier gateway was configured with, read
-	// back from its environment. khaos has to mint tokens whose `iss` matches it
-	// character for character: khaos binds the bridge gateway's address and the
-	// container addresses `host.docker.internal`, so the address khaos listens
-	// on is never the string the target expects.
+	// Issuer is the EXACT string the gateway was configured with, which khaos
+	// mints `iss` to match; the address khaos listens on is never that string.
 	Issuer string
 }
 
@@ -257,24 +190,16 @@ type Ports struct {
 	Verifier int
 	IdP      int
 
-	// TLS is the gateway's own published port. Authority and Dependency are the
-	// two listeners KHAOS binds in its own process: the revocation endpoints
-	// and the faulted dependency. The compose file needs all three, because the
-	// gateway addresses the last two and its environment is fixed at container
-	// creation.
 	TLS        int
 	Authority  int
 	Dependency int
 
-	// DNS is the DNS gateway's own published port. The resolver publishes
-	// NOTHING: it listens on 53 inside its own network namespace, which is the
-	// entire reason that tier needs no capability.
+	// The resolver publishes NOTHING: it listens on 53 inside its own network
+	// namespace, which is why that tier needs no capability.
 	DNS int
 }
 
-// FreePorts picks every host port the range needs in one go, all distinct. Each
-// one is a random high port: the port a service conventionally uses is the one
-// most likely already taken.
+// FreePorts picks every host port the range needs in one go, all distinct.
 func FreePorts() (Ports, error) {
 	taken := map[int]bool{}
 
@@ -342,14 +267,9 @@ func composePath() (string, error) {
 	return "", fmt.Errorf(errNoCompose, EnvComposeDir)
 }
 
-// VerifyOwned refuses any compose file that is not khaos's own. Without it,
-// pointing KHAOS_RANGE_DIR at another project turns `khaos range down` into
-// `docker compose down --volumes` against that project, which destroys its
-// named volumes and reports success. khaos's own "set KHAOS_RANGE_DIR" error
-// message is what teaches an operator to set that variable.
+// VerifyOwned refuses any compose file that is not khaos's own, or pointing
+// KHAOS_RANGE_DIR elsewhere makes `range down` destroy another project.
 func VerifyOwned(path string) error {
-	// This read IS the ownership guard. Refusing to open an operator-supplied
-	// path here would mean khaos could never check whether it owns one.
 	//nolint:gosec // reading it is the whole point of this function
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -393,8 +313,6 @@ func orNone(declared string) string {
 
 func FreePort() (int, error) {
 	for range portTries {
-		// A candidate, not a secret: the next statement actually binds it, and
-		// an unpredictable guess is no likelier to be free than any other.
 		//nolint:gosec // a bind candidate, immediately tested
 		port := portFloor + rand.IntN(portCeil-portFloor)
 
@@ -424,9 +342,6 @@ func (l Lab) ProtectedURL() string {
 	return l.GatewayURL() + protectedPath
 }
 
-// ProxiedGatewayURL addresses the gateway whose own upstream runs through khaos's
-// fault proxy. A proxy-tier experiment probes this one, because it is the only
-// service in the range whose dependency khaos sits in front of.
 func (l Lab) ProxiedGatewayURL() string {
 	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.ProxiedPort))
 }
@@ -472,11 +387,6 @@ func (l Lab) Up(
 }
 
 func (l Lab) Down(ctx context.Context, out io.Writer) error {
-	// The compose file requires every port variable so a bare `docker compose up`
-	// cannot bind a fixed one. Tearing down binds nothing, so any value parses,
-	// but every required variable must still be present or compose refuses to
-	// read the file at all and the teardown fails for a reason that has nothing
-	// to do with the teardown.
 	environ := append(os.Environ(),
 		EnvGatewayPort+"="+strconv.Itoa(teardownPort),
 		EnvProxiedPort+"="+strconv.Itoa(teardownPort),
@@ -508,8 +418,8 @@ func (l Lab) compose(
 	environ []string,
 	args ...string,
 ) error {
-	// The project name is passed explicitly as well as declared in the file, so
-	// no edit to the file can make these commands act on another project.
+	// Passed explicitly as well as declared, so no edit to the file can point
+	// these commands at another project.
 	full := append([]string{
 		"compose",
 		projectFlag, ProjectName,
@@ -523,8 +433,6 @@ func (l Lab) compose(
 	cmd.Dir = l.Dir
 	cmd.Env = environ
 	cmd.Stdout = out
-	// The diagnostic never goes to the progress stream: --quiet discards that,
-	// and the one time an operator needs the cause is the time it failed.
 	cmd.Stderr = io.MultiWriter(out, &stderr)
 
 	if err := cmd.Run(); err != nil {
@@ -534,8 +442,8 @@ func (l Lab) compose(
 	return nil
 }
 
-// PortTaken reports whether compose refused because the chosen host port was
-// bound between khaos testing it and compose binding it.
+// PortTaken reports whether a host port was bound between khaos testing it and
+// compose binding it.
 func PortTaken(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errPortTaken)
 }
@@ -572,8 +480,6 @@ func (l Lab) awaitReady(ctx context.Context) error {
 	return fmt.Errorf(errNotReady, readyTimeout)
 }
 
-// IssueToken asks the range for a credential its gateway will accept, so an
-// experiment against the range needs no flags at all.
 func (l Lab) IssueToken(ctx context.Context) (string, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,
@@ -635,9 +541,6 @@ type PortReader interface {
 	BridgeGateway(ctx context.Context) (string, error)
 }
 
-// Discover finds a running range and the host port it ended up on, so khaos can
-// point an experiment at it without the operator repeating what khaos already
-// knows.
 func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 	targets, err := reader.Targets(ctx, dockerx.Filter{Project: ProjectName})
 	if err != nil {
@@ -663,9 +566,8 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 
 	lab := Lab{Port: port}
 
-	// The proxied gateway is discovered separately and its absence is not fatal:
-	// a Docker-native experiment has no use for it, and failing the whole
-	// discovery over it would break every experiment that does not need a proxy.
+	// Each further gateway is discovered separately and its absence is not
+	// fatal, because the experiments that do not need it must still work.
 	proxied, ok := running[ProxiedGatewayName]
 	if !ok {
 		return lab, nil
@@ -683,9 +585,6 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return Lab{}, err
 	}
 
-	// The verifier gateway is discovered on the same terms: absent is not fatal,
-	// because every experiment that does not arm khaos's own provider has no use
-	// for it and failing the whole discovery over it would break all of them.
 	verifierGateway, ok := running[VerifierGatewayName]
 	if !ok {
 		return lab, nil
@@ -707,10 +606,6 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return Lab{}, err
 	}
 
-	// The TLS gateway is discovered on the same terms as the other two: absent
-	// is not fatal, because every experiment that does not arm khaos's own
-	// certificate authority has no use for it, and failing the whole discovery
-	// over it would break all of them.
 	tlsGateway, ok := running[TLSGatewayName]
 	if !ok {
 		return lab, nil
@@ -739,10 +634,6 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 	return lab, nil
 }
 
-// readDNSTier discovers the DNS gateway's published port, on the same terms as
-// the other three gateways: absent is not fatal, because every experiment that
-// does not arm khaos's chaos resolver has no use for it, and failing the whole
-// discovery over it would break all of them.
 func (l *Lab) readDNSTier(
 	ctx context.Context,
 	reader PortReader,
@@ -763,10 +654,6 @@ func (l *Lab) readDNSTier(
 	return nil
 }
 
-// readAuthorityWiring reads the three strings the TLS gateway was configured
-// with, out of its own environment, for the same reason issuerOf does: the
-// container is the only authority on what it will dial, where it will fetch
-// revocation data, and what name it will ask for.
 func (l *Lab) readAuthorityWiring(
 	ctx context.Context,
 	reader PortReader,
@@ -798,25 +685,12 @@ func (l *Lab) readAuthorityWiring(
 		*want.into = value
 	}
 
-	// Optional, because the gateway has a working default for it and nothing
-	// khaos decides depends on the value. It is read only so `range up` can
-	// tell an operator which client the fixture is being.
+	// Optional: the gateway has a working default for this one.
 	l.TLSMode = environ[EnvTLSMode]
 
 	return nil
 }
 
-// issuerOf reads the issuer out of the verifier gateway's own environment rather
-// than remembering what `range up` chose, for the same reason proxyPortOf does:
-// the container is the only authority on what it will actually dial and on what
-// `iss` it will accept.
-//
-// Both halves matter. The port is where khaos has to bind, and the STRING is
-// what khaos has to put in every token it mints, character for character. khaos
-// binds the bridge gateway's numeric address while the container addresses
-// `host.docker.internal`, so khaos's own listener address is never the issuer
-// the target expects, and minting under it would get every token refused on
-// `iss` for a reason that has nothing to do with the trap under test.
 func issuerOf(
 	ctx context.Context,
 	reader PortReader,
@@ -862,9 +736,6 @@ func issuerOf(
 	return strings.TrimSuffix(issuer, "/"), port, nil
 }
 
-// VerifierGatewayURL addresses the gateway whose identity provider is khaos
-// itself. Every experiment that arms khaos's provider probes this one, because
-// it is the only service in the range that resolves keys from khaos.
 func (l Lab) VerifierGatewayURL() string {
 	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.VerifierPort))
 }
@@ -877,12 +748,8 @@ func (l Lab) TLSGatewayURL() string {
 	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.TLSPort))
 }
 
-// RequireDNSTier refuses a DNS experiment against a range that has no DNS
-// gateway, BY NAME, before anything is probed.
-//
-// A missing gateway otherwise surfaces as a published port of zero, so khaos
-// probes `http://127.0.0.1:0/protected`, nothing answers, and the run blames the
-// target for not enforcing when khaos was pointing at nowhere.
+// RequireDNSTier refuses by name, because a missing gateway otherwise surfaces
+// as a published port of zero and the run blames the target for not enforcing.
 func (l Lab) RequireDNSTier() error {
 	if l.DNSPort == 0 {
 		return fmt.Errorf(
@@ -911,19 +778,8 @@ func (l Lab) TLSProtectedURL() string {
 	return l.TLSGatewayURL() + protectedPath
 }
 
-// AuthorityEndpoint says where khaos must bind its certificate authority's two
-// listeners, and the two strings it must mint under.
-//
-// The listen addresses are the DEFAULT bridge's gateway, discovered rather than
-// assumed, which is the same measured fact the fault proxy and the identity
-// provider both rest on: a container reaches a host listener there, a listener
-// on the target network's own gateway is unreachable, and binding only loopback
-// leaves khaos dead to every container.
-//
-// The base URL and the certificate host come back UNCHANGED from the gateway's
-// own environment. They are what the container will actually use, and khaos
-// binding one address while minting for another is how every credential ends up
-// refused for a reason unrelated to the fault.
+// AuthorityEndpoint binds on the DEFAULT bridge's gateway, since the range
+// network's own gateway and loopback are both unreachable from a container.
 func (l Lab) AuthorityEndpoint(
 	ctx context.Context,
 	reader PortReader,
@@ -959,22 +815,16 @@ func (l Lab) AuthorityEndpoint(
 	}, nil
 }
 
-// AuthorityWiring is everything a certificate experiment needs to stand khaos's
-// authority up where the TLS gateway is already looking for it.
+// AuthorityWiring stands khaos's authority up where the gateway already looks.
 type AuthorityWiring struct {
-	// Listen and TLS are host addresses khaos binds.
 	Listen string
 	TLS    string
 
-	// Base is the URL the TARGET uses for revocation, and Host is the name it
-	// asks for. Neither is derived from the addresses above.
+	// The TARGET's own revocation URL and hostname, not derived from the above.
 	Base string
 	Host string
 }
 
-// portOfURL reads the port the container was configured to use. khaos binds
-// THAT port on the bridge address, because the container is already addressing
-// it and khaos does not get to pick.
 func portOfURL(raw string) (int, error) {
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -1001,14 +851,6 @@ func portOfURL(raw string) (int, error) {
 	return port, nil
 }
 
-// IdPEndpoint says where khaos must bind its in-process identity provider and
-// which issuer string it must mint under.
-//
-// The listen address is the DEFAULT bridge's gateway, discovered rather than
-// assumed, which is the same measured fact the fault proxy rests on: a container
-// reaches a host listener there, a listener on the target network's own gateway
-// is unreachable, and binding only loopback leaves the provider dead to every
-// container.
 func (l Lab) IdPEndpoint(
 	ctx context.Context,
 	reader PortReader,
@@ -1029,11 +871,6 @@ func (l Lab) IdPEndpoint(
 	return net.JoinHostPort(gatewayIP, strconv.Itoa(l.IdPPort)), l.Issuer, nil
 }
 
-// proxyPortOf reads the port out of the proxied gateway's own upstream setting,
-// rather than remembering what `range up` chose. The container's environment is
-// the only authority on where that gateway will actually look for the proxy, and
-// khaos has to bind the port the target is already addressing, not the port khaos
-// would have picked.
 func proxyPortOf(
 	ctx context.Context,
 	reader PortReader,
@@ -1079,16 +916,8 @@ func proxyPortOf(
 	return port, nil
 }
 
-// AuthorityURL is khaos's OWN path to the identity provider, bypassing whatever
-// the target uses. It is the container's address on the range network, reachable
-// from the host directly.
-//
-// This is what makes a revocation real and unreachable at the same time, and it
-// is the reason an identity experiment severs the target's path with khaos's
-// proxy rather than pausing the provider. A paused provider is unreachable by
-// khaos too, so the change khaos needs to make at the authority could not be made
-// at all, and the research is explicit that the revocation has to be real while
-// the target cannot see it.
+// AuthorityURL is khaos's OWN path to the provider, which is why an identity
+// experiment severs the target's path instead of pausing the provider.
 func (l Lab) AuthorityURL(
 	ctx context.Context,
 	reader PortReader,
@@ -1117,14 +946,8 @@ func (l Lab) AuthorityURL(
 	return "", ErrNoRange
 }
 
-// ProxyEndpoint says where khaos must bind its fault proxy and what that proxy
-// must forward to.
-//
-// The listen address is the DEFAULT bridge's gateway, which is measured: a
-// container reaches a host listener there, a listener on the target network's own
-// gateway is unreachable, and binding that one address leaves the proxy dead on
-// loopback and dead on the host's LAN address. A wildcard bind would put a fault
-// proxy for a deliberately vulnerable stack on the operator's network.
+// ProxyEndpoint says where khaos binds its fault proxy, never a wildcard: that
+// would expose a deliberately vulnerable stack on the operator's network.
 func (l Lab) ProxyEndpoint(
 	ctx context.Context,
 	reader PortReader,

@@ -14,8 +14,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/lock"
 )
 
-// settleSuffix mirrors statedir.Paths.Settle. The journal knows its own path and
-// the lock sits beside it, so the two cannot drift to different files.
+// settleSuffix mirrors statedir.Paths.Settle.
 const settleSuffix = ".settle"
 
 type Reclaimed struct {
@@ -43,14 +42,10 @@ func (s Sweep) Failed() bool {
 	return false
 }
 
-// Reclaim settles outstanding mutations. It holds the settle lock for the whole
-// pass, so a renewal cannot read a record as live, stall, and then write back a
-// fresh expiry for a fault this sweep has already undone — nor can this sweep
-// revert a fault a renewal extended a moment earlier.
-//
-// The lock is advisory and best-effort: if it cannot be taken, the sweep still
-// runs. A dead man's switch that refuses to fire because a lock file is
-// unavailable is worse than one that races.
+// Reclaim settles outstanding mutations, holding the settle lock for the whole
+// pass so a renewal and a sweep cannot undo each other's work. The lock is
+// best-effort: a dead man's switch that will not fire is worse than one that
+// races.
 func Reclaim(
 	ctx context.Context,
 	env inject.Env,
@@ -87,17 +82,9 @@ func reclaimWith(
 			continue
 		}
 
-		// A fault on another daemon is left ALONE, and left outstanding.
-		//
-		// Reverting it here cannot work and does not fail cleanly: the container
-		// ID does not exist on this daemon, the SDK says NotFound, khaos reads
-		// that as "the target is gone so the fault went with it" and writes
-		// REVERTED. The fault stays applied on the machine that actually has it
-		// and no later sweep will ever look at it again.
-		//
-		// An empty daemon on the record is ambiguous rather than matching. It
-		// predates this field or the daemon would not identify itself, and
-		// settling it on a guess is the same irreversible mistake.
+		// A fault on another daemon is left outstanding. Reverting it here
+		// would not fail cleanly: the ID is NotFound on this daemon, which
+		// khaos would read as the target being gone and write REVERTED.
 		if mismatch := daemonMismatch(
 			record,
 			attachedDaemon(env),
@@ -118,8 +105,6 @@ func reclaimWith(
 	return sweep
 }
 
-// attachedDaemon is the identity of the daemon this sweep is attached to, or
-// empty when there is no client.
 func attachedDaemon(env inject.Env) string {
 	if env.Docker == nil {
 		return ""
@@ -127,13 +112,10 @@ func attachedDaemon(env inject.Env) string {
 	return env.Docker.Daemon()
 }
 
-// daemonMismatch reports why this sweep must not touch a record, or nil when it
-// may.
+// daemonMismatch reports why this sweep must not touch a record. Unknown on
+// either side gets the benefit of the doubt, or every record written before
+// the field existed would be stranded.
 func daemonMismatch(record journal.Record, here string) error {
-	// Unknown on either side is AMBIGUOUS, not a match and not a mismatch. A
-	// record predating this field, or a daemon that would not identify itself,
-	// gets the benefit of the doubt and is reverted: refusing instead would
-	// strand every fault written before this existed.
 	if here == "" || record.Daemon == "" {
 		return nil
 	}

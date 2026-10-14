@@ -10,90 +10,58 @@ import (
 	"time"
 )
 
-// Kind names one way khaos makes its own identity provider wrong. Every kind
-// maps to a verifier defect with a traceable anchor in research 07, and the
-// mapping is one-to-one with the experiments so `khaos catalog` names the actual
-// trap rather than a generic entry.
+// Kind names one way khaos makes its own identity provider wrong.
 type Kind string
 
 const (
-	// PassThrough is the zero value: the provider behaves correctly. A provider
-	// with nothing armed must be indistinguishable from a real one, because every
-	// experiment's baseline is measured against it.
+	// PassThrough is the zero value, and every experiment's baseline.
 	PassThrough Kind = ""
 
-	// AlgNone emits `{"alg":"none"}` with an empty signature. Trap T1,
-	// CVE-2022-23540.
+	// AlgNone emits `{"alg":"none"}` with an empty signature. CVE-2022-23540.
 	AlgNone Kind = "alg-none"
 
-	// AlgConfusion emits HS256 keyed on the bytes of the published RSA public
-	// key. Trap T2, CVE-2015-9235 and three others.
+	// AlgConfusion emits HS256 keyed on the published RSA key. CVE-2015-9235.
 	AlgConfusion Kind = "alg-confusion"
 
-	// EmbeddedJWK emits a token carrying its own signing key in the `jwk` header,
-	// signed by a key khaos never publishes. Trap T2b, CVE-2018-0114.
+	// EmbeddedJWK carries its own unpublished signing key. CVE-2018-0114.
 	EmbeddedJWK Kind = "embedded-jwk"
 
-	// ClaimExpired through ClaimForeignIssuer each emit a CORRECTLY SIGNED token
-	// with exactly one wrong claim. Research 07 calls this the cleanest
-	// experiment design in the tool: a 2xx isolates precisely which check is
-	// missing, with no ambiguity about the signature.
+	// Each of these is CORRECTLY SIGNED with exactly one wrong claim.
 	ClaimExpired       Kind = "claim-expired"
 	ClaimNotYetValid   Kind = "claim-not-yet-valid"
 	ClaimWrongAudience Kind = "claim-wrong-audience"
 	ClaimForeignIssuer Kind = "claim-foreign-issuer"
 
-	// SignatureTruncated cuts a valid signature to one byte. Trap T6b,
-	// CVE-2020-28042.
+	// SignatureTruncated cuts a valid signature to one byte. CVE-2020-28042.
 	SignatureTruncated Kind = "signature-truncated"
 
-	// SignatureZero emits ES256 with an all-zero signature. Trap T6c, the shape
-	// of CVE-2022-21449. Measured on go1.26.5: ecdsa.Verify rejects r = s = 0, so
-	// a Go verifier is only vulnerable if it skips the check, which is what the
-	// range fixture does on purpose.
+	// SignatureZero emits ES256 all-zero, the shape of CVE-2022-21449.
+	// ecdsa.Verify rejects r = s = 0, so Go is only vulnerable if it skips it.
 	SignatureZero Kind = "signature-zero"
 
-	// SignatureWeakKey signs with a modulus below the size crypto/rsa accepts.
-	// Trap T6a's class, CVE-2022-23539: a key type or size not validated against
-	// the algorithm.
+	// SignatureWeakKey signs below crypto/rsa's floor. CVE-2022-23539's class.
 	SignatureWeakKey Kind = "signature-weak-key"
 
-	// JWKSUnreachable stops serving the JWK Set. Trap T3 and taxonomy row F2,
-	// and research 07 calls it the highest-value trap in the archive because the
-	// code path is reachable only while the provider is down.
+	// JWKSUnreachable stops serving the JWK Set, and nothing else.
 	JWKSUnreachable Kind = "jwks-unreachable"
 
-	// KidRollover rotates the signing key and REMOVES the retired one from the
-	// JWK Set, so a token signed by it is no longer verifiable by anyone who
-	// refetches. Trap T4 and taxonomy row F3.
+	// KidRollover rotates and REMOVES the retired key from the JWK Set.
 	KidRollover Kind = "kid-rollover"
 
-	// KeyRotation rotates WITH an overlap window: both keys stay published and
-	// new tokens carry the new one. This is the availability mirror of
-	// KidRollover, and it is the one trap in the family where DENIED is the
-	// defect, because refusing a correctly signed current token is the failure.
+	// KeyRotation rotates with both keys published, and is the one trap where
+	// DENIED is the defect: refusing a correctly signed current token.
 	KeyRotation Kind = "key-rotation"
 
-	// IntrospectionError answers introspection with a 503. It is deliberately not
-	// an outage: the provider is reachable and answering, so a caller's
-	// `err != nil` branch is never taken and only its status handling decides.
-	// Taxonomy row F20, where collapsing deny into unknown is the defect.
+	// IntrospectionError answers 503 while staying REACHABLE and answering.
 	IntrospectionError Kind = "introspection-error"
 
-	// IntrospectionMalformed answers 200 with a body that is not JSON, so the
-	// caller's decode-error branch decides. RFC 7662 is explicit that the absence
-	// of a usable response is not `active: true`.
+	// IntrospectionMalformed answers 200 with a body that is not JSON.
 	IntrospectionMalformed Kind = "introspection-malformed"
 
-	// IntrospectionSlow holds introspection past the caller's timeout while
-	// answering everything else promptly. A slow authority is not an unreachable
-	// one and a caller's code tells them apart.
+	// IntrospectionSlow holds that one route past the caller's timeout.
 	IntrospectionSlow Kind = "introspection-slow"
 
-	// Revoke revokes a credential at a provider the target can still reach. The
-	// contrast with `identity.idp_outage` is the whole point: there the authority
-	// is unreachable, here it is answering `active: false` and the target is
-	// simply not asking.
+	// Revoke revokes at a provider the target can still reach, and is not asking.
 	Revoke Kind = "revoke"
 )
 
@@ -126,23 +94,15 @@ var ErrInvalidTrap = errors.New("that trap cannot be armed as specified")
 
 var ErrUnknownTrap = errors.New("khaos's identity provider has no such trap")
 
-// Trap is one armed misbehaviour and its magnitude. It is a value rather than a
-// closure so it can be journaled: the provider dies with the process, so the
-// journal record is the only durable account of what a run actually did.
+// Trap is a value rather than a closure so that it can be journaled.
 type Trap struct {
 	Kind Kind `json:"kind"`
 
-	// Delay is how long IntrospectionSlow holds a call, and how far ClaimExpired
-	// and ClaimNotYetValid move the claim they corrupt.
 	Delay time.Duration `json:"delay,omitempty"`
 
-	// Credential is the opaque token Revoke acts on.
 	Credential string `json:"credential,omitempty"`
 
-	// KeyForm is the serialization AlgConfusion keys its HMAC on. It is a
-	// parameter rather than a fixed choice because research 07 is explicit that
-	// the same verifier bug is unreachable under the wrong form: the attack has
-	// to use the exact bytes the target loaded its public key from.
+	// KeyForm has to be the exact bytes the target loaded its key from.
 	KeyForm KeyForm `json:"key_form,omitempty"`
 }
 
@@ -162,7 +122,7 @@ func (t Trap) Validate() error {
 				t.KeyForm, SPKIPEM, SPKIDER, PKCS1PEM, Modulus)
 		}
 	default:
-		// The remaining traps carry no parameter to validate.
+		// The remaining traps carry no magnitude to validate.
 	}
 
 	if t.Kind != PassThrough && !slices.Contains(Kinds(), string(t.Kind)) {
@@ -172,9 +132,7 @@ func (t Trap) Validate() error {
 	return nil
 }
 
-// Describe states the trap with its actual magnitude. The proxy tier paid for
-// this lesson: reading the kind alone and leaving the parameters at zero printed
-// a plan line that understated the fault it was asking consent for.
+// Describe states the trap WITH its magnitude, or it understates the fault.
 func (t Trap) Describe(target string) string {
 	switch t.Kind {
 	case AlgNone:
@@ -216,10 +174,6 @@ func (t Trap) Describe(target string) string {
 	}
 }
 
-// Forgery reports whether the trap corrupts what the provider MINTS, as opposed
-// to what it serves or how it answers. It decides which probe stream an
-// experiment needs, and it is derived here so an experiment cannot disagree with
-// the trap about its own shape.
 func (t Trap) Forgery() bool {
 	switch t.Kind {
 	case AlgNone, AlgConfusion, EmbeddedJWK,
@@ -231,7 +185,6 @@ func (t Trap) Forgery() bool {
 	}
 }
 
-// Kinds is every trap an operator can arm, in a stable order.
 func Kinds() []string {
 	return []string{
 		string(AlgNone),

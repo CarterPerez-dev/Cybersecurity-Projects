@@ -18,28 +18,14 @@ const (
 	headerAuthorization = "Authorization"
 	bearerPrefix        = "Bearer "
 
-	// FailClosed refuses when it cannot reach the identity provider. This is
-	// the correct behaviour for an authentication check.
-	//
-	// FailOpen serves anyway. This is the defect khaos exists to find, and it
-	// is modelled on the Okta AD/LDAP delegated-authentication advisory, where
-	// a cached decision was consulted first and could be reached only while the
-	// agent was "down or cannot be reached".
+	// FailClosed refuses when it cannot reach the identity provider. FailOpen
+	// serves anyway, which is the defect khaos exists to find.
 	FailClosed = "closed"
 	FailOpen   = "open"
 
-	// FailStaleRearm is the bug research 07 section 3.3 says to name, build and
-	// detect, because it reads as a resilience feature in review. It serves a
-	// cached decision when the provider is unreachable AND re-arms that cache
-	// entry for a full lifetime on every failed check. The lifetime therefore
-	// stops bounding staleness and starts bounding IDLENESS: a cached allow
-	// becomes permanent exactly when the authority that could revoke it is
-	// unreachable, for as long as traffic keeps arriving.
-	//
-	// It is one line different from a defensible design. Serving a stale allow up
-	// to a fixed ceiling and never re-arming is the bounded-stale pattern, which
-	// is a trade plenty of teams make deliberately. The difference is whether the
-	// error branch writes to the cache.
+	// FailStaleRearm serves a cached decision when the provider is unreachable
+	// AND re-arms it on every failed check, so the lifetime bounds idleness
+	// rather than staleness.
 	FailStaleRearm = "stale-rearm"
 
 	introspectPath  = "/introspect?token="
@@ -48,9 +34,7 @@ const (
 	defaultCacheTTL = 2 * time.Second
 	upstreamTimeout = 500 * time.Millisecond
 
-	// Generous on purpose. The ceiling has to be wide enough that khaos's own
-	// probe interval cannot fall out of it by accident, or a run measures the
-	// fixture's timing rather than the bug.
+	// Wide enough that a probe interval cannot fall out of the window.
 	staleCeilingFactor = 4
 )
 
@@ -70,24 +54,9 @@ type cachedDecision struct {
 	expires time.Time
 }
 
-// newGateway builds the fixture. reresolve is what the DNS tier needs and is
-// worth the extra parameter, because without it that whole family is inert
-// against this gateway.
-//
-// Go's `http.Transport` keeps connections alive, so a client resolves its
-// upstream's name ONCE when it opens a connection and then never again for the
-// life of that connection. Measured on this fixture: 46 probes produced TWO
-// queries to khaos's resolver, both at the first request. A DNS fault armed
-// after that changes nothing the gateway can see, and khaos would report a clean
-// survival of a fault the target never experienced.
-//
-// That is a true property of the fault class rather than a fixture defect — it
-// is the DNS analogue of session resumption defeating a certificate probe — and
-// khaos reports it as such when it measures it. But a fixture that can NEVER
-// experience the fault cannot be the thing an exit gate asserts against, so this
-// gateway re-resolves per request. Research 05 section 11 ranks the
-// application's own connection pool as the caching layer most likely to void a
-// DNS experiment, which is exactly what it did here.
+// newGateway builds the fixture. reresolve disables keep-alives, because
+// http.Transport resolves an upstream's name once per connection and never
+// again, which hides any DNS fault armed after the first request.
 func newGateway(
 	upstream, failMode string,
 	cacheTTL time.Duration,
@@ -152,8 +121,7 @@ func (g *gateway) protected(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The whole bug is the next three lines. A stale allow is served AND written
-	// back, so the next request finds it fresh and writes it back again.
+	// Served AND written back, so the next request finds it fresh again.
 	if g.failMode == FailStaleRearm {
 		if decision, ok := g.stale(token); ok {
 			g.remember(token, decision)
@@ -165,10 +133,8 @@ func (g *gateway) protected(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusForbidden)
 }
 
-// forward passes credential administration through to the identity provider so
-// the range needs exactly one host port. It is deliberately unauthenticated:
-// this is a loopback-only fixture whose whole purpose is to be broken, and
-// khaos needs to mint itself a credential before it has one.
+// forward passes credential administration to the identity provider, and is
+// deliberately unauthenticated: khaos needs a credential before it has one.
 func (g *gateway) forward(path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		target := g.upstream + path
@@ -205,9 +171,6 @@ func (g *gateway) introspect(token string) (bool, bool) {
 	defer func() { _ = response.Body.Close() }()
 
 	// A refusal from the identity provider is an ANSWER, not an outage.
-	// Treating any non-200 as "dependency unavailable, proceed" is the single
-	// most common fail-open shape in service-to-service code, and a reference
-	// implementation that contains it makes the comparison dishonest.
 	if response.StatusCode == http.StatusUnauthorized ||
 		response.StatusCode == http.StatusForbidden {
 		return false, true
@@ -237,15 +200,8 @@ func (g *gateway) cached(token string) (bool, bool) {
 	return decision.active, true
 }
 
-// stale returns a decision whose lifetime has passed but which is still inside a
-// bounded staleness ceiling.
-//
-// The ceiling is what makes this the TTL-EXTENSION bug rather than the other one.
-// Without it a stale entry is servable forever, which IS a cache with no expiry,
-// and khaos measures it as exactly that. With it, every failed check pushes the
-// entry back inside the window, so steady traffic keeps a cached allow alive
-// indefinitely and a pause longer than the window lets it lapse. One ceiling, and
-// the two bugs separate.
+// stale returns a lapsed decision that is still inside the ceiling, which is
+// what separates TTL extension from a cache with no expiry at all.
 func (g *gateway) stale(token string) (bool, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -262,10 +218,6 @@ func (g *gateway) stale(token string) (bool, bool) {
 	return decision.active, true
 }
 
-// staleCeiling is how far past its lifetime a decision may still be served. It is
-// a multiple of the lifetime rather than a separate knob, so a range configured
-// with one number behaves predictably: steady traffic at any interval shorter
-// than this keeps a cached allow alive.
 func (g *gateway) staleCeiling() time.Duration {
 	return g.cacheTTL * staleCeilingFactor
 }

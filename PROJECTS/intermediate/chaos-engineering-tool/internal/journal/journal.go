@@ -60,14 +60,8 @@ type Record struct {
 	LeaseID    string `json:"lease_id"`
 	Kind       string `json:"kind"`
 
-	// Daemon is the Docker daemon this mutation lives on. Without it a container
-	// ID is ambiguous across machines: reclaiming against another daemon finds
-	// no such container, reads that as "the target is gone, the fault went with
-	// it", and marks the record REVERTED. The original fault stays applied on
-	// the original daemon and is now invisible to every future sweep.
-	//
-	// Empty means khaos could not establish it, which is a different state from
-	// a mismatch and must not be settled automatically.
+	// Daemon disambiguates a container ID across machines. Empty means khaos
+	// could not establish it, which is not the same as a mismatch.
 	Daemon string `json:"daemon,omitempty"`
 
 	TargetID   string          `json:"target_id"`
@@ -212,16 +206,8 @@ func Outstanding(path string) ([]Record, error) {
 			order = append(order, record.MutationID)
 		}
 
-		// A completed reversion is TERMINAL. Plain last-write-wins let a record
-		// come back: the reaper reverts a fault and appends Reverted while a
-		// renewal that read the journal before that is still in flight, and the
-		// renewal then appends Applied with a fresh expiry from its stale
-		// snapshot. Replay believed the newer line, so khaos went on renewing a
-		// lease for a fault that no longer existed, and the next reaper sweep
-		// would try to revert a target nothing had touched.
-		//
-		// Nothing legitimately re-applies a mutation ID: a new fault gets a new
-		// one. So the first successful reversion ends that ID's life.
+		// A completed reversion is TERMINAL: nothing re-applies a mutation ID,
+		// and last-write-wins would let a stale renewal resurrect the record.
 		if record.Phase == PhaseReverted {
 			settled[record.MutationID] = true
 		}
@@ -279,8 +265,7 @@ func Compact(path string) error {
 	return os.Rename(temp, path)
 }
 
-// ShortDaemon trims a daemon ID for display, the way container IDs are trimmed.
-// The full value stays in the record; this is only for a human reading an error.
+// ShortDaemon trims a daemon ID for display; the full value stays in the record.
 func ShortDaemon(id string) string {
 	if len(id) <= shortDaemonLength {
 		return id

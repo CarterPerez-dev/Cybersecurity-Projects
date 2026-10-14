@@ -19,11 +19,8 @@ const (
 
 	observeDelayFactor = 4
 
-	// Slack on the measured magnitude. The thresholds are lower bounds with no
-	// tolerance otherwise, and on a host that also serves real traffic CPU
-	// contention routinely shaves a few percent off a sleep. Measured: under
-	// 64-goroutine load a 250ms slow-close refused 6 of 25 times, voiding a
-	// quarter of its runs.
+	// Slack on the measured magnitude: the thresholds are lower bounds, and CPU
+	// contention routinely shaves a few percent off a sleep.
 	observeSlackNumerator   = 9
 	observeSlackDenominator = 10
 
@@ -49,25 +46,9 @@ type reading struct {
 	closed    time.Duration
 }
 
-// Observe confirms the armed fault by measuring the dependency on TWO paths and
-// requiring them to disagree: once directly, bypassing the proxy, and once
-// through it. It never consults an internal flag or a branch counter, because a
-// counter incremented by the dispatcher records which code path was chosen rather
-// than what reached the wire.
-//
-// The differential is what makes the oracle sound. An absolute threshold cannot
-// tell khaos's fault from a slow dependency: measured, a dependency answering in
-// four seconds confirmed a `hang` that was not applied at all, with the target
-// served in full, and a dependency taking one second confirmed a `latency` whose
-// delay had been removed. The direct path is the control, and the design contract
-// calls for read-back rather than an API return value.
-// armedFor resolves the fault this call is allowed to confirm, or says why the
-// proxy cannot be asked at all.
-//
-// Closed is checked FIRST. Close reverts to pass-through, so reading the fault
-// before this would report "nothing armed" for a proxy that is gone, and a dial
-// to a listener that no longer exists is ECONNREFUSED, which a reset oracle
-// must not accept as its own observable.
+// armedFor checks closed FIRST, because close reverts to pass-through: reading
+// the fault before that would report "nothing armed" for a proxy that is gone,
+// and a dial to a dead listener is ECONNREFUSED, which reset must not accept.
 func (p *Proxy) armedFor(expected Kind) (Fault, error) {
 	select {
 	case <-p.closed:
@@ -93,6 +74,9 @@ func (p *Proxy) armedFor(expected Kind) (Fault, error) {
 	return fault, nil
 }
 
+// Observe measures the dependency on TWO paths and requires them to disagree:
+// once directly, bypassing the proxy, and once through it. The differential is
+// what separates khaos's fault from a merely slow dependency.
 func (p *Proxy) Observe(
 	ctx context.Context,
 	expected Kind,
@@ -106,14 +90,9 @@ func (p *Proxy) Observe(
 
 	budget := observeGrace + fault.Delay*observeDelayFactor
 
-	// The control first. If the dependency cannot be reached without the proxy in
-	// the way, nothing seen through the proxy can be attributed to khaos's fault,
-	// and saying so voids the run instead of crediting khaos for someone else's
-	// outage.
-	//
-	// The test is the absence of BYTES, not the presence of an error: a complete
-	// answer always ends in one, because that is what the peer closing looks
-	// like to a reader.
+	// The control first: if the dependency is unreachable without the proxy,
+	// nothing seen through it is khaos's fault. The test is the absence of
+	// BYTES, not an error, because a complete answer always ends in one.
 	direct, directErr := p.measure(ctx, p.upstream, observeGrace)
 	if direct.total == 0 {
 		return "", false, fmt.Errorf(
@@ -132,9 +111,7 @@ func (p *Proxy) Observe(
 			return observedHang, true, nil
 		}
 	case Reset:
-		// ECONNREFUSED is deliberately NOT accepted. Dialling a listener that is
-		// gone produces exactly that, so accepting it let a CLOSED proxy confirm
-		// its own fault.
+		// ECONNREFUSED is deliberately NOT accepted; see isReset.
 		if isReset(throughErr) {
 			return observedReset, true, nil
 		}
@@ -151,9 +128,8 @@ func (p *Proxy) Observe(
 			), true, nil
 		}
 	case Partial:
-		// Both halves. A byte count that merely MATCHES the budget is also what
-		// pass-through delivers when the answer happens to be that long, so the
-		// control's answer has to be longer than what came through.
+		// Both halves: a count that merely MATCHES the budget is what
+		// pass-through delivers when the answer happens to be that long.
 		if through.total == int64(fault.Bytes) && direct.total > through.total {
 			return sprintf(
 				observedPartial,
@@ -172,8 +148,7 @@ func (p *Proxy) Observe(
 		}
 
 	default:
-		// PassThrough is the absence of a fault and has no observable to
-		// confirm, so it reaches the unconfirmed return below.
+		// PassThrough has no observable, so it falls to the unconfirmed return.
 	}
 
 	return "", false, nil
@@ -183,8 +158,8 @@ func slack(delay time.Duration) time.Duration {
 	return delay * observeSlackNumerator / observeSlackDenominator
 }
 
-// measure sends one probe to an address and records when the first byte arrived,
-// how much arrived in total, and when the peer closed.
+// measure records when the first byte arrived, how much arrived, and when the
+// peer closed.
 func (p *Proxy) measure(
 	ctx context.Context,
 	addr string,
@@ -227,9 +202,8 @@ func (p *Proxy) measure(
 	}
 }
 
-// isReset accepts ECONNRESET and deliberately NOT ECONNREFUSED. Dialling a
-// listener that is gone produces refused, and accepting it let a CLOSED proxy
-// confirm the fault it was holding when it died.
+// isReset accepts ECONNRESET and NOT ECONNREFUSED: a gone listener produces
+// refused, which would let a CLOSED proxy confirm the fault it died holding.
 func isReset(err error) bool {
 	return errors.Is(err, syscall.ECONNRESET)
 }

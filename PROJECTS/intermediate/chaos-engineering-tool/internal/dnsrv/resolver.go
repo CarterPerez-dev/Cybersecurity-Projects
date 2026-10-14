@@ -17,39 +17,23 @@ import (
 )
 
 const (
-	// DefaultPort is the port the resolver listens on INSIDE its container. It
-	// is 53 and it has to be, because `--dns` carries an address and no port:
-	// the CLI calls a port malformed and the daemon rejects it at container
-	// start with `ParseAddr(...): unexpected character`, after create has
-	// already succeeded. resolv.conf has no port field either.
-	//
-	// This is also why the resolver is a container and not a goroutine in khaos.
-	// An unprivileged process gets `bind: permission denied` on port 53 at every
-	// address, loopback included, while high ports on the same addresses bind
-	// fine. Inside a container the process is root in its own namespace and
-	// NET_BIND_SERVICE is in Docker's default set, so no host port is published
-	// and khaos still holds no capability.
+	// Has to be 53, because `--dns` carries an address and no port. It is also
+	// why the resolver is a container: an unprivileged process cannot bind 53.
 	DefaultPort = 53
 
-	// DefaultUpstream is the resolver container's OWN embedded resolver.
-	//
-	// Forwarding there rather than to a public address is what keeps khaos
-	// keyless and offline-capable: the resolver inherits exactly the resolution
-	// the host has, with no configuration and no third party. There is no loop,
-	// because khaos's resolver container is never created with `--dns` pointing
-	// at itself, and khaos refuses to start one that is.
+	// The resolver container's OWN embedded resolver, so it inherits exactly
+	// the resolution the host has with no configuration and no third party.
 	DefaultUpstream = "127.0.0.11:53"
 
-	// forwardTimeout is under the embedded resolver's own 4s `extIOTimeout`, so
-	// a slow upstream surfaces here as a forward error khaos can read rather
-	// than as the target's query dying one layer up where nothing records it.
+	// Under the embedded resolver's own 4s ceiling, so a slow upstream surfaces
+	// here rather than dying a layer up where nothing records it.
 	forwardTimeout = 3 * time.Second
 
 	udpNet = "udp"
 	tcpNet = "tcp"
 
-	// bindAttempts only ever matters for an ephemeral port: the kernel can hand
-	// out a UDP port that something else already holds in the TCP space.
+	// Only matters for an ephemeral port: the kernel can hand out a UDP port
+	// something else already holds in the TCP space.
 	bindAttempts = 8
 )
 
@@ -90,54 +74,28 @@ var ErrOutsideZone = errors.New(
 	"this resolver is not authoritative for that name",
 )
 
-// Config is everything the resolver needs to exist. It is deliberately small:
-// the FAULT is not here, because a resolver is armed in band after it is
-// running, for a reason that is measured rather than stylistic. Docker refuses
-// `--ip` on a network whose subnet it chose, so khaos cannot pin the resolver's
-// address, so re-creating the container to arm it would move the address the
-// target was created to dial and the target would be talking to nothing.
+// Config is everything the resolver needs to exist. The FAULT is not here
+// because Docker refuses `--ip` on a network whose subnet it chose, so
+// recreating the container to arm it would move the address the target dials.
 type Config struct {
-	// Listen is the address:port to bind. Empty binds every address on
-	// DefaultPort, which is correct inside a container and is why khaos never
-	// binds a wildcard on the host.
 	Listen string
 
-	// Upstream answers everything OUTSIDE the zone. A resolver that NXDOMAINed
-	// unrelated names would break the target for reasons the experiment never
-	// claimed, and the measured property that makes this safe is that the
-	// target's own embedded resolver answers container names locally and never
-	// forwards them here at all.
+	// Answers everything OUTSIDE the zone, so unrelated names keep working.
 	Upstream string
 
-	// Nonce authorises the control surface. khaos generates it, passes it at
-	// container creation, and reads it back out of the container rather than
-	// remembering what it chose, the same way the range reads its ports back
-	// from the containers that will dial them.
 	Nonce string
 
-	// Zone is the set of names khaos is AUTHORITATIVE for, mapped to the honest
-	// address each one really has.
-	//
-	// This exists because of a measured constraint rather than for convenience.
-	// A container name or network alias can never be faulted: the target's own
-	// embedded resolver answers those out of its own table and never forwards
-	// them to an upstream, so khaos would never see the query. The faulted name
-	// therefore has to be one the embedded resolver cannot answer — and then
-	// NOBODY would answer it, and the baseline would measure a target whose
-	// dependency never resolved. So khaos serves it honestly itself, and the
-	// fault is a deviation from khaos's own correct answer.
+	// The names khaos is AUTHORITATIVE for, mapped to their honest addresses. A
+	// container name or alias can never be faulted, because the target's own
+	// embedded resolver answers those locally and never forwards them here.
 	Zone map[string]string
 
-	// Control is the name in Zone that no fault ever touches. It is the
-	// confirmation oracle's positive control: khaos serves it from the same
-	// table, over the same transports, through the same handler, so a control
-	// that stops resolving means khaos's resolver is broken rather than lying.
+	// The name in Zone no fault touches, served from the same table, so a
+	// control that stops resolving means khaos is broken rather than lying.
 	Control string
 }
 
-// Resolver is khaos's authoritative chaos resolver. One instance serves one
-// network, is armed and disarmed in band, and attributes every query it answers
-// to the address it came from.
+// Resolver is khaos's authoritative chaos resolver, one instance per network.
 type Resolver struct {
 	cfg  Config
 	zone map[string]string
@@ -158,9 +116,7 @@ type Resolver struct {
 	controls    int64
 }
 
-// New builds a resolver without binding anything. Nothing listens until Serve,
-// which is what makes the whole package unit-testable in process on a high port
-// with no container and no privilege.
+// New builds a resolver without binding anything; nothing listens until Serve.
 func New(cfg Config) (*Resolver, error) {
 	if cfg.Listen == "" {
 		cfg.Listen = fmt.Sprintf(":%d", DefaultPort)
@@ -206,16 +162,13 @@ func New(cfg Config) (*Resolver, error) {
 	}, nil
 }
 
-// Zone reports the names this resolver is authoritative for, so khaos can state
-// them in a plan and a gate can census them.
+// Zone reports the names this resolver is authoritative for.
 func (r *Resolver) Zone() map[string]string {
 	return maps.Clone(r.zone)
 }
 
-// Serve binds UDP and TCP and returns once both are accepting. Both transports
-// are mandatory and not a nicety: a client that sees the truncation bit re-asks
-// over TCP, the embedded resolver forwards on the transport the client used, and
-// a UDP-only resolver would turn every truncation experiment into a timeout.
+// Serve binds UDP and TCP and returns once both accept. Both are mandatory: a
+// client that sees the truncation bit re-asks over TCP.
 func (r *Resolver) Serve() error {
 	mux := dns.NewServeMux()
 	mux.HandleFunc(".", r.handle)
@@ -241,10 +194,8 @@ func (r *Resolver) Serve() error {
 	r.servers = servers
 	r.mu.Unlock()
 
-	// Each goroutine serves the LOCAL it was handed, never a field it reads back
-	// off the struct. `internal/pki` shipped three data races doing the
-	// opposite: its serve goroutines dereferenced a field that mutex-held
-	// shutdown nils, and the plain test suite was green for both new packages.
+	// Each goroutine serves the LOCAL it was handed, never a field that a
+	// mutex-held shutdown nils underneath it.
 	ready := make(chan error, len(servers))
 	for _, server := range servers {
 		srv := server
@@ -271,17 +222,9 @@ func (r *Resolver) Serve() error {
 	return nil
 }
 
-// bindBoth puts UDP and TCP on the SAME port, and that is a correctness
-// requirement rather than tidiness.
-//
-// Handing `dns.Server` an `Addr` with port 0 and letting each transport bind
-// itself gives them DIFFERENT ports, because UDP and TCP are separate port
-// spaces and the kernel picks independently. A resolver like that answers over
-// UDP and is unreachable over TCP, so every client that sees the truncation bit
-// and re-asks per RFC 5966 gets `connection refused` — the truncation fault
-// becomes an outage, and the no-TCP variant confirms itself for free against a
-// port that was never listening. A test caught it; at the real :53 both happen
-// to land on the same number and nothing would have.
+// bindBoth puts UDP and TCP on the SAME port. They are separate port spaces, so
+// letting each bind port 0 itself yields different ports and a resolver that is
+// unreachable for every RFC 5966 retry.
 func bindBoth(listen string) (net.PacketConn, net.Listener, error) {
 	udpAddr, err := net.ResolveUDPAddr(udpNet, listen)
 	if err != nil {
@@ -304,9 +247,7 @@ func bindBoth(listen string) (net.PacketConn, net.Listener, error) {
 		_ = conn.Close()
 		last = fmt.Errorf(errBindFailed, tcpNet, err)
 
-		// An explicit port cannot be retried into success, so the only case
-		// worth another attempt is an ephemeral one the kernel chose for UDP
-		// that something else already holds in the TCP space.
+		// An explicit port cannot be retried into success.
 		if udpAddr.Port != 0 {
 			break
 		}
@@ -315,8 +256,7 @@ func bindBoth(listen string) (net.PacketConn, net.Listener, error) {
 	return nil, nil, last
 }
 
-// Addr reports where the resolver actually bound, which matters because a test
-// asks for port 0 and has to find out what it got.
+// Addr reports where the resolver actually bound, which matters for port 0.
 func (r *Resolver) Addr() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -330,10 +270,9 @@ func (r *Resolver) Addr() string {
 	return r.cfg.Listen
 }
 
-// Shutdown closes both DNS transports and the control surface. The control
-// surface goes down too, and unconditionally, because a resolver whose DNS is
-// gone but whose /arm still answers is one khaos could arm and then confirm
-// against nothing.
+// Shutdown closes both transports and, unconditionally, the control surface: a
+// resolver whose /arm answers while its DNS is gone could be armed and then
+// confirmed against nothing.
 func (r *Resolver) Shutdown() error {
 	r.mu.Lock()
 	servers := r.servers
@@ -355,9 +294,8 @@ func (r *Resolver) Shutdown() error {
 	return errors.Join(failures...)
 }
 
-// Arm installs a fault. An inert trap is still installed, because the negative
-// control has to travel the same path as a live one: a control that skipped
-// arming would prove only that the resolver was never asked.
+// Arm installs a fault. An inert trap is still installed, so it travels the
+// same path as a live one.
 func (r *Resolver) Arm(trap Trap) error {
 	if err := trap.Validate(); err != nil {
 		return err
@@ -380,12 +318,8 @@ func (r *Resolver) Arm(trap Trap) error {
 	return nil
 }
 
-// inZone refuses a fault aimed at a name this resolver does not answer.
-//
-// Without it the most likely operator mistake is also the most silent one: a
-// trap on a name khaos is not authoritative for arms cleanly, every query for
-// it is forwarded untouched, the target resolves it perfectly, and the run
-// reports a clean survival against a fault that was never applied to anything.
+// inZone refuses a fault on a name this resolver does not answer, which would
+// arm cleanly, forward untouched, and report a survival against nothing.
 func (r *Resolver) inZone(host string) error {
 	if _, ok := r.zone[dns.CanonicalName(host)]; ok {
 		return nil
@@ -416,16 +350,9 @@ func (r *Resolver) armed() Trap {
 	return r.trap
 }
 
-// Arrivals reports how many queries came from one address. It is attributed by
-// SOURCE rather than counted in total, and that is the difference between a
-// proof of arrival and a number that is always non-zero.
-//
-// khaos queries its own resolver to confirm the fault, from the host, so its
-// source is the bridge gateway. The target's queries are forwarded by the
-// embedded resolver from the TARGET's own network namespace, so their source is
-// the target's container address. Counting both together would make "the target
-// used khaos's resolver" true on every run, including the runs where the target
-// never used it at all.
+// Arrivals is attributed by SOURCE rather than totalled: khaos's own probes
+// arrive from the bridge gateway and the target's from its container address,
+// so a total would be non-zero even when the target never used this resolver.
 func (r *Resolver) Arrivals(from string) int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -446,21 +373,12 @@ type Stats struct {
 	Denied   int64            `json:"control_denied"`
 	Arrivals map[string]int64 `json:"arrivals"`
 
-	// Zone is the honest answer khaos serves for each name it owns, read back
-	// rather than remembered. A redirect's observable needs it to name the
-	// address the fault replaced rather than restating the one it served.
+	// Read back rather than remembered, so a redirect's observable can name the
+	// address the fault replaced.
 	Zone map[string]string `json:"zone"`
 
-	// Queries counts only the queries khaos was AUTHORITATIVE for, keyed by
-	// source address and zone name.
-	//
-	// Arrivals alone cannot carry the proof-of-arrival control, and that is the
-	// whole reason this exists. A target resolving anything else through khaos's
-	// resolver -- a public name, another service -- makes its arrival count
-	// non-zero without ever asking about the dependency under fault, so the
-	// guard would pass for a target that never experienced the experiment. It
-	// would also break the TTL faults outright, whose whole measurement is HOW
-	// MANY times the faulted name was asked for.
+	// Only the queries khaos was AUTHORITATIVE for, keyed by source and name.
+	// An arrival count alone goes non-zero for a target resolving anything else.
 	Queries map[string]int64 `json:"queries"`
 }
 
@@ -512,16 +430,9 @@ func (r *Resolver) handle(w dns.ResponseWriter, req *dns.Msg) {
 	r.reply(w, req, r.serveFault(trap, req, question, name, w))
 }
 
-// lookup resolves a query name to the zone entry it belongs to, and reports
-// whether khaos is authoritative for it at all.
-//
-// Matching is on the WHOLE name or on the name plus a suffix, because a
-// container's resolv.conf carries a forced `search` domain. A target asking for
-// `dependency.khaos.test` was measured arriving as both
-// `dependency.khaos.test.` and `dependency.khaos.test.mynetworksettings.com.`,
-// and that is not cosmetic: under a negative fault the absolute attempt fails
-// and the client RETRIES with the search suffix, so a resolver that faulted only
-// the exact name would answer the retry honestly and defeat its own fault.
+// lookup matches the whole name or the name plus a suffix, because a container's
+// resolv.conf carries a forced `search` domain and a client whose absolute
+// attempt fails RETRIES with that suffix.
 func (r *Resolver) lookup(name string) (string, bool) {
 	asked := dns.CanonicalName(name)
 
@@ -546,10 +457,8 @@ func (r *Resolver) applies(trap Trap, zoneName string) bool {
 	return dns.CanonicalName(trap.Host) == zoneName
 }
 
-// honestAnswer is what khaos serves for a zone name with nothing armed against
-// it, and what it serves for the control name always. Every baseline is
-// measured through this, so it has to be indistinguishable from a correct
-// resolver's answer.
+// honestAnswer is measured by every baseline, so it has to be
+// indistinguishable from a correct resolver's answer.
 func (r *Resolver) honestAnswer(
 	req *dns.Msg,
 	question dns.Question,
@@ -561,10 +470,8 @@ func (r *Resolver) honestAnswer(
 	}, addressAnswer)
 }
 
-// serveFault produces the faulted answer. Every kind acts on khaos's OWN honest
-// answer for the name, which is the design rule from the PKI tier restated:
-// every trap corrupts exactly ONE property. A fault that synthesized its own
-// address as a side effect of being slow would be two faults reported as one.
+// serveFault acts on khaos's OWN honest answer for the name, so each trap
+// corrupts exactly ONE property rather than being two faults reported as one.
 func (r *Resolver) serveFault(
 	trap Trap,
 	req *dns.Msg,
@@ -588,14 +495,8 @@ func (r *Resolver) serveFault(
 		}, addressAnswer)
 
 	case CNAMEChain:
-		// The chain ends at the trap's address, not the honest one, and that is
-		// what makes it a finding rather than decoration. Research 05 section 10
-		// states the fault precisely: if name matching happens on the name that
-		// was ASKED rather than on the target the connection goes to, a CNAME
-		// out of the allowlisted zone passes the check while the traffic goes
-		// somewhere else. Ending the chain at the honest address would test the
-		// indirection and change nothing about where the traffic went, so there
-		// would be nothing for a control to have failed to notice.
+		// Ends at the trap's address, not the honest one, or the indirection
+		// changes nothing about where the traffic went.
 		return r.synthesize(req, question, Trap{
 			Host:    zoneName,
 			Address: trap.address(),
@@ -609,11 +510,8 @@ func (r *Resolver) serveFault(
 		return r.synthesize(req, question, honest, addressAnswer)
 
 	case Truncation:
-		// Truncated with nothing in it over UDP, complete over TCP: the shape a
-		// correct truncating server has. Emptying the UDP answer is what makes
-		// the fault about the RETRY rather than about the bit, because a client
-		// that ignores `tc` and keeps the records it was given has not been
-		// tested by a truncated message that was complete anyway.
+		// Emptying the UDP answer makes the fault about the RETRY rather than
+		// the bit, since a client that ignores `tc` keeps what it was given.
 		reply := r.synthesize(req, question, honest, addressAnswer)
 		if protoOf(w) == udpNet {
 			reply.Truncated = true
@@ -622,10 +520,6 @@ func (r *Resolver) serveFault(
 		return reply
 
 	case TruncationNoTCP:
-		// Truncated and empty on BOTH transports, so the client exhausts UDP and
-		// TCP and still has nothing. This is research 05 row 9's actual security
-		// question — whether DNS over TCP is permitted at all — rather than the
-		// fallback question above.
 		reply := r.synthesize(req, question, honest, addressAnswer)
 		reply.Truncated = true
 		reply.Answer = nil
@@ -638,11 +532,8 @@ func (r *Resolver) serveFault(
 		)
 
 	case Refused, Timeout, PassThrough:
-		// Unreachable: Validate refuses both masked kinds before a trap can be
-		// armed, and applies() excludes PassThrough. SERVFAIL rather than a
-		// silent empty reply means a future kind that forgets its branch is
-		// observably broken instead of looking like a target that resolved
-		// nothing.
+		// Unreachable, and SERVFAIL rather than a silent empty reply so a future
+		// kind that forgets its branch is observably broken.
 		return new(dns.Msg).SetRcode(req, dns.RcodeServerFailure)
 
 	default:
@@ -650,15 +541,9 @@ func (r *Resolver) serveFault(
 	}
 }
 
-// authoritativeRcode is an rcode khaos is answering ON PURPOSE, for a name it
-// owns. Every other SERVFAIL in this file is khaos failing at something and is
-// left NON-authoritative, which is what makes the two distinguishable from
-// outside: deleting the ServFail arm used to fall through to `default`, serve
-// the same rcode, and leave every test and the whole gate green.
-//
-// It is also the protocol-correct answer. khaos IS the authority for its zone,
-// so an NXDOMAIN or a SERVFAIL it decides on carries AA, and one it stumbles
-// into does not.
+// authoritativeRcode is an rcode khaos answers ON PURPOSE; every other SERVFAIL
+// here is khaos failing and stays NON-authoritative, which is what tells the
+// two apart from outside.
 func authoritativeRcode(req *dns.Msg, rcode int) *dns.Msg {
 	reply := new(dns.Msg).SetRcode(req, rcode)
 	reply.Authoritative = true
@@ -718,22 +603,18 @@ func (r *Resolver) record(source string) {
 	r.mu.Unlock()
 }
 
-// recordQuery counts a query for a name khaos answers authoritatively, keyed by
-// source AND name, because both predicates built on it need the pair.
 func (r *Resolver) recordQuery(source, zoneName string) {
 	r.mu.Lock()
 	r.queries[QueryKey(source, zoneName)]++
 	r.mu.Unlock()
 }
 
-// QueryKey is the one place the composite key is spelled, so the resolver
-// counting and khaos reading cannot disagree about its shape.
+// QueryKey is the one place the composite key is spelled.
 func QueryKey(source, zoneName string) string {
 	return source + " " + dns.CanonicalName(zoneName)
 }
 
-// Queries reports how many times one source asked about one name khaos is
-// authoritative for.
+// Queries reports how many times one source asked about one name khaos owns.
 func (r *Resolver) Queries(source, zoneName string) int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
