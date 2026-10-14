@@ -136,7 +136,7 @@ const (
 const (
 	errNeedsDelay = "%w: %s has no magnitude, and a window of zero is indistinguishable from no fault at all"
 	errNeedsHost  = "%w: %s has to name the host its certificate is served for"
-	errBadBits    = "%w: %s needs an RSA size below %d bits to be a weak key at all, got %d"
+	errBadBits    = "%w: %s needs an RSA size of at least %d bits, which is the smallest crypto/rsa will generate, and below %d to be a weak key at all, got %d"
 	errBadDays    = "%w: %s needs a lifetime longer than %d days to exceed anything, got %d"
 	errUnknown    = "%w: %q (known traps: %s)"
 	trapSep       = ", "
@@ -176,11 +176,12 @@ func (t Trap) Validate() error {
 		}
 
 	case WeakKey:
-		if t.Bits <= 0 || t.Bits >= StrongBits {
+		if t.Bits < MinimumBits || t.Bits >= StrongBits {
 			return fmt.Errorf(
 				errBadBits,
 				ErrInvalidTrap,
 				t.Kind,
+				MinimumBits,
 				StrongBits,
 				t.Bits,
 			)

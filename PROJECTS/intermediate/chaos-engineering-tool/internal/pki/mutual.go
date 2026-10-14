@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	// khaos is the CA for both ends, the only way it can make this wrong.
+	// RouteIdentity issues the target's client certificate. khaos is the CA for
+	// both ends, which is the only way it can make this wrong.
 	RouteIdentity = "/identity"
 
 	nameClient = "khaos range client"

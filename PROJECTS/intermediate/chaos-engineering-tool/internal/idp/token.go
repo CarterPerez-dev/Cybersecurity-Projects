@@ -196,7 +196,8 @@ func Retarget(token Token, kid string) string {
 }
 
 // LooksLikeJWS tests the SHAPE, because choosing on "did my parser succeed"
-// rejects a legal array `aud` and then introspects it as though it were opaque.
+// makes a verifier whose `aud` field is a plain string reject a legal array one
+// and then introspect it as though it were opaque.
 func LooksLikeJWS(credential string) bool {
 	parts := strings.Split(credential, segmentSep)
 	if len(parts) != jwsSegments {

@@ -26,8 +26,9 @@ func (a *Authority) build(trap Trap) (*Chain, error) {
 		return nil, err
 	}
 
-	// EVERY chain staples, not just the stapling traps, or StapleAbsent would
-	// serve exactly what the baseline serves and the fault would be inert.
+	// The BASELINE staples, or StapleAbsent would serve exactly what the
+	// baseline serves and the fault would be inert. staple decides per kind,
+	// and four of them deliberately staple nothing.
 	if chain, err = a.staple(trap, chain, now); err != nil {
 		return nil, err
 	}

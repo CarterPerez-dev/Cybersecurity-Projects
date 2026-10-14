@@ -200,7 +200,9 @@ func (c *Client) NetworkAddress(
 
 // BridgeGateway is the address a container reaches the host on: the DEFAULT
 // bridge's gateway, discovered rather than assumed, since it is not 172.17.0.1
-// on every host and a user-defined network's own gateway is not reachable.
+// on every host. A user-defined network's own gateway is that network's default
+// route and answers a ping, but a HOST LISTENER bound on it is refused from
+// containers on the network, which is why this is not that address.
 func (c *Client) BridgeGateway(ctx context.Context) (string, error) {
 	result, err := c.api.NetworkInspect(
 		ctx,

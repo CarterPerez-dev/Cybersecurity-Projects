@@ -105,7 +105,9 @@ func (a *Authority) Listen(addr string) error {
 	return nil
 }
 
-// Resolved per handshake, so arming takes effect on the next connection.
+// ListenTLS binds the endpoint where khaos plays the dependency. The
+// certificate is resolved per handshake rather than fixed at bind time, so
+// arming takes effect on the next connection.
 func (a *Authority) ListenTLS(addr string) error {
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()

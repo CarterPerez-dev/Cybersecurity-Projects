@@ -5,6 +5,7 @@ package experiment
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/pki"
@@ -85,16 +86,19 @@ var certWindowParam = Param{
 	Default: defaultCertWindow,
 }
 
+// Derived, not restated: the authority falls back to these same constants when
+// a trap carries no magnitude, and a default that drifts below pki.MinimumBits
+// would make every weak-key run fail validation instead of serving a fault.
 var certBitsParam = Param{
 	Name:    ParamCertBits,
 	Usage:   usageCertBits,
-	Default: "1024",
+	Default: strconv.Itoa(pki.DefaultWeakBits),
 }
 
 var certDaysParam = Param{
 	Name:    ParamCertDays,
 	Usage:   usageCertDays,
-	Default: "2000",
+	Default: strconv.Itoa(pki.DefaultExcessiveDays),
 }
 
 type tlsSpec struct {

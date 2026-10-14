@@ -130,7 +130,8 @@ type Config struct {
 	Now func() time.Time
 }
 
-// New generates every key up front, so arming a trap is a pointer swap.
+// New generates every key up front, so arming a trap is a pointer swap for all
+// but the two rotation traps, which mint a fresh key inside Arm.
 func New(config Config) (*Provider, error) {
 	if config.Audience == "" {
 		config.Audience = DefaultAudience

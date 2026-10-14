@@ -576,7 +576,10 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 	// credential and a never-valid one are different streams, and diagnosing the
 	// wrong one would report the pause's effect on something that never leaked.
 	//
-	// It is read with the same order-sensitive test the fault window uses, and
+	// It is read with the same order-sensitive test the fault window uses: a
+	// window that starts accepted and settles into refusal is a cache that
+	// LAPSED, where "ever accepted after the pause" would call the same window
+	// NO-EXPIRY and invert both the diagnosis and the fix.
 	if revokedHonoured(observation) > 0 {
 		return resolveCause(
 			observation.Resumed.Revoked,

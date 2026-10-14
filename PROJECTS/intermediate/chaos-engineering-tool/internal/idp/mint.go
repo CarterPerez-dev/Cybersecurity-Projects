@@ -218,7 +218,8 @@ func (p *Provider) mintSignatureTrap(
 	}
 }
 
-// A nil key means the current signing key; a nil signer means the key's alg.
+// A nil key means the current signing key; a nil signer signs with the alg the
+// HEADER declares, which Key.Sign refuses if the key disagrees.
 func (p *Provider) serialize(
 	header Header,
 	claims Claims,

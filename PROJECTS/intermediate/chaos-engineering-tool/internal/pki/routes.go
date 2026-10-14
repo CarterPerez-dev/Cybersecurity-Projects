@@ -56,8 +56,10 @@ func (a *Authority) serveHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, healthBody)
 }
 
-// Both handlers serve what the ARMED CHAIN carries and read no trap, which
-// keeps an authority that armed nothing serving honest material.
+// Both handlers serve what the ARMED CHAIN carries and read no trap, so they
+// cannot invent a fault the chain does not have. With nothing ever armed there
+// is no chain and both answer 503, unlike getCertificate, which falls back to
+// building an honest one.
 func (a *Authority) serveCRL(w http.ResponseWriter, r *http.Request) {
 	a.countCRL(r)
 

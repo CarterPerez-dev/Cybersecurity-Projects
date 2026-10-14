@@ -84,8 +84,9 @@ func (p *Provider) Observe(
 	return p.observeEndpoint(ctx, trap)
 }
 
-// observeForgery mints on BOTH paths and requires them to differ. The honest
-// token is the control: khaos has to be able to mint a correct one.
+// observeForgery mints on BOTH paths. The honest token is the control: khaos
+// has to be able to mint a correct one for the forgery to mean anything, and
+// the kinds whose fault IS a divergence also require the two to differ.
 func (p *Provider) observeForgery(trap Trap) (string, bool, error) {
 	honest, err := p.mintHonestForControl()
 	if err != nil {

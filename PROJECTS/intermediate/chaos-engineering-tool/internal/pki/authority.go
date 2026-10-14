@@ -99,8 +99,9 @@ type Authority struct {
 	closed    chan struct{}
 }
 
-// New builds every CA up front, so a trap that cannot be armed is its own
-// fault and never a key generation that failed mid-experiment.
+// New builds every CA and intermediate up front, so the issuer hierarchy a trap
+// needs is already there when it is armed. The LEAF key is still generated per
+// arm, which is why Trap.Validate refuses a size crypto/rsa would reject.
 func New(cfg Config) (*Authority, error) {
 	a := &Authority{
 		clock:  cfg.Now,

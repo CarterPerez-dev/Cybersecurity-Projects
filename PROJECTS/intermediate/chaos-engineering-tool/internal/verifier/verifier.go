@@ -257,7 +257,7 @@ func (v *Verifier) validate(token idp.Token) Decision {
 		}
 	}
 
-	// RFC 7515 registers `none` as "no signature or MAC performed".
+	// RFC 7518 registers `none` as "No digital signature or MAC performed".
 	if alg == string(idp.None) {
 		return v.claims(
 			token,

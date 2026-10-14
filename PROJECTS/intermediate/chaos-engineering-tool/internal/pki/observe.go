@@ -57,8 +57,10 @@ const (
 )
 
 // Observe confirms khaos's own fault landed by reading back what the authority
-// serves. Every branch asserts the served material carries the defect AND that
-// an HONEST chain does not, so an unarmed authority cannot confirm a trap.
+// serves, never the trap record. Every branch asserts the served material
+// carries the defect, and the branches whose fault is a DEVIATION also require
+// an honest chain not to. An unarmed authority confirms nothing either way: it
+// builds no trapped material, so the defect assertion alone fails on it.
 func (a *Authority) Observe(
 	ctx context.Context,
 	expected Kind,

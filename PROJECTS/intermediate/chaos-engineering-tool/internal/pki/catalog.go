@@ -12,6 +12,10 @@ import (
 const (
 	StrongBits = 2048
 
+	// crypto/rsa refuses to GENERATE below this, so a smaller size is not a
+	// weak key khaos can serve, it is an arm that fails with a mint error.
+	MinimumBits = 1024
+
 	// The CA/Browser Forum cap, which nothing outside a browser enforces.
 	LifetimeCapDays = 200
 
@@ -34,13 +38,15 @@ const (
 )
 
 const (
-	// RouteHealth keeps answering while CRL or OCSP refuses, so khaos can show
-	// it broke one endpoint rather than fell over.
+	// RouteCRL, RouteOCSP and RouteHealth are the authority's HTTP surface.
+	// Health keeps answering while CRL or OCSP refuses, so khaos can show it
+	// broke one endpoint rather than fell over.
 	RouteCRL    = "/crl"
 	RouteOCSP   = "/ocsp"
 	RouteHealth = "/healthz"
 
-	// Read per request, because CASwap replaces the anchor at arm time.
+	// RouteRoot is read per request, because CASwap replaces the anchor at arm
+	// time.
 	RouteRoot = "/root"
 )
 

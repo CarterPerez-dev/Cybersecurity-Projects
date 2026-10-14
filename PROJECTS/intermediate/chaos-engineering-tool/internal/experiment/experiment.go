@@ -110,10 +110,11 @@ type Experiment struct {
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
 
+	Authority *pki.Authority
+	PKITrap   *pki.Trap
+
 	// AuthorityBase is the URL the TARGET reaches the revocation endpoints by,
 	// which is pinned rather than derived from wherever khaos binds.
-	Authority       *pki.Authority
-	PKITrap         *pki.Trap
 	AuthorityBase   string
 	AuthorityListen string
 	AuthorityTLS    string

@@ -778,8 +778,9 @@ func (l Lab) TLSProtectedURL() string {
 	return l.TLSGatewayURL() + protectedPath
 }
 
-// AuthorityEndpoint binds on the DEFAULT bridge's gateway, since the range
-// network's own gateway and loopback are both unreachable from a container.
+// AuthorityEndpoint binds on the DEFAULT bridge's gateway, since a listener on
+// the range network's own gateway is refused from a container on it, and a
+// container's loopback is its own rather than the host's.
 func (l Lab) AuthorityEndpoint(
 	ctx context.Context,
 	reader PortReader,
