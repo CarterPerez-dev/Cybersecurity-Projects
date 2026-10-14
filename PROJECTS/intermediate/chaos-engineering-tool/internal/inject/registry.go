@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
@@ -59,6 +60,19 @@ type Env struct {
 	// nothing but the target.
 	Authority *pki.Authority
 	PKITrap   pki.Trap
+
+	// Resolver, ResolverNetwork and DNSTrap are the FIFTH injection tier, and
+	// the only one whose authority is not in khaos's own process.
+	//
+	// It could not be. `--dns` carries an address with no port, the daemon
+	// refuses one at container start, and an unprivileged process cannot bind
+	// port 53 on any address. So the resolver runs in a container on the
+	// target's network with nothing published, and khaos holds a CLIENT for it
+	// rather than the resolver itself. ResolverNetwork travels with it so a
+	// cold-start revert can find the container again by label.
+	Resolver        *dnsrv.Client
+	ResolverNetwork string
+	DNSTrap         dnsrv.Trap
 }
 
 // Plan discovers everything the revert will need and returns it so the caller
@@ -125,17 +139,48 @@ func DirectKinds() []string {
 	return kinds
 }
 
+// perRun is implemented by every tier whose authority exists only while the run
+// that owns it does, so `khaos inject` can decline to offer a mutation that
+// cannot succeed outside a run.
+//
+// An interface rather than a type switch: a new tier declares itself by
+// implementing one method, where a switch has to be remembered. The direct set
+// is additionally pinned by name in the tests, because a tier that forgets this
+// method is simply absent from anything derived from it.
+type perRun interface {
+	Prefix() string
+}
+
 // inProcess reports whether a mutation acts on state that lives inside the run
 // rather than in the daemon. It is derived from the mutator's TYPE rather than
 // from the kind's spelling, so a mutation cannot be given an in-process-shaped
 // name and then quietly be offered under `khaos inject`, or the reverse.
 func inProcess(mutator Mutator) bool {
-	switch mutator.(type) {
-	case proxyMutator, idpMutator:
-		return true
-	default:
-		return false
+	_, ok := mutator.(perRun)
+	return ok
+}
+
+// PerRunPrefixes is every prefix belonging to a tier that lives inside a run,
+// read out of the registry. A test that needs the list derives it from here
+// instead of restating it, which is the specific thing that failed before.
+func PerRunPrefixes() []string {
+	seen := map[string]bool{}
+
+	for _, mutator := range registry {
+		tier, ok := mutator.(perRun)
+		if !ok {
+			continue
+		}
+		seen[tier.Prefix()] = true
 	}
+
+	prefixes := make([]string, 0, len(seen))
+	for prefix := range seen {
+		prefixes = append(prefixes, prefix)
+	}
+	slices.Sort(prefixes)
+
+	return prefixes
 }
 
 func IsDirect(kind string) bool {

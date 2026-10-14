@@ -69,7 +69,7 @@ func newTLSGateway(
 	cacheTTL time.Duration,
 ) *tlsGateway {
 	return &tlsGateway{
-		auth: newGateway(upstream, failMode, cacheTTL),
+		auth: newGateway(upstream, failMode, cacheTTL, false),
 		mode: resolveTLSMode(tlsMode),
 
 		// Normalised to host:port, because Decide DIALS this and a URL is not

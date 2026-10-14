@@ -91,7 +91,7 @@ func ask(t *testing.T, g *gateway, authorization string) int {
 
 func TestFailClosedServesFromCacheThenRefuses(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailClosed, shortTTL)
+	g := newGateway(idp.server.URL, FailClosed, shortTTL, false)
 
 	if got := ask(t, g, bearerPrefix+goodToken); got != http.StatusOK {
 		t.Fatalf("baseline returned %d, want 200", got)
@@ -121,7 +121,7 @@ func TestFailClosedServesFromCacheThenRefuses(t *testing.T) {
 
 func TestFailOpenHonoursACredentialItHadRefused(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailOpen, shortTTL)
+	g := newGateway(idp.server.URL, FailOpen, shortTTL, false)
 
 	if got := ask(
 		t,
@@ -152,7 +152,7 @@ func TestARefusalFromTheProviderIsAnAnswerNotAnOutage(t *testing.T) {
 			idp := newStubIDP(t)
 			idp.status.Store(int32(status))
 
-			g := newGateway(idp.server.URL, FailOpen, shortTTL)
+			g := newGateway(idp.server.URL, FailOpen, shortTTL, false)
 
 			if got := ask(
 				t,
@@ -174,7 +174,7 @@ func TestARefusalFromTheProviderIsAnAnswerNotAnOutage(t *testing.T) {
 
 func TestTheBearerSchemeIsRequired(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailClosed, shortTTL)
+	g := newGateway(idp.server.URL, FailClosed, shortTTL, false)
 
 	cases := map[string]int{
 		bearerPrefix + goodToken: http.StatusOK,
@@ -200,7 +200,7 @@ func TestTheBearerSchemeIsRequired(t *testing.T) {
 
 func TestAFreshCredentialPerRequestDefeatsTheDecisionCache(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailOpen, time.Hour)
+	g := newGateway(idp.server.URL, FailOpen, time.Hour, false)
 
 	const probes = 3
 
@@ -293,7 +293,7 @@ func active(t *testing.T, base, token string) bool {
 // the Docker version of this question cost two wrong predictions in a row.
 func TestStaleRearmSurvivesSteadyTrafficAndLapsesOnAPause(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailStaleRearm, shortTTL)
+	g := newGateway(idp.server.URL, FailStaleRearm, shortTTL, false)
 
 	// The provider is up, so this caches a genuine allow.
 	if status := ask(t, g, bearerPrefix+goodToken); status != http.StatusOK {
@@ -340,7 +340,7 @@ func TestStaleRearmSurvivesSteadyTrafficAndLapsesOnAPause(t *testing.T) {
 // tell it apart from.
 func TestWithoutACeilingStaleRearmWouldBeANoExpiryCache(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailStaleRearm, shortTTL)
+	g := newGateway(idp.server.URL, FailStaleRearm, shortTTL, false)
 
 	if ceiling := g.staleCeiling(); ceiling <= shortTTL {
 		t.Fatalf(
@@ -375,7 +375,7 @@ func TestWithoutACeilingStaleRearmWouldBeANoExpiryCache(t *testing.T) {
 // copy.
 func TestFailClosedNeverServesAStaleDecision(t *testing.T) {
 	idp := newStubIDP(t)
-	g := newGateway(idp.server.URL, FailClosed, shortTTL)
+	g := newGateway(idp.server.URL, FailClosed, shortTTL, false)
 
 	if status := ask(t, g, bearerPrefix+goodToken); status != http.StatusOK {
 		t.Fatalf("baseline status %d, want 200", status)

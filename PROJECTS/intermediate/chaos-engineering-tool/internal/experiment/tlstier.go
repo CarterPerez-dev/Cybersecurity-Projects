@@ -275,13 +275,18 @@ func readMagnitude(
 // the authority, because a count that included them would make "the target
 // checked revocation" true for every run and the UNSUPPORTED verdict would
 // never fire.
+// The error is always nil, and that is the point of the wrapper rather than a
+// shortcut. This counter lives in khaos's own process, so there is no read that
+// can fail; the DNS tier's counter lives in another container and can, which is
+// why the signature carries one at all.
 func revocationCounter(
 	authority *pki.Authority,
 	endpoint string,
-) func() int64 {
+) func() (int64, error) {
+	read := authority.CRLFetches
 	if endpoint == ConsultsOCSP {
-		return authority.OCSPQueries
+		read = authority.OCSPQueries
 	}
 
-	return authority.CRLFetches
+	return func() (int64, error) { return read(), nil }
 }

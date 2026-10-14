@@ -23,12 +23,20 @@ const (
 	roleGateway  = "gateway"
 	roleVerifier = "verifier"
 	roleTLS      = "tls"
+	roleRogue    = "rogue"
+	roleResolver = "resolver"
 	roleHealth   = "healthcheck"
 
 	envListen   = "KHAOS_RANGE_LISTEN"
 	envUpstream = "KHAOS_RANGE_UPSTREAM"
-	envFailMode = "KHAOS_RANGE_FAIL_MODE"
-	envCacheTTL = "KHAOS_RANGE_CACHE_TTL"
+
+	// envReresolve makes this gateway resolve its dependency's name on EVERY
+	// request instead of once per kept-alive connection. Only the DNS gateway
+	// sets it; the other tiers are measured on the ordinary pooled path.
+	envReresolve = "KHAOS_RANGE_RERESOLVE"
+	trueValue    = "true"
+	envFailMode  = "KHAOS_RANGE_FAIL_MODE"
+	envCacheTTL  = "KHAOS_RANGE_CACHE_TTL"
 
 	defaultListen   = ":8080"
 	defaultUpstream = "http://idp:8080"
@@ -50,7 +58,7 @@ const (
 	// header timeout exists only to stop a wedged connection living forever.
 	readHeaderTimeout = 120 * time.Second
 
-	usage       = "usage: khaos-range <idp|gateway|verifier|tls|healthcheck>"
+	usage       = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|healthcheck>"
 	selfURL     = "http://127.0.0.1:8080/health"
 	healthWait  = 2 * time.Second
 	errorFormat = "khaos-range: %v\n"
@@ -71,6 +79,13 @@ func run() error {
 
 	if os.Args[1] == roleHealth {
 		return selfCheck()
+	}
+
+	// The resolver is the one role that is not an HTTP service: it binds UDP and
+	// TCP on 53 and its own control surface, so it never reaches the server
+	// below.
+	if os.Args[1] == roleResolver {
+		return serveResolver(os.Args[2:])
 	}
 
 	handler, err := roleHandler(os.Args[1])
@@ -118,6 +133,7 @@ func roleHandler(role string) (http.Handler, error) {
 			envOr(envUpstream, defaultUpstream),
 			envOr(envFailMode, FailClosed),
 			durationOr(envCacheTTL, defaultCacheTTL),
+			envOr(envReresolve, "") == trueValue,
 		).routes(), nil
 	case roleVerifier:
 		return newVerifierGateway(
@@ -126,6 +142,8 @@ func roleHandler(role string) (http.Handler, error) {
 			durationOr(envKeyTTL, verifier.DefaultKeyTTL),
 			durationOr(envCacheTTL, verifier.DefaultDecisionTTL),
 		).routes(), nil
+	case roleRogue:
+		return newRogueProvider().routes(), nil
 	case roleTLS:
 		return newTLSGateway(
 			envOr(envUpstream, defaultUpstream),

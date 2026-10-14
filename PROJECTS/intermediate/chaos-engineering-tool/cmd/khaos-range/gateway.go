@@ -70,9 +70,37 @@ type cachedDecision struct {
 	expires time.Time
 }
 
-func newGateway(upstream, failMode string, cacheTTL time.Duration) *gateway {
+// newGateway builds the fixture. reresolve is what the DNS tier needs and is
+// worth the extra parameter, because without it that whole family is inert
+// against this gateway.
+//
+// Go's `http.Transport` keeps connections alive, so a client resolves its
+// upstream's name ONCE when it opens a connection and then never again for the
+// life of that connection. Measured on this fixture: 46 probes produced TWO
+// queries to khaos's resolver, both at the first request. A DNS fault armed
+// after that changes nothing the gateway can see, and khaos would report a clean
+// survival of a fault the target never experienced.
+//
+// That is a true property of the fault class rather than a fixture defect — it
+// is the DNS analogue of session resumption defeating a certificate probe — and
+// khaos reports it as such when it measures it. But a fixture that can NEVER
+// experience the fault cannot be the thing an exit gate asserts against, so this
+// gateway re-resolves per request. Research 05 section 11 ranks the
+// application's own connection pool as the caching layer most likely to void a
+// DNS experiment, which is exactly what it did here.
+func newGateway(
+	upstream, failMode string,
+	cacheTTL time.Duration,
+	reresolve bool,
+) *gateway {
 	if cacheTTL <= 0 {
 		cacheTTL = defaultCacheTTL
+	}
+
+	client := &http.Client{Timeout: upstreamTimeout}
+
+	if reresolve {
+		client.Transport = &http.Transport{DisableKeepAlives: true}
 	}
 
 	return &gateway{
@@ -80,7 +108,7 @@ func newGateway(upstream, failMode string, cacheTTL time.Duration) *gateway {
 		failMode: failMode,
 		cacheTTL: cacheTTL,
 		cache:    map[string]cachedDecision{},
-		client:   &http.Client{Timeout: upstreamTimeout},
+		client:   client,
 	}
 }
 

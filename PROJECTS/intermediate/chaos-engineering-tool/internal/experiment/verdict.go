@@ -92,10 +92,10 @@ const (
 	// experiment "should report an observed lower bound on the stale window and
 	// label it as a bound, never as 'caches forever'".
 	//
-	// The old label asserted the unbounded claim in two words while the reason
-	// beside it hedged, so a five-minute JWKS cache — the default in most
-	// libraries, and bounded, and defensible — was reported as having no expiry
-	// at all on the strength of a sixteen-second observation.
+	// A label asserting an unbounded cache cannot be earned from a window of
+	// seconds: any cache whose lifetime exceeds the observation looks identical
+	// to one that never expires, and a bounded cache is a defensible design
+	// rather than a defect.
 	StalePastPause Cause = "STALE-PAST-PAUSE"
 )
 
@@ -132,8 +132,21 @@ const (
 	MinimumToProveOpen   = 1
 	MinimumToClaimClosed = 30
 	MinimumPaired        = 5
-	RecoveryRunLength    = 2
-	crashFraction        = 0.5
+
+	// queriesPerLookup is how many queries one hostname lookup puts on khaos's
+	// resolver, measured rather than assumed: Go fires A and AAAA in parallel
+	// per name, and under a negative fault the forced `search` domain doubles
+	// the names tried. Four is the figure the 16.003s dropped-query measurement
+	// in research 05 section 14.6 is built from.
+	queriesPerLookup = 2
+
+	// cacheLookupGrace is how many whole lookups a target is allowed inside the
+	// baseline before khaos will say it holds no cached answer. One would be
+	// exact; two leaves room for a retry or a second name without khaos
+	// claiming more than it saw.
+	cacheLookupGrace  = 2
+	RecoveryRunLength = 2
+	crashFraction     = 0.5
 )
 
 const (
@@ -172,6 +185,9 @@ const (
 	reasonTTLExtension       = "the credential survived %s of STEADY traffic and then stopped being accepted after a %s pause, and no fixed lifetime behaves that way: every failed check was re-arming whatever the target had cached, a decision or a key set, so the lifetime was bounding IDLENESS rather than staleness. The fix is to stop writing to the cache in the error branch"
 	reasonLapsedOnPause      = "the credential stopped being accepted after the %s pause, but the steady-traffic window before it was only %s, so an ordinary fixed expiry between those two durations produces this exact result and khaos will not call it re-arming. Re-run with --fault-for at least %s to separate them"
 	reasonStalePastPause     = "the credential was still accepted after traffic was paused for %s, so whatever the target cached did not lapse across that pause. khaos cannot tell a cache with no expiry from one whose lifetime simply exceeds %s, and it will not claim the first from an observation that only establishes the second; raise --idle-for to raise the bound"
+	reasonNeverDelivered     = "the fault was armed and confirmed, and khaos did not observe the target meeting it: it did not %s once during the fault window, so nothing khaos changed there can be shown to have reached it. khaos does NOT establish why. A kept-alive connection produces this shape -- Go's HTTP transport resolves a name once when it opens a connection and never again while that connection lives, measured at two lookups across forty-six requests -- and so would the target's own resolver cache, an /etc/hosts entry, or resolution over DoH, none of which khaos ruled out. What to check, in that order: the target's connection lifetime, its own DNS cache, /etc/hosts, and whether it resolves over plain DNS at all"
+	reasonCounterUnreadable  = "khaos could not read its own count of the target's use of %s, so it cannot tell a target that never went there from an instrument it failed to read: %v. Every guard built on that count makes a statement about the TARGET, and khaos will not make one from a number it does not have"
+	reasonNoCache            = "the target holds no cached answer, so %s governs nothing it does: it asked %s %d times during a baseline of %d requests, while khaos was serving a ten-minute lifetime for that name. A target honouring it resolves once for the whole window. There is no cache lifetime to have been honoured or ignored, so its behaviour under this fault is not a defect and khaos makes no security claim here. Go's resolver has no answer cache and ignores TTL entirely, which khaos measured rather than assumed from the target's language"
 	reasonNeverConsulted     = "the target never used %s during the baseline, so the fault this experiment applies there is one it cannot experience; a target that validates credentials locally never calls it, and khaos would otherwise report a clean survival of a fault that never reached it"
 	reasonNoResumedEvidence  = "the resumed window produced %d usable samples in %s and never a refusal, so khaos saw nothing that could tell a cache being re-armed from one that outlasts the pause"
 	reasonStaleWindow        = "the credential khaos invalidated was accepted over a span of at least %s, which is the lower bound on the exposure and not a measurement of the cache lifetime"
@@ -222,13 +238,48 @@ type Observation struct {
 	// Consulted is how many times the target reached the faulted endpoint during
 	// the baseline, and ConsultedWhat names it. Zero means the fault khaos is
 	// about to apply is one the target cannot experience.
-	Consulted     int64  `json:"consulted,omitempty"`
-	ConsultedWhat string `json:"consulted_what,omitempty"`
+	Consulted int64 `json:"consulted,omitempty"`
+
+	// CounterUnreadable is khaos failing to read its OWN instrument, which is a
+	// different thing from the target not having used it and must never be
+	// reported as the second.
+	//
+	// Three guards branch on a count of zero -- checkNotImplemented,
+	// cacheNotObserved and endpointNeverConsulted -- and each of them makes a
+	// statement about the TARGET. A swallowed read error reaching them produces
+	// a paragraph blaming the target's connection pool for khaos's own timeout.
+	CounterUnreadable error  `json:"-"`
+	ConsultedWhat     string `json:"consulted_what,omitempty"`
 
 	// Unsupportable names the check whose absence makes a never-consulted
 	// endpoint UNSUPPORTED rather than a void run. Only the experiments that
 	// probe something no mainstream TLS stack does by default set it.
 	Unsupportable string `json:"unsupportable,omitempty"`
+
+	// Delivered is how many times the target reached the faulted thing DURING
+	// the fault window, and DeliveredWhat names what it would have had to do.
+	// Zero means the fault was armed, confirmed, and never experienced.
+	Delivered     int64  `json:"delivered,omitempty"`
+	DeliveredWhat string `json:"delivered_what,omitempty"`
+
+	// CacheRequired names the behaviour an experiment can only measure in a
+	// target that CACHES, and it is the INVERSE of Unsupportable rather than a
+	// variation on it.
+	//
+	// Unsupportable reads a count of ZERO as the answer: the target never
+	// performed the check, so there was none to fail. This reads a count of ONE
+	// PER PROBE as the answer: the target re-resolved every single time, so it
+	// holds no cached answer and the lifetime this experiment manipulates
+	// governs nothing it does.
+	//
+	// It is declared rather than derived because the same observation is a
+	// finding for one experiment and noise for another. A target that
+	// re-resolves per request is exactly correct for every other DNS fault, and
+	// only the two TTL faults have nothing left to measure in it. Go has no
+	// answer cache and ignores TTL entirely, proven against a 604800 TTL, so
+	// against a Go target this is the honest verdict every time -- and khaos
+	// MEASURES it rather than inferring it from a language it was never told.
+	CacheRequired string `json:"cache_required,omitempty"`
 
 	// MintedByKhaos records that the valid credential came from khaos's own
 	// identity provider rather than from the operator. It changes only the
@@ -296,12 +347,40 @@ func epistemic(observation Observation) (Verdict, bool) {
 		return verdict, false
 	}
 
+	// BEFORE every guard that branches on the count, because all of them read a
+	// zero as a statement about the target and khaos cannot make that statement
+	// from an instrument it could not read.
+	if observation.CounterUnreadable != nil {
+		verdict.Epistemic = ProbeError
+		verdict.Reasons = append(
+			verdict.Reasons,
+			sprintf(
+				reasonCounterUnreadable,
+				observation.ConsultedWhat,
+				observation.CounterUnreadable,
+			),
+		)
+
+		return verdict, false
+	}
+
 	// BEFORE endpointNeverConsulted, because the two read the same observation
 	// in opposite directions and only the experiment knows which applies. An
 	// endpoint the target never touched is a void run for a fault aimed at
 	// something the target uses, and the whole answer for one aimed at a check
 	// the platform does not implement.
 	if reason, absent := checkNotImplemented(observation); absent {
+		verdict.Epistemic = Unsupported
+		verdict.Reasons = append(verdict.Reasons, reason)
+
+		return verdict, false
+	}
+
+	// AFTER checkNotImplemented and BEFORE endpointNeverConsulted, because all
+	// three read the same count and the order encodes which reading wins. A
+	// target that asked ZERO times is a void run; one that asked EVERY time has
+	// no cache; one in between is the ordinary case this experiment can measure.
+	if reason, uncached := cacheNotObserved(observation); uncached {
 		verdict.Epistemic = Unsupported
 		verdict.Reasons = append(verdict.Reasons, reason)
 
@@ -317,6 +396,25 @@ func epistemic(observation Observation) (Verdict, bool) {
 	if !observation.FaultConfirmed {
 		verdict.Epistemic = Aborted
 		verdict.Reasons = append(verdict.Reasons, reasonFaultUnconfirmed)
+		return verdict, false
+	}
+
+	// AFTER confirmation, which is now true of the CODE and not only of an
+	// invariant in another file. The comment claimed this ordering while the
+	// check sat above the confirmation test; it was unreachable out of order
+	// through Engine.Run, because DeliveredWhat is only set inside measureFault,
+	// but Judge is exported and the verdict tests call it directly, so the
+	// sentence was one refactor away from lying.
+	//
+	// The two claims are genuinely different. Confirmed means khaos really armed
+	// the fault; delivered means the target really met it. Every other tier
+	// collapses them safely, because a severed path or a broken certificate sits
+	// on a route the target cannot avoid. A DNS answer is one it can simply not
+	// ask for again.
+	if reason, undelivered := faultNeverDelivered(observation); undelivered {
+		verdict.Epistemic = Aborted
+		verdict.Reasons = append(verdict.Reasons, reason)
+
 		return verdict, false
 	}
 
@@ -616,6 +714,22 @@ func revokedHonoured(observation Observation) int {
 // rejected. The only question left is whether it STILL accepts one once traffic
 // has stopped for longer than any plausible cache lifetime.
 func diagnose(observation Observation, reasons []string) (Cause, []string) {
+	// An experiment that never ran the pause has nothing to say on this axis,
+	// and saying nothing is the correct answer.
+	//
+	// Without this guard every PERMITTED verdict in the families that do not use
+	// the discriminator -- `network.`, `tls.` and `dns.` -- carried "the resumed
+	// window produced 0 usable samples in 0s and never a refusal, so khaos saw
+	// nothing that could tell a cache being re-armed from one that outlasts the
+	// pause". Every clause of that is true of the data and the sentence as a
+	// whole is not: it describes a measurement khaos declined to attempt as one
+	// it attempted and learned nothing from. The causal axis exists to answer
+	// WHY a credential is still honoured, and the idleness pause is the only
+	// instrument that answers it.
+	if observation.IdleFor <= 0 {
+		return Undiagnosed, reasons
+	}
+
 	// Deliberately NOT gated on Resumed.Paired(). That counts only the valid and
 	// invalid streams, so a resumed window full of decisions about the REVOKED
 	// credential — the stream that actually leaked — read as no evidence at all
@@ -770,6 +884,71 @@ func checkNotImplemented(observation Observation) (string, bool) {
 		reasonUnsupported,
 		observation.Unsupportable,
 		observation.ConsultedWhat,
+	), true
+}
+
+// faultNeverDelivered reports a fault that was armed and confirmed and that the
+// target never met.
+//
+// It is ABORTED rather than HELD, and that distinction is the whole value of it.
+// HELD would say the target withstood the fault; aborted says khaos could not
+// put the fault in front of it. The second is true and the first is a clean
+// survival khaos never earned, which is the single failure mode this project
+// treats as a blocker every time it appears.
+func faultNeverDelivered(observation Observation) (string, bool) {
+	if observation.DeliveredWhat == "" || observation.Delivered > 0 {
+		return "", false
+	}
+
+	return sprintf(reasonNeverDelivered, observation.DeliveredWhat), true
+}
+
+// cacheNotObserved reports that the target holds no cached answer, for an
+// experiment whose whole subject is how long a cached answer is honoured.
+//
+// The threshold is one query per PAIRED BASELINE SAMPLE, which is deliberately
+// generous toward "no cache": a target that caches for the TTL khaos serves
+// asks once for the entire baseline, so the two populations are an order of
+// magnitude apart rather than adjacent. A target somewhere in between -- a
+// short cache, a pool that re-resolves occasionally -- falls through to the
+// ordinary reading, which is correct, because the experiment can then observe
+// the difference the TTL makes.
+func cacheNotObserved(observation Observation) (string, bool) {
+	if observation.CacheRequired == "" {
+		return "", false
+	}
+
+	// Measured against the TTL khaos itself served, not against how many
+	// requests khaos made.
+	//
+	// khaos cannot scale this by its own traffic, because the target's DNS
+	// lookups do not scale with it: the range's gateway caches its DECISIONS
+	// for two seconds, so it calls its dependency fewer times than khaos probes
+	// it, and a DNS lookup happens only when it does call. Any denominator
+	// built from khaos's request count therefore measures the target's decision
+	// cache rather than its DNS cache.
+	//
+	// What khaos does control is the lifetime it served. The baseline runs for
+	// seconds against an honest TTL of HonestTTL, so a target honouring that
+	// TTL resolves ONCE for the whole window. Go fires A and AAAA in parallel
+	// per name, so one lookup is queriesPerLookup queries; more than that means
+	// it resolved repeatedly inside a window orders of magnitude shorter than
+	// the lifetime it was given, which is the definition of not holding the
+	// answer.
+	//
+	// The margin is deliberately generous in the direction of NOT making this
+	// claim: at twice one lookup, the target has to have resolved at least
+	// twice before khaos says it caches nothing.
+	if observation.Consulted < queriesPerLookup*cacheLookupGrace {
+		return "", false
+	}
+
+	return sprintf(
+		reasonNoCache,
+		observation.CacheRequired,
+		observation.ConsultedWhat,
+		observation.Consulted,
+		int64(observation.Baseline.Requests()),
 	), true
 }
 

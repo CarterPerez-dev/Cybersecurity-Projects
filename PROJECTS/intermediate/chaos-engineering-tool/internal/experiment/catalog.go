@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
@@ -23,8 +24,8 @@ const (
 
 	NameDependencyOutage = "network.dependency_outage"
 
-	// A credential no correct verifier can accept: it is not a signed token in
-	// any format, so a target that honours it is not verifying anything.
+	// Not a signed token in any format, so a target that honours it is not
+	// verifying anything.
 	DefaultInvalidToken = "khaos.invalid.credential.not.a.signed.token"
 
 	probeValidName   = "valid-credential"
@@ -45,61 +46,50 @@ var ErrStrayParam = errors.New(
 )
 
 // Shape is the part of an experiment that depends on the operator's parameters.
-// Identity, polarity, fault kind and timing all come from the declaration, so a
-// builder cannot disagree with the catalogue about what it is or forget to carry
-// something universal through.
+// Identity, polarity, fault kind and timing come from the declaration instead, so
+// a builder cannot disagree with the catalogue about what it is.
 type Shape struct {
 	Condition string
 	Target    string
 	Probes    probe.Pair
 
-	// ProxyFault is set only by an experiment that injects through khaos's own
-	// fault proxy. The experiment owns the magnitude because the operator declares
-	// it as a parameter, and the CLI must not have to infer a fault from a kind.
+	// The experiment owns the magnitude because the operator declares it as a
+	// parameter, so the CLI never has to infer a fault from a kind.
 	ProxyFault *proxy.Fault
 
-	// ProxyListen and ProxyUpstream are where the run binds the proxy and what
-	// it forwards to. They come from declared parameters, so an operator can
-	// point a proxy experiment at their own stack.
 	ProxyListen   string
 	ProxyUpstream string
 
-	// IdP and IdPTrap are set only by an experiment that arms khaos's own
-	// identity provider, and the provider is built by the builder because its
-	// probes mint out of it.
+	// Built by the builder because its probes mint out of it.
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
 
-	// Authority and PKITrap are set only by an experiment that arms khaos's own
-	// certificate authority, which plays the dependency whose certificate is
-	// under test.
 	Authority *pki.Authority
 	PKITrap   *pki.Trap
 
-	// AuthorityBase is the URL the TARGET uses to reach the authority's CRL and
-	// OCSP endpoints, and AuthorityListen is where khaos binds them. They are
-	// separate because the target addresses khaos by a name khaos cannot see
-	// from its own listener, and deriving one from the other is the identity
-	// provider's most expensive bug.
+	DNSTrap         *dnsrv.Trap
+	ResolverNetwork string
+	DNSHost         string
+
+	// AuthorityBase is the URL the TARGET reaches the CRL and OCSP endpoints by,
+	// AuthorityListen where khaos binds them. They are separate because the
+	// target addresses khaos by a name khaos cannot see from its own listener.
 	AuthorityBase   string
 	AuthorityListen string
 	AuthorityTLS    string
 
-	// Defect names what khaos did to the credential, for the verdict's wording.
-	Defect string
-
-	// HeldCaveat qualifies a HELD verdict that covers less than it appears to.
+	Defect     string
 	HeldCaveat string
 
-	// Consulted reads how many times the target has reached the endpoint this
-	// experiment faults, and ConsultedWhat names it. Together they are the
-	// liveness guard for a fault whose landing the probe streams cannot see.
-	Consulted     func() int64
+	// Consulted reads how many times the target has reached the faulted endpoint,
+	// and ConsultedWhat names it; together they are the liveness guard for a fault
+	// whose landing the probe streams cannot see.
+	Consulted     func() (int64, error)
 	ConsultedWhat string
 
-	// Unsupportable names the check whose absence is itself the finding, which
-	// turns a never-consulted endpoint into UNSUPPORTED rather than a void run.
 	Unsupportable string
+	CacheRequired string
+	DeliveredWhat string
 
 	// IdleFor asks the engine for the idleness discriminator.
 	IdleFor time.Duration
@@ -278,6 +268,11 @@ func Build(
 		Consulted:       shape.Consulted,
 		ConsultedWhat:   shape.ConsultedWhat,
 		Unsupportable:   shape.Unsupportable,
+		CacheRequired:   shape.CacheRequired,
+		DeliveredWhat:   shape.DeliveredWhat,
+		DNSTrap:         shape.DNSTrap,
+		ResolverNetwork: shape.ResolverNetwork,
+		DNSHost:         shape.DNSHost,
 		IdleFor:         shape.IdleFor,
 		Act:             shape.Act,
 		ActDetail:       shape.ActDetail,

@@ -115,7 +115,7 @@ func (e Engine) measureBaseline(
 ) Observation {
 	e.emit(StageBaseline, detailBaseline)
 
-	consultedBefore := e.consulted(spec)
+	before, beforeErr := e.consulted(spec)
 
 	observation.Baseline = e.sample(
 		ctx,
@@ -124,9 +124,21 @@ func (e Engine) measureBaseline(
 		timing.SampleInterval,
 	)
 
+	after, afterErr := e.consulted(spec)
+
 	observation.ConsultedWhat = spec.ConsultedWhat
 	observation.Unsupportable = spec.Unsupportable
-	observation.Consulted = e.consulted(spec) - consultedBefore
+	observation.CacheRequired = spec.CacheRequired
+	observation.Consulted = after - before
+
+	// EITHER end failing voids the count, and a negative delta is impossible
+	// from a monotonic counter so it can only mean khaos misread one end. Both
+	// are recorded rather than silently absorbed, because the guards downstream
+	// read zero as a statement about the TARGET.
+	if beforeErr != nil || afterErr != nil || observation.Consulted < 0 {
+		observation.CounterUnreadable = errors.Join(beforeErr, afterErr)
+		observation.Consulted = 0
+	}
 
 	return observation
 }
@@ -291,13 +303,7 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		return e.abandon(ctx, spec, result, observation, actErr)
 	}
 
-	e.emit(StageObserve, detailObserve)
-	observation.Fault = e.sample(
-		ctx,
-		spec.Probes,
-		timing.FaultFor,
-		timing.SampleInterval,
-	)
+	observation = e.measureFault(ctx, spec, timing, observation)
 
 	observation = e.discriminate(ctx, spec, observation, timing)
 
@@ -308,6 +314,51 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	}
 
 	return e.conclude(result, observation, spec.Polarity, revertErr)
+}
+
+// measureFault samples under the fault and records whether the target ever MET
+// it, which is a different question from whether khaos armed it.
+//
+// The baseline's count asks whether the target uses the thing khaos faulted at
+// all; this asks whether it went back to it WHILE the fault was armed. A DNS
+// fault is the case that forced the distinction: it can be armed, confirmed at
+// khaos's own resolver, and reach nothing, because Go's HTTP transport resolves
+// a name once per kept-alive connection. Measured on the range's own gateway at
+// two lookups across forty-six requests. Every other tier collapses the two
+// questions safely, because a severed path or a broken certificate sits on a
+// route the target cannot avoid using.
+func (e Engine) measureFault(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+	observation Observation,
+) Observation {
+	e.emit(StageObserve, detailObserve)
+
+	before, beforeErr := e.consulted(spec)
+
+	observation.Fault = e.sample(
+		ctx,
+		spec.Probes,
+		timing.FaultFor,
+		timing.SampleInterval,
+	)
+
+	after, afterErr := e.consulted(spec)
+
+	observation.Delivered = after - before
+	observation.DeliveredWhat = spec.DeliveredWhat
+
+	if beforeErr != nil || afterErr != nil || observation.Delivered < 0 {
+		observation.CounterUnreadable = errors.Join(
+			observation.CounterUnreadable,
+			beforeErr,
+			afterErr,
+		)
+		observation.Delivered = 0
+	}
+
+	return observation
 }
 
 // discriminate is the idleness phase: stop sending traffic for longer than any
@@ -382,9 +433,16 @@ func (e Engine) conclude(
 
 // consulted reads the experiment's endpoint counter, or zero when it declares
 // none.
-func (e Engine) consulted(spec Experiment) int64 {
+// consulted reads the experiment's counter, and a FAILURE to read is reported
+// rather than folded into zero.
+//
+// Zero is the sentinel three separate guards branch on, so a swallowed error
+// becomes "the target never did it" and khaos blames the target for khaos's own
+// unreachable instrument. An experiment with no counter is a different thing
+// again and returns zero with no error, because it declared no question.
+func (e Engine) consulted(spec Experiment) (int64, error) {
 	if spec.Consulted == nil {
-		return 0
+		return 0, nil
 	}
 	return spec.Consulted()
 }

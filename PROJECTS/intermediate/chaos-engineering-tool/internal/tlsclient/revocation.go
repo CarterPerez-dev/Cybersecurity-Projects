@@ -97,11 +97,10 @@ func (c *Client) fromStaple(
 		// Believed without being parsed. Garbage bytes are accepted here, which
 		// is the whole of the StapleGarbage fault.
 		//
-		// The question is marked ANSWERED. A client that trusts the staple does
-		// not then go and ask the responder as well, and the first version fell
-		// through to doing exactly that: it accepted the staple, queried the
-		// endpoint anyway, and refused on the real answer. Three traps looked
-		// caught by a mode that by construction cannot catch them.
+		// The question is marked ANSWERED and the function returns here. A client
+		// that trusts the staple must not also query the responder: it would then
+		// refuse on the real answer, and three traps would look caught by a mode
+		// that by construction cannot catch them.
 		decision.AskedOCSP = true
 
 		return reasonAccepted, true

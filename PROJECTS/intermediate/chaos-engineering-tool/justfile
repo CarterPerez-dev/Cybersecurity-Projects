@@ -8,8 +8,15 @@ binary := "khaos"
 default:
     @just --list
 
+# CGO_ENABLED=0 is REQUIRED, not a preference. khaos's DNS tier imports khaos's
+# own binary as a one-layer container image with no base, because an
+# unprivileged process cannot bind port 53 and Docker's --dns carries an address
+# with no port. A dynamically linked binary in a base-less image cannot exec:
+# there is no /lib64/ld-linux-x86-64.so.2 for it to find. khaos refuses the DNS
+# tier by name when it detects a PT_INTERP segment in itself, so a build without
+# this flag loses one whole fault family.
 build:
-    go build -o {{binary}} ./cmd/{{binary}}
+    CGO_ENABLED=0 go build -o {{binary}} ./cmd/{{binary}}
 
 run *args:
     go run ./cmd/{{binary}} {{args}}
@@ -40,7 +47,7 @@ tidy-check:
 
 check: lint tidy-check test colors
 
-gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate
+gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate dns-gate
 
 colors: build
     ./scripts/colors.sh
@@ -65,6 +72,9 @@ family-gate: build
 
 tls-gate: build
     ./scripts/tls.sh
+
+dns-gate: build
+    ./scripts/dns.sh
 
 clean:
     rm -f {{binary}}

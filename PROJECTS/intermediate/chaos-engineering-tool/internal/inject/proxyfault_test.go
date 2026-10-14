@@ -274,8 +274,22 @@ func TestRevertingWithoutAProxyIsResolvedRatherThanFailed(t *testing.T) {
 // that something is excluded lets one tier's exclusion alibi the other's: this
 // test passed the whole time the identity tier was unreachable from DirectKinds
 // by accident rather than by the registry knowing about it.
+// The prefix list is now DERIVED from the registry rather than written here,
+// and that change has a defect behind it. The hand-written list named the proxy
+// and identity tiers; M7 added the certificate authority and extended neither
+// the type switch nor this list, so `khaos inject` advertised thirty-six
+// `pki-*` kinds that each failed with "needs khaos's certificate authority, and
+// this run did not start one" — and this test stayed green for the whole
+// milestone. A per-prefix assertion over a list nobody maintains is an
+// aggregate assertion wearing better clothes.
 func TestInProcessKindsAreNotOfferedForDirectInjection(t *testing.T) {
-	prefixes := []string{KindProxyPrefix, KindIdPPrefix}
+	prefixes := PerRunPrefixes()
+
+	if len(prefixes) == 0 {
+		t.Fatal(
+			"no tier declares a per-run prefix, so this test asserts nothing",
+		)
+	}
 
 	for _, kind := range Kinds() {
 		wantDirect := true

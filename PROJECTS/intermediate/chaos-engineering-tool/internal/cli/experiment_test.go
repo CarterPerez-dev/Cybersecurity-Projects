@@ -141,7 +141,7 @@ func TestRangeSuppliesIsExactlyTheKeySetOfRangeDefaults(t *testing.T) {
 // allTiers is every tier the range serves. A test that iterated only the two it
 // knew about would go on passing while a whole gateway's answers drifted.
 func allTiers() []tier {
-	return []tier{tierDirect, tierProxy, tierIdP, tierTLS}
+	return []tier{tierDirect, tierProxy, tierIdP, tierTLS, tierDNS}
 }
 
 func tierName(at tier) string {
@@ -152,6 +152,8 @@ func tierName(at tier) string {
 		return "against khaos's own provider"
 	case tierTLS:
 		return "against khaos's own certificate authority"
+	case tierDNS:
+		return "through khaos's own chaos resolver"
 	default:
 		return "direct"
 	}
@@ -172,6 +174,8 @@ func fullLab() rangelab.Lab {
 		Dependency:    "https://host.docker.internal:30007",
 		AuthorityBase: "http://host.docker.internal:30006",
 		CertHost:      "dependency.khaos.invalid",
+
+		DNSPort: 30009,
 	}
 }
 
@@ -692,11 +696,16 @@ func TestTheRangeCanSatisfyEveryExperimentsRequiredParameters(t *testing.T) {
 				}
 			}
 
-			if _, err := experiment.Build(
+			// Every catalogue entry BUILDS, including the two DNS faults khaos
+			// refuses to deliver. They are catalogued in order to be explained,
+			// and the refusal arrives when khaos is asked to arm one, which is
+			// what keeps this census able to walk the whole catalogue.
+			_, err := experiment.Build(
 				definition.Name,
 				supplied,
 				experiment.Timing{},
-			); err != nil {
+			)
+			if err != nil {
 				t.Fatalf(
 					"the range cannot satisfy %s, so it cannot run with zero flags: %v",
 					definition.Name,
@@ -707,7 +716,7 @@ func TestTheRangeCanSatisfyEveryExperimentsRequiredParameters(t *testing.T) {
 	}
 }
 
-// The range carries FOUR gateways and they are not interchangeable. Each one
+// The range carries FIVE gateways and they are not interchangeable. Each one
 // exists so one injection tier is measured on a path nothing else contaminates:
 // a proxy-tier experiment arms a fault on the path only the proxied gateway
 // uses, an identity-tier one arms a provider only the verifier gateway resolves
@@ -725,6 +734,7 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierProxy:  lab.ProxiedProtectedURL(),
 		tierIdP:    lab.VerifierProtectedURL(),
 		tierTLS:    lab.TLSProtectedURL(),
+		tierDNS:    lab.DNSProtectedURL(),
 	}
 
 	seen := map[string]tier{}
@@ -753,12 +763,17 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 					definition.Name, definition.FaultKind, answered, want[at])
 			}
 
-			// The two in-process tiers name their GATEWAY rather than the
+			// The three per-run tiers name their GATEWAY rather than the
 			// dependency, because that is the container khaos needs consent for
 			// and the one it actually measures. The fault lands on khaos's own
-			// provider or authority, which is not a container at all, so naming
-			// the dependency would ask consent for something this experiment
-			// never touches and leave the measured service unchecked.
+			// provider, authority or resolver, which is not the dependency at
+			// all, so naming the dependency would ask consent for something
+			// this experiment never touches and leave the measured service
+			// unchecked.
+			//
+			// The DNS tier is the clearest case of it: the dependency stays
+			// healthy and reachable throughout, and what changes is only whether
+			// the gateway can find it.
 			wantTarget := rangelab.IDPName
 
 			switch at {
@@ -766,6 +781,8 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 				wantTarget = rangelab.VerifierGatewayName
 			case tierTLS:
 				wantTarget = rangelab.TLSGatewayName
+			case tierDNS:
+				wantTarget = rangelab.DNSGatewayName
 			default:
 				// The direct and proxy tiers fault the dependency itself.
 			}

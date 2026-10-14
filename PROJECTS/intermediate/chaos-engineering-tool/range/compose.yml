@@ -14,7 +14,14 @@ services:
     labels:
       khaos.target: "true"
       khaos.range: "true"
-    networks: [range]
+    # The address is PINNED, and only on this network, because khaos's chaos
+    # resolver has to be authoritative for a name that maps to it and the zone
+    # is passed as a literal at container creation. Docker refuses a static
+    # address on a network whose subnet it chose, which is why the range network
+    # declares its own below.
+    networks:
+      range:
+        ipv4_address: 10.244.244.10
     healthcheck:
       test: ["CMD", "/usr/local/bin/khaos-range", "healthcheck"]
       interval: 2s
@@ -161,6 +168,133 @@ services:
     networks: [range]
     restart: "no"
 
+
+  # The service a DNS redirect fault points the target at, and the reason
+  # `dns.wrong_address` is a fail-open demonstration rather than an outage.
+  # It approves every credential, including ones khaos never issued, which is
+  # the shape of an attacker who has won a name. Research 05 section 10: a
+  # hostname allowlist does not merely stop working when the name moves, it
+  # actively authorises the new host.
+  rogue:
+    container_name: khaos-range-rogue
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["rogue"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    networks:
+      range:
+        ipv4_address: 10.244.244.20
+    restart: "no"
+
+  # khaos's chaos resolver, as a range service rather than a container khaos
+  # creates.
+  #
+  # Outside the range khaos imports its own binary as a one-layer image and
+  # starts it, because an operator's khaos has no source tree. Here the image
+  # already exists and the resolver is the same `internal/dnsrv` package behind
+  # a different entry point, so there is nothing to import and the compose file
+  # is the honest place for it. The labels are what `khaos.FindResolver` matches
+  # on, so khaos finds this one exactly as it finds one it started itself.
+  resolver:
+    container_name: khaos-range-resolver
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command:
+      - "resolver"
+      - "--control"
+      - "control.khaos.invalid."
+      - "--zone"
+      - "dependency.khaos.test.=10.244.244.10"
+      - "--zone"
+      - "control.khaos.invalid.=10.244.244.10"
+    # The nonce is an ENVIRONMENT variable and not an argument. A container's
+    # command line appears in the HOST process table: measured,
+    # /proc/<pid>/cmdline is mode 444 and world-readable while
+    # /proc/<pid>/environ is 400. The nonce is the only authorisation for
+    # arming and disarming khaos's DNS faults, so a local user reading it could
+    # disarm a fault mid-run and khaos would measure an unfaulted window.
+    #
+    # The matching LABEL is not the same exposure: labels come from the daemon
+    # API, which already needs socket access that is root-equivalent, and khaos
+    # has to read the nonce back from somewhere on a cold start.
+    environment:
+      KHAOS_RESOLVER_NONCE: "${KHAOS_RANGE_RESOLVER_NONCE:?khaos chooses this nonce; run `khaos range up`}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+      khaos.resolver: "true"
+      khaos.resolver.network: "khaos-range"
+      khaos.resolver.nonce: "${KHAOS_RANGE_RESOLVER_NONCE:?khaos chooses this nonce; run `khaos range up`}"
+    networks:
+      range:
+        ipv4_address: 10.244.244.5
+    restart: "no"
+
+  # The FIFTH gateway. Each one exists so a single injection tier is measured on
+  # a path nothing else contaminates, and this one is the only gateway that
+  # reaches its dependency BY NAME through khaos's resolver.
+  #
+  # It runs the same `gateway` role as the first two, with no new code, and that
+  # is the point: a failed name lookup reaches the same fail-open or fail-closed
+  # branch a failed request does, so the fixture under test is the one khaos
+  # already ships rather than one written to be caught.
+  #
+  # `dns:` is a literal because it has to be. It is fixed at container creation
+  # and there is no API to change it afterwards, so the resolver's address
+  # cannot be discovered first and filled in here.
+  gateway-dns:
+    container_name: khaos-range-gateway-dns
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    dns: ["10.244.244.5"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://dependency.khaos.test:8080"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+      # Re-resolve the dependency's name on EVERY request, which only this
+      # gateway does. Go's http.Transport keeps connections alive, so a pooled
+      # client resolves once and never again: measured on this fixture, 46
+      # probes produced TWO queries to khaos's resolver, both at the first
+      # request, and every DNS fault armed afterwards was inert. That is a real
+      # property of the fault class rather than a fixture defect, and khaos
+      # reports it when it measures it -- but a fixture that can never
+      # experience the fault cannot be what an exit gate asserts against.
+      KHAOS_RANGE_RERESOLVE: "true"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_DNS_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+      - resolver
+    networks: [range]
+    restart: "no"
+
 networks:
   range:
     name: khaos-range
+    # An EXPLICIT subnet, and it is load-bearing rather than tidy. Docker refuses
+    # a static container address on a network whose subnet it chose ("user
+    # specified IP address is supported only when connecting to networks with
+    # user configured subnets"), and the DNS tier needs two: the resolver's,
+    # because the gateway's `dns:` is fixed at creation and cannot be filled in
+    # from a discovered value, and the dependency's, because the resolver's zone
+    # is passed as a literal at the same moment.
+    #
+    # The range is namespace-isolated by construction, so this is a structural
+    # literal like the project name rather than a variable to remember to
+    # change. If it ever collides with another network on the host, `range up`
+    # fails with the daemon's own message and the fix is to edit this one line.
+    ipam:
+      config:
+        - subnet: 10.244.244.0/24

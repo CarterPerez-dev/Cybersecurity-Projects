@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
@@ -112,8 +113,15 @@ enforcing in the first place.`
 
 	errAuthorityBind = "khaos could not bind its certificate authority on %s, which is where the range's TLS gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
 	msgAuthorityUp   = "khaos's certificate authority is serving the dependency on %s and revocation on %s, minting for %s"
-	errProxyBind     = "khaos could not bind its fault proxy on %s, which is where the range's proxied gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
-	msgProxyUp       = "khaos's fault proxy is listening on %s, forwarding to %s"
+
+	msgResolverUp = "khaos's chaos resolver %s is answering on %s, authoritative for %s, with %s as the control no fault touches"
+
+	errNoResolverOn   = "no khaos chaos resolver is serving %s. The DNS family needs one, and the target has to have been CREATED pointing at it: `--dns` is fixed at container creation and Docker offers no way to change it afterwards. Run `khaos resolver up --network %[1]s` and recreate the target against the address it prints, or `khaos range up` for a stack that is already wired: %w"
+	errResolverSilent = "khaos's chaos resolver %s did not answer its control surface at %s: %w"
+
+	errTargetOffNetwork = "%s is not attached to %s, so it cannot be using the chaos resolver that serves it and khaos could not count its queries: %w"
+	errProxyBind        = "khaos could not bind its fault proxy on %s, which is where the range's proxied gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
+	msgProxyUp          = "khaos's fault proxy is listening on %s, forwarding to %s"
 
 	groupExperiments = "experiments"
 	titleExperiments = "Experiments:"
@@ -515,7 +523,7 @@ func runExperiment(
 		return err
 	}
 
-	env, closeTiers, err := standUpTiers(ctx, out, work, spec)
+	env, closeTiers, err := standUpTiers(ctx, out, work, &spec, accepted)
 	if err != nil {
 		return err
 	}
@@ -787,6 +795,9 @@ func rangeSupplies() []string {
 		experiment.ParamAuthorityTLS,
 		experiment.ParamAuthorityBase,
 		experiment.ParamCertHost,
+		experiment.ParamDNSHost,
+		experiment.ParamResolverNetwork,
+		experiment.ParamDNSAddress,
 	}
 }
 
@@ -803,6 +814,7 @@ const (
 	tierProxy
 	tierIdP
 	tierTLS
+	tierDNS
 )
 
 func tierOf(kind string) tier {
@@ -813,6 +825,8 @@ func tierOf(kind string) tier {
 		return tierIdP
 	case inject.NeedsPKI(kind):
 		return tierTLS
+	case inject.NeedsResolver(kind):
+		return tierDNS
 	default:
 		return tierDirect
 	}
@@ -889,6 +903,15 @@ func rangeDefaults(
 		url = lab.TLSProtectedURL()
 		target = rangelab.TLSGatewayName
 
+	case tierDNS:
+		// The DNS gateway, and the target is the GATEWAY rather than the
+		// dependency for the same reason again: the fault is applied to khaos's
+		// resolver, and the gateway is both the subject and the container whose
+		// consent khaos needs. The dependency is never touched at all here --
+		// it stays healthy and reachable, and the target simply cannot find it.
+		url = lab.DNSProtectedURL()
+		target = rangelab.DNSGatewayName
+
 	default:
 		// The direct tier probes the protected URL and names the provider
 		// container, both of which are already set above.
@@ -909,6 +932,18 @@ func rangeDefaults(
 		experiment.ParamAuthorityTLS:    answers.AuthorityTLS,
 		experiment.ParamAuthorityBase:   answers.AuthorityBase,
 		experiment.ParamCertHost:        answers.CertHost,
+
+		experiment.ParamDNSHost:         rangelab.DNSDependencyName,
+		experiment.ParamResolverNetwork: rangelab.NetworkName,
+
+		// The redirect faults point at the range's ROGUE provider rather than at
+		// the documentation address they default to, and that is what makes them
+		// findings instead of outages. The rogue approves every credential, so a
+		// gateway that follows the redirect without verifying who it reached
+		// serves the invalid control and khaos reports PERMITTED. Pointed at an
+		// unroutable address the same fault only reproduces what three other
+		// tiers already do to an unreachable dependency.
+		experiment.ParamDNSAddress: rangelab.RogueAddress,
 	}
 }
 
@@ -971,19 +1006,32 @@ func fillFromRange(
 		)
 	}
 
-	answers, err := askTheRange(ctx, reader, lab, missing)
+	answers, err := askTheRange(
+		ctx,
+		reader,
+		lab,
+		fillable(definition, supplied),
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	defaults := rangeDefaults(lab, answers, at)
 	filled := maps.Clone(supplied)
-	resolved := make([]string, 0, len(missing))
+
+	// Filled from the wider set, so a range answer beats a generic declaration
+	// default. See fillable.
+	answered := fillable(definition, supplied)
+	resolved := make([]string, 0, len(answered))
 
 	// Credentials are deliberately omitted from the note. Everything else khaos
 	// chose on the operator's behalf is named, because this line is the only thing
 	// telling them which stack they are about to break.
-	for _, name := range missing {
+	for _, name := range answered {
+		if defaults[name] == "" {
+			continue
+		}
+
 		filled[name] = defaults[name]
 		if !credentialParam(name) {
 			resolved = append(
@@ -1033,6 +1081,47 @@ func partitionFillable(
 	}
 
 	return given, missing
+}
+
+// fillable is what the range should ANSWER, which is a wider set than what is
+// missing, and separating the two is a correctness fix rather than tidying.
+//
+// `missing` drives the half-specified refusal, so a parameter the declaration
+// already defaults is deliberately not in it: demanding a value khaos supplies
+// itself sends the operator looking for nothing. But a default is a GENERIC
+// answer, and the range knows its own topology, so where both exist the range's
+// answer has to win.
+//
+// `--dns-address` is the first parameter where that mattered and it mattered a
+// lot. Its default is a documentation address with nothing on it, which makes a
+// redirect fault indistinguishable from the dependency outage three other tiers
+// already test. The range answers it with its rogue provider, which approves
+// every credential, and that is what turns the fault into the finding research 05
+// section 10 names: a hostname allowlist does not merely stop working when the
+// name moves, it authorises the new host. With the default winning, the gate's
+// own assertion caught it: the report named the documentation address.
+//
+// Precedence is operator, then range, then declaration.
+func fillable(
+	definition experiment.Definition,
+	supplied map[string]string,
+) []string {
+	answerable := rangeSupplies()
+	out := []string{}
+
+	for _, param := range definition.Params {
+		if !slices.Contains(answerable, param.Name) {
+			continue
+		}
+
+		if _, present := supplied[param.Name]; present {
+			continue
+		}
+
+		out = append(out, param.Name)
+	}
+
+	return out
 }
 
 func flagList(names []string) string {
@@ -1145,7 +1234,8 @@ func standUpTiers(
 	ctx context.Context,
 	out io.Writer,
 	work *workspace.Workspace,
-	spec experiment.Experiment,
+	spec *experiment.Experiment,
+	target dockerx.Target,
 ) (inject.Env, func(), error) {
 	env := work.Env()
 
@@ -1158,7 +1248,7 @@ func standUpTiers(
 	}
 
 	if spec.ProxyFault != nil {
-		fault, err := startProxy(ctx, out, work.Docker, spec)
+		fault, err := startProxy(ctx, out, work.Docker, *spec)
 		if err != nil {
 			return env, closeAll, err
 		}
@@ -1173,7 +1263,7 @@ func standUpTiers(
 	// it and minting needs no listener. All that is left is to bind it where the
 	// target is already looking.
 	if spec.IdPTrap != nil {
-		if err := startProvider(ctx, out, work.Docker, spec); err != nil {
+		if err := startProvider(ctx, out, work.Docker, *spec); err != nil {
 			return env, closeAll, err
 		}
 
@@ -1186,7 +1276,7 @@ func standUpTiers(
 	// The authority plays the dependency the target dials, so without it the
 	// baseline measures a dependency that is simply absent.
 	if spec.PKITrap != nil {
-		if err := startAuthority(out, spec); err != nil {
+		if err := startAuthority(out, *spec); err != nil {
 			return env, closeAll, err
 		}
 
@@ -1196,7 +1286,162 @@ func standUpTiers(
 		env.PKITrap = *spec.PKITrap
 	}
 
+	// The resolver is ATTACHED, not started, and that is the one structural
+	// difference between this tier and the other three in-process ones.
+	//
+	// khaos cannot stand a resolver up at run time and have the target use it:
+	// `--dns` is fixed at container creation and Docker offers no API to change
+	// it on a running container, measured, so a resolver created now would be
+	// one nothing is pointed at. The resolver has to pre-exist the target, and
+	// khaos finds the one already serving the target's network.
+	if spec.DNSTrap != nil {
+		client, err := attachResolver(ctx, out, work.Docker, *spec)
+		if err != nil {
+			return env, closeAll, err
+		}
+
+		// The liveness guard is wired HERE and not by the builder, and the
+		// reason is structural: it needs the resolver client, which does not
+		// exist until the run finds one, and the target's container address,
+		// which needs the daemon. The identity tier can set its own counter at
+		// build time because it BUILDS its provider; this tier attaches to one.
+		//
+		// The address is what makes the count a proof of arrival rather than a
+		// number that is always non-zero. khaos's own confirmation queries come
+		// from the host; the target's are forwarded by its embedded resolver out
+		// of its own network namespace, so counting by source separates them.
+		if err := wireArrivalGuard(
+			ctx,
+			work.Docker,
+			spec,
+			client,
+			target,
+		); err != nil {
+			return env, closeAll, err
+		}
+
+		// Disarmed on the way out, so the recovery window is measured through a
+		// WORKING resolver. Unlike the in-process tiers this authority outlives
+		// the khaos process, so leaving it armed would leave the target unable
+		// to resolve its dependency after khaos exited.
+		closers = append(closers, func() {
+			_, _ = client.Disarm(context.WithoutCancel(ctx))
+		})
+
+		env.Resolver = client
+		env.ResolverNetwork = spec.ResolverNetwork
+		env.DNSTrap = *spec.DNSTrap
+	}
+
 	return env, closeAll, nil
+}
+
+// attachResolver finds the chaos resolver serving the target's network and
+// returns a client for it, with the fault disarmed and the confirmation
+// control read back out of the resolver itself.
+//
+// Everything here is read back rather than remembered, which is the discipline
+// the identity provider's most expensive bug established. The address comes
+// from the daemon, because Docker refuses a static one on a network whose
+// subnet it chose. The nonce comes off the container's label. And the control
+// name comes from the resolver's own health endpoint, because the resolver is
+// the only authority on which name it will refuse to fault.
+// wireArrivalGuard installs the count of the TARGET's own queries for the name
+// under fault, which is the proof-of-arrival control research 05 section 12
+// makes mandatory.
+//
+// Without it khaos cannot distinguish "the control failed closed" from "the
+// fault never reached the target", and the second is the likely one: `--dns` is
+// fixed at container creation and Docker offers no way to change it afterwards,
+// so a target that was not CREATED pointing at khaos's resolver never sends it a
+// single query and every verdict about it would be about nothing.
+func wireArrivalGuard(
+	ctx context.Context,
+	docker *dockerx.Client,
+	spec *experiment.Experiment,
+	client *dnsrv.Client,
+	target dockerx.Target,
+) error {
+	address, err := docker.NetworkAddress(ctx, target.ID, spec.ResolverNetwork)
+	if err != nil {
+		return fmt.Errorf(
+			errTargetOffNetwork,
+			target.Name,
+			spec.ResolverNetwork,
+			err,
+		)
+	}
+
+	host := spec.DNSHost
+
+	spec.Consulted = func() (int64, error) {
+		return client.Queries(context.WithoutCancel(ctx), address, host)
+	}
+
+	return nil
+}
+
+// requireDNSTier refuses a DNS experiment against a range with no DNS gateway,
+// BY NAME, before anything is probed.
+//
+// A missing gateway otherwise surfaces as a published port of zero, so the run
+// blames the target for not enforcing when khaos was pointing at nowhere.
+func requireDNSTier(lab rangelab.Lab, want func(string) bool) error {
+	if !want(experiment.ParamDNSHost) &&
+		!want(experiment.ParamResolverNetwork) {
+		return nil
+	}
+
+	return lab.RequireDNSTier()
+}
+
+func attachResolver(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec experiment.Experiment,
+) (*dnsrv.Client, error) {
+	resolver, err := docker.FindResolver(ctx, spec.ResolverNetwork)
+	if err != nil {
+		return nil, fmt.Errorf(errNoResolverOn, spec.ResolverNetwork, err)
+	}
+
+	control := dockerx.ResolverControlURL(resolver.Address)
+
+	client := dnsrv.NewClient(resolver.Address, control, resolver.Nonce, "")
+
+	health, err := client.Health(ctx)
+	if err != nil {
+		return nil, fmt.Errorf(errResolverSilent, resolver.Name, control, err)
+	}
+
+	client.ControlName = health.Control
+
+	// The zone is read back too, so a redirect's observable can name the honest
+	// address the fault replaced rather than restating the one it served.
+	state, err := client.State(ctx)
+	if err != nil {
+		return nil, fmt.Errorf(errResolverSilent, resolver.Name, control, err)
+	}
+
+	client.Zone = state.Zone
+
+	// Disarmed before the baseline, because the baseline is measured through
+	// this resolver and one still carrying a previous run's fault would make the
+	// two phases see different topologies.
+	if _, err := client.Disarm(ctx); err != nil {
+		return nil, err
+	}
+
+	note(out, fmt.Sprintf(
+		msgResolverUp,
+		resolver.Name,
+		resolver.Address,
+		spec.DNSHost,
+		health.Control,
+	))
+
+	return client, nil
 }
 
 // startAuthority stands khaos's certificate authority up on BOTH of its
@@ -1304,6 +1549,10 @@ func askTheRange(
 		}
 		answers.ProxyListen = listen
 		answers.ProxyUpstream = upstream
+	}
+
+	if err := requireDNSTier(lab, want); err != nil {
+		return rangeAnswers{}, err
 	}
 
 	if want(experiment.ParamAuthority) {

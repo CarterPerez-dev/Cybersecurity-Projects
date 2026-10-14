@@ -88,9 +88,11 @@ const (
 	KeyUsageWithoutDigitalSignature Kind = "key-usage-no-digital-signature"
 
 	// EKUClientAuthOnly and EKUConstrainedIntermediate are the extended key
-	// usage faults, Reason 4 and Reason 9. Go checks EKU nested down the chain
-	// but does not check the basic KeyUsage bits on a leaf, which is why the
-	// kind above exists beside these two. Rows F14 and F15.
+	// usage faults, and BOTH come back as Reason 4: `crypto/x509` declares
+	// CANotAuthorizedForExtKeyUsage and never constructs it, so no chain can
+	// elicit it. Go checks EKU nested down the chain but does not check the
+	// basic KeyUsage bits on a leaf, which is why the kind above exists beside
+	// these two. Rows F14 and F15.
 	EKUClientAuthOnly          Kind = "eku-client-auth-only"
 	EKUConstrainedIntermediate Kind = "eku-constrained-intermediate"
 

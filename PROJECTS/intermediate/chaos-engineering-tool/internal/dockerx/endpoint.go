@@ -76,9 +76,8 @@ func ResolveEndpoint(
 	// ag-server. khaos would then inject on one machine while `docker compose`
 	// acted on another, which is the worst shape this resolver can take.
 	//
-	// (The audit that raised this also claimed DOCKER_CONTEXT outranks
-	// DOCKER_HOST. Measured on docker 29.1.3, it does not: DOCKER_HOST wins, and
-	// the precedence above is correct.)
+	// DOCKER_HOST outranks DOCKER_CONTEXT, measured on docker 29.1.3, which is
+	// why it is checked first above.
 	if name := environ(EnvDockerContext); name == defaultContext {
 		return defaultEndpoint(environ)
 	}

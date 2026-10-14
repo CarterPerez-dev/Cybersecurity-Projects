@@ -42,9 +42,11 @@ func (a *Authority) buildConstrained(from, until time.Time) error {
 
 // buildEKULimited is a CA authorised for client authentication only. Go checks
 // extended key usage NESTED DOWN THE CHAIN, so a perfectly ordinary serverAuth
-// leaf under this CA trips InvalidReason 9,
-// CANotAuthorizedForExtKeyUsage. The leaf itself is blameless, which is what
-// makes this distinct from the leaf-level EKU fault.
+// leaf under this CA is refused with InvalidReason 4, IncompatibleUsage — the
+// same reason as the leaf-level fault, because `crypto/x509` declares
+// CANotAuthorizedForExtKeyUsage and never constructs it. The leaf itself is
+// blameless, which is what makes the two faults distinct despite the identical
+// error.
 func (a *Authority) buildEKULimited(from, until time.Time) error {
 	template, err := caTemplate(nameEKULimited, from, until)
 	if err != nil {

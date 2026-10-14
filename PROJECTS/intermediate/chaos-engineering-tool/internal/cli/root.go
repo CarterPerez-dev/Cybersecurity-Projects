@@ -48,6 +48,8 @@ func NewRoot() *cobra.Command {
 		newTargetsCmd(),
 		newInjectCmd(),
 		newRangeCmd(),
+		newResolverCmd(),
+		newServeResolverCmd(),
 		newCatalogCmd(),
 		newPlanCmd(),
 		newRunCmd(),

@@ -37,6 +37,21 @@ const (
 	checkDaemon   = "daemon"
 	checkTargets  = "consenting targets"
 
+	// checkDNSTier is the one check whose subject is khaos's OWN binary rather
+	// than the operator's Docker. `khaos resolver up` imports that binary as a
+	// one-layer container image with no base, so a dynamically linked build
+	// cannot CREATE a resolver — and it finds out at run time, with an error
+	// about a loader path the operator never typed. `doctor` is where khaos is
+	// supposed to turn that into a named cause and a fix.
+	//
+	// It does NOT lose the family, and the first wording of this check said it
+	// did. Arming is independent of importing: a dynamically linked khaos drives
+	// a resolver that already exists perfectly well, including the range's own,
+	// which was measured by running `dns.nxdomain` from such a build and getting
+	// a real verdict. Saying otherwise would have sent an operator to rebuild
+	// over a limit they were not hitting.
+	checkDNSTier = "dns tier"
+
 	fixNoEndpoint   = "install Docker, or set DOCKER_HOST to a reachable daemon"
 	fixDaemonLocal  = "start the Docker daemon: systemctl --user start docker, or sudo systemctl start docker"
 	fixDaemonRemote = "check that %s is reachable and that the daemon there is listening"
@@ -56,7 +71,13 @@ const (
 		"Rootless Docker avoids this entirely and khaos prefers it, since access to %s is equivalent to root on this machine"
 	fallbackUser = "your user"
 
-	checkCapacity = 4
+	detailDNSStatic  = "khaos is statically linked, so `khaos resolver up` can build its own resolver image"
+	detailDNSDynamic = "khaos is dynamically linked, so `khaos resolver up` cannot build a resolver image; %d chaos resolver(s) already running are still usable"
+	detailResolvers  = "%s, and %d chaos resolver(s) are running"
+
+	fixDNSDynamic = "rebuild with CGO_ENABLED=0 (the justfile and the release builds both do), or install the released binary. `khaos resolver up` imports khaos's own binary as a one-layer container image with no base, because an unprivileged process cannot bind port 53 and Docker's --dns carries an address with no port; a dynamically linked binary in a base-less image cannot exec. Running `dns.` experiments against a resolver that already exists, including the range's, does not need this"
+
+	checkCapacity = 5
 )
 
 func Diagnose(ctx context.Context) []Check {
@@ -135,7 +156,50 @@ func DiagnoseWith(
 		})
 	}
 
-	return append(checks, targetsCheck(targets))
+	return append(checks, targetsCheck(targets), dnsTierCheck(ctx, cli))
+}
+
+// dnsTierCheck reports whether khaos can stand its chaos resolver up at all,
+// and how many it already has.
+//
+// The linkage half is checked here rather than discovered during a run, because
+// the failure is otherwise invisible until the worst moment: `khaos run dns.*`
+// imports an image, creates a container, starts it, and the container dies
+// looking for `/lib64/ld-linux-x86-64.so.2`. The operator sees an exec error
+// about a path they never typed. One line in `doctor` turns that into the build
+// flag that fixes it.
+func dnsTierCheck(ctx context.Context, cli *Client) Check {
+	// Counted first, because it changes what a dynamic build's refusal MEANS.
+	// A failure to list is not a failure of the tier: khaos can still stand a
+	// resolver up, it just cannot say what is already there, and reporting that
+	// as a broken tier would send an operator to rebuild a binary that is fine.
+	running := -1
+	if resolvers, err := cli.Resolvers(ctx); err == nil {
+		running = len(resolvers)
+	}
+
+	if err := SelfStatic(); err != nil {
+		return Check{
+			Name:   checkDNSTier,
+			Status: StatusFail,
+			Detail: fmt.Sprintf(detailDNSDynamic, max(running, 0)),
+			Fix:    fixDNSDynamic,
+		}
+	}
+
+	if running < 0 {
+		return Check{
+			Name:   checkDNSTier,
+			Status: StatusPass,
+			Detail: detailDNSStatic,
+		}
+	}
+
+	return Check{
+		Name:   checkDNSTier,
+		Status: StatusPass,
+		Detail: fmt.Sprintf(detailResolvers, detailDNSStatic, running),
+	}
 }
 
 func skipped(name string) Check {

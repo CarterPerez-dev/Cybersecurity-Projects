@@ -217,6 +217,22 @@ func (w Window) Len() int {
 	return w.Paired()
 }
 
+// Requests is how many probe requests this window actually issued, across every
+// stream. It is the denominator for any per-REQUEST ratio, and Paired is not:
+// one paired sample is at least two requests, because the pair fires both
+// streams per iteration.
+//
+// The distinction had a cost. A guard comparing a count of the target's DNS
+// queries against Paired() was comparing queries to half the requests, and with
+// Go's A-plus-AAAA fan-out on top it tripped at one lookup per four requests
+// while its own message claimed "a fresh lookup per request".
+func (w Window) Requests() int {
+	return w.Valid.Countable() +
+		w.Invalid.Countable() +
+		w.Revoked.Countable() +
+		w.Forged.Countable()
+}
+
 func (w *Window) Record(outcome Outcome) {
 	switch outcome.Credential {
 	case Invalid:

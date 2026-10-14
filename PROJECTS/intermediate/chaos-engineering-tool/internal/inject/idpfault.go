@@ -159,3 +159,6 @@ func (m idpMutator) Confirm(
 
 	return env.IdP.Observe(ctx, m.kind)
 }
+
+// Prefix declares this tier's kinds to the registry.
+func (idpMutator) Prefix() string { return KindIdPPrefix }

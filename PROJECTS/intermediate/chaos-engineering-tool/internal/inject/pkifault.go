@@ -161,3 +161,8 @@ func (m pkiMutator) Confirm(
 
 	return env.Authority.Observe(ctx, m.kind)
 }
+
+// Prefix declares this tier's kinds to the registry, which keeps `khaos inject`
+// from offering them: the certificate authority is a goroutine inside a run and
+// `khaos inject` starts none.
+func (pkiMutator) Prefix() string { return KindPKIPrefix }

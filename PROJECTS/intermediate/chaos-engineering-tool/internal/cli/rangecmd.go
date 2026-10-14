@@ -71,6 +71,7 @@ running.`
 	msgTierProxied  = "proxy tier          %s, with khaos's fault proxy expected on host port %d"
 	msgTierVerifier = "identity tier       %s, trusting khaos's provider as %s"
 	msgTierTLS      = "certificate tier    %s, dialling khaos's authority at %s as the %s client"
+	msgTierDNS      = "dns tier            %s, resolving %s through khaos's chaos resolver at %s"
 )
 
 func newRangeCmd() *cobra.Command {
@@ -261,6 +262,16 @@ func runRangeUp(
 			return err
 		}
 
+		// A fresh nonce per `range up`, for the same reason khaos mints a fresh
+		// key set per run: a nonce that outlived the range would let anything
+		// that had seen a previous one arm the resolver, and the resolver shares
+		// a network with every target in there.
+		nonce, err := newNonce()
+		if err != nil {
+			return err
+		}
+		lab.ResolverNonce = nonce
+
 		err = lab.Up(ctx, progress, failMode, cacheTTL, tlsMode)
 		if err == nil {
 			break
@@ -380,6 +391,18 @@ func describeEntryPoints(
 				lab.TLSProtectedURL(),
 				lab.Dependency,
 				lab.TLSMode,
+			),
+		)
+	}
+
+	if lab.DNSPort != 0 {
+		say(
+			out,
+			fmt.Sprintf(
+				msgTierDNS,
+				lab.DNSProtectedURL(),
+				rangelab.DNSDependencyName,
+				rangelab.ResolverAddress,
 			),
 		)
 	}

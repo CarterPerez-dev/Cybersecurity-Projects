@@ -37,6 +37,34 @@ const (
 	// uses.
 	TLSGatewayName = "khaos-range-gateway-tls"
 
+	// DNSGatewayName is the FIFTH gateway, and the only one that reaches its
+	// dependency BY NAME through khaos's chaos resolver. RogueName is the
+	// service a redirect fault points it at, and ResolverName is the resolver
+	// itself.
+	DNSGatewayName = "khaos-range-gateway-dns"
+	RogueName      = "khaos-range-rogue"
+	ResolverName   = "khaos-range-resolver"
+
+	// The addresses the DNS tier PINS, and they are pinned because they have to
+	// be. `dns:` on the gateway and the resolver's zone are both fixed at
+	// container creation, so neither can be filled in from an address khaos
+	// discovered afterwards. The range network declares its own subnet so Docker
+	// will accept them.
+	ResolverAddress   = "10.244.244.5"
+	DependencyAddress = "10.244.244.10"
+	RogueAddress      = "10.244.244.20"
+
+	// DNSDependencyName is the name the DNS gateway asks for. It is NOT a
+	// container name or a network alias, and that is measured rather than
+	// stylistic: the target's own embedded resolver answers those out of its own
+	// table and never forwards them, so a fault aimed at one would never be
+	// seen.
+	DNSDependencyName = "dependency.khaos.test."
+
+	// DNSControlName is the name khaos's resolver answers that no fault ever
+	// touches, used as the confirmation oracle's positive control.
+	DNSControlName = "control.khaos.invalid."
+
 	IDPName            = "khaos-range-idp"
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
@@ -53,6 +81,14 @@ const (
 	EnvCacheTTL     = "KHAOS_RANGE_CACHE_TTL"
 
 	EnvTLSPort = "KHAOS_RANGE_TLS_PORT"
+
+	// EnvDNSPort is the DNS gateway's published port, and EnvResolverNonce
+	// authorises its resolver's control surface. The nonce goes in the compose
+	// environment because the resolver's command line is fixed at container
+	// creation, and khaos reads it BACK off the container's label rather than
+	// remembering what it chose.
+	EnvDNSPort       = "KHAOS_RANGE_DNS_PORT"
+	EnvResolverNonce = "KHAOS_RANGE_RESOLVER_NONCE"
 
 	// The two ports khaos binds in its OWN process for the certificate tier.
 	// They go into the compose file because the gateway's environment is fixed
@@ -114,6 +150,12 @@ const (
 	stderrLines   = 4
 	teardownPort  = 1
 
+	// teardownNonce satisfies the compose file's required variable during a
+	// teardown, where no resolver is being created and the value is never used.
+	// The alternative is `range down` failing on a missing variable, which would
+	// leave the range running with no way to remove it.
+	teardownNonce = "teardown"
+
 	EnvComposeDir = "KHAOS_RANGE_DIR"
 	EnvUpstream   = "KHAOS_RANGE_UPSTREAM"
 
@@ -126,6 +168,8 @@ const (
 	errBadIssuer         = "%w: %s trusts the issuer %q, which khaos cannot read as a host and port (%v)"
 	errNoVerifierGateway = "%w: this experiment arms khaos's own identity provider, and the running range has no %s; bring the range down and up again to create it"
 	errNoTLSGateway      = "%w: this experiment arms khaos's own certificate authority, and the running range has no %s; bring the range down and up again to create it"
+	errNoDNSGateway      = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
+	errNoRangeResolver   = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
 )
 
 // Port is the direct gateway's published port. ProxiedPort is the second
@@ -156,6 +200,12 @@ type Lab struct {
 	TLSPort        int
 	AuthorityPort  int
 	DependencyPort int
+
+	// DNSPort is the DNS gateway's published port. ResolverNonce is held only
+	// so `range up` can put it in the compose environment; once the range is
+	// running khaos reads it back off the resolver container's own label.
+	DNSPort       int
+	ResolverNonce string
 
 	// Dependency, AuthorityBase and CertHost are read back from the TLS
 	// gateway's own environment, never remembered from what `range up` chose.
@@ -195,6 +245,8 @@ func Locate(ports Ports) (Lab, error) {
 		TLSPort:        ports.TLS,
 		AuthorityPort:  ports.Authority,
 		DependencyPort: ports.Dependency,
+
+		DNSPort: ports.DNS,
 	}, nil
 }
 
@@ -213,6 +265,11 @@ type Ports struct {
 	TLS        int
 	Authority  int
 	Dependency int
+
+	// DNS is the DNS gateway's own published port. The resolver publishes
+	// NOTHING: it listens on 53 inside its own network namespace, which is the
+	// entire reason that tier needs no capability.
+	DNS int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct. Each
@@ -247,6 +304,7 @@ func FreePorts() (Ports, error) {
 		&chosen.TLS,
 		&chosen.Authority,
 		&chosen.Dependency,
+		&chosen.DNS,
 	} {
 		port, err := pick()
 		if err != nil {
@@ -391,6 +449,8 @@ func (l Lab) Up(
 		EnvTLSPort+"="+strconv.Itoa(l.TLSPort),
 		EnvAuthorityPort+"="+strconv.Itoa(l.AuthorityPort),
 		EnvDependencyPort+"="+strconv.Itoa(l.DependencyPort),
+		EnvDNSPort+"="+strconv.Itoa(l.DNSPort),
+		EnvResolverNonce+"="+l.ResolverNonce,
 		EnvFailMode+"="+failMode,
 		EnvCacheTTL+"="+cacheTTL,
 		EnvTLSMode+"="+tlsMode,
@@ -424,6 +484,8 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvVerifierPort+"="+strconv.Itoa(teardownPort),
 		EnvIdPPort+"="+strconv.Itoa(teardownPort),
 		EnvTLSPort+"="+strconv.Itoa(teardownPort),
+		EnvDNSPort+"="+strconv.Itoa(teardownPort),
+		EnvResolverNonce+"="+teardownNonce,
 		EnvAuthorityPort+"="+strconv.Itoa(teardownPort),
 		EnvDependencyPort+"="+strconv.Itoa(teardownPort),
 	)
@@ -670,7 +732,35 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return Lab{}, err
 	}
 
+	if err = lab.readDNSTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+
 	return lab, nil
+}
+
+// readDNSTier discovers the DNS gateway's published port, on the same terms as
+// the other three gateways: absent is not fatal, because every experiment that
+// does not arm khaos's chaos resolver has no use for it, and failing the whole
+// discovery over it would break all of them.
+func (l *Lab) readDNSTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
+	dnsGateway, ok := running[DNSGatewayName]
+	if !ok {
+		return nil
+	}
+
+	port, err := reader.PublishedPort(ctx, dnsGateway.ID, GatewayInternalPort)
+	if err != nil {
+		return err
+	}
+
+	l.DNSPort = port
+
+	return nil
 }
 
 // readAuthorityWiring reads the three strings the TLS gateway was configured
@@ -785,6 +875,36 @@ func (l Lab) VerifierProtectedURL() string {
 
 func (l Lab) TLSGatewayURL() string {
 	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.TLSPort))
+}
+
+// RequireDNSTier refuses a DNS experiment against a range that has no DNS
+// gateway, BY NAME, before anything is probed.
+//
+// A missing gateway otherwise surfaces as a published port of zero, so khaos
+// probes `http://127.0.0.1:0/protected`, nothing answers, and the run blames the
+// target for not enforcing when khaos was pointing at nowhere.
+func (l Lab) RequireDNSTier() error {
+	if l.DNSPort == 0 {
+		return fmt.Errorf(
+			errNoDNSGateway,
+			ErrRangeIncomplete,
+			DNSGatewayName,
+		)
+	}
+
+	return nil
+}
+
+func (l Lab) DNSGatewayURL() string {
+	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.DNSPort))
+}
+
+func (l Lab) DNSProtectedURL() string {
+	return l.DNSGatewayURL() + protectedPath
+}
+
+func (l Lab) RogueURL() string {
+	return "http://" + net.JoinHostPort(RogueAddress, "8080")
 }
 
 func (l Lab) TLSProtectedURL() string {

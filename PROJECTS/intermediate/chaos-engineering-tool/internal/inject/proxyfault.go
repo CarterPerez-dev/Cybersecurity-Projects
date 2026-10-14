@@ -150,3 +150,7 @@ func (m proxyMutator) Confirm(
 
 	return env.Proxy.Observe(ctx, m.kind)
 }
+
+// Prefix declares this tier's kinds to the registry, which is how `khaos
+// inject` knows not to offer a fault that only exists inside a run.
+func (proxyMutator) Prefix() string { return KindProxyPrefix }

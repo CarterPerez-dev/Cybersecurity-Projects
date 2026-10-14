@@ -407,13 +407,12 @@ func (p *Proxy) sever(client net.Conn, fault Fault, generation uint64) bool {
 		// the error to its write and its own read returns EOF. That is the EOF
 		// fault's observable, which would collapse two catalogue entries into one.
 		//
-		// An earlier pass deleted this wait as inert because both reset controls
-		// stayed green over 20 runs without it. Those controls run through
-		// net/http, which reports a reset at connect and a reset at read as the
-		// same error, so they could not see the difference and alibied the arm.
-		// Measured at the socket instead, 20 trials per arm: without the wait,
-		// `write=ECONNRESET read=EOF` 13 times and a reset at connect the other 7,
-		// never a reset at the read; with it, `write=nil read=ECONNRESET` 20 of 20.
+		// Measured at the socket, 20 trials per arm: without this wait,
+		// `write=ECONNRESET read=EOF` 13 times and a reset at connect the other
+		// 7, never a reset at the read; with it, `write=nil read=ECONNRESET` 20
+		// of 20. net/http cannot see the difference, reporting a reset at connect
+		// and one at read as the same error, so it must be measured at the
+		// socket.
 		settle(client)
 
 		if tcp, ok := client.(*net.TCPConn); ok {

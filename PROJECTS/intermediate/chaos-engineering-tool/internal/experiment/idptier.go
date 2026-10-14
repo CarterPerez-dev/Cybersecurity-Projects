@@ -429,11 +429,21 @@ func (s idpSpec) wantsIdleness() bool {
 // counterFor maps the declared endpoint onto the provider's own measurement of
 // it. The two endpoint names are constants rather than free text so a typo is a
 // compile error and not a silently absent guard.
-func counterFor(provider *idp.Provider, endpoint string) func() int64 {
+// The error is always nil, for the same reason revocationCounter's is: this
+// counter lives in khaos's own process and there is no read that can fail. The
+// signature carries one because the DNS tier's counter lives in another
+// container, where a failed read used to be indistinguishable from a target
+// that never asked.
+func counterFor(
+	provider *idp.Provider,
+	endpoint string,
+) func() (int64, error) {
+	read := provider.Introspections
 	if endpoint == ConsultsJWKS {
-		return provider.JWKSFetches
+		read = provider.JWKSFetches
 	}
-	return provider.Introspections
+
+	return func() (int64, error) { return read(), nil }
 }
 
 func claimShiftMagnitude(params *Params, trap *idp.Trap) error {
