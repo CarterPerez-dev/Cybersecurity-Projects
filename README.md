@@ -34,6 +34,22 @@
 
 ---
 
+<div align="center">
+  <a href="https://www.star-history.com/carterperez-dev/cybersecurity-projects">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=rank&theme=dark"/>
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=rank"/>
+      <img src="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=rank" alt="Star History Rank"/>
+    </picture>
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=trending&theme=dark"/>
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=trending"/>
+      <img src="https://api.star-history.com/badge?repo=CarterPerez-dev/Cybersecurity-Projects&type=trending" alt="GitHub Trending Repository of the Day"/>
+    </picture>
+  </a>
+</div>
+
+
 ## Quick Navigation
 
 ### [Projects](#projects)
