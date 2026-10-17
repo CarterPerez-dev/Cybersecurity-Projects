@@ -15,6 +15,8 @@ default:
 # there is no /lib64/ld-linux-x86-64.so.2 for it to find. khaos refuses the DNS
 # tier by name when it detects a PT_INTERP segment in itself, so a build without
 # this flag loses one whole fault family.
+
+# build the khaos binary, statically linked because two tiers require it
 build:
     CGO_ENABLED=0 go build -o {{binary}} ./cmd/{{binary}}
 
@@ -30,20 +32,68 @@ test:
 race:
     go test -race ./...
 
+# golangci-lint is the authority on this tree and `.golangci.yml` is what it
+# reads: `linters.default: none` plus an explicit list of nineteen, and three
+# FORMATTERS that plain gofmt does not satisfy -- gofumpt with extra rules,
+# gci's three import groups, and golines at 80 columns. Function length is a
+# separate number, funlen at 88 lines and 50 statements.
+#
+# These recipes exist because the justfile used to check `gofmt -l` and nothing
+# else, so `just check` and `just gate` could both pass on a tree golangci-lint
+# had findings on. The pre-commit hook runs `golangci-lint run --fix`, so the
+# first time anyone saw those findings was AT COMMIT TIME, with the fixer
+# rewriting files mid-commit and leaving them unstaged.
+linter := "golangci-lint"
+
+# Same version CI pins, so a green local run means a green CI run.
+linter-version := "v2.10.1"
+
 vet:
     go vet ./...
 
-fmt:
-    gofmt -w .
+# Applies all three formatters. `gofmt -w .` is NOT equivalent and never was.
 
-lint: vet
-    test -z "$(gofmt -l .)"
+# format: gofumpt, gci and golines, per .golangci.yml
+fmt:
+    {{linter}} fmt ./...
+
+# The same formatters as a CHECK, which is what a gate wants: it reports what
+# would change and rewrites nothing.
+
+# report formatting that would change, rewriting nothing
+fmt-check:
+    {{linter}} fmt --diff ./...
+
+# No `vet` dependency on purpose: this config runs govet with `enable-all`,
+# which is a superset of bare `go vet`, and the formatters report through it
+# too. The `vet` recipe stays for a fast standalone signal.
+
+# lint and formatting, the nineteen linters .golangci.yml enables
+lint:
+    {{linter}} run ./...
+
+# Prints what is installed against what CI pins, because a local lint that
+# passes on a different version is not evidence about CI.
+
+# print the installed linter version against the one CI pins
+lint-version:
+    @{{linter}} --version
+    @echo "CI pins {{linter-version}}"
 
 tidy:
     go mod tidy
 
 tidy-check:
     go mod tidy -diff
+
+# The one-command "make it right": format, apply every fix the linters can
+# apply, tidy the module. Leaves whatever needs a human.
+
+# format, apply every automatic lint fix, and tidy the module
+fix:
+    {{linter}} fmt ./...
+    {{linter}} run --fix ./... || true
+    go mod tidy
 
 check: lint tidy-check test colors
 
