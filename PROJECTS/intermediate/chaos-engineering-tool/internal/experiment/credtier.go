@@ -241,7 +241,10 @@ func dispositionOf(result dbx.Result) (probe.Disposition, string) {
 	case dbx.Refused, dbx.Locked, dbx.Expired, dbx.MustReset, dbx.Terminated:
 		return probe.Rejected, result.Detail
 	case dbx.Unreachable:
-		return probe.Unavailable, result.Detail
+		// An engine khaos could not reach ANSWERED nothing, which is not the
+		// same observation as a service answering 503 - and the pooled
+		// experiments declare the second as their fail-closed outcome.
+		return probe.Unreachable, result.Detail
 	default:
 		return probe.ProbeFailed, result.Detail
 	}

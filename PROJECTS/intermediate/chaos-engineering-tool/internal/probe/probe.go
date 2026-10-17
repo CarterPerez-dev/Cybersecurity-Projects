@@ -15,12 +15,22 @@ const (
 	// wrong rather than as a target failure.
 	Unknown Disposition = "unknown"
 
-	Accepted    Disposition = "accepted"
-	Rejected    Disposition = "rejected"
-	Redirected  Disposition = "redirected"
-	Throttled   Disposition = "throttled"
+	Accepted   Disposition = "accepted"
+	Rejected   Disposition = "rejected"
+	Redirected Disposition = "redirected"
+	Throttled  Disposition = "throttled"
+
+	// Unavailable is the target ANSWERING that it cannot serve: a 5xx with a
+	// status line. Unreachable is the target not answering at all. They were
+	// one value, and the conflation made a control's declared fail-closed
+	// outcome cover a target that had DIED: four experiments declare a 503 as
+	// their refusal, so a crashed target read as one that failed closed, with a
+	// reason saying the valid credential "stopped being accepted". Keeping them
+	// apart is what lets a declaration name one without the other.
 	Unavailable Disposition = "unavailable"
-	TimedOut    Disposition = "timed-out"
+	Unreachable Disposition = "unreachable"
+
+	TimedOut Disposition = "timed-out"
 
 	// ProbeFailed is khaos's own fault and is excluded from every rate.
 	ProbeFailed Disposition = "probe-failed"

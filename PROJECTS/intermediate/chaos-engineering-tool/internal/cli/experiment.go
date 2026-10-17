@@ -11,20 +11,24 @@ import (
 	"maps"
 	"net"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
+	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/lease"
+	"github.com/CarterPerez-dev/khaos/internal/pki"
 	"github.com/CarterPerez-dev/khaos/internal/rangelab"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/run"
@@ -127,6 +131,15 @@ enforcing in the first place.`
 	errAuthzBind = "khaos could not bind the authorization dependency it plays on %s, which is where the target's own authorization check is already looking: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
 
 	msgAuthzUp = "khaos is answering authorization decisions on %s, allowing every credential until it is told otherwise"
+
+	// Every parameter can also arrive in the environment, which is the only
+	// channel that does not put a credential in the world-readable process
+	// table. Same convention as the resolver nonce.
+	paramEnv = "%s [or %s]"
+
+	envParamPrefix = "KHAOS_"
+	flagWordSep    = "-"
+	envWordSep     = "_"
 
 	errNoSubjectSecret = "%s does not carry %s in its environment, so khaos cannot read the credential its own connection pool authenticated with, and a rotation it cannot undo is not one khaos will perform"
 
@@ -297,11 +310,16 @@ func experimentFlags(cmd *cobra.Command, definition experiment.Definition) {
 		Duration(flagSampleEvery, experiment.DefaultSampleInterval, sampleUsage)
 }
 
+// paramUsage names the environment variable too, because a channel an operator
+// cannot discover is a channel nobody uses -- and for a credential it is the
+// only one that keeps the value out of the world-readable process table.
 func paramUsage(param experiment.Param) string {
-	if param.Default == "" {
-		return param.Usage
+	usage := param.Usage
+	if param.Default != "" {
+		usage = fmt.Sprintf(paramDefault, usage, param.Default)
 	}
-	return fmt.Sprintf(paramDefault, param.Usage, param.Default)
+
+	return fmt.Sprintf(paramEnv, usage, envFor(param.Name))
 }
 
 type inputs struct {
@@ -324,6 +342,17 @@ func experimentInputs(
 	supplied := map[string]string{}
 	for _, param := range definition.Params {
 		if !cmd.Flags().Changed(param.Name) {
+			// A FLAG is not the only way in, and for a credential it is the
+			// worst one: /proc/<pid>/cmdline is world-readable (mode 444,
+			// measured) while /proc/<pid>/environ is 400, which is why the
+			// chaos resolver's nonce has always been an environment variable
+			// rather than an argument. An experiment can require two live
+			// credentials, so argv-only put both of an operator's secrets in
+			// the process table and in shell history.
+			if value, given := os.LookupEnv(envFor(param.Name)); given {
+				supplied[param.Name] = value
+			}
+
 			continue
 		}
 
@@ -341,6 +370,20 @@ func experimentInputs(
 	}
 
 	return inputs{Project: project, Supplied: supplied, Timing: timing}, nil
+}
+
+// envFor is the environment variable that supplies a parameter when its flag is
+// absent. Derived from the parameter's own name rather than listed, so a new
+// parameter gets the channel without anyone remembering to add it:
+// `--revocable-token` reads `KHAOS_REVOCABLE_TOKEN`.
+//
+// Precedence is flag, then environment, then the range, then the declaration's
+// default. The environment beats the range because both are the operator
+// speaking and the range is only a convenience.
+func envFor(param string) string {
+	return envParamPrefix + strings.ToUpper(
+		strings.ReplaceAll(param, flagWordSep, envWordSep),
+	)
 }
 
 func experimentTiming(cmd *cobra.Command) (experiment.Timing, error) {
@@ -1212,6 +1255,26 @@ func startProxy(
 // startProvider binds khaos's own identity provider on the Docker bridge gateway
 // at the port the issuer names, never a wildcard: the target addresses the issuer
 // as `host.docker.internal`, which does not resolve here.
+// providerListen is where the provider will bind, computed before the bind so
+// the guard and the listener are given the same string.
+func providerListen(
+	ctx context.Context,
+	reader rangelab.PortReader,
+	spec experiment.Experiment,
+) (string, error) {
+	port, err := portOf(spec.IdP.Issuer())
+	if err != nil {
+		return "", err
+	}
+
+	gateway, err := reader.BridgeGateway(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return net.JoinHostPort(gateway, strconv.Itoa(port)), nil
+}
+
 func startProvider(
 	ctx context.Context,
 	out io.Writer,
@@ -1220,17 +1283,10 @@ func startProvider(
 ) error {
 	issuer := spec.IdP.Issuer()
 
-	port, err := portOf(issuer)
+	listen, err := providerListen(ctx, reader, spec)
 	if err != nil {
 		return err
 	}
-
-	gateway, err := reader.BridgeGateway(ctx)
-	if err != nil {
-		return err
-	}
-
-	listen := net.JoinHostPort(gateway, strconv.Itoa(port))
 
 	if err := spec.IdP.Listen(listen); err != nil {
 		return fmt.Errorf(errIdPBind, listen, err)
@@ -1274,10 +1330,10 @@ func standUpTiers(
 			return standUpIdPTier(ctx, out, work.Docker, spec, &env)
 		},
 		func() (func(), error) {
-			return standUpPKITier(out, spec, &env)
+			return standUpPKITier(ctx, out, work.Docker, spec, &env)
 		},
 		func() (func(), error) {
-			return standUpAuthzTier(out, spec, &env)
+			return standUpAuthzTier(ctx, out, work.Docker, spec, &env)
 		},
 		func() (func(), error) {
 			return standUpDNSTier(ctx, out, work.Docker, spec, target, &env)
@@ -1316,6 +1372,26 @@ func standUpTiers(
 	return env, closeAll, nil
 }
 
+// managedBind is the NARROW half of the bind guard and it lives here because
+// the allowed set comes from the daemon. Each binding package carries the
+// structural half -- no wildcard, no privileged port, loopback or a bridge --
+// and a kernel bridge is not enough: measured on a development host, that
+// includes a CNI pod bridge, a swarm gateway bridge, forty-nine user-defined
+// bridges carrying other projects' containers, and on a host whose LAN
+// interface is enslaved to a bridge, the routable LAN address itself.
+func managedBind(
+	ctx context.Context,
+	docker *dockerx.Client,
+	addr, subject string,
+) error {
+	gateways, err := docker.Gateways(ctx)
+	if err != nil {
+		return err
+	}
+
+	return bindguard.Managed(addr, subject, gateways)
+}
+
 func standUpProxyTier(
 	ctx context.Context,
 	out io.Writer,
@@ -1325,6 +1401,15 @@ func standUpProxyTier(
 ) (func(), error) {
 	if spec.ProxyFault == nil {
 		return nil, nil
+	}
+
+	if err := managedBind(
+		ctx,
+		docker,
+		spec.ProxyListen,
+		proxy.SubjectProxy,
+	); err != nil {
+		return nil, err
 	}
 
 	fault, err := startProxy(ctx, out, docker, *spec)
@@ -1349,6 +1434,20 @@ func standUpIdPTier(
 		return nil, nil
 	}
 
+	listen, err := providerListen(ctx, docker, *spec)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := managedBind(
+		ctx,
+		docker,
+		listen,
+		idp.SubjectProvider,
+	); err != nil {
+		return nil, err
+	}
+
 	if err := startProvider(ctx, out, docker, *spec); err != nil {
 		return nil, err
 	}
@@ -1360,12 +1459,23 @@ func standUpIdPTier(
 }
 
 func standUpPKITier(
+	ctx context.Context,
 	out io.Writer,
+	docker *dockerx.Client,
 	spec *experiment.Experiment,
 	env *inject.Env,
 ) (func(), error) {
 	if spec.PKITrap == nil {
 		return nil, nil
+	}
+
+	for addr, subject := range map[string]string{
+		spec.AuthorityListen: pki.SubjectRevocation,
+		spec.AuthorityTLS:    pki.SubjectDependency,
+	} {
+		if err := managedBind(ctx, docker, addr, subject); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := startAuthority(out, *spec); err != nil {
@@ -1383,12 +1493,23 @@ func standUpPKITier(
 // through the whole run, or the baseline measures a dependency that is down and
 // the fault window is the only one where it is up.
 func standUpAuthzTier(
+	ctx context.Context,
 	out io.Writer,
+	docker *dockerx.Client,
 	spec *experiment.Experiment,
 	env *inject.Env,
 ) (func(), error) {
 	if spec.AuthzTrap == nil {
 		return nil, nil
+	}
+
+	if err := managedBind(
+		ctx,
+		docker,
+		spec.AuthzListen,
+		authz.SubjectAuthz,
+	); err != nil {
+		return nil, err
 	}
 
 	if err := spec.Authz.Listen(spec.AuthzListen); err != nil {

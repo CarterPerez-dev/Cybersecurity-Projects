@@ -231,11 +231,16 @@ func TestAnUnreachableEndpointIsNotMistakenForARejection(t *testing.T) {
 
 	outcome := spec.Probes.Invalid.Run(context.Background())
 
-	if outcome.Disposition != probe.Unavailable {
+	// Unreachable rather than Unavailable since the dispositions were split:
+	// nothing ANSWERED here. Reading it as a rejection would make an outage
+	// look like a control doing its job, and reading it as an answered 503
+	// would let a control that declares a 503 its fail-closed outcome cover a
+	// target that had died.
+	if outcome.Disposition != probe.Unreachable {
 		t.Fatalf(
-			"a connection failure was classified as %s; reading it as a rejection would "+
-				"make an outage look like a control doing its job",
+			"a connection failure was classified as %s, want %s",
 			outcome.Disposition,
+			probe.Unreachable,
 		)
 	}
 }

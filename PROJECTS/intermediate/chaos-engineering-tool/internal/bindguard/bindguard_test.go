@@ -81,3 +81,83 @@ func TestAWildcardRefusalNamesTheSubject(t *testing.T) {
 		)
 	}
 }
+
+// Managed is the check a kernel bridge cannot satisfy. Measured on the
+// development host when this was written: a CNI pod bridge at 10.42.0.1, a
+// swarm gateway bridge at 172.23.0.1 and forty-nine user-defined bridges, one
+// of them carrying nine containers of an unrelated project -- every one of them
+// carrying the sysfs marker Check reads, and none of them an address khaos
+// should serve an allow-everything listener on.
+func TestManagedTakesTheAllowedSetFromTheDaemon(t *testing.T) {
+	gateways := []string{"172.17.0.1", "10.244.244.1"}
+
+	for _, row := range []struct {
+		name string
+		addr string
+		set  []string
+		want bool
+	}{
+		{
+			name: "a gateway the daemon manages",
+			addr: "172.17.0.1:45999",
+			set:  gateways,
+			want: true,
+		},
+		{
+			name: "another one it manages",
+			addr: "10.244.244.1:45999",
+			set:  gateways,
+			want: true,
+		},
+		{
+			name: "loopback, which needs no daemon",
+			addr: "127.0.0.1:45999",
+			set:  nil,
+			want: true,
+		},
+		{
+			name: "a CNI pod bridge, which carries the sysfs marker",
+			addr: "10.42.0.1:45999",
+			set:  gateways,
+			want: false,
+		},
+		{
+			name: "a host interface enslaved to a bridge",
+			addr: "192.168.1.183:45999",
+			set:  gateways,
+			want: false,
+		},
+		{
+			name: "an empty set is a refusal, not a pass",
+			addr: "172.17.0.1:45999",
+			set:  nil,
+			want: false,
+		},
+		{
+			name: "a wildcard, which names no address at all",
+			addr: "0.0.0.0:45999",
+			set:  gateways,
+			want: false,
+		},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			err := Managed(row.addr, subject, row.set)
+
+			if row.want && err != nil {
+				t.Fatalf("%s was refused: %v", row.addr, err)
+			}
+
+			if row.want {
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("%s was accepted", row.addr)
+			}
+
+			if !errors.Is(err, ErrUnsafeBind) {
+				t.Fatalf("%s: err = %v, want ErrUnsafeBind", row.addr, err)
+			}
+		})
+	}
+}

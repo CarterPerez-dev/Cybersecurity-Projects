@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // stubAuthz is khaos's side of the experiment, reduced to what the fixture can
@@ -96,6 +97,7 @@ func TestEveryModeAuthenticatesLocally(t *testing.T) {
 		AuthzDistinguishes,
 		AuthzCollapses,
 		AuthzRetries,
+		AuthzCached,
 	} {
 		t.Run(mode, func(t *testing.T) {
 			gateway, dependency := authzFixture(t, mode)
@@ -236,6 +238,95 @@ func TestTheCollapseNamesWhichAnswerItIgnored(t *testing.T) {
 		t.Fatal(
 			"the collapsing caller gives the same reason for a deny and for an outage; the fixture is the thing khaos measures, so the two have to be distinguishable in it even though its behaviour is not",
 		)
+	}
+}
+
+// The cached mode is the input khaos's own verdict machinery was wrong about,
+// so the fixture has to actually produce that sequence: one acceptance from the
+// cache, then refusals expressed as 503. Both halves matter -- the cache, and
+// the status -- because khaos's order-sensitive counts reset on a REFUSAL and
+// a 503 is only a refusal for a control that declared it.
+func TestTheCachedModeServesOnceThenRefusesWith503(t *testing.T) {
+	gateway, dependency := authzFixture(t, AuthzCached)
+	credential := issued(t, gateway)
+
+	if got := askAuthz(t, gateway, credential); got != http.StatusOK {
+		t.Fatalf("an allowed credential returned %d, want 200", got)
+	}
+
+	dependency.status.Store(http.StatusForbidden)
+
+	// Inside the cache window the caller answers from its own cache and never
+	// asks, which is what puts the acceptance FIRST.
+	dependency.asked.Store(0)
+
+	if got := askAuthz(t, gateway, credential); got != http.StatusOK {
+		t.Fatalf(
+			"within the cache window the caller answered %d; a cached allow is what makes the first sample an acceptance",
+			got,
+		)
+	}
+
+	if asked := dependency.asked.Load(); asked != 0 {
+		t.Fatalf(
+			"the caller asked %d time(s) inside its own cache window, so it holds no cache and this mode cannot produce the sequence it exists for",
+			asked,
+		)
+	}
+
+	time.Sleep(authzCacheFor + 100*time.Millisecond)
+
+	if got := askAuthz(
+		t,
+		gateway,
+		credential,
+	); got != http.StatusServiceUnavailable {
+		t.Fatalf(
+			"once the cache lapsed the caller answered %d, want %d: this mode expresses its refusal as an upstream error, which is the half khaos read wrong",
+			got,
+			http.StatusServiceUnavailable,
+		)
+	}
+
+	if asked := dependency.asked.Load(); asked == 0 {
+		t.Fatal("the caller never asked after its cache lapsed")
+	}
+
+	// And it is still CORRECT: it refuses, it does not serve a credential the
+	// dependency denied.
+	if got := askAuthz(
+		t,
+		gateway,
+		credential,
+	); got == http.StatusOK {
+		t.Fatal(
+			"the cached mode served a credential its dependency had denied, which would make it a second collapse rather than a correct caller",
+		)
+	}
+}
+
+// Only the cached mode caches, or every other mode's measured behaviour moves.
+func TestNoOtherModeHoldsADecisionCache(t *testing.T) {
+	for _, mode := range []string{
+		AuthzDistinguishes,
+		AuthzCollapses,
+		AuthzRetries,
+	} {
+		t.Run(mode, func(t *testing.T) {
+			gateway, dependency := authzFixture(t, mode)
+			credential := issued(t, gateway)
+
+			askAuthz(t, gateway, credential)
+			dependency.asked.Store(0)
+			askAuthz(t, gateway, credential)
+
+			if asked := dependency.asked.Load(); asked == 0 {
+				t.Fatalf(
+					"%s answered a second request without asking its dependency, so it is caching and its measured ask-rate is not what khaos thinks it is",
+					mode,
+				)
+			}
+		})
 	}
 }
 

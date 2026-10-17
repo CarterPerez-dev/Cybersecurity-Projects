@@ -867,15 +867,17 @@ declare -A WANT_AUTHZ=(
     [collapses]="deviated / PERMITTED"
     [distinguishes]="passed / HELD"
     [retries]="passed / HELD"
+    [cached]="passed / HELD"
 )
 
 declare -A WANT_AUTHZ_EXIT=(
     [collapses]=2
     [distinguishes]=0
     [retries]=0
+    [cached]=0
 )
 
-for mode in collapses distinguishes retries; do
+for mode in collapses distinguishes retries cached; do
     if ! start_authz_range "$mode"; then
         continue
     fi
@@ -962,6 +964,46 @@ if start_authz_range retries; then
     # a variant of the collapse: the right verdict reached the wrong way.
     assert_report_has \
         "a retrying caller is still credited with both branches" \
+        "That is the third branch"
+fi
+
+echo "== the regression control: a correct caller that refuses with 503 =="
+
+# THE INPUT THIS GATE MUST REJECT, and it could not until now. An audit found
+# khaos reporting a CORRECT fail-closed caller as `deviated / PERMITTED` with
+# "this target's fallback is to allow": the order-sensitive counts that stop
+# khaos calling a short decision cache a bypass reset on a REFUSAL, and this
+# experiment declares a 503 as its refusal, so a caller that served one request
+# from a one-second cache and then correctly refused with 503s read as a bypass.
+#
+# The three modes above cannot produce it. They answer 403 and hold no cache, so
+# the sequence is unreachable against them - which is exactly why the defect
+# shipped under 204 green assertions. This mode answers 503 and caches for a
+# second, in BOTH fault windows, so it exercises both halves of the fix:
+# `AcceptedDespiteLapse` on window one's revoked stream and
+# `AcceptedSinceLastRefusal` on window two's valid stream.
+#
+# VERIFIED by reverting the fix against this fixture on a live range: the same
+# run returns `deviated / PERMITTED` exit 2 with the predicate gutted, and
+# `passed / HELD` exit 0 with it in place.
+if start_authz_range cached; then
+    run_experiment credential.apikey_revoked
+
+    assert_verdict "a caller that refuses with 503" "passed / HELD"
+    assert_exit "a caller that refuses with 503" 0
+    assert_confirmed "a caller that refuses with 503"
+
+    assert_report_lacks \
+        "a correct caller is not told its fallback is to allow" \
+        "this target's fallback is to allow"
+    assert_report_lacks \
+        "and is not reported as having served in both phases" \
+        "served in BOTH phases"
+    assert_report_lacks \
+        "and no bypass is claimed against it" \
+        "was still accepted"
+    assert_report_has \
+        "it is credited with the third branch like any correct caller" \
         "That is the third branch"
 fi
 

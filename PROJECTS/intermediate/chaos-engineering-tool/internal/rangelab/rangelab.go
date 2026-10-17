@@ -123,9 +123,24 @@ const (
 	// a 200 is read as an absence of an answer, and allowed. AuthzRetries
 	// reaches the right verdict the wrong way, asking again every time it does
 	// not like an answer, which is that section's retry storm.
+	// AuthzCached is correct too, and it is the input khaos's own verdict
+	// machinery was wrong about: a one-second decision cache plus a refusal
+	// expressed as 503 rather than 403.
 	AuthzDistinguishes = "distinguishes"
 	AuthzCollapses     = "collapses"
 	AuthzRetries       = "retries"
+	AuthzCached        = "cached"
+
+	// EnvReresolve is whether the DNS gateway resolves its dependency's name on
+	// every request. Both values are real target shapes: `reresolve` is a
+	// client that opens a fresh connection per call, and `pinned` is the
+	// DEFAULT behaviour of a Go service -- http.Transport resolves once when it
+	// opens a connection and never again while that connection lives, measured
+	// at two queries across forty-six requests. The rotation fault needs both.
+	EnvReresolve = "KHAOS_RANGE_RERESOLVE"
+
+	DNSReresolve = "reresolve"
+	DNSPinned    = "pinned"
 
 	// SecretVariable is the variable the environment faults take away, which
 	// khaos names rather than discovers: the fixture is configured to read its
@@ -347,12 +362,15 @@ type Ports struct {
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct.
-func FreePorts() (Ports, error) {
+// `also` is every further address a tier will bind one of them on, which the
+// caller discovers from the daemon: four tiers bind the bridge gateway rather
+// than loopback.
+func FreePorts(also ...string) (Ports, error) {
 	taken := map[int]bool{}
 
 	pick := func() (int, error) {
 		for range portTries {
-			port, err := FreePort()
+			port, err := FreePort(also...)
 			if err != nil {
 				return 0, err
 			}
@@ -463,27 +481,47 @@ func orNone(declared string) string {
 	return declared
 }
 
-func FreePort() (int, error) {
+// FreePort proves a candidate is free on every address a tier might bind it on,
+// and `also` is what makes that true. Testing loopback alone was weaker than it
+// read: the published container ports go to 127.0.0.1, but the proxy, the
+// identity provider, the certificate authority and the authorization dependency
+// all bind the DOCKER BRIDGE GATEWAY, and a port free on 127.0.0.1 is not
+// evidence it is free on 172.17.0.1.
+//
+// A wildcard bind would answer the same question in one call and is not used:
+// khaos refuses to bind a wildcard anywhere else, and a probe is not a good
+// enough reason to make an exception an operator would find in `ss` output.
+func FreePort(also ...string) (int, error) {
 	for range portTries {
 		//nolint:gosec // a bind candidate, immediately tested
 		port := portFloor + rand.IntN(portCeil-portFloor)
 
-		listener, err := net.Listen(
-			"tcp",
-			net.JoinHostPort(loopback, strconv.Itoa(port)),
-		)
-		if err != nil {
-			continue
+		if freeOn(port, append([]string{loopback}, also...)) {
+			return port, nil
 		}
-
-		if err := listener.Close(); err != nil {
-			continue
-		}
-
-		return port, nil
 	}
 
 	return 0, fmt.Errorf(errNoPort, portFloor, portCeil)
+}
+
+// freeOn requires EVERY address, because a port taken on any one of them is a
+// port a tier can fail to bind.
+func freeOn(port int, addresses []string) bool {
+	for _, address := range addresses {
+		listener, err := net.Listen(
+			"tcp",
+			net.JoinHostPort(address, strconv.Itoa(port)),
+		)
+		if err != nil {
+			return false
+		}
+
+		if err := listener.Close(); err != nil {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (l Lab) GatewayURL() string {
@@ -509,6 +547,7 @@ func (l Lab) Up(
 	ctx context.Context,
 	out io.Writer,
 	failMode, cacheTTL, tlsMode, poolMode, secretMode, authzMode string,
+	reresolve string,
 	withDB bool,
 ) error {
 	environ := append(os.Environ(),
@@ -536,6 +575,7 @@ func (l Lab) Up(
 		EnvAuthzPort+"="+strconv.Itoa(l.AuthzPort),
 		EnvAuthzDep+"="+strconv.Itoa(l.AuthzDepPort),
 		EnvAuthzMode+"="+authzMode,
+		EnvReresolve+"="+reresolve,
 	)
 
 	args := []string{"up", "--build", "--detach", "--wait"}

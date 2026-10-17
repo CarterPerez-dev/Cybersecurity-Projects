@@ -918,3 +918,96 @@ func answerableFor(definition experiment.Definition) []string {
 
 	return out
 }
+
+// A credential supplied as a FLAG is in /proc/<pid>/cmdline, which is
+// world-readable (mode 444, measured), while /proc/<pid>/environ is 400. That
+// is why the chaos resolver's nonce has always been an environment variable
+// rather than an argument, and `credential.apikey_revoked` is the first
+// experiment to require TWO live credentials, so argv-only put both of an
+// operator's secrets in the process table and in shell history.
+func TestAParameterCanArriveInTheEnvironmentInsteadOfArgv(t *testing.T) {
+	definition := outage(t)
+
+	t.Setenv("KHAOS_TOKEN", "a-credential-from-the-environment")
+
+	cmd := newRunCmd()
+	cmd.SetArgs([]string{definition.Name})
+
+	in, err := experimentInputs(
+		experimentCmdFor(t, cmd, definition),
+		definition,
+	)
+	if err != nil {
+		t.Fatalf("inputs: %v", err)
+	}
+
+	if in.Supplied[experiment.ParamToken] != "a-credential-from-the-environment" {
+		t.Fatalf(
+			"the environment channel was ignored: %q; a credential has no other way in that keeps it out of the process table",
+			in.Supplied[experiment.ParamToken],
+		)
+	}
+}
+
+// The FLAG still wins, because an operator who typed one meant it, and the
+// environment must not silently override what they just said.
+func TestAFlagBeatsTheEnvironment(t *testing.T) {
+	definition := outage(t)
+
+	t.Setenv("KHAOS_TOKEN", "from-the-environment")
+
+	cmd := newRunCmd()
+	sub := experimentCmdFor(t, cmd, definition)
+
+	if err := sub.Flags().
+		Set(experiment.ParamToken, "from-the-flag"); err != nil {
+		t.Fatalf("set the flag: %v", err)
+	}
+
+	in, err := experimentInputs(sub, definition)
+	if err != nil {
+		t.Fatalf("inputs: %v", err)
+	}
+
+	if in.Supplied[experiment.ParamToken] != "from-the-flag" {
+		t.Fatalf(
+			"the environment overrode a flag the operator typed: %q",
+			in.Supplied[experiment.ParamToken],
+		)
+	}
+}
+
+// And the mapping is DERIVED from the parameter's name, so a new parameter gets
+// the channel without anyone remembering to add it.
+func TestTheEnvironmentNameIsDerivedFromTheParameter(t *testing.T) {
+	for param, want := range map[string]string{
+		experiment.ParamToken:        "KHAOS_TOKEN",
+		experiment.ParamRevocable:    "KHAOS_REVOCABLE_TOKEN",
+		experiment.ParamAuthzListen:  "KHAOS_AUTHZ_LISTEN",
+		experiment.ParamInvalidToken: "KHAOS_INVALID_TOKEN",
+	} {
+		if got := envFor(param); got != want {
+			t.Fatalf("envFor(%q) = %q, want %q", param, got, want)
+		}
+	}
+}
+
+// experimentCmdFor finds the per-experiment subcommand, which is where the
+// parameters are declared as flags.
+func experimentCmdFor(
+	t *testing.T,
+	root *cobra.Command,
+	definition experiment.Definition,
+) *cobra.Command {
+	t.Helper()
+
+	for _, sub := range root.Commands() {
+		if sub.Name() == definition.Name {
+			return sub
+		}
+	}
+
+	t.Fatalf("no subcommand for %s", definition.Name)
+
+	return nil
+}

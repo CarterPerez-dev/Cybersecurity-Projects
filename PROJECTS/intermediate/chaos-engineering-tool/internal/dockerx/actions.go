@@ -31,6 +31,7 @@ const (
 	errNoNetwork  = "%s has no network address at all, so khaos has nothing to dial it on"
 	errBridge     = "read the gateway of the default bridge network: %w"
 	errNoBridge   = "the default bridge network reports no gateway address, so khaos cannot find an address a container can reach it on"
+	errGateways   = "list the networks the daemon manages, to find the addresses khaos may bind a listener on: %w"
 
 	bridgeNetwork = "bridge"
 	envPairParts  = 2
@@ -254,6 +255,33 @@ func (c *Client) BridgeGateway(ctx context.Context) (string, error) {
 	}
 
 	return "", errors.New(errNoBridge)
+}
+
+// Gateways is every address DOCKER manages as a network gateway, which is a
+// narrower question than "is this a bridge". `/sys/class/net/<if>/bridge`
+// exists for every kernel bridge device: measured on this host, that includes
+// a CNI pod bridge, a swarm overlay's gateway bridge and forty-nine
+// user-defined ones carrying unrelated projects' containers -- and on a host
+// whose LAN interface is enslaved to a bridge, the routable LAN address itself.
+// khaos binds listeners that answer whatever asks them, so the allowed set has
+// to come from the daemon rather than from sysfs.
+func (c *Client) Gateways(ctx context.Context) ([]string, error) {
+	networks, err := c.api.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf(errGateways, err)
+	}
+
+	addresses := []string{}
+
+	for _, network := range networks.Items {
+		for _, config := range network.IPAM.Config {
+			if config.Gateway.IsValid() {
+				addresses = append(addresses, config.Gateway.String())
+			}
+		}
+	}
+
+	return addresses, nil
 }
 
 // classify turns a daemon NotFound into ErrContainerGone, so it is only valid

@@ -288,6 +288,67 @@ func TestA503RefusalEndsTheRunOfAcceptances(t *testing.T) {
 	}
 }
 
+// A target that DIED under the fault is not a target that failed closed, and
+// the two were one disposition. This experiment declares a 503 as its refusal,
+// so a crashed target was reported `deviated / DENIED` with "the valid
+// credential stopped being accepted" -- when it stopped ANSWERING, and this
+// fault takes nothing away from the target that could explain a crash.
+func TestACrashedTargetIsNotReadAsFailingClosed(t *testing.T) {
+	observation := shifted(probe.Rejected, probe.Rejected)
+	observation.ClosedWhen = []probe.Disposition{probe.Unavailable}
+
+	// Every probe dies on the connection, in both streams, which is what
+	// `unanswered` reads across.
+	observation.Fault = probe.Window{
+		Valid: stream(
+			probe.Valid,
+			repeat(probe.Unreachable, MinimumPaired*2)...),
+		Invalid: stream(
+			probe.Invalid,
+			repeat(probe.Unreachable, MinimumPaired*2)...),
+		Revoked: stream(
+			probe.Revoked,
+			repeat(probe.Unreachable, MinimumPaired*2)...),
+	}
+
+	verdict := Judge(observation, authzPolarity)
+
+	if verdict.Direction != Crashed {
+		t.Fatalf(
+			"a target that answered nothing at all was judged %s: %v",
+			verdict.Direction,
+			verdict.Reasons,
+		)
+	}
+
+	// And the contrast, on the same declared set: a target ANSWERING 503 has
+	// refused, and that still has to read as this control failing closed.
+	answering := shifted(probe.Rejected, probe.Rejected)
+	answering.ClosedWhen = []probe.Disposition{probe.Unavailable}
+	answering.Fault = probe.Window{
+		Valid: stream(
+			probe.Valid,
+			repeat(probe.Unavailable, MinimumPaired*2)...),
+		Invalid: stream(
+			probe.Invalid,
+			repeat(probe.Rejected, MinimumPaired*2)...),
+		Revoked: stream(
+			probe.Revoked,
+			repeat(probe.Unavailable, MinimumPaired*2)...),
+	}
+
+	if direction := Judge(
+		answering,
+		authzPolarity,
+	).Direction; direction != Denied {
+		t.Fatalf(
+			"a target answering 503 to everything was judged %s, want %s: it answered, and this control declares that its refusal",
+			direction,
+			Denied,
+		)
+	}
+}
+
 // The exposure figure has to describe the SAME set as the count beside it. The
 // count is the trailing run; a first-to-last span over the whole window
 // includes the period the target spent refusing, and quoting the two in one

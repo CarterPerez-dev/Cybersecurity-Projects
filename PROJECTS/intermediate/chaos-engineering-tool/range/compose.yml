@@ -282,7 +282,7 @@ services:
       # property of the fault class rather than a fixture defect, and khaos
       # reports it when it measures it -- but a fixture that can never
       # experience the fault cannot be what an exit gate asserts against.
-      KHAOS_RANGE_RERESOLVE: "true"
+      KHAOS_RANGE_RERESOLVE: "${KHAOS_RANGE_RERESOLVE:-true}"
     labels:
       khaos.target: "true"
       khaos.range: "true"

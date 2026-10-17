@@ -19,6 +19,7 @@ const (
 	NameDNSTruncationNoTCP = "dns.truncation_no_tcp"
 	NameDNSTTLZero         = "dns.ttl_zero"
 	NameDNSTTLLong         = "dns.ttl_long"
+	NameDNSTTLRotate       = "dns.ttl_rotate"
 	NameDNSRefused         = "dns.refused"
 	NameDNSTimeout         = "dns.timeout"
 )
@@ -43,6 +44,8 @@ const (
 	summaryTTLZero = "answer the dependency's name correctly with a zero TTL so nothing may cache it, and measure whether the target re-resolves per request, which is both a DoS amplifier and the precondition for every other caching question"
 
 	summaryTTLLong = "answer the dependency's name correctly with a week-long TTL and measure whether the target honours it, which is how long a stale answer would keep being trusted after the dependency moved"
+
+	summaryTTLRotate = "MOVE the dependency's address in the zone, the way an operator performs a DNS failover or an endpoint revocation, and measure whether the change reaches the target at all -- a client still talking to the address that was rotated away is a revocation that never took effect"
 
 	summaryRefused = "REFUSED through Docker's embedded resolver, which khaos refuses to approximate; the resolver rewrites it to SERVFAIL and a real library branches on the rcode"
 
@@ -104,6 +107,13 @@ var dnsCatalogue = []dnsSpec{
 		summary:    summaryTTLLong,
 		fault:      dnsrv.TTLLong,
 		needsCache: true,
+	},
+	{
+		name:    NameDNSTTLRotate,
+		summary: summaryTTLRotate,
+		fault:   dnsrv.AddressRotated,
+		extra:   []Param{dnsAddressParam},
+		rotates: true,
 	},
 	{
 		name:    NameDNSRefused,

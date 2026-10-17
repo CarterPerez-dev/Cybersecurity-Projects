@@ -18,6 +18,10 @@ const (
 	testUpstream = "upstream.elsewhere.test."
 	testUpAddr   = "10.88.88.8"
 	loopbackAny  = "127.0.0.1:0"
+
+	// Distinct from DefaultWrongAddress so the oracle census can tell an armed
+	// rotation from an armed redirect.
+	testRotatedAddress = "10.99.99.9"
 )
 
 // testUpstreamServer is a resolver khaos is NOT authoritative for, so the
@@ -116,6 +120,13 @@ func startResolver(t *testing.T) (*Resolver, *Client) {
 		testControl,
 	)
 
+	// The zone SNAPSHOT, taken before any fault, exactly as the CLI takes it
+	// when it attaches to a running resolver. Without it the oracle has no
+	// record of what a name answered before khaos touched it, which the
+	// rotation's confirmation needs and which wrong-address's observable has
+	// been printing as "unknown" in every test until now.
+	client.Zone = resolver.Zone()
+
 	return resolver, client
 }
 
@@ -151,6 +162,13 @@ func deliverableKinds() []Kind {
 // cover every kind without restating magnitudes.
 func trapFor(kind Kind) Trap {
 	trap := Trap{Kind: kind, Host: testHost}
+
+	// A rotation needs a destination, and a DIFFERENT one from wrong-address's
+	// default: asking the wrong-address oracle about an armed rotation has to
+	// REFUTE, and it cannot if both move the name to the same place.
+	if kind == AddressRotated {
+		trap.Address = testRotatedAddress
+	}
 
 	if kind == SlowResponse {
 		// Well above the oracle's differential margin and well under the

@@ -74,6 +74,21 @@ func (c *Client) Arm(ctx context.Context, trap Trap) (Stats, error) {
 	return c.call(ctx, http.MethodPost, PathArm, body)
 }
 
+// Rotate moves a name's address in the zone. A non-2xx is an error rather than
+// a silent no-op, which is what lets a failed rotation VOID the run instead of
+// leaving khaos measuring a name nobody moved.
+func (c *Client) Rotate(
+	ctx context.Context,
+	name, address string,
+) (Stats, error) {
+	body, err := json.Marshal(Rotation{Name: name, Address: address})
+	if err != nil {
+		return Stats{}, err
+	}
+
+	return c.call(ctx, http.MethodPost, PathRotate, body)
+}
+
 func (c *Client) Disarm(ctx context.Context) (Stats, error) {
 	return c.call(ctx, http.MethodPost, PathDisarm, nil)
 }

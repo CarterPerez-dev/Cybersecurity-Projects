@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
 const (
@@ -42,6 +44,11 @@ const (
 	malformedBody = "{\"active\": tru"
 
 	shutdownGrace = 2 * time.Second
+
+	// It mints the credentials khaos's own probes present and serves the key
+	// set a target resolves them against, so it does not belong on an
+	// interface that target cannot reach anyway.
+	SubjectProvider = "an identity provider that mints deliberately defective credentials"
 
 	errAlreadyListening = "%w: khaos's identity provider is already listening on %s"
 	errNotListening     = "%w: khaos's identity provider is not listening, so it has no address"
@@ -202,6 +209,10 @@ func (p *Provider) clock() time.Time {
 
 // Listen binds the address the target was built to address, not khaos's choice.
 func (p *Provider) Listen(addr string) error {
+	if err := bindguard.Check(addr, SubjectProvider); err != nil {
+		return err
+	}
+
 	// Guard and bind under ONE acquisition, or two callers both bind and the
 	// second orphans the first listener and its goroutine.
 	p.mu.Lock()

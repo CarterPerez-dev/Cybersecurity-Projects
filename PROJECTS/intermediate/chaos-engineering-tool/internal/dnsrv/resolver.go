@@ -47,6 +47,7 @@ const (
 	errControlName  = "%w: %q is not in the zone, so a confirmation could never use it as a control"
 	errFaultedHost  = "%w: %s is the confirmation control and cannot also be the faulted name"
 	errOutsideZone  = "%w: %s is not a name this resolver is authoritative for (zone: %s)"
+	errSameAddress  = "%w: %s already answers with %s, so rotating it there changes nothing and khaos would measure a rotation that never happened"
 	errNoZoneTarget = "%w: this resolver was given no confirmation control name"
 )
 
@@ -68,6 +69,10 @@ var ErrNoControl = errors.New(
 
 var ErrControlIsHost = errors.New(
 	"the confirmation control cannot be the name under fault",
+)
+
+var ErrSameAddress = errors.New(
+	"a rotation to the address a name already answers with is not a rotation",
 )
 
 var ErrOutsideZone = errors.New(
@@ -102,6 +107,7 @@ type Resolver struct {
 
 	mu      sync.Mutex
 	trap    Trap
+	rotated rotation
 	servers []*dns.Server
 	arrival map[string]int64
 	queries map[string]int64
@@ -311,6 +317,26 @@ func (r *Resolver) Arm(trap Trap) error {
 		}
 	}
 
+	// The one trap whose arming moves the ZONE rather than installing a wrong
+	// answer, so the honest path serves the new address afterwards and a target
+	// that asks again follows it. The previous address is recorded here, which
+	// is what makes Disarm a restore rather than a guess.
+	// INERT skips the rotation and keeps everything else, which is the whole
+	// point of the control: an inert arm that still moved the zone would be
+	// confirmed by an oracle reading the served answer, and the one negative
+	// control this package relies on would pass against a mutation it was
+	// built to catch. Measured -- it did.
+	if trap.Kind == AddressRotated && !trap.Inert {
+		previous, err := r.Rotate(trap.Host, trap.Address)
+		if err != nil {
+			return err
+		}
+
+		r.mu.Lock()
+		r.rotated = rotation{name: trap.Host, from: previous}
+		r.mu.Unlock()
+	}
+
 	r.mu.Lock()
 	r.trap = trap
 	r.mu.Unlock()
@@ -338,10 +364,74 @@ func (r *Resolver) inZone(host string) error {
 	)
 }
 
+// Rotate changes the ADDRESS a name answers with, which is a different act from
+// arming a fault: a fault is a wrong answer the resolver gives while the zone
+// stays put, and this moves the zone itself. The honest answer is served from
+// the same table afterwards, so a target that asks again gets the new address
+// and nothing else about the resolver changes.
+//
+// It is the operational act an operator performs for DNS-based failover or
+// endpoint revocation, and the finding khaos measures is whether it reached the
+// target at all.
+func (r *Resolver) Rotate(name, address string) (string, error) {
+	if err := validAddress(address); err != nil {
+		return "", err
+	}
+
+	canonical := dns.CanonicalName(name)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	previous, ok := r.zone[canonical]
+	if !ok {
+		names := make([]string, 0, len(r.zone))
+		for zoneName := range r.zone {
+			names = append(names, zoneName)
+		}
+
+		return "", fmt.Errorf(
+			errOutsideZone,
+			ErrOutsideZone,
+			name,
+			joinWith(sorted(names), ", "),
+		)
+	}
+
+	if previous == address {
+		return "", fmt.Errorf(errSameAddress, ErrSameAddress, name, address)
+	}
+
+	r.zone[canonical] = address
+
+	return previous, nil
+}
+
+// Disarm removes the fault and RESTORES a rotation, because khaos has to leave
+// the zone as it found it: a rotation that outlived the run would be khaos
+// changing an operator's resolution permanently.
 func (r *Resolver) Disarm() {
 	r.mu.Lock()
+	moved := r.rotated
+	r.rotated = rotation{}
 	r.trap = Trap{}
 	r.mu.Unlock()
+
+	if moved.name == "" {
+		return
+	}
+
+	// Best effort and deliberately not reported: Disarm has no error channel,
+	// and the restore can only fail for a name that is no longer in the zone,
+	// which this resolver has no path to.
+	_, _ = r.Rotate(moved.name, moved.from)
+}
+
+// rotation is what a restore needs: the name and the address it answered with
+// before khaos moved it.
+type rotation struct {
+	name string
+	from string
 }
 
 func (r *Resolver) armed() Trap {
@@ -376,6 +466,10 @@ type Stats struct {
 	// Read back rather than remembered, so a redirect's observable can name the
 	// address the fault replaced.
 	Zone map[string]string `json:"zone"`
+
+	// Rotated is the address a rotation REPLACED, echoed by that one route so
+	// khaos's observable can name what the zone used to say.
+	Rotated string `json:"rotated,omitempty"`
 
 	// Only the queries khaos was AUTHORITATIVE for, keyed by source and name.
 	// An arrival count alone goes non-zero for a target resolving anything else.
@@ -501,6 +595,13 @@ func (r *Resolver) serveFault(
 			Host:    zoneName,
 			Address: trap.address(),
 		}, chainAnswer)
+
+	case AddressRotated:
+		// The HONEST answer, deliberately: this trap moved the zone, so the
+		// honest path already serves the new address. Synthesizing from the
+		// trap instead would make it a wrong-answer fault and khaos would be
+		// serving a redirect while reporting a rotation.
+		return r.synthesize(req, question, honest, addressAnswer)
 
 	case CNAMELoop:
 		return r.synthesize(req, question, honest, loopAnswer)

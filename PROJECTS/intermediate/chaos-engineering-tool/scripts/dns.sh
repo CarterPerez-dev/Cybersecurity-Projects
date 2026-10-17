@@ -63,10 +63,18 @@ fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 # The gateway's fail mode is fixed at container creation, deliberately, so a
 # gate spanning both directions has to restart the range. A gateway that could
 # be reconfigured mid-run would let khaos change the target it is measuring.
+#
+# The second argument is the DNS gateway's resolution behaviour, and it is fixed
+# at creation for the same reason. `dns.ttl_rotate` needs both shapes: a client
+# that re-resolves follows a zone rotation, and one that resolved once and
+# reuses its connection never sees it.
 start_range() {
+    local dns_mode="${2:-reresolve}"
+
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --fail-mode "$1" --no-color --quiet >/dev/null 2>&1; then
-        fail "range up --fail-mode $1"
+    if ! "$BIN" range up --fail-mode "$1" --dns-mode "$dns_mode" \
+        --no-color --quiet >/dev/null 2>&1; then
+        fail "range up --fail-mode $1 --dns-mode $dns_mode"
         return 1
     fi
     return 0
@@ -491,6 +499,67 @@ if start_range closed; then
             pass "an undelivered fault does not exit 0 (${last_code})"
         fi
     fi
+fi
+
+echo "== the rotation: a zone change that does not reach the target =="
+
+# `dns.ttl_rotate` is the one fault that MOVES the zone rather than answering it
+# wrongly, so the honest path serves the new address afterwards. Research 05
+# section 6.5 carries the polarity and it is NOT inverted: khaos rotates the
+# name to the address `wrong_address` uses, so a target that FOLLOWS the
+# rotation starts trusting a host on the strength of a name, which is the same
+# defect from the same evidence and stays PERMITTED.
+#
+# Both directions, because the finding is which one happened:
+#
+#   reresolve  the target asks again, follows the rotation, and accepts what the
+#              new host approves -> deviated / PERMITTED exit 2
+#   pinned     the target resolved once and reuses its connection, never sees
+#              the rotation -> passed / HELD exit 0, with the operational
+#              finding STATED and explicitly not called a bypass
+#
+# The pinned row is the one that needed a target shape the range did not have.
+if start_range closed reresolve; then
+    run_experiment dns.ttl_rotate
+
+    assert_verdict "ttl_rotate against a re-resolving target" "deviated / PERMITTED"
+    assert_exit "ttl_rotate against a re-resolving target" 2
+    assert_confirmed "ttl_rotate against a re-resolving target"
+
+    # The confirmation names BOTH addresses and says the answer came from the
+    # honest path, which is what distinguishes a rotation from a redirect.
+    assert_report_has \
+        "the confirmation names the address the rotation replaced" \
+        "before khaos moved it"
+    assert_report_has \
+        "and says the honest path serves it" \
+        "from the resolver's own honest path rather than from a fault"
+    assert_report_has \
+        "the rotation is reported as having reached the target" \
+        "so the rotation reached it"
+fi
+
+if start_range closed pinned; then
+    run_experiment dns.ttl_rotate
+
+    assert_verdict "ttl_rotate against a pinning target" "passed / HELD"
+    assert_exit "ttl_rotate against a pinning target" 0
+    assert_confirmed "ttl_rotate against a pinning target"
+
+    # The finding has to be STATED, with both counts, and must NOT be called a
+    # bypass: no credential got through that would not have before.
+    assert_report_has \
+        "the rotation is reported as not having reached the target" \
+        "ZERO during the fault window"
+    assert_report_has \
+        "and the operational consequence is named" \
+        "would not have taken effect either"
+    assert_report_has \
+        "and khaos explicitly reports no bypass" \
+        "This is NOT a credential bypass"
+    assert_report_lacks \
+        "no credential is claimed to have been accepted" \
+        "was accepted"
 fi
 
 echo "== the census: every catalogued fault was actually run =="

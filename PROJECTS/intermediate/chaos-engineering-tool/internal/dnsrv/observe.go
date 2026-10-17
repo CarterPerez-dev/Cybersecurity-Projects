@@ -29,11 +29,13 @@ const (
 	observeServFail = "answering SERVFAIL for %s while still resolving %s"
 	observeSlow     = "answering %s correctly after %s, against %s for the control on the same resolver"
 	observeWrong    = "answering %s with %v instead of %s"
-	observeChain    = "answering %s with a %d-hop CNAME ending at %s"
-	observeLoop     = "answering %s with a CNAME cycle through %v"
-	observeTrunc    = "setting the truncation bit for %s over UDP with an empty answer, and serving %v completely over TCP"
-	observeTruncNo  = "setting the truncation bit for %s with an empty answer over UDP and over TCP, so no transport ever completes"
-	observeTTL      = "answering %s with a TTL of %d, against %d for %s on the same resolver"
+
+	observeRotated = "%s now answers %v where the zone served %s before khaos moved it, from the resolver's own honest path rather than from a fault, so a target that asks again follows the rotation"
+	observeChain   = "answering %s with a %d-hop CNAME ending at %s"
+	observeLoop    = "answering %s with a CNAME cycle through %v"
+	observeTrunc   = "setting the truncation bit for %s over UDP with an empty answer, and serving %v completely over TCP"
+	observeTruncNo = "setting the truncation bit for %s with an empty answer over UDP and over TCP, so no transport ever completes"
+	observeTTL     = "answering %s with a TTL of %d, against %d for %s on the same resolver"
 
 	refuteControl          = "the control name %s did not resolve through this resolver (%v), so the resolver is broken rather than lying"
 	refuteNoFault          = "%s still resolves to %v through this resolver, so nothing is armed against it"
@@ -44,6 +46,9 @@ const (
 	refuteSlowWrong        = "%s answered %v late instead of %s, so the answer was changed as well as delayed and this fault changes only the timing"
 	refuteWrong            = "%s answered %v, which does not contain %s"
 	refuteWrongIndirect    = "%s answered the right address through CNAMEs %v: that is the chain fault, not a direct redirect"
+	refuteRotated          = "%s answered %v, which does not contain the address khaos rotated it to, %s"
+	refuteRotatedUnknown   = "%s answered the rotated address and khaos holds no record of what the zone served before the move, so it cannot show a rotation happened rather than a name that always pointed there"
+	refuteRotatedSame      = "%s answered %s both before and after the rotation, so nothing moved"
 	refuteChain            = "%s answered %d CNAME hops, and a chain needs %d"
 	refuteChainCycle       = "%s answered CNAMEs %v, which cycle: that is the loop fault, not a chain"
 	refuteTruncReach       = "%s could not be reached over TCP at all (%v), which is an unreachable resolver rather than one that truncates on both transports"
@@ -116,6 +121,9 @@ func (c *Client) Observe(trap Trap) (string, bool, error) {
 	case TTLZero, TTLLong:
 		return ttlObservation(trap, faulted, control, c.ControlName)
 
+	case AddressRotated:
+		return rotatedObservation(trap, faulted, c.honest(trap.Host))
+
 	default:
 		return refutation(refuteUnknown, string(trap.Kind))
 	}
@@ -176,6 +184,48 @@ func wrongObservation(
 	}
 
 	return fmt.Sprintf(observeWrong, trap.Host, addresses, honest), true, nil
+}
+
+// rotatedObservation is the rotation's own observable, and it is DISTINCT from
+// wrong-address's on purpose: that one answers wrongly while the zone stays
+// put, and this one moved the zone, so the honest path serves the new address
+// too. Naming both addresses is what tells an operator which act khaos
+// performed.
+//
+// The snapshot the client holds was taken before the fault, so it is the
+// address the rotation replaced. Requiring the two to DIFFER is the read-back
+// half of the confirmation: Rotate already refuses a move to the address a name
+// already answers with, and this proves the resolver served the move.
+func rotatedObservation(
+	trap Trap,
+	faulted answer,
+	before string,
+) (string, bool, error) {
+	addresses := faulted.addresses()
+	want := trap.address()
+
+	if !slices.Contains(addresses, want) {
+		return refutation(refuteRotated, trap.Host, addresses, want)
+	}
+
+	if hops := faulted.cnames(); len(hops) > 0 {
+		return refutation(refuteWrongIndirect, trap.Host, hops)
+	}
+
+	if before == "" {
+		return refutation(refuteRotatedUnknown, trap.Host)
+	}
+
+	if before == want {
+		return refutation(refuteRotatedSame, trap.Host, want)
+	}
+
+	return fmt.Sprintf(
+		observeRotated,
+		trap.Host,
+		addresses,
+		before,
+	), true, nil
 }
 
 func (c *Client) honest(host string) string {

@@ -99,6 +99,11 @@ type Shape struct {
 
 	ClosedWhen []probe.Disposition
 
+	// RotatedWhat names a zone rotation, and it is the one observable read as a
+	// finding when it is ZERO: a target that never asked again never saw the
+	// rotation, which is a revocation that did not take effect.
+	RotatedWhat string
+
 	// The liveness guard for a fault whose landing the probe streams cannot see.
 	Consulted     func() (int64, error)
 	ConsultedWhat string
@@ -312,6 +317,7 @@ func Build(
 		CacheRequired:   shape.CacheRequired,
 		DeliveredWhat:   shape.DeliveredWhat,
 		DeliveredHint:   shape.DeliveredHint,
+		RotatedWhat:     shape.RotatedWhat,
 		DNSTrap:         shape.DNSTrap,
 		ResolverNetwork: shape.ResolverNetwork,
 		DNSHost:         shape.DNSHost,

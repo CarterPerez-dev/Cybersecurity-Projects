@@ -157,6 +157,10 @@ type Experiment struct {
 	Consulted     func() (int64, error)
 	ConsultedWhat string
 
+	// RotatedWhat names a zone rotation whose arrival khaos measures by whether
+	// the target asked again at all.
+	RotatedWhat string
+
 	// Refusals is the count of definitive denials the dependency issued, which
 	// only the credential under test is ever answered with.
 	Refusals func() (int64, error)

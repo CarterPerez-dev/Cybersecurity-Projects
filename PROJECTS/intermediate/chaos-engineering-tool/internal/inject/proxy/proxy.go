@@ -28,7 +28,7 @@ const (
 
 	settleWindow = 250 * time.Millisecond
 
-	subjectProxy = "a fault proxy in front of a dependency under test"
+	SubjectProxy = "a fault proxy in front of a dependency under test"
 
 	probePayload = "GET / HTTP/1.1\r\nHost: khaos.confirm\r\nConnection: close\r\n\r\n"
 
@@ -78,7 +78,7 @@ type Proxy struct {
 
 // Open binds the proxy and refuses an address that would expose it.
 func Open(listenAddr, upstream string) (*Proxy, error) {
-	if err := bindguard.Check(listenAddr, subjectProxy); err != nil {
+	if err := bindguard.Check(listenAddr, SubjectProxy); err != nil {
 		return nil, err
 	}
 

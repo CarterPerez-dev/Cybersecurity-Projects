@@ -57,6 +57,15 @@ const (
 	TTLZero Kind = "ttl-zero"
 	TTLLong Kind = "ttl-long"
 
+	// AddressRotated MOVES THE ZONE rather than answering it wrongly, which is
+	// what makes it the only trap whose arming changes what the HONEST path
+	// serves. It is the operational act behind DNS-based failover and endpoint
+	// revocation, and the finding is whether it reached the target at all --
+	// research 05 section 6.5 carries the polarity, which is NOT inverted: the
+	// rotation points at the same endpoint `wrong-address` uses, so a target
+	// that follows it starts trusting a host on the strength of a name.
+	AddressRotated Kind = "address-rotated"
+
 	// REFUSED BY KHAOS: the embedded resolver rewrites both to SERVFAIL, and a
 	// real library branches on the rcode, so delivering one under its own name
 	// would be a wrong measurement rather than a fault.
@@ -93,6 +102,8 @@ const (
 	describeTTLZero  = "answer %s correctly with a TTL of zero, so nothing may cache it"
 	describeTTLLong  = "answer %s correctly with a TTL of %d seconds, so a cache pins it for a week"
 
+	describeRotated = "MOVE %s's dependency to %s in the zone itself, the way an operator performs a DNS failover or an endpoint revocation, and measure whether the change reaches it at all"
+
 	describeRefused = "answer %s REFUSED, which khaos cannot deliver"
 	describeTimeout = "drop %s's query entirely, which khaos cannot deliver"
 
@@ -105,6 +116,8 @@ const (
 	errDelayRange  = "%w: %s was asked for a %s delay, and the ceiling is %s"
 	errNoHost      = "%w: %s needs the dependency's name, and none was given"
 	errBadAddress  = "%w: %q is not an IP address"
+	errNoRotation  = "%w: %s needs the address to move the name TO; a rotation with no destination is not a rotation"
+	errNotV4       = "%w: %q is an IPv6 address, and this resolver answers the A queries khaos's probes send; an IPv6 answer to an A query is an empty NOERROR, so khaos would serve nothing while reporting that it armed a redirect"
 
 	// Each names the mechanism, what the target would really have received, and
 	// what to ask for instead.
@@ -127,6 +140,10 @@ var ErrDelayRange = errors.New(
 )
 
 var ErrNoHost = errors.New("this DNS fault needs a name to act on")
+
+var ErrNoRotation = errors.New(
+	"a rotation needs the address it moves the name to",
+)
 
 var ErrBadAddress = errors.New("that is not an IP address")
 
@@ -159,6 +176,7 @@ func Kinds() []string {
 		string(TruncationNoTCP),
 		string(TTLZero),
 		string(TTLLong),
+		string(AddressRotated),
 		string(Refused),
 		string(Timeout),
 	}
@@ -211,6 +229,8 @@ func (t Trap) Describe(target string) string {
 		return fmt.Sprintf(describeTTLZero, target)
 	case TTLLong:
 		return fmt.Sprintf(describeTTLLong, target, LongTTL)
+	case AddressRotated:
+		return fmt.Sprintf(describeRotated, target, t.address())
 	case Refused:
 		return fmt.Sprintf(describeRefused, target)
 	case Timeout:
@@ -266,6 +286,19 @@ func (t Trap) ValidateShape() error {
 	}
 
 	if t.Kind == WrongAddress && t.Address != "" {
+		if err := validAddress(t.Address); err != nil {
+			return err
+		}
+	}
+
+	// A rotation needs its destination at SHAPE time rather than defaulting to
+	// one, because moving a name to an address khaos chose for it is not an
+	// operational act anybody performs.
+	if t.Kind == AddressRotated {
+		if t.Address == "" {
+			return fmt.Errorf(errNoRotation, ErrNoRotation, string(t.Kind))
+		}
+
 		if err := validAddress(t.Address); err != nil {
 			return err
 		}

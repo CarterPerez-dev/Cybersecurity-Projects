@@ -31,6 +31,8 @@ const (
 	errBadAddr = "%w: %q is not a host and port (%v)"
 
 	errOffBox = "%w: %q is not on loopback or on a Docker bridge, so it is reachable from outside this host and a container cannot reach it anyway; bind the bridge gateway the daemon reports"
+
+	errUnmanaged = "%w: %q is not a gateway of any network the Docker daemon manages, and %s must not be reachable from anything but the target under test. khaos checked %d network gateway(s). A kernel bridge is not enough: a CNI pod bridge, a swarm gateway bridge and a host interface enslaved to a bridge all look like one, and the last of those is the host's own routable address"
 )
 
 // ErrUnsafeBind is one sentinel for every listener khaos opens. Each tier
@@ -84,6 +86,50 @@ func Check(listenAddr, subject string) error {
 	}
 
 	return nil
+}
+
+// Managed is the narrow check, and Check is the structural one. Check asks
+// "could a container reach this and nothing off the host"; this asks "is this
+// an address DOCKER manages", which is the question `/sys/class/net/<if>/bridge`
+// cannot answer: that file exists for every kernel bridge device, including a
+// CNI pod bridge, a swarm gateway bridge, every user-defined Docker network's
+// bridge, and -- on a host whose LAN interface is enslaved to one -- the
+// routable LAN address itself. Check accepted all of those while its own
+// comment claimed nothing but the target could reach the listener.
+//
+// gateways comes from the daemon, so this lives wherever a Docker client does
+// and the structural check stays in the packages that bind. An empty set is a
+// refusal rather than a pass: khaos could not establish the allowed addresses,
+// and binding anyway is the behaviour this exists to stop.
+func Managed(listenAddr, subject string, gateways []string) error {
+	host, _, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		return fmt.Errorf(errBadAddr, ErrUnsafeBind, listenAddr, err)
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf(errWildcard, ErrUnsafeBind, listenAddr, subject)
+	}
+
+	if ip.IsLoopback() {
+		return nil
+	}
+
+	for _, gateway := range gateways {
+		if managed := net.ParseIP(gateway); managed != nil &&
+			managed.Equal(ip) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf(
+		errUnmanaged,
+		ErrUnsafeBind,
+		listenAddr,
+		subject,
+		len(gateways),
+	)
 }
 
 func bridgeHosts(ip net.IP) (bool, error) {

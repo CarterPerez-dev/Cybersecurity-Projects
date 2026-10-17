@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
 const (
@@ -23,6 +25,14 @@ const (
 	headerType  = "Content-Type"
 	healthBody  = "ok"
 	maxOCSPBody = 64 << 10
+
+	// Each listener names what it is, because one sentinel now serves every
+	// listener khaos opens and a refusal has to say which was about to be
+	// exposed. The CA signs for one hostname and the revocation endpoint
+	// decides whether a certificate is still good, so neither belongs on an
+	// interface the target under test cannot reach anyway.
+	SubjectRevocation = "a certificate authority's revocation endpoint"
+	SubjectDependency = "a dependency khaos presents deliberately broken certificates on"
 
 	errNoListener = "%w: the authority is not listening, so %s cannot be reached"
 	errBindFailed = "%w: binding %q: %v"
@@ -65,6 +75,10 @@ func (a *Authority) SetBase(base string) {
 }
 
 func (a *Authority) Listen(addr string) error {
+	if err := bindguard.Check(addr, SubjectRevocation); err != nil {
+		return err
+	}
+
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
 
@@ -109,6 +123,10 @@ func (a *Authority) Listen(addr string) error {
 // certificate is resolved per handshake rather than fixed at bind time, so
 // arming takes effect on the next connection.
 func (a *Authority) ListenTLS(addr string) error {
+	if err := bindguard.Check(addr, SubjectDependency); err != nil {
+		return err
+	}
+
 	a.listener.mu.Lock()
 	defer a.listener.mu.Unlock()
 

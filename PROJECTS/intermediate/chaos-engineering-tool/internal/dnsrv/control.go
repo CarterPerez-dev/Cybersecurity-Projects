@@ -26,6 +26,7 @@ const (
 
 	PathArm     = "/arm"
 	PathDisarm  = "/disarm"
+	PathRotate  = "/rotate"
 	PathState   = "/state"
 	PathHealthz = "/healthz"
 
@@ -65,6 +66,7 @@ func (r *Resolver) ServeControl(listen string) error {
 	mux.HandleFunc(PathState, r.guard(r.handleState))
 	mux.HandleFunc(PathArm, r.guard(r.handleArm))
 	mux.HandleFunc(PathDisarm, r.guard(r.handleDisarm))
+	mux.HandleFunc(PathRotate, r.guard(r.handleRotate))
 
 	server := &http.Server{
 		Handler:           mux,
@@ -150,6 +152,39 @@ func (r *Resolver) handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 func (r *Resolver) handleState(w http.ResponseWriter, _ *http.Request) {
 	r.writeJSON(w, r.Stats())
+}
+
+// handleRotate moves a name's address in the zone and echoes the state, whose
+// Zone map is read back rather than remembered -- so khaos's observable can name
+// the address the rotation replaced rather than the one it asked for.
+func (r *Resolver) handleRotate(w http.ResponseWriter, req *http.Request) {
+	var rotation Rotation
+
+	decoder := json.NewDecoder(
+		http.MaxBytesReader(w, req.Body, controlBodyLimit),
+	)
+	if err := decoder.Decode(&rotation); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	previous, err := r.Rotate(rotation.Name, rotation.Address)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	stats := r.Stats()
+	stats.Rotated = previous
+
+	r.writeJSON(w, stats)
+}
+
+// Rotation is one zone change, and it is a different request shape from a Trap
+// on purpose: arming a fault and moving the zone are different acts.
+type Rotation struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
 }
 
 // handleArm installs a fault and echoes the resulting state. The echo says

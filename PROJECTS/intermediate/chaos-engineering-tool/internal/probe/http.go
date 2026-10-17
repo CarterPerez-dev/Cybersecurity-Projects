@@ -200,7 +200,13 @@ func transportDisposition(err error) Disposition {
 	if errors.Is(err, context.Canceled) {
 		return ProbeFailed
 	}
-	return Unavailable
+
+	// Unreachable and not Unavailable: nothing answered. The target refusing
+	// the connection, resetting it or closing it without a response are all
+	// the target failing to ANSWER, which is a different observation from a
+	// 503 with a status line, and four experiments declare the second as their
+	// fail-closed outcome.
+	return Unreachable
 }
 
 // statusDisposition maps a status to what it says about the CREDENTIAL, not to

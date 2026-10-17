@@ -42,6 +42,8 @@ const (
 
 	deliveredResolve = "re-resolve its dependency's name"
 
+	rotatedWhat = "moved %s to %s in the zone"
+
 	// What to check when a DNS fault was armed, confirmed and never met. It
 	// lives here rather than in the verdict's shared sentence because the only
 	// other tier carrying that guard reaches it for an unrelated reason.
@@ -95,6 +97,12 @@ type dnsSpec struct {
 	// needsCache turns a target re-resolving per request into UNSUPPORTED rather
 	// than a clean survival it never earned.
 	needsCache bool
+
+	// rotates MOVES the zone rather than answering it wrongly, and it is exempt
+	// from the delivery guard for the same reason the TTL pair is: a target
+	// that never asks again IS the measurement here, not a void run. Research
+	// 05 section 6.5 carries the polarity.
+	rotates bool
 
 	extra []Param
 }
@@ -160,6 +168,19 @@ func buildDNS(spec dnsSpec) func(*Params) (Shape, error) {
 			shape.CacheRequired = cacheRequiredTTL
 		}
 
+		// The rotation's own observable. A target that never asks again did not
+		// see the rotation, which is a finding khaos must state and must not
+		// call a bypass: it is still talking to the honest endpoint it used
+		// during the baseline, so no credential got through that would not
+		// have.
+		if spec.rotates {
+			shape.RotatedWhat = fmt.Sprintf(
+				rotatedWhat,
+				host,
+				trap.Address,
+			)
+		}
+
 		return shape, nil
 	}
 }
@@ -206,7 +227,7 @@ func heldCaveatFor(spec dnsSpec) string {
 // deliveredFor is derived from the same needsCache declaration that turns on the
 // cache reading, so the two cannot disagree about which faults are about caching.
 func deliveredFor(spec dnsSpec) string {
-	if spec.needsCache {
+	if spec.needsCache || spec.rotates {
 		return ""
 	}
 
@@ -214,7 +235,7 @@ func deliveredFor(spec dnsSpec) string {
 }
 
 func hintFor(spec dnsSpec) string {
-	if spec.needsCache {
+	if spec.needsCache || spec.rotates {
 		return ""
 	}
 

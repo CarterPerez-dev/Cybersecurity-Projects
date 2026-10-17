@@ -314,6 +314,7 @@ func (e Engine) measureFault(
 	observation.Delivered = after - before
 	observation.DeliveredWhat = spec.DeliveredWhat
 	observation.DeliveredHint = spec.DeliveredHint
+	observation.RotatedWhat = spec.RotatedWhat
 	observation.Refusals = refusedAfter - refusedBefore
 
 	// NOT folded into CounterUnreadable, which voids the run: this count feeds

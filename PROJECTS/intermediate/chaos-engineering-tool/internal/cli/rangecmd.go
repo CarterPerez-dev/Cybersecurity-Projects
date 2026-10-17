@@ -30,6 +30,10 @@ var ErrUnknownPoolMode = errors.New(
 	"that is not a pool configuration the range fixture understands",
 )
 
+var ErrUnknownDNSMode = errors.New(
+	"that is not a resolution behaviour the range gateway understands",
+)
+
 var ErrUnknownAuthzMode = errors.New(
 	"that is not an authorization-error handling the range fixture understands",
 )
@@ -46,6 +50,7 @@ const (
 	flagPoolMode   = "pool-mode"
 	flagSecretMode = "secret-mode"
 	flagAuthzMode  = "authz-mode"
+	flagDNSMode    = "dns-mode"
 
 	mintedSecrets = 4
 
@@ -74,7 +79,9 @@ running.`
 	quietUsage      = "suppress compose build and start output"
 	secretModeUsage = "how the range's secret fixture handles the secret it reads. validated checks the length after every read, which is the correct handling and the fix for CVE-2019-20933; unchecked lets an empty value flow into the crypto, which is that CVE's own shape. An unrecognised value is refused rather than quietly leaving the fixture correct"
 
-	authzModeUsage = "how the range's service-to-service caller reads its authorization dependency's answers. distinguishes reads allow, deny and unknown as three outcomes, which is correct; collapses reads anything that is not a 200 as an absence of an answer and allows it, which is research 07's F20 and the single most common fail-open in service-to-service code; retries reaches the right verdict the wrong way, asking again every time it does not like an answer, which hammers the dependency with a credential it has already been told is dead. An unrecognised value is refused rather than quietly leaving the caller correct"
+	dnsModeUsage = "how the range's DNS gateway resolves its dependency's name. reresolve resolves on every request, which is a client that opens a fresh connection per call; pinned resolves once and reuses the connection, which is the DEFAULT behaviour of a Go service and the shape that never sees a zone rotation. Both are real, and `dns.ttl_rotate` needs both to assert its verdict in two directions. An unrecognised value is refused rather than quietly leaving the gateway re-resolving"
+
+	authzModeUsage = "how the range's service-to-service caller reads its authorization dependency's answers. distinguishes reads allow, deny and unknown as three outcomes, which is correct; collapses reads anything that is not a 200 as an absence of an answer and allows it, which is research 07's F20 and the single most common fail-open in service-to-service code; retries reaches the right verdict the wrong way, asking again every time it does not like an answer, which hammers the dependency with a credential it has already been told is dead; cached is correct as well and is the shape khaos's own verdict machinery was wrong about, holding a one-second decision cache and expressing its refusals as 503 rather than 403. An unrecognised value is refused rather than quietly leaving the caller correct"
 
 	poolModeUsage = "how the stateful tier's pooled fixture configures its connection pool. unbounded is the DEFAULT configuration of a Go service rather than a broken one, because database/sql closes a connection for age only when SetConnMaxLifetime is positive; bounded sets a lifetime, which is the knob that turns a rotation into a revocation; held checks one connection out and never returns it, which no lifetime bounds at all"
 
@@ -92,6 +99,7 @@ running.`
 	errUnknownPoolMode   = "%w: %q (known pool modes: %s)"
 	errUnknownSecretMode = "%w: %q (known secret modes: %s)"
 	errUnknownAuthzMode  = "%w: %q (known authorization modes: %s)"
+	errUnknownDNSMode    = "%w: %q (known DNS modes: %s)"
 
 	msgStatefulUp      = "the stateful tier is up: PostgreSQL, MySQL, MariaDB and Redis, none of them published to a host port"
 	msgPortHint        = "host port %d was chosen at random; pass --port to pin it"
@@ -163,6 +171,10 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			dnsMode, err := cmd.Flags().GetString(flagDNSMode)
+			if err != nil {
+				return err
+			}
 			return runRangeUp(
 				cmd.Context(),
 				cmd.OutOrStdout(),
@@ -176,6 +188,7 @@ func newRangeUpCmd() *cobra.Command {
 					pool:   poolMode,
 					secret: secretMode,
 					authz:  authzMode,
+					dns:    dnsMode,
 				},
 			)
 		},
@@ -198,6 +211,7 @@ func newRangeUpCmd() *cobra.Command {
 		rangelab.AuthzCollapses,
 		authzModeUsage,
 	)
+	cmd.Flags().String(flagDNSMode, rangelab.DNSReresolve, dnsModeUsage)
 
 	return cmd
 }
@@ -209,6 +223,7 @@ type rangeModes struct {
 	pool   string
 	secret string
 	authz  string
+	dns    string
 }
 
 // mintRangeSecrets gives the range a fresh nonce and a fresh database password
@@ -263,11 +278,30 @@ func knownPoolModes() []string {
 // knownAuthzModes is validated against the whole set for the same reason as
 // the other three: `collapses` is the DEFAULT here, so a typo would hand the
 // experiment a correct caller and report the defect as absent.
+// knownDNSModes is validated by name for the same reason as the rest: the
+// default leaves the gateway re-resolving, so a typo would hand `dns.ttl_rotate`
+// the one target shape that always follows a rotation and the pinning direction
+// would never be measured.
+// reresolveFor turns the mode into the value the gateway's own environment
+// carries, which is a bare boolean string the fixture reads.
+func reresolveFor(mode string) string {
+	if mode == rangelab.DNSPinned {
+		return "false"
+	}
+
+	return "true"
+}
+
+func knownDNSModes() []string {
+	return []string{rangelab.DNSReresolve, rangelab.DNSPinned}
+}
+
 func knownAuthzModes() []string {
 	return []string{
 		rangelab.AuthzDistinguishes,
 		rangelab.AuthzCollapses,
 		rangelab.AuthzRetries,
+		rangelab.AuthzCached,
 	}
 }
 
@@ -357,7 +391,41 @@ func validateModes(failMode string, modes rangeModes) error {
 			modes.authz, strings.Join(knownAuthzModes(), listSep))
 	}
 
+	if !slices.Contains(knownDNSModes(), modes.dns) {
+		return fmt.Errorf(errUnknownDNSMode, ErrUnknownDNSMode,
+			modes.dns, strings.Join(knownDNSModes(), listSep))
+	}
+
 	return nil
+}
+
+// alsoBoundOn is every address BESIDES loopback that a port has to be free on.
+// Four of the tiers bind the Docker bridge gateway rather than loopback, so a
+// port khaos proved free on 127.0.0.1 can still be taken where they will bind
+// it. A daemon that will not answer is not fatal: the free check degrades to
+// loopback and the tier's own bind refusal names the port.
+func alsoBoundOn(ctx context.Context, work *workspace.Workspace) []string {
+	gateway, err := work.Docker.BridgeGateway(ctx)
+	if err != nil {
+		return nil
+	}
+
+	return []string{gateway}
+}
+
+// sayRangeIsUp is the operator-facing summary, split out so the function that
+// builds the range is about building it.
+func sayRangeIsUp(out io.Writer, failMode string, port int, withDB bool) {
+	event(out, markOK, theme.StatusOK, msgRangeUp)
+	note(out, fmt.Sprintf(msgFailMode, failMode))
+	note(out, fmt.Sprintf(msgPortHint, port))
+
+	if withDB {
+		note(out, msgStatefulUp)
+	}
+
+	note(out, msgTokenHint)
+	fmt.Fprintln(out)
 }
 
 func runRangeUp(
@@ -394,9 +462,11 @@ func runRangeUp(
 	pinned := port != 0
 	var lab rangelab.Lab
 
+	also := alsoBoundOn(ctx, work)
+
 	for attempt := range portAttempts {
 		// Only the direct gateway's port is pinnable; the others are plumbing.
-		ports, err := rangelab.FreePorts()
+		ports, err := rangelab.FreePorts(also...)
 		if err != nil {
 			return err
 		}
@@ -424,6 +494,7 @@ func runRangeUp(
 			modes.pool,
 			modes.secret,
 			modes.authz,
+			reresolveFor(modes.dns),
 			withDB,
 		)
 		if err == nil {
@@ -437,15 +508,7 @@ func runRangeUp(
 		note(out, fmt.Sprintf(msgPortRetry, port))
 	}
 
-	event(out, markOK, theme.StatusOK, msgRangeUp)
-	note(out, fmt.Sprintf(msgFailMode, failMode))
-	note(out, fmt.Sprintf(msgPortHint, lab.Port))
-	if withDB {
-		note(out, msgStatefulUp)
-	}
-
-	note(out, msgTokenHint)
-	fmt.Fprintln(out)
+	sayRangeIsUp(out, failMode, lab.Port, withDB)
 
 	// Read back from the containers, which are the only authority on where
 	// they will actually dial and which issuer they will trust.

@@ -35,7 +35,7 @@ const (
 	reasonDenied  = "khaos's authorization dependency denies this credential: a definitive verdict, with full reachability"
 	reasonOutage  = "khaos's authorization dependency cannot answer; this is the absence of a decision, not a decision"
 
-	subjectAuthz = "an authorization service that allows every credential it was not told to deny"
+	SubjectAuthz = "an authorization service that allows every credential it was not told to deny"
 
 	askTimeout    = 2 * time.Second
 	shutdownGrace = 2 * time.Second
@@ -101,7 +101,7 @@ func New() *Dependency {
 // wildcard bind would put an allow-everything authorization service on every
 // interface the host has.
 func (d *Dependency) Listen(addr string) error {
-	if err := bindguard.Check(addr, subjectAuthz); err != nil {
+	if err := bindguard.Check(addr, SubjectAuthz); err != nil {
 		return err
 	}
 

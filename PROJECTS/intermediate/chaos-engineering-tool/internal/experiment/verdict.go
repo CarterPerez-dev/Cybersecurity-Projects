@@ -183,6 +183,16 @@ const (
 	// could not get, and the fault may well be in effect.
 	reasonShiftUnarmed = "khaos could not establish the second phase, so this run measured what the target does with a definitive deny and nothing about what it does when the dependency cannot answer; those are different branches and a correct caller needs both"
 
+	// Stated, and deliberately NOT a bypass. No credential got through that
+	// would not have before: the target is still talking to the endpoint it
+	// used during the baseline. Calling it PERMITTED would be khaos claiming a
+	// bypass it did not observe; saying nothing would hide the operational
+	// finding, which is that a DNS-based revocation on this name would not have
+	// taken effect either.
+	reasonRotationUnseen = "khaos %s and the target never asked again: %d queries during the baseline and ZERO during the fault window. The rotation did not reach it, so a DNS-based failover or endpoint revocation on that name would not have taken effect either. This is NOT a credential bypass and khaos reports none -- the target is still reaching the address it was reaching before the rotation"
+
+	reasonRotationFollowed = "khaos %s and the target asked again %d time(s) during the fault window, so the rotation reached it: a DNS-based failover or revocation on that name would take effect"
+
 	reasonShiftNotDelivered = "the second phase was armed and confirmed, and khaos did not observe the target meeting it: it did not %s once during that window, so it answered every probe from something it had already cached and nothing khaos changed there reached it. Window one treats that observation as a void run rather than a finding, and so does this one"
 )
 
@@ -249,6 +259,13 @@ type Observation struct {
 	// Zero means the fault was armed, confirmed, and never experienced.
 	Delivered     int64  `json:"delivered,omitempty"`
 	DeliveredWhat string `json:"delivered_what,omitempty"`
+
+	// RotatedWhat names a zone rotation khaos performed, and this is the one
+	// count read as a FINDING when it is zero: a target that never asked again
+	// never saw the rotation. Research 05 section 6.5 is the polarity, and the
+	// finding is deliberately NOT a bypass -- the target is still talking to
+	// the endpoint it used during the baseline.
+	RotatedWhat string `json:"rotated_what,omitempty"`
 
 	// DeliveredHint is what to check, in this fault's own terms. The guard is
 	// shared and the causes are not: a name the target never resolved again and
@@ -512,6 +529,10 @@ func finish(
 		verdict.Reasons = append(verdict.Reasons, storm)
 	}
 
+	if rotation := rotationReading(observation); rotation != "" {
+		verdict.Reasons = append(verdict.Reasons, rotation)
+	}
+
 	// EVERY direction is put to the declared polarity, including HELD. For a
 	// certificate fault a target that carries on unchanged has ACCEPTED the
 	// broken certificate, so "nothing looks wrong" is the finding.
@@ -585,6 +606,30 @@ func leaked(observation Observation) []string {
 	}
 
 	return reasons
+}
+
+// rotationReading states whether a zone rotation reached the target at all,
+// which is the whole question for the one fault that MOVES the zone rather than
+// answering it wrongly. Zero queries during the fault window is the finding;
+// khaos says it in both directions so a clean run is not silence.
+func rotationReading(observation Observation) string {
+	if observation.RotatedWhat == "" {
+		return ""
+	}
+
+	if observation.Delivered == 0 {
+		return sprintf(
+			reasonRotationUnseen,
+			observation.RotatedWhat,
+			observation.Consulted,
+		)
+	}
+
+	return sprintf(
+		reasonRotationFollowed,
+		observation.RotatedWhat,
+		observation.Delivered,
+	)
 }
 
 // retryStorm reports the target asking again about a credential the dependency

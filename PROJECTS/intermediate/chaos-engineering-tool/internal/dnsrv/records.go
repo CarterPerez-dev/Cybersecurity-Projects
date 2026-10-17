@@ -142,10 +142,25 @@ func rettl(msg *dns.Msg, ttl uint32) *dns.Msg {
 // validAddress refuses a malformed WrongAddress magnitude before the trap arms,
 // where it would answer an empty NOERROR and read as a target that resolved
 // nothing.
+// validAddress requires IPv4, and that is narrower than "parses as an IP" for a
+// measured reason. Every khaos probe asks for an A record, and addressAnswer
+// answers an empty NOERROR when the family asked for is not the family of the
+// address it was given -- correctly, since inventing an A record from an IPv6
+// address builds nothing (measured: `dns: bad A A`). So an IPv6 address passes
+// a parse check, arms cleanly, and then makes khaos serve an EMPTY ANSWER while
+// reporting that it armed a redirect. Refusing it here means the operator finds
+// out when they ask for it rather than reading a verdict about a fault khaos
+// never served.
 func validAddress(address string) error {
-	if net.ParseIP(address) == nil {
+	parsed := net.ParseIP(address)
+	if parsed == nil {
 		return fmt.Errorf(errBadAddress, ErrBadAddress, address)
 	}
+
+	if parsed.To4() == nil {
+		return fmt.Errorf(errNotV4, ErrBadAddress, address)
+	}
+
 	return nil
 }
 
