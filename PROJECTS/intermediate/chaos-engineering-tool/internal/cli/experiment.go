@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
@@ -122,6 +123,10 @@ enforcing in the first place.`
 	errNoAdminSecret = "%s does not carry %s in its environment, so khaos has no administrative credential for the %s and will not guess one. khaos reads it from the container rather than taking it on a flag, because a flag is world-readable in /proc and a journal entry would outlive the run. Point --%s at the variable that holds it, or run `khaos range up --with-db` for a stack that is already wired"
 
 	errNoPooledPath = "%w: this experiment rotates the credential a service's own connection pool authenticated with, and the running range has no %s; bring the range down and up again with `khaos range up --with-db`"
+
+	errAuthzBind = "khaos could not bind the authorization dependency it plays on %s, which is where the target's own authorization check is already looking: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
+
+	msgAuthzUp = "khaos is answering authorization decisions on %s, allowing every credential until it is told otherwise"
 
 	errNoSubjectSecret = "%s does not carry %s in its environment, so khaos cannot read the credential its own connection pool authenticated with, and a rotation it cannot undo is not one khaos will perform"
 
@@ -521,11 +526,16 @@ func runExperiment(
 		dockerx.Filter{Project: project},
 		guard,
 	)
+
+	// BEFORE the error check, because standUpTiers hands the closer back WITH
+	// its error: a tier that failed is one position past tiers that already
+	// bound a listener, and khaos's claim that nothing is left listening has to
+	// hold by construction rather than because the process happens to exit.
+	defer closeTiers()
+
 	if err != nil {
 		return err
 	}
-
-	defer closeTiers()
 
 	session := run.NewSession(env, work.Journal, ttl)
 
@@ -766,6 +776,7 @@ func rangeSupplies() []string {
 		experiment.ParamReadyURL,
 		experiment.ParamSecretPath,
 		experiment.ParamEnvVar,
+		experiment.ParamAuthzListen,
 	}
 }
 
@@ -783,12 +794,15 @@ const (
 	tierPool
 	tierSecret
 	tierEnv
+	tierAuthz
 )
 
 func tierOf(kind string) tier {
 	switch {
 	case inject.NeedsProxy(kind):
 		return tierProxy
+	case inject.NeedsAuthz(kind):
+		return tierAuthz
 	case inject.NeedsIdP(kind):
 		return tierIdP
 	case inject.NeedsPKI(kind):
@@ -823,6 +837,11 @@ type rangeAnswers struct {
 	AuthorityBase   string
 
 	CertHost string
+
+	// Where khaos binds the authorization dependency it plays. Same shape as
+	// AuthorityListen and for the same reason: the fixture's own call is
+	// already addressed at a fixed port on the bridge gateway.
+	AuthzListen string
 }
 
 // tierAnswers is what one tier's own gateway and fixtures answer. Split out of
@@ -904,6 +923,13 @@ func answersFor(lab rangelab.Lab, at tier) tierAnswers {
 		answers.target = rangelab.EnvGatewayName
 		answers.variable = rangelab.SecretVariable
 
+	// The CALLER is the target. khaos replaces the dependency it asks, so the
+	// fixture is the only container whose consent is needed, and the
+	// dependency is not a container at all.
+	case tierAuthz:
+		answers.url = lab.AuthzProtectedURL()
+		answers.target = rangelab.AuthzGatewayName
+
 	default:
 		// The direct tier's URL and target are the values set above.
 	}
@@ -932,6 +958,7 @@ func rangeDefaults(
 		experiment.ParamAuthorityTLS:    answers.AuthorityTLS,
 		experiment.ParamAuthorityBase:   answers.AuthorityBase,
 		experiment.ParamCertHost:        answers.CertHost,
+		experiment.ParamAuthzListen:     answers.AuthzListen,
 
 		experiment.ParamDNSHost:         rangelab.DNSDependencyName,
 		experiment.ParamResolverNetwork: rangelab.NetworkName,
@@ -1086,6 +1113,9 @@ func requireTier(lab rangelab.Lab, at tier) error {
 
 	case tierEnv:
 		return lab.RequireEnvTier()
+
+	case tierAuthz:
+		return lab.RequireAuthzTier()
 
 	default:
 		// The direct tier needs only the gateway Discover already found.
@@ -1247,6 +1277,9 @@ func standUpTiers(
 			return standUpPKITier(out, spec, &env)
 		},
 		func() (func(), error) {
+			return standUpAuthzTier(out, spec, &env)
+		},
+		func() (func(), error) {
 			return standUpDNSTier(ctx, out, work.Docker, spec, target, &env)
 		},
 		func() (func(), error) {
@@ -1343,6 +1376,38 @@ func standUpPKITier(
 	env.PKITrap = *spec.PKITrap
 
 	return func() { _ = spec.Authority.Close() }, nil
+}
+
+// standUpAuthzTier binds khaos's authorization dependency BEFORE the baseline,
+// which is not optional: the target's authorization call has to be answered
+// through the whole run, or the baseline measures a dependency that is down and
+// the fault window is the only one where it is up.
+func standUpAuthzTier(
+	out io.Writer,
+	spec *experiment.Experiment,
+	env *inject.Env,
+) (func(), error) {
+	if spec.AuthzTrap == nil {
+		return nil, nil
+	}
+
+	if err := spec.Authz.Listen(spec.AuthzListen); err != nil {
+		// The guard refuses BEFORE the bind is attempted, so the port-collision
+		// advice below is wrong for the one refusal an operator will actually
+		// hit: an address khaos will not serve this from.
+		if errors.Is(err, bindguard.ErrUnsafeBind) {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf(errAuthzBind, spec.AuthzListen, err)
+	}
+
+	note(out, fmt.Sprintf(msgAuthzUp, spec.Authz.Addr()))
+
+	env.Authz = spec.Authz
+	env.AuthzTrap = *spec.AuthzTrap
+
+	return func() { _ = spec.Authz.Close() }, nil
 }
 
 // standUpDNSTier ATTACHES rather than starts: `--dns` is fixed at container
@@ -1740,10 +1805,8 @@ func credentialParam(name string) bool {
 	return name == experiment.ParamToken || name == experiment.ParamRevocable
 }
 
-// askForCredentials asks whichever fixture will be the one VERIFYING. For the
-// secret family that is the fixture itself, because khaos never reads the
-// secret and a token signed with any other key would be refused for a reason
-// that has nothing to do with the fault.
+// askForCredentials mints whichever credentials this experiment declared, from
+// the one fixture that will be asked to verify them.
 func askForCredentials(
 	ctx context.Context,
 	lab rangelab.Lab,
@@ -1751,27 +1814,12 @@ func askForCredentials(
 	at tier,
 	answers *rangeAnswers,
 ) error {
+	issue, err := issuerFor(lab, at)
+	if err != nil {
+		return err
+	}
+
 	if want(experiment.ParamToken) {
-		issue := lab.IssueToken
-
-		switch at {
-		case tierSecret:
-			if err := lab.RequireSecretTier(); err != nil {
-				return err
-			}
-			issue = lab.IssueSecretToken
-
-		case tierEnv:
-			if err := lab.RequireEnvTier(); err != nil {
-				return err
-			}
-			issue = lab.IssueEnvToken
-
-		default:
-			// Every other tier's credential comes from the range's own
-			// identity provider through the direct gateway.
-		}
-
 		token, err := issue(ctx)
 		if err != nil {
 			return err
@@ -1782,8 +1830,11 @@ func askForCredentials(
 
 	// A SECOND credential: revoking the one khaos keeps presenting as valid
 	// would also take away the stream proving the target is serving at all.
+	// It comes from the same issuer, because a fixture that authenticates
+	// locally refuses anything it did not hand out and khaos would be
+	// measuring that refusal instead of the fault.
 	if want(experiment.ParamRevocable) {
-		revocable, err := lab.IssueToken(ctx)
+		revocable, err := issue(ctx)
 		if err != nil {
 			return err
 		}
@@ -1792,6 +1843,43 @@ func askForCredentials(
 	}
 
 	return nil
+}
+
+// issuerFor is whichever fixture will be the one VERIFYING. For the secret
+// family that is the fixture itself, because khaos never reads the secret and a
+// token signed with any other key would be refused for a reason that has
+// nothing to do with the fault.
+func issuerFor(
+	lab rangelab.Lab,
+	at tier,
+) (func(context.Context) (string, error), error) {
+	switch at {
+	case tierSecret:
+		if err := lab.RequireSecretTier(); err != nil {
+			return nil, err
+		}
+
+		return lab.IssueSecretToken, nil
+
+	case tierEnv:
+		if err := lab.RequireEnvTier(); err != nil {
+			return nil, err
+		}
+
+		return lab.IssueEnvToken, nil
+
+	case tierAuthz:
+		if err := lab.RequireAuthzTier(); err != nil {
+			return nil, err
+		}
+
+		return lab.IssueAuthzToken, nil
+
+	default:
+		// Every other tier's credential comes from the range's own identity
+		// provider through the direct gateway.
+		return lab.IssueToken, nil
+	}
 }
 
 func askTheRange(
@@ -1828,6 +1916,14 @@ func askTheRange(
 			return rangeAnswers{}, err
 		}
 		answers.Authority = authority
+	}
+
+	if want(experiment.ParamAuthzListen) {
+		listen, err := lab.AuthzListenAddr(ctx, reader)
+		if err != nil {
+			return rangeAnswers{}, err
+		}
+		answers.AuthzListen = listen
 	}
 
 	if want(experiment.ParamAuthorityListen) ||

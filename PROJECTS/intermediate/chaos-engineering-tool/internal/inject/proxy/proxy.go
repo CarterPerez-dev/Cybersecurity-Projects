@@ -5,15 +5,13 @@ package proxy
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
-	"os"
-	"path/filepath"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
 const (
@@ -30,9 +28,7 @@ const (
 
 	settleWindow = 250 * time.Millisecond
 
-	errWildcard   = "%w: %q binds every address on this host, and a fault proxy in front of a dependency under test must not be reachable off it; bind the Docker bridge gateway instead"
-	errPrivileged = "%w: %q is a privileged port"
-	errBadAddr    = "%w: %q is not a host and port (%v)"
+	subjectProxy = "a fault proxy in front of a dependency under test"
 
 	probePayload = "GET / HTTP/1.1\r\nHost: khaos.confirm\r\nConnection: close\r\n\r\n"
 
@@ -43,19 +39,13 @@ const (
 	observedPartial   = "%d bytes arrive through khaos's proxy where the dependency answers %d directly"
 	observedSlowClose = "the close arrives %s after the last byte, which it does not do directly"
 	errWrongArmed     = "%w: the proxy holds %q but %q was expected"
-
-	lowestUnprivilegedPort = 1024
-	ephemeralPort          = 0
-
-	sysClassNet  = "/sys/class/net"
-	bridgeMarker = "bridge"
-
-	errOffBox = "%w: %q is not on loopback or on a Docker bridge, so it is reachable from outside this host and a container cannot reach it anyway; bind the bridge gateway the daemon reports"
 )
 
 var ErrClosed = errors.New("the fault proxy is closed")
 
-var ErrUnsafeBind = errors.New("khaos will not bind the fault proxy there")
+// ErrUnsafeBind is the shared sentinel. It stays spelled here because every
+// caller and test in this tier asks about it by this name.
+var ErrUnsafeBind = bindguard.ErrUnsafeBind
 
 type armed struct {
 	fault      Fault
@@ -88,7 +78,7 @@ type Proxy struct {
 
 // Open binds the proxy and refuses an address that would expose it.
 func Open(listenAddr, upstream string) (*Proxy, error) {
-	if err := safeBind(listenAddr); err != nil {
+	if err := bindguard.Check(listenAddr, subjectProxy); err != nil {
 		return nil, err
 	}
 
@@ -110,73 +100,6 @@ func Open(listenAddr, upstream string) (*Proxy, error) {
 	go p.serve()
 
 	return p, nil
-}
-
-// safeBind tests the routing property rather than the address: loopback, or a
-// bridge, identified by its sysfs `bridge` directory rather than by its name.
-func safeBind(listenAddr string) error {
-	host, portText, err := net.SplitHostPort(listenAddr)
-	if err != nil {
-		return fmt.Errorf(errBadAddr, ErrUnsafeBind, listenAddr, err)
-	}
-
-	ip := net.ParseIP(host)
-	if ip == nil || ip.IsUnspecified() {
-		return fmt.Errorf(errWildcard, ErrUnsafeBind, listenAddr)
-	}
-
-	port, err := strconv.Atoi(portText)
-	if err != nil {
-		return fmt.Errorf(errBadAddr, ErrUnsafeBind, listenAddr, err)
-	}
-
-	if port != ephemeralPort && port < lowestUnprivilegedPort {
-		return fmt.Errorf(errPrivileged, ErrUnsafeBind, listenAddr)
-	}
-
-	if ip.IsLoopback() {
-		return nil
-	}
-
-	onBridge, err := bridgeHosts(ip)
-	if err != nil {
-		return fmt.Errorf(errBadAddr, ErrUnsafeBind, listenAddr, err)
-	}
-
-	if !onBridge {
-		return fmt.Errorf(errOffBox, ErrUnsafeBind, listenAddr)
-	}
-
-	return nil
-}
-
-func bridgeHosts(ip net.IP) (bool, error) {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return false, err
-	}
-
-	for _, iface := range interfaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-
-		for _, addr := range addrs {
-			network, ok := addr.(*net.IPNet)
-			if !ok || !network.IP.Equal(ip) {
-				continue
-			}
-
-			_, err := os.Stat(
-				filepath.Join(sysClassNet, iface.Name, bridgeMarker),
-			)
-
-			return err == nil, nil
-		}
-	}
-
-	return false, nil
 }
 
 func (p *Proxy) Addr() string { return p.listener.Addr().String() }

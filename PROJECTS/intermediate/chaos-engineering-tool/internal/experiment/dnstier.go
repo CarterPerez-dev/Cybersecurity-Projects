@@ -41,6 +41,11 @@ const (
 	caveatRedirectUnseen = "khaos served the redirect and measured that the target re-resolved, and it did NOT observe which host the target then connected to: the redirect address is an operator parameter and khaos has nothing listening at the far end of it. So this HELD means the target's control was not disturbed, and it does not establish that the target verified who it reached. If the address you redirected to answers at all, check its own logs for the target's requests before reading this as a pass"
 
 	deliveredResolve = "re-resolve its dependency's name"
+
+	// What to check when a DNS fault was armed, confirmed and never met. It
+	// lives here rather than in the verdict's shared sentence because the only
+	// other tier carrying that guard reaches it for an unrelated reason.
+	hintResolve = "A kept-alive connection produces this shape -- Go's HTTP transport resolves a name once when it opens a connection and never again while that connection lives, measured at two lookups across forty-six requests -- and so would the target's own resolver cache, an /etc/hosts entry, or resolution over DoH, none of which khaos ruled out. What to check, in that order: the target's connection lifetime, its own DNS cache, /etc/hosts, and whether it resolves over plain DNS at all"
 )
 
 // dnsPolarity omits two directions deliberately: DENIED is correct with an
@@ -148,6 +153,7 @@ func buildDNS(spec dnsSpec) func(*Params) (Shape, error) {
 			// one fault a target can simply not ask for again. The TTL pair is
 			// exempt, because there not re-resolving IS the measurement.
 			DeliveredWhat: deliveredFor(spec),
+			DeliveredHint: hintFor(spec),
 		}
 
 		if spec.needsCache {
@@ -205,6 +211,14 @@ func deliveredFor(spec dnsSpec) string {
 	}
 
 	return deliveredResolve
+}
+
+func hintFor(spec dnsSpec) string {
+	if spec.needsCache {
+		return ""
+	}
+
+	return hintResolve
 }
 
 // DNSDelayCeiling is exported so the CLI's refusal names the same number the

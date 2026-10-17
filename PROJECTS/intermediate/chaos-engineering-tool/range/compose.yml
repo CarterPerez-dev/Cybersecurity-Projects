@@ -560,6 +560,46 @@ services:
       retries: 15
     restart: "no"
 
+  # The service-to-service caller, and the only fixture whose dependency is not
+  # in this file at all: khaos answers its authorization calls from the host.
+  # That is the whole tier. No correct authorization service will answer a
+  # definitive 403 on request, and a definitive 403 with full reachability is
+  # exactly what no network fault can produce.
+  #
+  # It authenticates every credential itself, locally and correctly, in all
+  # three modes. Without that a collapsing caller refuses nothing at all and
+  # khaos's own baseline guard would void the run instead of measuring it.
+  gateway-authz:
+    container_name: khaos-range-gateway-authz
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["authz"]
+    environment:
+      KHAOS_RANGE_AUTHZ_BASE: "http://host.docker.internal:${KHAOS_RANGE_AUTHZ_DEP_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_AUTHZ_MODE: "${KHAOS_RANGE_AUTHZ_MODE:-collapses}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_AUTHZ_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.18
+    # PROCESS liveness, not dependency liveness: /health would make the fixture
+    # unstartable until khaos is listening, and khaos only listens during a run.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
 networks:
   range:
     name: khaos-range

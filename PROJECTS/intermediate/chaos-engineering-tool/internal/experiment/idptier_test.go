@@ -469,11 +469,15 @@ func TestTheRolloverControlIsAJWTUnderAKeyThatIsNeverRotated(t *testing.T) {
 	}
 }
 
-// The rotation experiment is the only inversion in the family, and it is the
-// only thing in the whole catalogue that makes the directional axis anything but
-// decoration. If it ever stops treating DENIED as a defect, nothing else
-// exercises that branch.
-func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(
+// TWO experiments treat refusing as a defect, and the set is pinned because it
+// is the only thing in the whole catalogue that makes the directional axis
+// anything but decoration: if both ever stopped, nothing would exercise that
+// branch. Each one is here for the same reason -- the fault was scoped to one
+// credential, so refusing the OTHER one is an outage the fault never called
+// for. The rotation publishes both keys precisely so nothing breaks, and the
+// authorization dependency denies exactly one credential and keeps allowing
+// every other. A third entry has to earn that argument.
+func TestRefusingIsTheDefectOnlyWhereTheFaultWasScopedToOneCredential(
 	t *testing.T,
 ) {
 	inverted := []string{}
@@ -484,11 +488,14 @@ func TestTheRotationExperimentIsTheOnlyOneWhereRefusingIsTheDefect(
 		}
 	}
 
-	if !slices.Equal(inverted, []string{NameKeyRotation}) {
+	want := []string{NameAPIKeyRevoked, NameKeyRotation}
+	slices.Sort(want)
+
+	if !slices.Equal(inverted, want) {
 		t.Fatalf(
-			"the experiments treating DENIED as a defect are %v, want exactly [%s]",
+			"the experiments treating DENIED as a defect are %v, want exactly %v",
 			inverted,
-			NameKeyRotation,
+			want,
 		)
 	}
 }

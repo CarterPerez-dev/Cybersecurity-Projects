@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
@@ -63,6 +64,13 @@ type Shape struct {
 	Authority *pki.Authority
 	PKITrap   *pki.Trap
 
+	// The dependency khaos plays so one can answer a definitive deny. The
+	// listen address is the one the target's own authorization check already
+	// calls, so it is given rather than chosen.
+	Authz       *authz.Dependency
+	AuthzTrap   *authz.Trap
+	AuthzListen string
+
 	DNSTrap         *dnsrv.Trap
 	ResolverNetwork string
 	DNSHost         string
@@ -95,9 +103,21 @@ type Shape struct {
 	Consulted     func() (int64, error)
 	ConsultedWhat string
 
+	// Refusals counts the definitive denials the faulted dependency issued, for
+	// the retry storm: a caller presenting a credential that has already been
+	// refused once per request asks about it once per request.
+	Refusals func() (int64, error)
+
+	// Shift changes what the faulted dependency ANSWERS, between two fault
+	// windows on the same run, so the two can be compared.
+	Shift       func(context.Context) error
+	ShiftDetail string
+	ShiftWhat   string
+
 	Unsupportable string
 	CacheRequired string
 	DeliveredWhat string
+	DeliveredHint string
 
 	IdleFor time.Duration
 
@@ -273,6 +293,13 @@ func Build(
 
 		Authority:       shape.Authority,
 		PKITrap:         shape.PKITrap,
+		Authz:           shape.Authz,
+		AuthzTrap:       shape.AuthzTrap,
+		AuthzListen:     shape.AuthzListen,
+		Refusals:        shape.Refusals,
+		Shift:           shape.Shift,
+		ShiftDetail:     shape.ShiftDetail,
+		ShiftWhat:       shape.ShiftWhat,
 		AuthorityBase:   shape.AuthorityBase,
 		AuthorityListen: shape.AuthorityListen,
 		AuthorityTLS:    shape.AuthorityTLS,
@@ -284,6 +311,7 @@ func Build(
 		Unsupportable:   shape.Unsupportable,
 		CacheRequired:   shape.CacheRequired,
 		DeliveredWhat:   shape.DeliveredWhat,
+		DeliveredHint:   shape.DeliveredHint,
 		DNSTrap:         shape.DNSTrap,
 		ResolverNetwork: shape.ResolverNetwork,
 		DNSHost:         shape.DNSHost,

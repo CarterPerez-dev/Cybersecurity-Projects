@@ -30,6 +30,10 @@ var ErrUnknownPoolMode = errors.New(
 	"that is not a pool configuration the range fixture understands",
 )
 
+var ErrUnknownAuthzMode = errors.New(
+	"that is not an authorization-error handling the range fixture understands",
+)
+
 var ErrUnknownFailMode = errors.New("the range has no such fail mode")
 
 const (
@@ -41,6 +45,7 @@ const (
 	flagWithDB     = "with-db"
 	flagPoolMode   = "pool-mode"
 	flagSecretMode = "secret-mode"
+	flagAuthzMode  = "authz-mode"
 
 	mintedSecrets = 4
 
@@ -69,6 +74,8 @@ running.`
 	quietUsage      = "suppress compose build and start output"
 	secretModeUsage = "how the range's secret fixture handles the secret it reads. validated checks the length after every read, which is the correct handling and the fix for CVE-2019-20933; unchecked lets an empty value flow into the crypto, which is that CVE's own shape. An unrecognised value is refused rather than quietly leaving the fixture correct"
 
+	authzModeUsage = "how the range's service-to-service caller reads its authorization dependency's answers. distinguishes reads allow, deny and unknown as three outcomes, which is correct; collapses reads anything that is not a 200 as an absence of an answer and allows it, which is research 07's F20 and the single most common fail-open in service-to-service code; retries reaches the right verdict the wrong way, asking again every time it does not like an answer, which hammers the dependency with a credential it has already been told is dead. An unrecognised value is refused rather than quietly leaving the caller correct"
+
 	poolModeUsage = "how the stateful tier's pooled fixture configures its connection pool. unbounded is the DEFAULT configuration of a Go service rather than a broken one, because database/sql closes a connection for age only when SetConnMaxLifetime is positive; bounded sets a lifetime, which is the knob that turns a rotation into a revocation; held checks one connection out and never returns it, which no lifetime bounds at all"
 
 	withDBUsage = "also start the stateful tier: PostgreSQL 18, MySQL 8.4, MariaDB 11.4 and a Redis for the rate limiter's datastore. These four are the only range services khaos does not implement itself, because the credential family's finding IS what three correct engines do, and they cost real startup time, so they are opt-in"
@@ -84,6 +91,7 @@ running.`
 	msgTokenHint         = "a credential is issued on demand, so `khaos run` against the range needs no flags"
 	errUnknownPoolMode   = "%w: %q (known pool modes: %s)"
 	errUnknownSecretMode = "%w: %q (known secret modes: %s)"
+	errUnknownAuthzMode  = "%w: %q (known authorization modes: %s)"
 
 	msgStatefulUp      = "the stateful tier is up: PostgreSQL, MySQL, MariaDB and Redis, none of them published to a host port"
 	msgPortHint        = "host port %d was chosen at random; pass --port to pin it"
@@ -94,6 +102,7 @@ running.`
 	msgTierVerifier = "identity tier       %s, trusting khaos's provider as %s"
 	msgTierTLS      = "certificate tier    %s, dialling khaos's authority at %s as the %s client"
 	msgTierDNS      = "dns tier            %s, resolving %s through khaos's chaos resolver at %s"
+	msgTierAuthz    = "authorization tier  %s, asking khaos for a decision at %s"
 )
 
 func newRangeCmd() *cobra.Command {
@@ -150,6 +159,10 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			authzMode, err := cmd.Flags().GetString(flagAuthzMode)
+			if err != nil {
+				return err
+			}
 			return runRangeUp(
 				cmd.Context(),
 				cmd.OutOrStdout(),
@@ -159,8 +172,11 @@ func newRangeUpCmd() *cobra.Command {
 				port,
 				quiet,
 				withDB,
-				poolMode,
-				secretMode,
+				rangeModes{
+					pool:   poolMode,
+					secret: secretMode,
+					authz:  authzMode,
+				},
 			)
 		},
 	}
@@ -177,8 +193,22 @@ func newRangeUpCmd() *cobra.Command {
 		rangelab.SecretUnchecked,
 		secretModeUsage,
 	)
+	cmd.Flags().String(
+		flagAuthzMode,
+		rangelab.AuthzCollapses,
+		authzModeUsage,
+	)
 
 	return cmd
+}
+
+// rangeModes is the per-fixture configuration one `range up` carries. Grouped
+// because four of them are now passed through two functions, and a fifth
+// positional string is how two of them end up swapped.
+type rangeModes struct {
+	pool   string
+	secret string
+	authz  string
 }
 
 // mintRangeSecrets gives the range a fresh nonce and a fresh database password
@@ -227,6 +257,17 @@ func knownPoolModes() []string {
 		rangelab.PoolUnbounded,
 		rangelab.PoolBounded,
 		rangelab.PoolHeld,
+	}
+}
+
+// knownAuthzModes is validated against the whole set for the same reason as
+// the other three: `collapses` is the DEFAULT here, so a typo would hand the
+// experiment a correct caller and report the defect as absent.
+func knownAuthzModes() []string {
+	return []string{
+		rangelab.AuthzDistinguishes,
+		rangelab.AuthzCollapses,
+		rangelab.AuthzRetries,
 	}
 }
 
@@ -295,20 +336,25 @@ func knownFailModes() []string {
 // range behaving CORRECTLY, which makes a typo the worst possible outcome: the
 // stack comes up, nothing is broken, and every experiment reports a clean
 // survival against a fixture that was supposed to carry the bug.
-func validateModes(failMode, poolMode, secretMode string) error {
+func validateModes(failMode string, modes rangeModes) error {
 	if !slices.Contains(knownFailModes(), failMode) {
 		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
 			strings.Join(knownFailModes(), listSep))
 	}
 
-	if !slices.Contains(knownPoolModes(), poolMode) {
-		return fmt.Errorf(errUnknownPoolMode, ErrUnknownPoolMode, poolMode,
+	if !slices.Contains(knownPoolModes(), modes.pool) {
+		return fmt.Errorf(errUnknownPoolMode, ErrUnknownPoolMode, modes.pool,
 			strings.Join(knownPoolModes(), listSep))
 	}
 
-	if !slices.Contains(knownSecretModes(), secretMode) {
+	if !slices.Contains(knownSecretModes(), modes.secret) {
 		return fmt.Errorf(errUnknownSecretMode, ErrUnknownSecretMode,
-			secretMode, strings.Join(knownSecretModes(), listSep))
+			modes.secret, strings.Join(knownSecretModes(), listSep))
+	}
+
+	if !slices.Contains(knownAuthzModes(), modes.authz) {
+		return fmt.Errorf(errUnknownAuthzMode, ErrUnknownAuthzMode,
+			modes.authz, strings.Join(knownAuthzModes(), listSep))
 	}
 
 	return nil
@@ -320,9 +366,9 @@ func runRangeUp(
 	failMode, cacheTTL, tlsMode string,
 	port int,
 	quiet, withDB bool,
-	poolMode, secretMode string,
+	modes rangeModes,
 ) error {
-	if err := validateModes(failMode, poolMode, secretMode); err != nil {
+	if err := validateModes(failMode, modes); err != nil {
 		return err
 	}
 
@@ -375,8 +421,9 @@ func runRangeUp(
 			failMode,
 			cacheTTL,
 			tlsMode,
-			poolMode,
-			secretMode,
+			modes.pool,
+			modes.secret,
+			modes.authz,
 			withDB,
 		)
 		if err == nil {
@@ -505,6 +552,17 @@ func describeEntryPoints(
 				lab.DNSProtectedURL(),
 				rangelab.DNSDependencyName,
 				rangelab.ResolverAddress,
+			),
+		)
+	}
+
+	if lab.AuthzPort != 0 {
+		say(
+			out,
+			fmt.Sprintf(
+				msgTierAuthz,
+				lab.AuthzProtectedURL(),
+				lab.AuthzBase,
 			),
 		)
 	}

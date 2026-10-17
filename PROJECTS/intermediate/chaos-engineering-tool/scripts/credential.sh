@@ -177,8 +177,13 @@ assert_report_lacks() {
 # reporting a finding, and this asserts the run was NOT voided that way.
 assert_control_held() {
     local label="$1"
+    # The subject is a parameter because this one helper now serves two kinds of
+    # target. For ten experiments it is an engine checking a password; for the
+    # service-to-service one it is a caller authenticating a credential, and
+    # that distinction is the whole reason the fixture is measurable at all.
+    local subject="${2:-the engine checks passwords}"
     assert_report_lacks \
-        "${label} established that the engine checks passwords at all" \
+        "${label} established that ${subject} at all" \
         "the invalid credential was never rejected"
 }
 
@@ -824,7 +829,162 @@ if [[ "${#differential_env[@]}" == "${#ENGINES[@]}" ]]; then
     fi
 fi
 
-echo "== census: every catalogued credential.db_ experiment was run here =="
+echo "== service to service: a DENY and a SILENCE are different answers =="
+
+# The one fault in this family whose authority is khaos itself again, and the
+# only one that needs TWO fault windows. Research 07 section 6.2: an
+# authorization dependency has three outcomes - allow, deny and unknown - and
+# only `unknown` is eligible for a fallback policy. A caller written as
+#
+#     if err != nil || resp.StatusCode != 200 { return Allow }
+#
+# has two branches where it needs three, and one window cannot show that: the
+# acceptance under a deny is already a finding, but what PROVES the mechanism is
+# that the same caller behaves identically when the dependency answers nothing
+# at all. So khaos denies one credential, measures, then makes its own
+# dependency unavailable, measures again, and reads the pair.
+#
+# Each phase measures an INDEPENDENT branch, so all four cells of that matrix
+# exist and three of the modes below are three of them. `collapses` ignores the
+# deny, `distinguishes` honours both, and `retries` honours both and asks again
+# every time, which is the same section's retry storm.
+#
+# This tier needs no stateful tier: it is in the DEFAULT range, and that is
+# asserted by bringing the range up without `--with-db`.
+start_authz_range() {
+    local mode="$1"
+
+    "$BIN" range down --no-color >/dev/null 2>&1 || true
+    if ! "$BIN" range up --authz-mode "$mode" --no-color --quiet \
+        >/dev/null 2>&1; then
+        fail "range up --authz-mode $mode"
+        return 1
+    fi
+    return 0
+}
+
+declare -A WANT_AUTHZ=(
+    [collapses]="deviated / PERMITTED"
+    [distinguishes]="passed / HELD"
+    [retries]="passed / HELD"
+)
+
+declare -A WANT_AUTHZ_EXIT=(
+    [collapses]=2
+    [distinguishes]=0
+    [retries]=0
+)
+
+for mode in collapses distinguishes retries; do
+    if ! start_authz_range "$mode"; then
+        continue
+    fi
+
+    run_experiment credential.apikey_revoked
+
+    label="apikey_revoked against a ${mode} caller"
+
+    assert_verdict "$label" "${WANT_AUTHZ[$mode]}"
+    assert_exit "$label" "${WANT_AUTHZ_EXIT[$mode]}"
+    assert_confirmed "$label"
+    assert_control_held "$label" "the caller authenticates credentials"
+
+    # The confirmation is TWO-SIDED, and both halves are quoted: the credential
+    # under test is refused AND a control credential khaos never named is still
+    # allowed. Without the second half a dependency that had started refusing
+    # everything would confirm every deny khaos armed, and this experiment
+    # reports a refusal of the valid credential as a defect of the target.
+    assert_report_has \
+        "${label}: the confirmation reads both sides of the deny" \
+        "403 for the credential under test and 200 for a control credential"
+
+    # The SECOND WINDOW has to have run. Without this the gate would pass on
+    # phase one alone: the collapsing caller's acceptance of a denied
+    # credential is a finding by itself, so deleting the shift entirely would
+    # leave the verdict and the exit code unchanged.
+    assert_report_has \
+        "${label}: khaos measured a second window" \
+        "plan  shift"
+    assert_report_has \
+        "${label}: the second window is named in the evidence" \
+        "answered 503 to everything"
+done
+
+echo "== the two phases are read as four callers, not two =="
+
+# The discriminator, stated as the gate's own comparison. The verdicts above
+# already differ; what these assert is that khaos SAYS which caller it saw,
+# because "deviated" with no mechanism is a finding an operator cannot act on.
+if start_authz_range collapses; then
+    run_experiment credential.apikey_revoked
+
+    assert_report_has \
+        "the collapse is named as serving in both phases" \
+        "the target served in BOTH phases"
+    assert_report_has \
+        "and it is named as two branches where three are needed" \
+        "two branches where it needs three"
+    assert_report_lacks \
+        "a collapsing caller is not credited with the third branch" \
+        "That is the third branch"
+fi
+
+if start_authz_range distinguishes; then
+    run_experiment credential.apikey_revoked
+
+    assert_report_has \
+        "the correct caller is credited with the third branch, observed" \
+        "That is the third branch, and khaos observed it rather than inferring it"
+    assert_report_lacks \
+        "and is not reported as having collapsed anything" \
+        "served in BOTH phases"
+
+    # The negative control for the retry-storm instrument. A caller that asks
+    # once per request must NOT be reported as retrying, or the instrument says
+    # yes to everything and the row below proves nothing.
+    assert_report_lacks \
+        "a caller that asked once per request is not called a retry storm" \
+        "asked again about a credential it had already been told no about"
+fi
+
+if start_authz_range retries; then
+    run_experiment credential.apikey_revoked
+
+    # Measured from OUTSIDE the target, by counting what khaos's own dependency
+    # answered: only the credential under test is ever answered with a
+    # definitive refusal, so that count is the number of times the caller asked
+    # about a credential it had already been told no about.
+    assert_report_has \
+        "the retry storm is counted against the requests that caused it" \
+        "asked again about a credential it had already been told no about"
+
+    # And it still fails CLOSED, which is why this is a third mode rather than
+    # a variant of the collapse: the right verdict reached the wrong way.
+    assert_report_has \
+        "a retrying caller is still credited with both branches" \
+        "That is the third branch"
+fi
+
+echo "== the authorization fixture is refused by name when it is not running =="
+
+# The refusal has to arrive with a range UP and this one fixture stopped, which
+# is the state an operator reaches when a container has died. A missing fixture
+# otherwise surfaces as a published port of zero, and the run blames the target
+# for not enforcing anything.
+if start_authz_range distinguishes; then
+    docker stop khaos-range-gateway-authz >/dev/null 2>&1 || true
+
+    run_unmeasured credential.apikey_revoked
+
+    assert_exit "an authorization experiment with no caller fixture" 1
+    assert_report_has \
+        "the refusal names the missing fixture" \
+        "the running range has no khaos-range-gateway-authz"
+
+    docker start khaos-range-gateway-authz >/dev/null 2>&1 || true
+fi
+
+echo "== census: every catalogued credential. experiment was run here =="
 
 catalogued="$(NO_COLOR=1 "$BIN" run --help |
     grep -oE '^  credential\.[a-z_]+' | tr -d ' ' | sort -u || true)"

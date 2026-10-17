@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
 const (
@@ -779,7 +781,11 @@ func TestOpenRefusesThisHostsRoutableAddress(t *testing.T) {
 
 	for _, iface := range interfaces {
 		if _, err := os.Stat(
-			filepath.Join(sysClassNet, iface.Name, bridgeMarker),
+			filepath.Join(
+				bindguard.SysClassNet,
+				iface.Name,
+				bindguard.BridgeMarker,
+			),
 		); err == nil {
 			continue
 		}
@@ -827,7 +833,11 @@ func TestOpenAcceptsABridgeAddress(t *testing.T) {
 
 	for _, iface := range interfaces {
 		if _, err := os.Stat(
-			filepath.Join(sysClassNet, iface.Name, bridgeMarker),
+			filepath.Join(
+				bindguard.SysClassNet,
+				iface.Name,
+				bindguard.BridgeMarker,
+			),
 		); err != nil {
 			continue
 		}

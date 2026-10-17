@@ -37,6 +37,7 @@ var testAnswers = rangeAnswers{
 	AuthorityTLS:    "10.0.0.1:30007",
 	AuthorityBase:   "http://host.docker.internal:30006",
 	CertHost:        "dependency.khaos.invalid",
+	AuthzListen:     "10.0.0.1:30013",
 }
 
 // refuser fails the test if khaos goes looking for a range it was never meant to
@@ -179,6 +180,7 @@ func allTiers() []tier {
 		tierPool,
 		tierSecret,
 		tierEnv,
+		tierAuthz,
 	}
 }
 
@@ -200,6 +202,8 @@ func tierName(at tier) string {
 		return "at the file the service verifies with"
 	case tierEnv:
 		return "at the variable the service verifies with"
+	case tierAuthz:
+		return "at the service whose authorization dependency khaos answers"
 	default:
 		return "direct"
 	}
@@ -229,6 +233,12 @@ func fullLab() rangelab.Lab {
 		DBGatewayPort: 30010,
 		SecretPort:    30011,
 		EnvPort:       30012,
+
+		// The caller whose authorization dependency khaos plays. Its base URL
+		// is what khaos reads the port to bind out of, so it is NOT the port
+		// the caller itself publishes.
+		AuthzPort: 30014,
+		AuthzBase: "http://host.docker.internal:30013",
 	}
 }
 
@@ -797,6 +807,7 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierPool:   lab.DBProtectedURL(),
 		tierSecret: lab.SecretProtectedURL(),
 		tierEnv:    lab.EnvProtectedURL(),
+		tierAuthz:  lab.AuthzProtectedURL(),
 	}
 
 	seen := map[string]tier{}
@@ -865,6 +876,12 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 			// fixture would take the volume's experiments with it.
 			case tierEnv:
 				wantTarget = rangelab.EnvGatewayName
+
+			// The CALLER, which is the only container in this tier: khaos
+			// replaces the dependency it asks, and that dependency is a
+			// listener in khaos's own process rather than a container at all.
+			case tierAuthz:
+				wantTarget = rangelab.AuthzGatewayName
 
 			default:
 				// The direct and proxy tiers fault the dependency itself.

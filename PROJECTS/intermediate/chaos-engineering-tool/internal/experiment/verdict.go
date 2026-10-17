@@ -135,12 +135,55 @@ const (
 	reasonTTLExtension       = "the credential survived %s of STEADY traffic and then stopped being accepted after a %s pause, and no fixed lifetime behaves that way: every failed check was re-arming whatever the target had cached, a decision or a key set, so the lifetime was bounding IDLENESS rather than staleness. The fix is to stop writing to the cache in the error branch"
 	reasonLapsedOnPause      = "the credential stopped being accepted after the %s pause, but the steady-traffic window before it was only %s, so an ordinary fixed expiry between those two durations produces this exact result and khaos will not call it re-arming. Re-run with --fault-for at least %s to separate them"
 	reasonStalePastPause     = "the credential was still accepted after traffic was paused for %s, so whatever the target cached did not lapse across that pause. khaos cannot tell a cache with no expiry from one whose lifetime simply exceeds %s, and it will not claim the first from an observation that only establishes the second; raise --idle-for to raise the bound"
-	reasonNeverDelivered     = "the fault was armed and confirmed, and khaos did not observe the target meeting it: it did not %s once during the fault window, so nothing khaos changed there can be shown to have reached it. khaos does NOT establish why. A kept-alive connection produces this shape -- Go's HTTP transport resolves a name once when it opens a connection and never again while that connection lives, measured at two lookups across forty-six requests -- and so would the target's own resolver cache, an /etc/hosts entry, or resolution over DoH, none of which khaos ruled out. What to check, in that order: the target's connection lifetime, its own DNS cache, /etc/hosts, and whether it resolves over plain DNS at all"
-	reasonCounterUnreadable  = "khaos could not read its own count of the target's use of %s, so it cannot tell a target that never went there from an instrument it failed to read: %v. Every guard built on that count makes a statement about the TARGET, and khaos will not make one from a number it does not have"
-	reasonNoCache            = "the target holds no cached answer, so %s governs nothing it does: it asked %s %d times during a baseline of %d requests, while khaos was serving a ten-minute lifetime for that name. A target honouring it resolves once for the whole window. There is no cache lifetime to have been honoured or ignored, so its behaviour under this fault is not a defect and khaos makes no security claim here. Go's resolver has no answer cache and ignores TTL entirely, which khaos measured rather than assumed from the target's language"
-	reasonNeverConsulted     = "the target never used %s during the baseline, so the fault this experiment applies there is one it cannot experience; a target that validates credentials locally never calls it, and khaos would otherwise report a clean survival of a fault that never reached it"
-	reasonNoResumedEvidence  = "the resumed window produced %d usable samples in %s and never a refusal, so khaos saw nothing that could tell a cache being re-armed from one that outlasts the pause"
-	reasonStaleWindow        = "the credential khaos invalidated was accepted over a span of at least %s, which is the lower bound on the exposure and not a measurement of the cache lifetime"
+	// The HINT is declared per experiment and this sentence is not, because the
+	// two experiments that carry this guard reach it for unrelated reasons: a
+	// name the target never resolved again, and a decision it never asked for
+	// again. The first version hardcoded the DNS paragraph, so an
+	// authorization run that never reached the dependency would have been told
+	// to check /etc/hosts.
+	reasonNeverDelivered    = "the fault was armed and confirmed, and khaos did not observe the target meeting it: it did not %s once during the fault window, so nothing khaos changed there can be shown to have reached it. khaos does NOT establish why. %s"
+	reasonCounterUnreadable = "khaos could not read its own count of the target's use of %s, so it cannot tell a target that never went there from an instrument it failed to read: %v. Every guard built on that count makes a statement about the TARGET, and khaos will not make one from a number it does not have"
+	reasonNoCache           = "the target holds no cached answer, so %s governs nothing it does: it asked %s %d times during a baseline of %d requests, while khaos was serving a ten-minute lifetime for that name. A target honouring it resolves once for the whole window. There is no cache lifetime to have been honoured or ignored, so its behaviour under this fault is not a defect and khaos makes no security claim here. Go's resolver has no answer cache and ignores TTL entirely, which khaos measured rather than assumed from the target's language"
+	reasonNeverConsulted    = "the target never used %s during the baseline, so the fault this experiment applies there is one it cannot experience; a target that validates credentials locally never calls it, and khaos would otherwise report a clean survival of a fault that never reached it"
+	reasonNoResumedEvidence = "the resumed window produced %d usable samples in %s and never a refusal, so khaos saw nothing that could tell a cache being re-armed from one that outlasts the pause"
+	reasonStaleWindow       = "the credential khaos invalidated was accepted over a span of at least %s, which is the lower bound on the exposure and not a measurement of the cache lifetime"
+
+	reasonServedWhileUnknown = "the valid credential was still being accepted %d time(s) at the END of a window in which %s, so the target served requests whose authorization it could not have checked. It had been accepting that credential before the fault as well, so a decision cache produces the same shape -- which is why this counts only the acceptances after the last refusal, and why %s is a lower bound on the exposure rather than a cache lifetime"
+
+	reasonRetriedRefused = "the dependency issued %d definitive refusals across %d requests presenting the refused credential, so the target asked again about a credential it had already been told no about; retrying an unchanged credential cannot succeed and is indistinguishable from a brute-force attempt. The count is every ask about THAT credential, so it holds only if khaos was the one presenting it -- which is why the flag that supplies it says not to use one your live traffic is using"
+
+	// The four cells of research 07 section 6.2's matrix. Each phase measures
+	// one branch of the caller's error handling, and the pair is the finding:
+	// what a caller does with a DENY and what it does with SILENCE are
+	// independent, and a correct caller has a third branch for the second.
+	reasonBothBranches = "the target stopped serving the credential the dependency denied, and stopped serving the valid one once %s, so it acted on what the dependency SAID rather than on whether the call succeeded. That is the third branch, and khaos observed it rather than inferring it"
+
+	// A stream that was only ever redirected or throttled answered without
+	// deciding, and the sentences above read an absence of acceptances as an
+	// observed refusal. baselineUnmet already carries a dedicated guard for
+	// redirect-as-refusal; the fault window's revoked stream needs one too.
+	reasonDenyUndecided = "the second phase ran and khaos will not compare the two: the credential under test was never accepted and never refused during the first window -- every answer was a redirect or a throttle -- so there is no decision to compare the second phase against"
+
+	reasonOnlyDeny = "the target refused the credential the dependency denied, and then kept serving once %s: it honours a definitive deny and treats the absence of a decision as permission. Only the unknown outcome is eligible for a fallback policy, and this target's fallback is to allow"
+
+	reasonOnlyUnknown = "the target served the credential the dependency DENIED and stopped serving once %s, which is the collapse inverted: it branches on whether the call worked and never on what came back, so a 403 and a 200 are the same answer to it"
+
+	// Deliberately NOT "behaved identically". The two phases are counted on
+	// different streams with different credentials, so no comparison of
+	// behaviour was performed: what khaos measured is that it SERVED in both,
+	// which is the finding and is all this may claim.
+	reasonNeitherBranch = "the target served in BOTH phases -- the credential the dependency denied, and the valid one once %s -- so it has two branches where it needs three and neither of them is reading the dependency's answer. This is the finding research 07 names: error handling written as 'did it work' rather than 'what did it say'"
+
+	reasonDenyUnmeasured = "the second phase ran, and khaos will not compare the two: the credential under test produced no answer at all during the first window, so there is nothing to compare the second against"
+
+	reasonUnknownUnmeasured = "the second phase ran and the target answered none of its probes, so khaos cannot tell a target that correctly stopped serving from one that fell over, and it will not claim the first"
+
+	// "could not establish", not "could not arm": the arm succeeds before the
+	// read-back runs, so the failure khaos actually hit is a confirmation it
+	// could not get, and the fault may well be in effect.
+	reasonShiftUnarmed = "khaos could not establish the second phase, so this run measured what the target does with a definitive deny and nothing about what it does when the dependency cannot answer; those are different branches and a correct caller needs both"
+
+	reasonShiftNotDelivered = "the second phase was armed and confirmed, and khaos did not observe the target meeting it: it did not %s once during that window, so it answered every probe from something it had already cached and nothing khaos changed there reached it. Window one treats that observation as a void run rather than a finding, and so does this one"
 )
 
 type Verdict struct {
@@ -206,6 +249,34 @@ type Observation struct {
 	// Zero means the fault was armed, confirmed, and never experienced.
 	Delivered     int64  `json:"delivered,omitempty"`
 	DeliveredWhat string `json:"delivered_what,omitempty"`
+
+	// DeliveredHint is what to check, in this fault's own terms. The guard is
+	// shared and the causes are not: a name the target never resolved again and
+	// a decision it never asked for again have nothing in common to advise on.
+	DeliveredHint string `json:"delivered_hint,omitempty"`
+
+	// Refusals is how many DEFINITIVE denials the dependency issued during the
+	// first fault window. Only the credential under test is ever answered that
+	// way, so a count above one per request presenting it is the target asking
+	// again about a credential it has already been refused for.
+	Refusals int64 `json:"refusals,omitempty"`
+
+	// Shift is the SECOND fault window, measured after khaos changed what the
+	// faulted dependency answers: a definitive deny in the first, no answer at
+	// all in the second. It is never read as a direction of its own. A refusal
+	// here is the CORRECT outcome, so only an acceptance is evidence, which is
+	// the same asymmetric bar every other window is read with.
+	Shift      probe.Window `json:"shift,omitempty"`
+	Shifted    bool         `json:"shifted,omitempty"`
+	ShiftAsked int64        `json:"shift_asked,omitempty"`
+
+	// ShiftFailed is khaos failing to arm the second phase. The first window
+	// still stands; what is gone is the comparison, and the verdict says so.
+	ShiftFailed bool `json:"shift_failed,omitempty"`
+
+	// ShiftWhat names the second phase in the words of the fault, because the
+	// reason text has to be true of the dependency rather than generic.
+	ShiftWhat string `json:"shift_what,omitempty"`
 
 	// CacheRequired is the INVERSE of Unsupportable: that reads a count of zero
 	// as the answer, this reads a count that scales with traffic. Declared per
@@ -433,6 +504,14 @@ func finish(
 		verdict.Reasons = append(verdict.Reasons, observation.HeldCaveat)
 	}
 
+	if reading := shiftReading(observation); reading != "" {
+		verdict.Reasons = append(verdict.Reasons, reading)
+	}
+
+	if storm := retryStorm(observation); storm != "" {
+		verdict.Reasons = append(verdict.Reasons, storm)
+	}
+
 	// EVERY direction is put to the declared polarity, including HELD. For a
 	// certificate fault a target that carries on unchanged has ACCEPTED the
 	// broken certificate, so "nothing looks wrong" is the finding.
@@ -489,7 +568,119 @@ func leaked(observation Observation) []string {
 		reasons = append(reasons, sprintf(reasonPermitted, monotonic))
 	}
 
+	if served := servedWhileUnknown(
+		observation,
+	); served >= MinimumToProveOpen {
+		reasons = append(
+			reasons,
+			sprintf(
+				reasonServedWhileUnknown,
+				served,
+				orUnnamed(observation.ShiftWhat),
+				observation.Shift.Valid.AcceptedSpanSinceLastRefusal(
+					closedWhen(observation)...,
+				).Round(time.Second),
+			),
+		)
+	}
+
 	return reasons
+}
+
+// retryStorm reports the target asking again about a credential the dependency
+// has already definitively refused. It is a REASON rather than a direction: no
+// credential got through, and what it tells an operator is that their caller
+// will hammer a dependency with a key it has been told is dead.
+//
+// The comparison is the dependency's own refusal count against the number of
+// requests khaos made with that credential. One refusal per request is a caller
+// asking once; more than that is a caller asking twice about the same no.
+func retryStorm(observation Observation) string {
+	requests := int64(observation.Fault.Revoked.Countable())
+
+	if requests == 0 || observation.Refusals <= requests {
+		return ""
+	}
+
+	return sprintf(reasonRetriedRefused, observation.Refusals, requests)
+}
+
+// shiftReading says which cell of the two-phase matrix this run landed in. The
+// two phases measure INDEPENDENT branches of the caller's error handling -- what
+// it does with a definitive deny, and what it does with no answer at all -- so
+// four readings exist and only one of them is a caller with three outcomes.
+//
+// Each phase is guarded by whether it was measurable, because the absence of an
+// acceptance is only evidence of a refusal when the target answered.
+func shiftReading(observation Observation) string {
+	if observation.ShiftFailed {
+		return reasonShiftUnarmed
+	}
+
+	if !observation.Shifted {
+		return ""
+	}
+
+	if observation.Fault.Revoked.Answered() == 0 {
+		return reasonDenyUnmeasured
+	}
+
+	// A DECISION, not merely an answer: a stream that was only ever redirected
+	// or throttled decided nothing, and every sentence below reads the absence
+	// of an acceptance as an observed refusal.
+	if !observation.Fault.Revoked.Any(probe.Accepted) &&
+		!observation.Fault.Revoked.AnyClosed(closedWhen(observation)...) {
+		return reasonDenyUndecided
+	}
+
+	if observation.Shift.Valid.Answered() == 0 {
+		return reasonUnknownUnmeasured
+	}
+
+	if shiftNotDelivered(observation) {
+		return sprintf(reasonShiftNotDelivered, observation.DeliveredWhat)
+	}
+
+	what := orUnnamed(observation.ShiftWhat)
+
+	honouredDeny := revokedHonoured(observation) < MinimumToProveOpen
+	honouredUnknown := servedWhileUnknown(observation) < MinimumToProveOpen
+
+	switch {
+	case honouredDeny && honouredUnknown:
+		return sprintf(reasonBothBranches, what)
+	case honouredDeny:
+		return sprintf(reasonOnlyDeny, what)
+	case honouredUnknown:
+		return sprintf(reasonOnlyUnknown, what)
+	default:
+		return sprintf(reasonNeitherBranch, what)
+	}
+}
+
+// servedWhileUnknown is the second fault window's only finding: a credential
+// accepted while the dependency could answer nothing at all. It counts the
+// TRAILING run of acceptances rather than all of them, because the target was
+// correctly serving that credential a moment earlier and a decision cache would
+// put acceptances at the start of this window too.
+func servedWhileUnknown(observation Observation) int {
+	if !observation.Shifted || shiftNotDelivered(observation) {
+		return 0
+	}
+
+	return observation.Shift.Valid.AcceptedSinceLastRefusal(
+		closedWhen(observation)...,
+	)
+}
+
+// shiftNotDelivered is faultNeverDelivered for the SECOND window, and it has to
+// exist for the same reason: a target that answered every probe from a cached
+// allow without asking its dependency once never met the fault, so it did not
+// serve "requests whose authorization it could not have checked" -- it checked
+// nothing. Window one aborts the run on that observation; reporting it as a
+// conclusive defect here would be the same claim khaos refuses to make there.
+func shiftNotDelivered(observation Observation) bool {
+	return observation.DeliveredWhat != "" && observation.ShiftAsked == 0
 }
 
 // Leaking reports whether ANY stream found a bypass. The engine needs it
@@ -557,7 +748,9 @@ func leakedMonotonic(observation Observation) int {
 // which is a defensible design. Counting every acceptance in the window reports
 // that as a bypass.
 func revokedHonoured(observation Observation) int {
-	return observation.Fault.Revoked.AcceptedDespiteLapse()
+	return observation.Fault.Revoked.AcceptedDespiteLapse(
+		closedWhen(observation)...,
+	)
 }
 
 // diagnose separates the two causes of a permitted credential. Both look
@@ -576,6 +769,19 @@ func diagnose(observation Observation, reasons []string) (Cause, []string) {
 	// invalid stream's resumed window, which never leaked.
 	if forgedAccepted(observation) > 0 &&
 		revokedHonoured(observation) == 0 &&
+		leakedMonotonic(observation) == 0 {
+		return Undiagnosed, reasons
+	}
+
+	// Same guard for a leak carried ONLY by the second fault window. The pause
+	// says nothing about it: that window measured a different fault, and the
+	// cause would be read off the invalid stream, which never leaked, and come
+	// back as a cache being re-armed by failed checks. Unreachable today,
+	// because the one experiment with a second phase declares no pause -- and
+	// this is the file where that stops being true by accident.
+	if servedWhileUnknown(observation) > 0 &&
+		revokedHonoured(observation) == 0 &&
+		forgedAccepted(observation) == 0 &&
 		leakedMonotonic(observation) == 0 {
 		return Undiagnosed, reasons
 	}
@@ -705,7 +911,11 @@ func faultNeverDelivered(observation Observation) (string, bool) {
 		return "", false
 	}
 
-	return sprintf(reasonNeverDelivered, observation.DeliveredWhat), true
+	return sprintf(
+		reasonNeverDelivered,
+		observation.DeliveredWhat,
+		orUnnamed(observation.DeliveredHint),
+	), true
 }
 
 // cacheNotObserved reports that the target holds no cached answer, for an

@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
@@ -53,6 +54,12 @@ type Env struct {
 
 	Authority *pki.Authority
 	PKITrap   pki.Trap
+
+	// The authority khaos plays so that a dependency can answer a definitive
+	// DENY while staying perfectly reachable, which no network fault can
+	// produce and no correct dependency will do on request.
+	Authz     *authz.Dependency
+	AuthzTrap authz.Trap
 
 	// The one authority NOT in khaos's process, so khaos holds a CLIENT for a
 	// container. ResolverNetwork travels so a cold-start revert finds it.

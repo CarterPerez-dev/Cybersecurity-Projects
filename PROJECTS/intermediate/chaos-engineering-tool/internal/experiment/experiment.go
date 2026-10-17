@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
@@ -114,6 +115,12 @@ type Experiment struct {
 	Authority *pki.Authority
 	PKITrap   *pki.Trap
 
+	// A non-nil AuthzTrap is what tells the run to bind the authorization
+	// dependency khaos plays.
+	Authz       *authz.Dependency
+	AuthzTrap   *authz.Trap
+	AuthzListen string
+
 	// AuthorityBase is the URL the TARGET reaches the revocation endpoints by,
 	// which is pinned rather than derived from wherever khaos binds.
 	AuthorityBase   string
@@ -150,6 +157,17 @@ type Experiment struct {
 	Consulted     func() (int64, error)
 	ConsultedWhat string
 
+	// Refusals is the count of definitive denials the dependency issued, which
+	// only the credential under test is ever answered with.
+	Refusals func() (int64, error)
+
+	// Shift is the second fault phase. The one fault class that needs it is an
+	// authorization dependency, whose deny and whose silence are different
+	// answers that a defective caller reads as the same one.
+	Shift       func(context.Context) error
+	ShiftDetail string
+	ShiftWhat   string
+
 	// Nothing in a request count separates the two readings of a never-consulted
 	// endpoint, so only an experiment declaring this treats silence as a finding.
 	Unsupportable string
@@ -157,6 +175,7 @@ type Experiment struct {
 	CacheRequired string
 
 	DeliveredWhat string
+	DeliveredHint string
 
 	// IdleFor must exceed the target's own decision-cache lifetime, which khaos
 	// cannot discover, so the experiment declares it.

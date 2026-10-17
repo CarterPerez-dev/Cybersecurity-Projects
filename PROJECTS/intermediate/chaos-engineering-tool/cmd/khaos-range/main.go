@@ -28,6 +28,7 @@ const (
 	roleResolver = "resolver"
 	roleDB       = "db"
 	roleSecret   = "secret"
+	roleAuthz    = "authz"
 	roleHealth   = "healthcheck"
 	roleAlive    = "alivecheck"
 
@@ -60,6 +61,13 @@ const (
 	// the file faults target: whichever is set is where the secret comes from.
 	envSecretVar = "KHAOS_RANGE_SECRET_VAR"
 
+	envAuthzMode = "KHAOS_RANGE_AUTHZ_MODE"
+
+	// Where the service-to-service caller asks for an authorization decision,
+	// which is khaos itself: no correct dependency answers a definitive deny
+	// on request.
+	envAuthzBase = "KHAOS_RANGE_AUTHZ_BASE"
+
 	defaultSecretPath = "/run/khaos-secrets/hmac"
 	envCacheTTL       = "KHAOS_RANGE_CACHE_TTL"
 
@@ -70,6 +78,7 @@ const (
 	// start and measure nothing.
 	defaultDependency    = "https://host.docker.internal:0"
 	defaultAuthorityBase = "http://host.docker.internal:0"
+	defaultAuthzBase     = "http://host.docker.internal:0"
 
 	shutdownGrace = 2 * time.Second
 
@@ -78,7 +87,7 @@ const (
 	// look like the fault's.
 	readHeaderTimeout = 120 * time.Second
 
-	usage          = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|db|secret|healthcheck|alivecheck>"
+	usage          = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|db|secret|authz|healthcheck|alivecheck>"
 	selfBase       = "http://127.0.0.1:8080"
 	selfHealthPath = "/health"
 	selfAlivePath  = "/alive"
@@ -168,6 +177,11 @@ func roleHandler(role string) (http.Handler, error) {
 		).routes(), nil
 	case roleRogue:
 		return newRogueProvider().routes(), nil
+	case roleAuthz:
+		return newAuthzGateway(
+			envOr(envAuthzBase, defaultAuthzBase),
+			envOr(envAuthzMode, AuthzDistinguishes),
+		).routes(), nil
 	case roleSecret:
 		return newSecretGateway(
 			envOr(envSecretPath, defaultSecretPath),

@@ -20,6 +20,7 @@ const (
 	StageConfirm  Stage = "confirm"
 	StageObserve  Stage = "observe"
 	StageAct      Stage = "act"
+	StageShift    Stage = "shift"
 	StageIdle     Stage = "idle"
 	StageResume   Stage = "resume"
 	StageRevert   Stage = "revert"
@@ -28,17 +29,19 @@ const (
 )
 
 const (
-	detailBaseline  = "establishing steady state"
-	detailObserve   = "measuring under fault"
-	detailRevert    = "removing the fault"
-	detailRecover   = "confirming the target came back"
-	detailInjecting = "%s on %s"
-	detailConfirmed = "fault confirmed by %s"
-	detailUnconfirm = "the fault was not confirmed, aborting before measuring"
-	detailVerdict   = "%s / %s"
-	detailActFailed = "the mid-run action failed, so nothing measured after it means anything: %v"
-	detailIdle      = "a credential leaked; pausing traffic for %s to see whether the cache is being re-armed"
-	detailResume    = "resuming traffic with the fault still applied"
+	detailBaseline    = "establishing steady state"
+	detailObserve     = "measuring under fault"
+	detailRevert      = "removing the fault"
+	detailRecover     = "confirming the target came back"
+	detailInjecting   = "%s on %s"
+	detailConfirmed   = "fault confirmed by %s"
+	detailUnconfirm   = "the fault was not confirmed, aborting before measuring"
+	detailVerdict     = "%s / %s"
+	detailActFailed   = "the mid-run action failed, so nothing measured after it means anything: %v"
+	detailShift       = "%s, and measuring again"
+	detailShiftFailed = "the second phase could not be established, so khaos has one window where it needs two: %v"
+	detailIdle        = "a credential leaked; pausing traffic for %s to see whether the cache is being re-armed"
+	detailResume      = "resuming traffic with the fault still applied"
 
 	// Breaks aliasing against the periodic target behaviour these experiments
 	// measure: cache TTLs, token refresh and crons.
@@ -271,6 +274,8 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 
 	observation = e.measureFault(ctx, spec, timing, observation)
 
+	observation = e.shift(ctx, spec, timing, observation)
+
 	observation = e.discriminate(ctx, spec, observation, timing)
 
 	observation, revertErr := e.restore(ctx, spec, timing, observation)
@@ -294,6 +299,7 @@ func (e Engine) measureFault(
 	e.emit(StageObserve, detailObserve)
 
 	before, beforeErr := e.consulted(spec)
+	refusedBefore, refusedBeforeErr := e.refusals(spec)
 
 	observation.Fault = e.sample(
 		ctx,
@@ -303,9 +309,20 @@ func (e Engine) measureFault(
 	)
 
 	after, afterErr := e.consulted(spec)
+	refusedAfter, refusedAfterErr := e.refusals(spec)
 
 	observation.Delivered = after - before
 	observation.DeliveredWhat = spec.DeliveredWhat
+	observation.DeliveredHint = spec.DeliveredHint
+	observation.Refusals = refusedAfter - refusedBefore
+
+	// NOT folded into CounterUnreadable, which voids the run: this count feeds
+	// one optional finding rather than a guard, and zero makes no claim.
+	if refusedBeforeErr != nil ||
+		refusedAfterErr != nil ||
+		observation.Refusals < 0 {
+		observation.Refusals = 0
+	}
 
 	if beforeErr != nil || afterErr != nil || observation.Delivered < 0 {
 		observation.CounterUnreadable = errors.Join(
@@ -314,6 +331,62 @@ func (e Engine) measureFault(
 			afterErr,
 		)
 		observation.Delivered = 0
+	}
+
+	return observation
+}
+
+// shift is the SECOND fault phase. One experiment needs it and research 07
+// section 6.2 is why: an authorization dependency's deny and its silence are
+// different answers, a correct caller treats them differently, and a caller
+// that behaves IDENTICALLY has collapsed three outcomes into two branches.
+// One window cannot show that; two can.
+//
+// A failed shift is recorded rather than fatal. The first window is already
+// measured and its finding stands on its own; what is lost is the discriminator,
+// and the verdict says so instead of pretending it ran.
+func (e Engine) shift(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+	observation Observation,
+) Observation {
+	if spec.Shift == nil || ctx.Err() != nil {
+		return observation
+	}
+
+	observation.ShiftWhat = spec.ShiftWhat
+
+	e.emit(StageShift, sprintf(detailShift, spec.ShiftDetail))
+
+	if err := spec.Shift(ctx); err != nil {
+		e.emit(StageShift, sprintf(detailShiftFailed, err))
+		observation.ShiftFailed = true
+
+		return observation
+	}
+
+	before, beforeErr := e.consulted(spec)
+
+	observation.Shift = e.sample(
+		ctx,
+		spec.Probes,
+		timing.FaultFor,
+		timing.SampleInterval,
+	)
+
+	after, afterErr := e.consulted(spec)
+
+	observation.Shifted = true
+	observation.ShiftAsked = after - before
+
+	if beforeErr != nil || afterErr != nil || observation.ShiftAsked < 0 {
+		observation.CounterUnreadable = errors.Join(
+			observation.CounterUnreadable,
+			beforeErr,
+			afterErr,
+		)
+		observation.ShiftAsked = 0
 	}
 
 	return observation
@@ -388,6 +461,16 @@ func (e Engine) consulted(spec Experiment) (int64, error) {
 		return 0, nil
 	}
 	return spec.Consulted()
+}
+
+// refusals counts the DEFINITIVE denials the faulted dependency issued, which
+// is the same thing as how many times the target asked about a credential it
+// had already been refused for: nothing else is answered that way.
+func (e Engine) refusals(spec Experiment) (int64, error) {
+	if spec.Refusals == nil {
+		return 0, nil
+	}
+	return spec.Refusals()
 }
 
 func markInterrupted(observation Observation) Observation {

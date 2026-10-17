@@ -61,6 +61,10 @@ const (
 	SecretGatewayName = "khaos-range-gateway-secret"
 	EnvGatewayName    = "khaos-range-gateway-env"
 
+	// The CALLER in the service-to-service experiment. It is the only fixture
+	// whose dependency is not a container: khaos plays that itself.
+	AuthzGatewayName = "khaos-range-gateway-authz"
+
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
 	FailModeShut       = "closed"
@@ -105,6 +109,23 @@ const (
 	EnvSecretMode    = "KHAOS_RANGE_SECRET_MODE"
 	EnvSecretValue   = "KHAOS_RANGE_SECRET_VALUE"
 	EnvEnvPort       = "KHAOS_RANGE_ENV_PORT"
+
+	// The caller's own port, and the port khaos's authorization dependency is
+	// addressed on. The second is read back out of the container rather than
+	// remembered, like every other address a fixture was created with.
+	EnvAuthzPort = "KHAOS_RANGE_AUTHZ_PORT"
+	EnvAuthzDep  = "KHAOS_RANGE_AUTHZ_DEP_PORT"
+	EnvAuthzBase = "KHAOS_RANGE_AUTHZ_BASE"
+	EnvAuthzMode = "KHAOS_RANGE_AUTHZ_MODE"
+
+	// AuthzDistinguishes reads the dependency's three answers as three.
+	// AuthzCollapses is research 07 section 6.2's shape: anything that is not
+	// a 200 is read as an absence of an answer, and allowed. AuthzRetries
+	// reaches the right verdict the wrong way, asking again every time it does
+	// not like an answer, which is that section's retry storm.
+	AuthzDistinguishes = "distinguishes"
+	AuthzCollapses     = "collapses"
+	AuthzRetries       = "retries"
 
 	// SecretVariable is the variable the environment faults take away, which
 	// khaos names rather than discovers: the fixture is configured to read its
@@ -210,6 +231,10 @@ const (
 
 	errNoSecretGateway = "%w: this experiment breaks a secret FILE, and the running range has no %s; bring the range down and up again to create it"
 
+	errNoAuthzGateway = "%w: this experiment answers a service's own authorization call, and the running range has no %s; bring the range down and up again to create it"
+
+	errNoAuthzBase = "%w: this experiment answers a service's own authorization call, and %s does not carry %s, so khaos cannot tell where that service looks for its dependency; bring the range down and up again to recreate it"
+
 	errNoStatefulTier = "%w: this experiment acts on a real database engine, and the running range has none. khaos does not replace these dependencies with its own code, because the finding IS what three correct engines do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
 )
 
@@ -240,6 +265,14 @@ type Lab struct {
 	SecretPort    int
 	EnvPort       int
 	SecretValue   string
+
+	// AuthzPort is the caller's published port, AuthzDepPort is where that
+	// caller was told to find its authorization dependency, and AuthzBase is
+	// the URL it was created with, read back out of its own environment so
+	// khaos binds where it is already being called.
+	AuthzPort    int
+	AuthzDepPort int
+	AuthzBase    string
 
 	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
@@ -275,6 +308,8 @@ func Locate(ports Ports) (Lab, error) {
 		DBGatewayPort: ports.DBGateway,
 		SecretPort:    ports.Secret,
 		EnvPort:       ports.Env,
+		AuthzPort:     ports.Authz,
+		AuthzDepPort:  ports.AuthzDep,
 	}, nil
 }
 
@@ -302,6 +337,13 @@ type Ports struct {
 	DBGateway int
 	Secret    int
 	Env       int
+
+	// Two for the service-to-service tier: one the caller publishes, and one
+	// khaos's own authorization dependency is reached on from inside the
+	// range. The second is not published by anything, and it is still chosen
+	// here because the caller's environment names it at creation.
+	Authz    int
+	AuthzDep int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct.
@@ -338,6 +380,8 @@ func FreePorts() (Ports, error) {
 		&chosen.DBGateway,
 		&chosen.Secret,
 		&chosen.Env,
+		&chosen.Authz,
+		&chosen.AuthzDep,
 	} {
 		port, err := pick()
 		if err != nil {
@@ -464,7 +508,7 @@ func (l Lab) ProxiedProtectedURL() string {
 func (l Lab) Up(
 	ctx context.Context,
 	out io.Writer,
-	failMode, cacheTTL, tlsMode, poolMode, secretMode string,
+	failMode, cacheTTL, tlsMode, poolMode, secretMode, authzMode string,
 	withDB bool,
 ) error {
 	environ := append(os.Environ(),
@@ -489,6 +533,9 @@ func (l Lab) Up(
 		EnvSecretMode+"="+secretMode,
 		EnvSecretValue+"="+l.SecretValue,
 		EnvEnvPort+"="+strconv.Itoa(l.EnvPort),
+		EnvAuthzPort+"="+strconv.Itoa(l.AuthzPort),
+		EnvAuthzDep+"="+strconv.Itoa(l.AuthzDepPort),
+		EnvAuthzMode+"="+authzMode,
 	)
 
 	args := []string{"up", "--build", "--detach", "--wait"}
@@ -579,6 +626,8 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvSecretPort+"="+strconv.Itoa(teardownPort),
 		EnvSecretValue+"="+teardownPassword,
 		EnvEnvPort+"="+strconv.Itoa(teardownPort),
+		EnvAuthzPort+"="+strconv.Itoa(teardownPort),
+		EnvAuthzDep+"="+strconv.Itoa(teardownPort),
 	)
 
 	// The profile is ALWAYS passed on the way down. Compose only removes the
@@ -817,7 +866,7 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 	return lab, nil
 }
 
-// readM9Fixtures reads the three gateways M9 added. Each one's absence is not
+// readM9Fixtures reads the four gateways M9 added. Each one's absence is not
 // fatal, for the same reason as every other gateway: the experiments that do
 // not need it must still work.
 func (l *Lab) readM9Fixtures(
@@ -829,6 +878,7 @@ func (l *Lab) readM9Fixtures(
 		DBGatewayName:     &l.DBGatewayPort,
 		SecretGatewayName: &l.SecretPort,
 		EnvGatewayName:    &l.EnvPort,
+		AuthzGatewayName:  &l.AuthzPort,
 	} {
 		gateway, ok := running[name]
 		if !ok {
@@ -843,7 +893,95 @@ func (l *Lab) readM9Fixtures(
 		*into = port
 	}
 
+	caller, ok := running[AuthzGatewayName]
+	if !ok {
+		return nil
+	}
+
+	environ, err := reader.ContainerEnv(ctx, caller.ID)
+	if err != nil {
+		return err
+	}
+
+	// The address the CALLER was created with, which is the one khaos has to
+	// bind. A container's environment is fixed at creation, so this is read
+	// back rather than recomputed from whatever ports this khaos chose.
+	//
+	// A container of that name carrying no such address is the tier being
+	// ABSENT rather than an error, and that distinction is load-bearing: this
+	// runs inside Discover, which every experiment calls, so returning an
+	// error here would take every unrelated run down over one stale container.
+	// RequireAuthzTier refuses by name for the experiments that need it.
+	l.AuthzBase = environ[EnvAuthzBase]
+
 	return nil
+}
+
+func (l Lab) AuthzGatewayURL() string {
+	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.AuthzPort))
+}
+
+func (l Lab) AuthzProtectedURL() string {
+	return l.AuthzGatewayURL() + protectedPath
+}
+
+// IssueAuthzToken asks the caller for a credential it will AUTHENTICATE. The
+// fixture authenticates locally and correctly in all three of its modes, which is
+// what gives the experiment a baseline: a service that allows on any non-200
+// from its authorization dependency refuses nothing at all, and khaos's own
+// guard would void the run rather than measure one.
+func (l Lab) IssueAuthzToken(ctx context.Context) (string, error) {
+	return l.issueFrom(ctx, l.AuthzGatewayURL()+tokenPath)
+}
+
+// RequireAuthzTier separates the two ways this tier can be missing, because
+// they need different fixes: no caller at all means bring the range up, and a
+// caller carrying no dependency address means that container predates the
+// variable and has to be recreated.
+func (l Lab) RequireAuthzTier() error {
+	if l.AuthzPort == 0 {
+		return fmt.Errorf(
+			errNoAuthzGateway,
+			ErrRangeIncomplete,
+			AuthzGatewayName,
+		)
+	}
+
+	if l.AuthzBase == "" {
+		return fmt.Errorf(
+			errNoAuthzBase,
+			ErrRangeIncomplete,
+			AuthzGatewayName,
+			EnvAuthzBase,
+		)
+	}
+
+	return nil
+}
+
+// AuthzListenAddr is where khaos binds the dependency the caller already asks.
+// It is the DEFAULT bridge's gateway for the same measured reason as every
+// other in-process tier: a listener on the range network's own gateway is
+// unreachable from a container on it, and a container's loopback is its own.
+func (l Lab) AuthzListenAddr(
+	ctx context.Context,
+	reader PortReader,
+) (string, error) {
+	if err := l.RequireAuthzTier(); err != nil {
+		return "", err
+	}
+
+	gatewayIP, err := reader.BridgeGateway(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	port, err := portOfURL(l.AuthzBase)
+	if err != nil {
+		return "", err
+	}
+
+	return net.JoinHostPort(gatewayIP, strconv.Itoa(port)), nil
 }
 
 func (l Lab) EnvGatewayURL() string {

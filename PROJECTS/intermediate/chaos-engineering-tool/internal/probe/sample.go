@@ -62,14 +62,20 @@ func (s Stream) Distribution() map[Disposition]int {
 // AcceptedAfter counts only acceptances that follow a refusal, because an
 // acceptance before the target ever refused anything is a warm-up. The caller
 // seeds rejected from an earlier phase.
-func (s Stream) AcceptedAfter(rejected bool) int {
+//
+// closed is what THIS control's failing closed looks like, and an empty set
+// means Rejected alone. Every order-sensitive count below takes it for the same
+// reason ClosedAfter does: a 503 is not a statement about a credential, but for
+// a control that declared it, becoming unavailable IS the refusal, and a latch
+// that only watches Rejected never trips against a target that answers 503.
+func (s Stream) AcceptedAfter(rejected bool, closed ...Disposition) int {
 	count := 0
 
 	for _, outcome := range s.Outcomes {
-		switch outcome.Disposition {
-		case Rejected:
+		switch {
+		case shut(outcome.Disposition, closed):
 			rejected = true
-		case Accepted:
+		case outcome.Disposition == Accepted:
 			if rejected {
 				count++
 			}
@@ -79,6 +85,28 @@ func (s Stream) AcceptedAfter(rejected bool) int {
 	}
 
 	return count
+}
+
+// shut reads the declared set, defaulting to Rejected so a caller that names
+// nothing keeps the meaning it had before the set existed.
+func shut(disposition Disposition, closed []Disposition) bool {
+	if len(closed) == 0 {
+		return disposition == Rejected
+	}
+
+	return slices.Contains(closed, disposition)
+}
+
+// AnyClosed reports whether the stream ever failed closed, by this control's
+// own definition of closed.
+func (s Stream) AnyClosed(closed ...Disposition) bool {
+	for _, outcome := range s.Outcomes {
+		if shut(outcome.Disposition, closed) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s Stream) AcceptedAfterRejected() int {
@@ -109,14 +137,14 @@ func (s Stream) AcceptedSpan() time.Duration {
 
 // AcceptedSinceLastRefusal is the trailing run of acceptances, so a bounded
 // cache that lapses and stays lapsed scores zero.
-func (s Stream) AcceptedSinceLastRefusal() int {
+func (s Stream) AcceptedSinceLastRefusal(closed ...Disposition) int {
 	count := 0
 
 	for _, outcome := range s.Outcomes {
-		switch outcome.Disposition {
-		case Rejected:
+		switch {
+		case shut(outcome.Disposition, closed):
 			count = 0
-		case Accepted:
+		case outcome.Disposition == Accepted:
 			count++
 		default:
 			// Neither extends nor breaks the run.
@@ -126,15 +154,46 @@ func (s Stream) AcceptedSinceLastRefusal() int {
 	return count
 }
 
+// AcceptedSpanSinceLastRefusal is the span of THAT run and not of every
+// acceptance in the window, because the two describe different sets the moment
+// a window contains a refusal in the middle: the count is order-sensitive and a
+// first-to-last span is not, so quoting them in one sentence states an exposure
+// over a period the target spent refusing.
+func (s Stream) AcceptedSpanSinceLastRefusal(
+	closed ...Disposition,
+) time.Duration {
+	var first, last time.Time
+
+	for _, outcome := range s.Outcomes {
+		switch {
+		case shut(outcome.Disposition, closed):
+			first, last = time.Time{}, time.Time{}
+		case outcome.Disposition == Accepted:
+			if first.IsZero() {
+				first = outcome.At
+			}
+			last = outcome.At
+		default:
+			// Neither extends nor breaks the run.
+		}
+	}
+
+	if first.IsZero() {
+		return 0
+	}
+
+	return last.Sub(first)
+}
+
 // AcceptedDespiteLapse counts acceptances a correct bounded cache cannot
 // explain: all of them when the stream never lapsed, and only the ones
 // following a refusal when it did.
-func (s Stream) AcceptedDespiteLapse() int {
-	if !s.Any(Rejected) {
+func (s Stream) AcceptedDespiteLapse(closed ...Disposition) int {
+	if !s.AnyClosed(closed...) {
 		return s.Count(Accepted)
 	}
 
-	return s.AcceptedAfter(false)
+	return s.AcceptedAfter(false, closed...)
 }
 
 // RejectedAfter is the mirror of AcceptedAfter, for the credential that should

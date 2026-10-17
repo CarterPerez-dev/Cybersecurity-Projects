@@ -497,3 +497,58 @@ func TestAnExplicitlyEmptyRequiredValueIsStillRefused(t *testing.T) {
 		)
 	}
 }
+
+// The delivery guard's ADVICE is per experiment and its sentence is not. Two
+// tiers carry that guard and they reach it for unrelated reasons -- a name the
+// target never resolved again, and a decision it never asked for again -- so a
+// hint shared between them tells one of the two to check /etc/hosts about an
+// authorization cache. The first version did exactly that.
+func TestEveryDeliveryGuardCarriesItsOwnAdvice(t *testing.T) {
+	seen := map[string]string{}
+
+	for _, definition := range Catalog() {
+		spec, err := Build(definition.Name, fill(definition.Params), fastTiming)
+		if err != nil {
+			t.Fatalf("%s: build: %v", definition.Name, err)
+		}
+
+		if spec.DeliveredWhat == "" {
+			if spec.DeliveredHint != "" {
+				t.Fatalf(
+					"%s declares advice for a delivery guard it does not carry, so nothing will ever print it",
+					definition.Name,
+				)
+			}
+
+			continue
+		}
+
+		if spec.DeliveredHint == "" {
+			t.Fatalf(
+				"%s carries the delivery guard with no advice, so a run that armed a fault the target never met tells an operator nothing to check",
+				definition.Name,
+			)
+		}
+
+		seen[spec.DeliveredWhat] = spec.DeliveredHint
+	}
+
+	if len(seen) < 2 {
+		t.Fatalf(
+			"only %d experiment(s) carry the delivery guard, so this census cannot catch one tier being given another tier's advice",
+			len(seen),
+		)
+	}
+
+	hints := map[string]string{}
+	for what, hint := range seen {
+		if first, clash := hints[hint]; clash {
+			t.Fatalf(
+				"%q and %q print the same advice, and they fail the guard for unrelated reasons",
+				first,
+				what,
+			)
+		}
+		hints[hint] = what
+	}
+}
