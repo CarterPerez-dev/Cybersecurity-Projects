@@ -765,6 +765,7 @@ func rangeSupplies() []string {
 		experiment.ParamHealthURL,
 		experiment.ParamReadyURL,
 		experiment.ParamSecretPath,
+		experiment.ParamEnvVar,
 	}
 }
 
@@ -781,6 +782,7 @@ const (
 	tierCred
 	tierPool
 	tierSecret
+	tierEnv
 )
 
 func tierOf(kind string) tier {
@@ -793,6 +795,8 @@ func tierOf(kind string) tier {
 		return tierTLS
 	case inject.NeedsResolver(kind):
 		return tierDNS
+	case inject.NeedsEnv(kind):
+		return tierEnv
 	case inject.NeedsSecret(kind):
 		return tierSecret
 	case inject.IsPoolFault(kind):
@@ -834,6 +838,7 @@ type tierAnswers struct {
 	healthURL    string
 	readyURL     string
 	secretPath   string
+	variable     string
 }
 
 func answersFor(lab rangelab.Lab, at tier) tierAnswers {
@@ -891,6 +896,14 @@ func answersFor(lab rangelab.Lab, at tier) tierAnswers {
 		answers.target = rangelab.SecretGatewayName
 		answers.secretPath = rangelab.SecretPath
 
+	// A SECOND fixture, whose secret is in its environment. It is not a mode
+	// of the file one because these faults replace the container, and doing
+	// that to the file fixture would take the volume's experiments with it.
+	case tierEnv:
+		answers.url = lab.EnvProtectedURL()
+		answers.target = rangelab.EnvGatewayName
+		answers.variable = rangelab.SecretVariable
+
 	default:
 		// The direct tier's URL and target are the values set above.
 	}
@@ -943,6 +956,7 @@ func rangeDefaults(
 		experiment.ParamHealthURL:    tiered.healthURL,
 		experiment.ParamReadyURL:     tiered.readyURL,
 		experiment.ParamSecretPath:   tiered.secretPath,
+		experiment.ParamEnvVar:       tiered.variable,
 	} {
 		if value != "" {
 			defaults[name] = value
@@ -1069,6 +1083,9 @@ func requireTier(lab rangelab.Lab, at tier) error {
 
 	case tierSecret:
 		return lab.RequireSecretTier()
+
+	case tierEnv:
+		return lab.RequireEnvTier()
 
 	default:
 		// The direct tier needs only the gateway Discover already found.
@@ -1234,6 +1251,11 @@ func standUpTiers(
 		},
 		func() (func(), error) {
 			return standUpSecretTier(ctx, spec, target, &env)
+		},
+		func() (func(), error) {
+			env.EnvPlan = spec.Env
+
+			return nil, nil
 		},
 		func() (func(), error) {
 			return standUpCredTier(
@@ -1732,11 +1754,22 @@ func askForCredentials(
 	if want(experiment.ParamToken) {
 		issue := lab.IssueToken
 
-		if at == tierSecret {
+		switch at {
+		case tierSecret:
 			if err := lab.RequireSecretTier(); err != nil {
 				return err
 			}
 			issue = lab.IssueSecretToken
+
+		case tierEnv:
+			if err := lab.RequireEnvTier(); err != nil {
+				return err
+			}
+			issue = lab.IssueEnvToken
+
+		default:
+			// Every other tier's credential comes from the range's own
+			// identity provider through the direct gateway.
 		}
 
 		token, err := issue(ctx)

@@ -56,6 +56,10 @@ const (
 	envSecretPath = "KHAOS_RANGE_SECRET_PATH"
 	envSecretMode = "KHAOS_RANGE_SECRET_MODE"
 
+	// Set on the fixture the environment faults target, and empty on the one
+	// the file faults target: whichever is set is where the secret comes from.
+	envSecretVar = "KHAOS_RANGE_SECRET_VAR"
+
 	defaultSecretPath = "/run/khaos-secrets/hmac"
 	envCacheTTL       = "KHAOS_RANGE_CACHE_TTL"
 
@@ -168,6 +172,7 @@ func roleHandler(role string) (http.Handler, error) {
 		return newSecretGateway(
 			envOr(envSecretPath, defaultSecretPath),
 			envOr(envSecretMode, SecretUnchecked),
+			os.Getenv(envSecretVar),
 		).routes(), nil
 	case roleDB:
 		return newDBGateway(

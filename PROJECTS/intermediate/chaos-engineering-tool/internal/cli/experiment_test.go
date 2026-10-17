@@ -178,6 +178,7 @@ func allTiers() []tier {
 		tierCred,
 		tierPool,
 		tierSecret,
+		tierEnv,
 	}
 }
 
@@ -197,6 +198,8 @@ func tierName(at tier) string {
 		return "at the service whose pool holds the credential"
 	case tierSecret:
 		return "at the file the service verifies with"
+	case tierEnv:
+		return "at the variable the service verifies with"
 	default:
 		return "direct"
 	}
@@ -225,6 +228,7 @@ func fullLab() rangelab.Lab {
 		Stateful:      true,
 		DBGatewayPort: 30010,
 		SecretPort:    30011,
+		EnvPort:       30012,
 	}
 }
 
@@ -792,6 +796,7 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierCred:   "",
 		tierPool:   lab.DBProtectedURL(),
 		tierSecret: lab.SecretProtectedURL(),
+		tierEnv:    lab.EnvProtectedURL(),
 	}
 
 	seen := map[string]tier{}
@@ -854,6 +859,12 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 
 			case tierSecret:
 				wantTarget = rangelab.SecretGatewayName
+
+			// A SECOND secret fixture, whose secret is in its environment.
+			// These faults REPLACE the container, and doing that to the file
+			// fixture would take the volume's experiments with it.
+			case tierEnv:
+				wantTarget = rangelab.EnvGatewayName
 
 			default:
 				// The direct and proxy tiers fault the dependency itself.

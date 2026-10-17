@@ -135,6 +135,10 @@ type Experiment struct {
 	// container that mounts only the mount containing it.
 	Secret *inject.SecretPlan
 
+	// Env replaces the container, because a container's environment is fixed
+	// at creation and the update endpoint silently ignores it.
+	Env *inject.EnvPlan
+
 	Defect string
 
 	HeldCaveat string

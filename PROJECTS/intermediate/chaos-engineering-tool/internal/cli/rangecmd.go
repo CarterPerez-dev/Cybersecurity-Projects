@@ -42,7 +42,7 @@ const (
 	flagPoolMode   = "pool-mode"
 	flagSecretMode = "secret-mode"
 
-	mintedSecrets = 3
+	mintedSecrets = 4
 
 	rangeShort = "bring up a target stack that is deliberately breakable"
 	rangeLong  = `The range is a small stack khaos ships so you have something to break before you
@@ -202,6 +202,11 @@ func mintRangeSecrets(lab *rangelab.Lab) error {
 	// performs a rotation WITH must not be the credential it rotates.
 	lab.DBPassword = secrets[1]
 	lab.DBAppPassword = secrets[2]
+
+	// The HMAC secret the environment fixture verifies with. The file fixture
+	// gets its own from the range IMAGE, because a volume seeded from the
+	// image is what lets it be mounted read-only.
+	lab.SecretValue = secrets[3]
 
 	return nil
 }

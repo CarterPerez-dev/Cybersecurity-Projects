@@ -59,6 +59,7 @@ const (
 	RedisName         = "khaos-range-redis"
 	DBGatewayName     = "khaos-range-gateway-db"
 	SecretGatewayName = "khaos-range-gateway-secret"
+	EnvGatewayName    = "khaos-range-gateway-env"
 
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
@@ -102,6 +103,13 @@ const (
 	EnvPoolMode      = "KHAOS_RANGE_POOL_MODE"
 	EnvSecretPort    = "KHAOS_RANGE_SECRET_PORT"
 	EnvSecretMode    = "KHAOS_RANGE_SECRET_MODE"
+	EnvSecretValue   = "KHAOS_RANGE_SECRET_VALUE"
+	EnvEnvPort       = "KHAOS_RANGE_ENV_PORT"
+
+	// SecretVariable is the variable the environment faults take away, which
+	// khaos names rather than discovers: the fixture is configured to read its
+	// secret from exactly this one.
+	SecretVariable = "KHAOS_RANGE_SECRET_VALUE"
 
 	// AppRole is created by `range up` rather than by the engine's init hook,
 	// because the hook needs a file in the image and the data directory is a
@@ -198,6 +206,8 @@ const (
 
 	errSeedRole = "khaos could not create the range's %s role on its own engine: %w"
 
+	errNoEnvGateway = "%w: this experiment replaces a container to break its ENVIRONMENT, and the running range has no %s; bring the range down and up again to create it"
+
 	errNoSecretGateway = "%w: this experiment breaks a secret FILE, and the running range has no %s; bring the range down and up again to create it"
 
 	errNoStatefulTier = "%w: this experiment acts on a real database engine, and the running range has none. khaos does not replace these dependencies with its own code, because the finding IS what three correct engines do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
@@ -228,6 +238,8 @@ type Lab struct {
 	DBAppPassword string
 	DBGatewayPort int
 	SecretPort    int
+	EnvPort       int
+	SecretValue   string
 
 	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
@@ -259,6 +271,10 @@ func Locate(ports Ports) (Lab, error) {
 		DependencyPort: ports.Dependency,
 
 		DNSPort: ports.DNS,
+
+		DBGatewayPort: ports.DBGateway,
+		SecretPort:    ports.Secret,
+		EnvPort:       ports.Env,
 	}, nil
 }
 
@@ -276,6 +292,16 @@ type Ports struct {
 	// The resolver publishes NOTHING: it listens on 53 inside its own network
 	// namespace, which is why that tier needs no capability.
 	DNS int
+
+	// The M9 fixtures. These have to be CHOSEN here like every other host
+	// port: leaving them unset published `127.0.0.1:0:8080`, which hands the
+	// choice to the kernel's ephemeral range. khaos then neither collision
+	// checks them nor keeps them stable - and the environment faults recreate
+	// the container, so the port moved under khaos's own probe mid-run and the
+	// valid stream reported the fixture as unreachable.
+	DBGateway int
+	Secret    int
+	Env       int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct.
@@ -309,6 +335,9 @@ func FreePorts() (Ports, error) {
 		&chosen.Authority,
 		&chosen.Dependency,
 		&chosen.DNS,
+		&chosen.DBGateway,
+		&chosen.Secret,
+		&chosen.Env,
 	} {
 		port, err := pick()
 		if err != nil {
@@ -458,6 +487,8 @@ func (l Lab) Up(
 		EnvPoolMode+"="+poolMode,
 		EnvSecretPort+"="+strconv.Itoa(l.SecretPort),
 		EnvSecretMode+"="+secretMode,
+		EnvSecretValue+"="+l.SecretValue,
+		EnvEnvPort+"="+strconv.Itoa(l.EnvPort),
 	)
 
 	args := []string{"up", "--build", "--detach", "--wait"}
@@ -546,6 +577,8 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvDBAppPassword+"="+teardownPassword,
 		EnvDBGatewayPort+"="+strconv.Itoa(teardownPort),
 		EnvSecretPort+"="+strconv.Itoa(teardownPort),
+		EnvSecretValue+"="+teardownPassword,
+		EnvEnvPort+"="+strconv.Itoa(teardownPort),
 	)
 
 	// The profile is ALWAYS passed on the way down. Compose only removes the
@@ -777,59 +810,62 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 
 	lab.readStatefulTier(running)
 
-	if err = lab.readPooledTier(ctx, reader, running); err != nil {
-		return Lab{}, err
-	}
-
-	if err = lab.readSecretTier(ctx, reader, running); err != nil {
+	if err = lab.readM9Fixtures(ctx, reader, running); err != nil {
 		return Lab{}, err
 	}
 
 	return lab, nil
 }
 
-// readPooledTier reads the pooled fixture's published port, which is the one
-// service in the stateful tier khaos probes over HTTP.
-func (l *Lab) readPooledTier(
+// readM9Fixtures reads the three gateways M9 added. Each one's absence is not
+// fatal, for the same reason as every other gateway: the experiments that do
+// not need it must still work.
+func (l *Lab) readM9Fixtures(
 	ctx context.Context,
 	reader PortReader,
 	running map[string]dockerx.Target,
 ) error {
-	gateway, ok := running[DBGatewayName]
-	if !ok {
-		return nil
-	}
+	for name, into := range map[string]*int{
+		DBGatewayName:     &l.DBGatewayPort,
+		SecretGatewayName: &l.SecretPort,
+		EnvGatewayName:    &l.EnvPort,
+	} {
+		gateway, ok := running[name]
+		if !ok {
+			continue
+		}
 
-	port, err := reader.PublishedPort(ctx, gateway.ID, GatewayInternalPort)
-	if err != nil {
-		return err
-	}
+		port, err := reader.PublishedPort(ctx, gateway.ID, GatewayInternalPort)
+		if err != nil {
+			return err
+		}
 
-	l.DBGatewayPort = port
+		*into = port
+	}
 
 	return nil
 }
 
-// readSecretTier reads the secret fixture's published port. Its absence is not
-// fatal: the experiments that do not need it must still work.
-func (l *Lab) readSecretTier(
-	ctx context.Context,
-	reader PortReader,
-	running map[string]dockerx.Target,
-) error {
-	gateway, ok := running[SecretGatewayName]
-	if !ok {
+func (l Lab) EnvGatewayURL() string {
+	return "http://" + net.JoinHostPort(loopback, strconv.Itoa(l.EnvPort))
+}
+
+func (l Lab) EnvProtectedURL() string {
+	return l.EnvGatewayURL() + protectedPath
+}
+
+// IssueEnvToken asks the env-sourced fixture for a credential signed with
+// whatever secret its environment currently holds.
+func (l Lab) IssueEnvToken(ctx context.Context) (string, error) {
+	return l.issueFrom(ctx, l.EnvGatewayURL()+secretTokenPath)
+}
+
+func (l Lab) RequireEnvTier() error {
+	if l.EnvPort != 0 {
 		return nil
 	}
 
-	port, err := reader.PublishedPort(ctx, gateway.ID, GatewayInternalPort)
-	if err != nil {
-		return err
-	}
-
-	l.SecretPort = port
-
-	return nil
+	return fmt.Errorf(errNoEnvGateway, ErrRangeIncomplete, EnvGatewayName)
 }
 
 func (l Lab) SecretGatewayURL() string {

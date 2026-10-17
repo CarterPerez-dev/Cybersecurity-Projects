@@ -524,6 +524,42 @@ services:
     restart: "no"
 
 
+  # The same verifier with its secret in the ENVIRONMENT rather than on a
+  # volume, which is the fixture the two `credential.env_*` faults target. It
+  # is a second service rather than a mode of the first because those faults
+  # REPLACE the container: khaos renames the original aside and creates a
+  # replacement under its name, and doing that to the file fixture would take
+  # the volume's experiments down with it.
+  #
+  # The value is minted per `range up` for the same reason as every other
+  # range secret, and khaos never reads it: it asks this service for a
+  # credential, and holds the original inside the replacement it creates.
+  gateway-env:
+    container_name: khaos-range-gateway-env
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["secret"]
+    environment:
+      KHAOS_RANGE_SECRET_VAR: "KHAOS_RANGE_SECRET_VALUE"
+      KHAOS_RANGE_SECRET_VALUE: "${KHAOS_RANGE_SECRET_VALUE:?khaos mints this; run `khaos range up`}"
+      KHAOS_RANGE_SECRET_MODE: "${KHAOS_RANGE_SECRET_MODE:-unchecked}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_ENV_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.17
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
 networks:
   range:
     name: khaos-range

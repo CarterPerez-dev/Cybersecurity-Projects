@@ -229,6 +229,16 @@ leftover_roles() {
 # The pool configuration is fixed at container creation, deliberately, so a
 # gate spanning all three has to restart the range. A fixture that could be
 # reconfigured mid-run would let khaos change the target it is measuring.
+held_containers() {
+    docker ps -a --format '{{.Names}}' |
+        grep -c -- '-khaos-held' | tr -d '[:space:]' || true
+}
+
+env_of() {
+    docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' \
+        2>/dev/null | grep -E "^$2=" | tail -1 || true
+}
+
 start_range() {
     local pool="${1:-unbounded}"
     local secret="${2:-unchecked}"
@@ -547,6 +557,120 @@ if start_range unbounded unchecked; then
     assert_report_has \
         "the tmpfs refusal names why a helper cannot reach it" \
         "private to the container"
+fi
+
+echo "== the environment: the one fault class that REPLACES the container =="
+
+# A container's environment is fixed at creation. `ContainerUpdate` accepts an
+# Env field, returns HTTP 200 with no warning, and changes nothing - measured -
+# so these two replace the container, and the mechanism was chosen to keep the
+# ORIGINAL rather than to rebuild it: a recreate from an inspection loses the
+# anonymous volume with its data stranded, every prior log line, and the
+# container id invariant 8 re-verifies against. khaos renames the original
+# aside and renames it back on the way out.
+#
+# The two faults are INDISTINGUISHABLE to a service that reads with os.Getenv,
+# which is the whole teaching point, so both are expected to read the same
+# against each fixture mode.
+declare -A WANT_ENV=(
+    [unchecked]="deviated / PERMITTED"
+    [validated]="deviated / DENIED"
+)
+
+declare -A WANT_ENV_EXIT=(
+    [unchecked]=2
+    [validated]=0
+)
+
+for secret in unchecked validated; do
+    if ! start_range unbounded "$secret"; then
+        continue
+    fi
+
+    for experiment in credential.env_empty credential.env_unset; do
+        run_experiment "$experiment"
+
+        label="${experiment#credential.} against a ${secret} verifier"
+
+        assert_verdict "$label" "${WANT_ENV[$secret]}"
+        assert_exit "$label" "${WANT_ENV_EXIT[$secret]}"
+        assert_confirmed "$label"
+        assert_control_held "$label"
+    done
+
+    # The original has to be back, running, under its own name - and nothing
+    # held aside. A revert that renamed it back and forgot to start it left the
+    # next run reporting the range as missing the fixture entirely.
+    if docker ps --filter name=khaos-range-gateway-env --filter status=running \
+        --format '{{.Names}}' | grep -q 'khaos-range-gateway-env$'; then
+        pass "the original container is back and running after the revert"
+    else
+        fail "the original container did not come back running"
+    fi
+
+    held="$(held_containers)"
+    if [[ "$held" == "0" ]]; then
+        pass "no container is left renamed aside"
+    else
+        fail "${held} container(s) left renamed aside"
+    fi
+
+    # The variable is back with its ORIGINAL value, not an empty one: the
+    # revert restores the container rather than patching the environment.
+    restored="$(env_of khaos-range-gateway-env KHAOS_RANGE_SECRET_VALUE)"
+    if [[ -n "$restored" && "$restored" != "KHAOS_RANGE_SECRET_VALUE=" ]]; then
+        pass "the variable is back with its original value"
+    else
+        fail "the variable came back as ${restored:-<absent>}"
+    fi
+done
+
+echo "== an environment fault khaos cannot deliver is refused by name =="
+
+if start_range unbounded unchecked; then
+    port="$(docker port khaos-range-gateway-env 8080 2>/dev/null |
+        head -1 | cut -d: -f2)"
+    token="$(curl -s --max-time 5 -X POST \
+        "http://127.0.0.1:${port}/secret-token" 2>/dev/null |
+        sed -E 's/.*"token":"([^"]+)".*/\1/')"
+
+    # A variable the IMAGE defines as well. The daemon merges the image's
+    # environment into any key a create request omits, so a replacement made
+    # without it gets the image's value back and khaos would report a fault the
+    # daemon had undone for it.
+    run_unmeasured credential.env_unset \
+        --target khaos-range-gateway-env \
+        --url "http://127.0.0.1:${port}/protected" \
+        --token "$token" \
+        --variable PATH
+
+    if [[ "$last_code" != 0 ]]; then
+        pass "a variable the image defines is refused"
+    else
+        fail "khaos reported an unset the daemon would have undone"
+    fi
+
+    assert_report_has \
+        "the refusal names the mechanism and the fault to use instead" \
+        "gets the image's value back"
+
+    # A variable that is not there at all. Nothing to take away, and the
+    # refusal names what IS there so the operator can see the typo.
+    run_unmeasured credential.env_unset \
+        --target khaos-range-gateway-env \
+        --url "http://127.0.0.1:${port}/protected" \
+        --token "$token" \
+        --variable KHAOS_NOT_A_VARIABLE
+
+    if [[ "$last_code" != 0 ]]; then
+        pass "a variable the target does not carry is refused"
+    else
+        fail "khaos took away a variable that was never there"
+    fi
+
+    assert_report_has \
+        "the refusal names the variables the target DOES carry" \
+        "It carries:"
 fi
 
 echo "== the pooled faults put BOTH containers to the refusal predicates =="

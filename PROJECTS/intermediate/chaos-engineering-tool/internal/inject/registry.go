@@ -67,6 +67,10 @@ type Env struct {
 	CredTrap dbx.Trap
 	CredPlan CredPlan
 
+	// The only tier that REPLACES the target, so its plan carries the identity
+	// handover invariant 8 needs.
+	EnvPlan *EnvPlan
+
 	// A POINTER, like every other tier's per-run state: Plan measures the size
 	// the target had and Confirm reads it back, and a copy would hand
 	// Confirm a zero - which read as "the file did not shrink" and aborted

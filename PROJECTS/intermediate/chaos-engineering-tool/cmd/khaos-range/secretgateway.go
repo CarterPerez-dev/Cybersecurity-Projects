@@ -42,10 +42,29 @@ const (
 type secretGateway struct {
 	path string
 	mode string
+
+	// variable names the environment variable the secret arrives in, for the
+	// fixture the environment faults target. It is read on EVERY request for
+	// the same reason the file is: a value read once at startup would make the
+	// fault invisible - except that these faults replace the container, so the
+	// fresh process reads the broken environment anyway. Reading it per
+	// request costs nothing and keeps one code path.
+	variable string
 }
 
-func newSecretGateway(path, mode string) *secretGateway {
-	return &secretGateway{path: path, mode: mode}
+func newSecretGateway(path, mode, variable string) *secretGateway {
+	return &secretGateway{path: path, mode: mode, variable: variable}
+}
+
+// secret is whichever source this fixture was configured with. The env source
+// does not distinguish unset from empty, which is the whole point of the pair
+// of faults that target it: os.Getenv returns "" for both.
+func (g *secretGateway) secret() ([]byte, error) {
+	if g.variable != "" {
+		return []byte(os.Getenv(g.variable)), nil
+	}
+
+	return os.ReadFile(g.path)
 }
 
 func (g *secretGateway) routes() *http.ServeMux {
@@ -71,7 +90,7 @@ func (g *secretGateway) routes() *http.ServeMux {
 // issue hands out a credential signed with whatever secret the service holds
 // right now, which is how khaos gets a valid one without reading the file.
 func (g *secretGateway) issue(w http.ResponseWriter, _ *http.Request) {
-	secret, err := os.ReadFile(g.path)
+	secret, err := g.secret()
 	if err != nil {
 		w.Header().Set(headerReason, reasonSecretUnreadable)
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -99,7 +118,7 @@ func (g *secretGateway) protected(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secret, err := os.ReadFile(g.path)
+	secret, err := g.secret()
 	if err != nil {
 		w.Header().Set(headerReason, reasonSecretUnreadable)
 		w.WriteHeader(http.StatusServiceUnavailable)

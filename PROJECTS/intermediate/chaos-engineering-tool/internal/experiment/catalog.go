@@ -75,6 +75,10 @@ type Shape struct {
 	// only place that has the target's own inspection.
 	Secret *inject.SecretPlan
 
+	// The environment tier's plan, which is the only fault class that replaces
+	// the container.
+	Env *inject.EnvPlan
+
 	// Separate fields because the target addresses khaos by a name khaos cannot
 	// see from its own listener, so neither can be derived from the other.
 	AuthorityBase   string
@@ -285,6 +289,7 @@ func Build(
 		DNSHost:         shape.DNSHost,
 		Cred:            shape.Cred,
 		Secret:          shape.Secret,
+		Env:             shape.Env,
 		IdleFor:         shape.IdleFor,
 		Act:             shape.Act,
 		ActDetail:       shape.ActDetail,
