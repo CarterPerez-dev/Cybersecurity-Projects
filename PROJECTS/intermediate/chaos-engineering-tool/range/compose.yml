@@ -14,11 +14,17 @@ services:
     labels:
       khaos.target: "true"
       khaos.range: "true"
-    # The address is PINNED, and only on this network, because khaos's chaos
-    # resolver has to be authoritative for a name that maps to it and the zone
-    # is passed as a literal at container creation. Docker refuses a static
-    # address on a network whose subnet it chose, which is why the range network
-    # declares its own below.
+    # EVERY address in this range is pinned, and it is load-bearing rather than
+    # tidy. Three of them have to be: the resolver's and the dependency's
+    # because the gateway's `dns:` and the resolver's zone are literals fixed at
+    # container creation, and the rogue's for the same reason. The rest are
+    # pinned because a DYNAMIC address competes with those three. Docker
+    # allocates sequentially from the bottom of the subnet, so with five
+    # dynamic gateways the fourth one reaches .5 and the resolver then fails to
+    # start with "Address already in use" - measured, when the stateful tier
+    # added four more containers and postgres took the resolver's address.
+    # Pinning removes the race by construction instead of relying on compose
+    # creating the pinned services first.
     networks:
       range:
         ipv4_address: 10.244.244.10
@@ -47,7 +53,9 @@ services:
       - "127.0.0.1:${KHAOS_RANGE_GATEWAY_PORT:?khaos chooses this port; run `khaos range up`}:8080"
     depends_on:
       - idp
-    networks: [range]
+    networks:
+      range:
+        ipv4_address: 10.244.244.11
     restart: "no"
 
   # The same gateway, reaching the same identity provider, but addressing it
@@ -79,7 +87,9 @@ services:
       - "127.0.0.1:${KHAOS_RANGE_PROXIED_PORT:?khaos chooses this port; run `khaos range up`}:8080"
     depends_on:
       - idp
-    networks: [range]
+    networks:
+      range:
+        ipv4_address: 10.244.244.12
     restart: "no"
 
   # The third gateway, and the only one whose identity provider is khaos itself
@@ -113,7 +123,9 @@ services:
       khaos.range: "true"
     ports:
       - "127.0.0.1:${KHAOS_RANGE_VERIFIER_PORT:?khaos chooses this port; run `khaos range up`}:8080"
-    networks: [range]
+    networks:
+      range:
+        ipv4_address: 10.244.244.13
     restart: "no"
 
   # The fourth gateway, and the only one that reaches a dependency over TLS from
@@ -165,7 +177,9 @@ services:
       - "127.0.0.1:${KHAOS_RANGE_TLS_PORT:?khaos chooses this port; run `khaos range up`}:8080"
     depends_on:
       - idp
-    networks: [range]
+    networks:
+      range:
+        ipv4_address: 10.244.244.14
     restart: "no"
 
 
@@ -277,7 +291,155 @@ services:
     depends_on:
       - idp
       - resolver
-    networks: [range]
+    networks:
+      range:
+        ipv4_address: 10.244.244.15
+    restart: "no"
+
+  # THE STATEFUL TIER, opt-in behind `khaos range up --with-db`.
+  #
+  # These four are the only services in the range khaos does not implement
+  # itself, and that is the point of the credential family: the finding is what
+  # three CORRECT engines do with an authenticated session when its credential
+  # changes, so a khaos-written fake would prove nothing. Every other tier
+  # exists because no correct dependency will emit the defect.
+  #
+  # Nothing is published to the host. khaos dials the container's own address on
+  # this network, which the host routes to, so a database never appears on a
+  # host port. The administrative password is minted per `khaos range up` rather
+  # than written here, and khaos reads it back out of the container's own
+  # environment.
+  #
+  # The tags are the ones the research measured. The VERSION is read from the
+  # server at run time and recorded in the run, because a tag is not a version:
+  # `postgres:18` resolved to two different patch releases on this host hours
+  # apart.
+  postgres:
+    container_name: khaos-range-postgres
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/postgresql
+    image: postgres:18
+    profiles: ["db"]
+    command: ["-c", "log_connections=all"]
+    environment:
+      POSTGRES_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      POSTGRES_DB: "appdb"
+      POSTGRES_USER: "postgres"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      range:
+        ipv4_address: 10.244.244.30
+    restart: "no"
+
+  mysql:
+    container_name: khaos-range-mysql
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/mysql
+    image: mysql:8.4
+    profiles: ["db"]
+    environment:
+      MYSQL_ROOT_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      MYSQL_DATABASE: "appdb"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+    networks:
+      range:
+        ipv4_address: 10.244.244.31
+    restart: "no"
+
+  mariadb:
+    container_name: khaos-range-mariadb
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/mysql
+    image: mariadb:11.4
+    profiles: ["db"]
+    environment:
+      MARIADB_ROOT_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      MARIADB_DATABASE: "appdb"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      range:
+        ipv4_address: 10.244.244.32
+    restart: "no"
+
+  # The rate limiter's datastore. Kong's `fault_tolerant = true` is the only
+  # genuine fail-open default in the whole fail-open taxonomy, and it is a
+  # limiter that disables itself when THIS is unreachable. The limiter fixture
+  # speaks RESP directly rather than taking a client dependency: a fixed-window
+  # counter needs INCR and EXPIRE and nothing else.
+  redis:
+    container_name: khaos-range-redis
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /data
+    image: redis:7.4-alpine
+    profiles: ["db"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    networks:
+      range:
+        ipv4_address: 10.244.244.33
     restart: "no"
 
 networks:

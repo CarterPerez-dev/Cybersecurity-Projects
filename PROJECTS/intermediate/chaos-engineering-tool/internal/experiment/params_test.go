@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
@@ -26,10 +27,23 @@ const (
 // that declares a default takes it, because a typed parameter such as a duration
 // or a byte count cannot accept an arbitrary sentinel and a build that refuses the
 // value never reaches the assertion under test.
+// legalSample is for a parameter whose domain is not "any string". Every other
+// parameter takes a sentinel, which is what proves the builder reads the value
+// it was given rather than a literal of its own. A constrained parameter has to
+// be given something its builder will accept, or the refusal under test is the
+// domain check rather than the thing the test is about.
+var legalSample = map[string]string{
+	ParamEngine: string(dbx.Postgres),
+}
+
 func fill(declared []Param) map[string]string {
 	supplied := map[string]string{}
 
 	for _, param := range declared {
+		if sample, constrained := legalSample[param.Name]; constrained {
+			supplied[param.Name] = sample
+			continue
+		}
 		if param.Default != "" {
 			supplied[param.Name] = param.Default
 			continue
@@ -331,6 +345,39 @@ func TestTheNegativeControlCredentialIsNotAcceptableToAnyVerifier(
 	}
 }
 
+// httpControlled reports whether this experiment's negative control is an HTTP
+// probe, which is the only transport this test can observe. The freshness
+// property itself is not optional for the others: it lives in the tier that
+// owns the transport, and dbx's own suite proves the credential tier mints a
+// new password per sample.
+//
+// The non-HTTP set is pinned by FAMILY rather than derived, because a derived
+// exemption would silently swallow a sixth family that shipped a fixed control
+// credential by accident. A new family lands here and has to be looked at.
+func httpControlled(t *testing.T, definition Definition) bool {
+	t.Helper()
+
+	supplied := fill(definition.Params)
+
+	spec, err := Build(definition.Name, supplied, fastTiming)
+	if err != nil {
+		t.Fatalf("%s: build: %v", definition.Name, err)
+	}
+
+	_, overHTTP := spec.Probes.Invalid.(*probe.HTTPProbe)
+
+	if overHTTP == (definition.Family == FamilyCredential) {
+		t.Fatalf(
+			"%s is in family %q and its negative control is over HTTP = %v; the credential family is the only one whose control is not an HTTP probe, so one of the two needs updating",
+			definition.Name,
+			definition.Family,
+			overHTTP,
+		)
+	}
+
+	return overHTTP
+}
+
 func flagSpelling(name string) string {
 	return "--" + name
 }
@@ -341,6 +388,10 @@ func flagSpelling(name string) string {
 // reason both ends need a control.
 func TestTheCatalogueAsksForAFreshNegativeControlCredential(t *testing.T) {
 	for _, definition := range Catalog() {
+		if !httpControlled(t, definition) {
+			continue
+		}
+
 		t.Run(definition.Name, func(t *testing.T) {
 			var mu sync.Mutex
 			seen := map[string]bool{}

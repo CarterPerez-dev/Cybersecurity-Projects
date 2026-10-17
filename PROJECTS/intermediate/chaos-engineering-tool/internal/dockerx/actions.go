@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,7 @@ const (
 	errEnv        = "read the environment of %s: %w"
 	errAddress    = "read the address of %s on network %s: %w"
 	errNoAddress  = "%s has no address on network %s"
+	errNoNetwork  = "%s has no network address at all, so khaos has nothing to dial it on"
 	errBridge     = "read the gateway of the default bridge network: %w"
 	errNoBridge   = "the default bridge network reports no gateway address, so khaos cannot find an address a container can reach it on"
 
@@ -196,6 +198,38 @@ func (c *Client) NetworkAddress(
 	}
 
 	return settings.IPAddress.String(), nil
+}
+
+// OwnAddress is where khaos dials a target DIRECTLY, on the container's own
+// address rather than on a published host port. The host routes to a bridge
+// network's addresses, which is what makes a stateful dependency reachable with
+// nothing published, and the network with the lowest name is chosen so two runs
+// against a multi-homed container agree.
+func (c *Client) OwnAddress(
+	ctx context.Context,
+	containerID string,
+) (string, string, error) {
+	endpoints, err := c.Endpoints(ctx, containerID)
+	if err != nil {
+		return "", "", err
+	}
+
+	names := make([]string, 0, len(endpoints))
+	for name := range endpoints {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	for _, name := range names {
+		settings := endpoints[name]
+		if settings == nil || !settings.IPAddress.IsValid() {
+			continue
+		}
+
+		return name, settings.IPAddress.String(), nil
+	}
+
+	return "", "", fmt.Errorf(errNoNetwork, ShortID(containerID))
 }
 
 // BridgeGateway is the address a container reaches the host on: the DEFAULT

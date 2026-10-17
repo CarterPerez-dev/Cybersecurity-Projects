@@ -6,6 +6,8 @@ require (
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/containerd/errdefs v1.0.0
+	github.com/go-sql-driver/mysql v1.10.1
+	github.com/lib/pq v1.12.3
 	github.com/miekg/dns v1.1.73
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.1
@@ -18,6 +20,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/carapace-sh/carapace v1.11.6 // indirect
 	github.com/carapace-sh/carapace-shlex v1.1.1 // indirect

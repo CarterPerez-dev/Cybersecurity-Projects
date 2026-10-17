@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
@@ -58,6 +59,13 @@ type Env struct {
 	Resolver        *dnsrv.Client
 	ResolverNetwork string
 	DNSTrap         dnsrv.Trap
+
+	// The one authority that behaves CORRECTLY, so khaos drives a stock engine
+	// instead of replacing it. CredPlan is how a cold start reaches it again,
+	// and it names where each credential is read from rather than carrying one.
+	Cred     *dbx.Tier
+	CredTrap dbx.Trap
+	CredPlan CredPlan
 }
 
 // Mutator is one injectable fault. Plan returns what the revert needs so the

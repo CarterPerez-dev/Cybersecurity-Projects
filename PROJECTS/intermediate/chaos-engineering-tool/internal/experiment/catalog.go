@@ -67,6 +67,10 @@ type Shape struct {
 	ResolverNetwork string
 	DNSHost         string
 
+	// Grouped rather than spread: this tier needs seven inputs and Shape
+	// already carries one field per tier.
+	Cred *CredSpec
+
 	// Separate fields because the target addresses khaos by a name khaos cannot
 	// see from its own listener, so neither can be derived from the other.
 	AuthorityBase   string
@@ -178,6 +182,12 @@ var catalog = map[string]Definition{
 	},
 }
 
+// catalogAdd is how a family registers from its own init, which keeps every
+// family's definitions in the file that explains them.
+func catalogAdd(definition Definition) {
+	catalog[definition.Name] = definition
+}
+
 func Names() []string {
 	names := make([]string, 0, len(catalog))
 	for name := range catalog {
@@ -266,6 +276,7 @@ func Build(
 		DNSTrap:         shape.DNSTrap,
 		ResolverNetwork: shape.ResolverNetwork,
 		DNSHost:         shape.DNSHost,
+		Cred:            shape.Cred,
 		IdleFor:         shape.IdleFor,
 		Act:             shape.Act,
 		ActDetail:       shape.ActDetail,

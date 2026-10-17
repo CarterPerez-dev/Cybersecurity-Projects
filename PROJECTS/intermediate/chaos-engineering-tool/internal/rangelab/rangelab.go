@@ -48,7 +48,15 @@ const (
 
 	DNSControlName = "control.khaos.invalid."
 
-	IDPName            = "khaos-range-idp"
+	IDPName = "khaos-range-idp"
+
+	// The stateful tier, opt-in behind `range up --with-db`. These are the only
+	// range services khaos does not implement itself.
+	PostgresName = "khaos-range-postgres"
+	MySQLName    = "khaos-range-mysql"
+	MariaDBName  = "khaos-range-mariadb"
+	RedisName    = "khaos-range-redis"
+
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
 	FailModeShut       = "closed"
@@ -77,6 +85,14 @@ const (
 	EnvCertHost = "KHAOS_RANGE_CERT_HOST"
 
 	EnvTLSMode = "KHAOS_RANGE_TLS_MODE"
+
+	// Minted per `range up` rather than written into the compose file, so the
+	// public repo carries no credential and khaos reads it back out of the
+	// container that holds it.
+	EnvDBPassword = "KHAOS_RANGE_DB_PASSWORD"
+
+	profileFlag = "--profile"
+	dbProfile   = "db"
 
 	composeDir  = "range"
 	composeFile = "compose.yml"
@@ -117,6 +133,10 @@ const (
 	// no resolver, or `range down` fails and the range cannot be removed at all.
 	teardownNonce = "teardown"
 
+	// The compose file requires the database password even for a teardown that
+	// creates no database, for the same reason as the nonce above.
+	teardownPassword = "teardown"
+
 	EnvComposeDir = "KHAOS_RANGE_DIR"
 	EnvUpstream   = "KHAOS_RANGE_UPSTREAM"
 
@@ -131,6 +151,8 @@ const (
 	errNoTLSGateway      = "%w: this experiment arms khaos's own certificate authority, and the running range has no %s; bring the range down and up again to create it"
 	errNoDNSGateway      = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
 	errNoRangeResolver   = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
+
+	errNoStatefulTier = "%w: this experiment acts on a real database engine, and the running range has none. khaos does not replace these dependencies with its own code, because the finding IS what three correct engines do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
 )
 
 // Lab is a located range. The khaos-side ports are chosen at `range up` rather
@@ -149,6 +171,12 @@ type Lab struct {
 
 	DNSPort       int
 	ResolverNonce string
+
+	// Stateful is whether `range up --with-db` created the database tier. The
+	// password is minted per up and read back from the containers, never
+	// remembered from what khaos chose.
+	Stateful   bool
+	DBPassword string
 
 	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
@@ -350,10 +378,14 @@ func (l Lab) ProxiedProtectedURL() string {
 	return l.ProxiedGatewayURL() + protectedPath
 }
 
+// Up brings the range up. withDB adds the stateful tier, which is opt-in
+// because those four containers are the only ones khaos does not implement
+// itself and they cost real startup time.
 func (l Lab) Up(
 	ctx context.Context,
 	out io.Writer,
 	failMode, cacheTTL, tlsMode string,
+	withDB bool,
 ) error {
 	environ := append(os.Environ(),
 		EnvGatewayPort+"="+strconv.Itoa(l.Port),
@@ -369,17 +401,15 @@ func (l Lab) Up(
 		EnvFailMode+"="+failMode,
 		EnvCacheTTL+"="+cacheTTL,
 		EnvTLSMode+"="+tlsMode,
+		EnvDBPassword+"="+l.DBPassword,
 	)
 
-	if err := l.compose(
-		ctx,
-		out,
-		environ,
-		"up",
-		"--build",
-		"--detach",
-		"--wait",
-	); err != nil {
+	args := []string{"up", "--build", "--detach", "--wait"}
+	if withDB {
+		args = append([]string{profileFlag, dbProfile}, args...)
+	}
+
+	if err := l.compose(ctx, out, environ, args...); err != nil {
 		return err
 	}
 
@@ -398,12 +428,18 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvResolverNonce+"="+teardownNonce,
 		EnvAuthorityPort+"="+strconv.Itoa(teardownPort),
 		EnvDependencyPort+"="+strconv.Itoa(teardownPort),
+		EnvDBPassword+"="+teardownPassword,
 	)
 
+	// The profile is ALWAYS passed on the way down. Compose only removes the
+	// services in the active profile set, so a teardown without it leaves the
+	// database tier running and `range down` would report a range that is down
+	// while four containers of it are up.
 	return l.compose(
 		ctx,
 		out,
 		environ,
+		profileFlag, dbProfile,
 		"down",
 		"--volumes",
 		"--remove-orphans",
@@ -606,32 +642,76 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 		return Lab{}, err
 	}
 
-	tlsGateway, ok := running[TLSGatewayName]
-	if !ok {
+	complete, err := lab.readTLSTier(ctx, reader, running)
+	if err != nil {
+		return Lab{}, err
+	}
+	if !complete {
 		return lab, nil
-	}
-
-	if lab.TLSPort, err = reader.PublishedPort(
-		ctx,
-		tlsGateway.ID,
-		GatewayInternalPort,
-	); err != nil {
-		return Lab{}, err
-	}
-
-	if err = lab.readAuthorityWiring(
-		ctx,
-		reader,
-		tlsGateway.ID,
-	); err != nil {
-		return Lab{}, err
 	}
 
 	if err = lab.readDNSTier(ctx, reader, running); err != nil {
 		return Lab{}, err
 	}
 
+	lab.readStatefulTier(running)
+
 	return lab, nil
+}
+
+// readTLSTier reports whether the TLS gateway was there to read, because its
+// absence is not fatal: the experiments that do not need it must still work.
+func (l *Lab) readTLSTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) (bool, error) {
+	tlsGateway, ok := running[TLSGatewayName]
+	if !ok {
+		return false, nil
+	}
+
+	port, err := reader.PublishedPort(ctx, tlsGateway.ID, GatewayInternalPort)
+	if err != nil {
+		return false, err
+	}
+
+	l.TLSPort = port
+
+	if err := l.readAuthorityWiring(ctx, reader, tlsGateway.ID); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// readStatefulTier records whether `range up --with-db` created the database
+// tier. Every engine is required rather than any one of them: the credential
+// family's exit gate runs the same pair against all three, and a partial tier
+// would report a missing engine as an experiment that cannot run.
+func (l *Lab) readStatefulTier(running map[string]dockerx.Target) {
+	for _, name := range []string{
+		PostgresName,
+		MySQLName,
+		MariaDBName,
+		RedisName,
+	} {
+		if _, up := running[name]; !up {
+			return
+		}
+	}
+
+	l.Stateful = true
+}
+
+// RequireStatefulTier refuses before the baseline rather than letting a run
+// report a database that is not there as a target that was not enforcing.
+func (l Lab) RequireStatefulTier() error {
+	if l.Stateful {
+		return nil
+	}
+
+	return fmt.Errorf(errNoStatefulTier, ErrRangeIncomplete)
 }
 
 func (l *Lab) readDNSTier(

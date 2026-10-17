@@ -131,17 +131,45 @@ func outage(t *testing.T) experiment.Definition {
 // decides whether khaos looks for a range at all. Keeping it in a second place
 // is only safe if the two cannot drift.
 func TestRangeSuppliesIsExactlyTheKeySetOfRangeDefaults(t *testing.T) {
+	union := map[string]bool{}
+
 	for _, at := range allTiers() {
 		t.Run(tierName(at), func(t *testing.T) {
-			assertKeySet(t, rangeDefaults(fullLab(), testAnswers, at))
+			for name := range assertKeySet(
+				t,
+				rangeDefaults(fullLab(), testAnswers, at),
+			) {
+				union[name] = true
+			}
 		})
+	}
+
+	// Per tier the answers are a SUBSET, because two of them are
+	// tier-conditional: the credential tier has no url and no other tier has an
+	// engine. Across every tier the union has to be exact, or khaos would
+	// refuse a parameter it can fill or try to fill one it cannot.
+	supplies := slices.Clone(rangeSupplies())
+	slices.Sort(supplies)
+
+	answered := make([]string, 0, len(union))
+	for name := range union {
+		answered = append(answered, name)
+	}
+	slices.Sort(answered)
+
+	if !slices.Equal(supplies, answered) {
+		t.Fatalf(
+			"rangeSupplies() = %v but no tier answers %v",
+			supplies,
+			answered,
+		)
 	}
 }
 
 // allTiers is every tier the range serves. A test that iterated only the two it
 // knew about would go on passing while a whole gateway's answers drifted.
 func allTiers() []tier {
-	return []tier{tierDirect, tierProxy, tierIdP, tierTLS, tierDNS}
+	return []tier{tierDirect, tierProxy, tierIdP, tierTLS, tierDNS, tierCred}
 }
 
 func tierName(at tier) string {
@@ -154,6 +182,8 @@ func tierName(at tier) string {
 		return "against khaos's own certificate authority"
 	case tierDNS:
 		return "through khaos's own chaos resolver"
+	case tierCred:
+		return "over the engine's own administrative protocol"
 	default:
 		return "direct"
 	}
@@ -179,13 +209,14 @@ func fullLab() rangelab.Lab {
 	}
 }
 
-func assertKeySet(t *testing.T, defaults map[string]string) {
+// assertKeySet checks one tier and returns the names it answered, so the caller
+// can require the union across tiers to be exact.
+func assertKeySet(t *testing.T, defaults map[string]string) map[string]bool {
 	t.Helper()
 
-	supplies := slices.Clone(rangeSupplies())
-	slices.Sort(supplies)
+	supplies := rangeSupplies()
+	answered := map[string]bool{}
 
-	keys := make([]string, 0, len(defaults))
 	for name, value := range defaults {
 		if value == "" {
 			t.Fatalf(
@@ -193,18 +224,18 @@ func assertKeySet(t *testing.T, defaults map[string]string) {
 				name,
 			)
 		}
-		keys = append(keys, name)
-	}
-	slices.Sort(keys)
 
-	if !slices.Equal(supplies, keys) {
-		t.Fatalf(
-			"rangeSupplies() = %v but rangeDefaults answers %v; khaos would either refuse a "+
-				"parameter it can fill or try to fill one it cannot",
-			supplies,
-			keys,
-		)
+		if !slices.Contains(supplies, name) {
+			t.Fatalf(
+				"rangeDefaults answers %q, which rangeSupplies() does not list, so khaos would try to fill a parameter it does not believe it can",
+				name,
+			)
+		}
+
+		answered[name] = true
 	}
+
+	return answered
 }
 
 // The M4 defect, generalised. Fusing the operator's target with the range's URL
@@ -729,12 +760,17 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 ) {
 	lab := fullLab()
 
+	// The credential tier has NO url, and that is a property rather than an
+	// omission: its probe streams are database connections, so there is no
+	// gateway in front of the dependency and nothing to address over HTTP. A
+	// url filled in here would be a flag the operator can set to no effect.
 	want := map[tier]string{
 		tierDirect: lab.ProtectedURL(),
 		tierProxy:  lab.ProxiedProtectedURL(),
 		tierIdP:    lab.VerifierProtectedURL(),
 		tierTLS:    lab.TLSProtectedURL(),
 		tierDNS:    lab.DNSProtectedURL(),
+		tierCred:   "",
 	}
 
 	seen := map[string]tier{}
@@ -783,6 +819,13 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 				wantTarget = rangelab.TLSGatewayName
 			case tierDNS:
 				wantTarget = rangelab.DNSGatewayName
+
+			// The one tier whose target IS the dependency, because khaos does
+			// not replace this authority: the fault is performed on the engine
+			// itself, on a role khaos mints there for the run.
+			case tierCred:
+				wantTarget = rangelab.PostgresName
+
 			default:
 				// The direct and proxy tiers fault the dependency itself.
 			}

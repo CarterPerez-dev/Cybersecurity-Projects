@@ -126,6 +126,10 @@ type Experiment struct {
 	ResolverNetwork string
 	DNSHost         string
 
+	// Cred is the one authority khaos does not replace, so the run opens a
+	// client for a stock engine instead of standing a fake one up.
+	Cred *CredSpec
+
 	Defect string
 
 	HeldCaveat string

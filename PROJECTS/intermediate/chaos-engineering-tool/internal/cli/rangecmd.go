@@ -30,6 +30,7 @@ const (
 	flagTLSMode  = "tls-mode"
 	flagPort     = "port"
 	flagQuiet    = "quiet"
+	flagWithDB   = "with-db"
 
 	rangeShort = "bring up a target stack that is deliberately breakable"
 	rangeLong  = `The range is a small stack khaos ships so you have something to break before you
@@ -54,6 +55,7 @@ running.`
 	tlsModeUsage  = "which reference TLS client the range's TLS gateway runs. `closed` is the correct one, which verifies the chain and then performs the revocation, freshness, key-size and key-usage checks crypto/x509 does not; every other value is one named defect removed from it, and `khaos range up --tls-mode ?` lists them. An unrecognised value is refused rather than quietly leaving the gateway correct, because a gateway that silently became correct would report every certificate experiment as fail-closed"
 	portUsage     = "host port for the gateway; the default is a random high port chosen at startup"
 	quietUsage    = "suppress compose build and start output"
+	withDBUsage   = "also start the stateful tier: PostgreSQL 18, MySQL 8.4, MariaDB 11.4 and a Redis for the rate limiter's datastore. These four are the only range services khaos does not implement itself, because the credential family's finding IS what three correct engines do, and they cost real startup time, so they are opt-in"
 
 	msgStarting        = "building and starting the range"
 	msgPortRetry       = "host port %d was taken between the check and the bind; picking another"
@@ -64,6 +66,7 @@ running.`
 	msgRangeStopped    = "the range is not running; start it with `khaos range up`"
 	msgFailMode        = "fail mode %s"
 	msgTokenHint       = "a credential is issued on demand, so `khaos run` against the range needs no flags"
+	msgStatefulUp      = "the stateful tier is up: PostgreSQL, MySQL, MariaDB and Redis, none of them published to a host port"
 	msgPortHint        = "host port %d was chosen at random; pass --port to pin it"
 	errUnknownFailMode = "%w: %q (known modes: %s)"
 
@@ -116,6 +119,10 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			withDB, err := cmd.Flags().GetBool(flagWithDB)
+			if err != nil {
+				return err
+			}
 			return runRangeUp(
 				cmd.Context(),
 				cmd.OutOrStdout(),
@@ -124,6 +131,7 @@ func newRangeUpCmd() *cobra.Command {
 				tlsMode,
 				port,
 				quiet,
+				withDB,
 			)
 		},
 	}
@@ -133,8 +141,30 @@ func newRangeUpCmd() *cobra.Command {
 	cmd.Flags().String(flagTLSMode, string(tlsclient.Correct), tlsModeUsage)
 	cmd.Flags().Int(flagPort, 0, portUsage)
 	cmd.Flags().Bool(flagQuiet, false, quietUsage)
+	cmd.Flags().Bool(flagWithDB, false, withDBUsage)
 
 	return cmd
+}
+
+// mintRangeSecrets gives the range a fresh nonce and a fresh database password
+// per `range up`. One that outlived the range would let anything that had seen
+// it arm the resolver, and a credential written into a public compose file is a
+// credential forever.
+func mintRangeSecrets(lab *rangelab.Lab) error {
+	nonce, err := newNonce()
+	if err != nil {
+		return err
+	}
+
+	password, err := newNonce()
+	if err != nil {
+		return err
+	}
+
+	lab.ResolverNonce = nonce
+	lab.DBPassword = password
+
+	return nil
 }
 
 func newRangeDownCmd() *cobra.Command {
@@ -202,7 +232,7 @@ func runRangeUp(
 	out io.Writer,
 	failMode, cacheTTL, tlsMode string,
 	port int,
-	quiet bool,
+	quiet, withDB bool,
 ) error {
 	if !slices.Contains(knownFailModes(), failMode) {
 		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
@@ -248,15 +278,11 @@ func runRangeUp(
 			return err
 		}
 
-		// A fresh nonce per `range up`: one that outlived the range would let
-		// anything that had seen it arm the resolver.
-		nonce, err := newNonce()
-		if err != nil {
+		if err := mintRangeSecrets(&lab); err != nil {
 			return err
 		}
-		lab.ResolverNonce = nonce
 
-		err = lab.Up(ctx, progress, failMode, cacheTTL, tlsMode)
+		err = lab.Up(ctx, progress, failMode, cacheTTL, tlsMode, withDB)
 		if err == nil {
 			break
 		}
@@ -271,6 +297,10 @@ func runRangeUp(
 	event(out, markOK, theme.StatusOK, msgRangeUp)
 	note(out, fmt.Sprintf(msgFailMode, failMode))
 	note(out, fmt.Sprintf(msgPortHint, lab.Port))
+	if withDB {
+		note(out, msgStatefulUp)
+	}
+
 	note(out, msgTokenHint)
 	fmt.Fprintln(out)
 

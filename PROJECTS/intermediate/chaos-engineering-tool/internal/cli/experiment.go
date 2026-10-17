@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
@@ -115,6 +116,12 @@ enforcing in the first place.`
 
 	errNoResolverOn   = "no khaos chaos resolver is serving %s. The DNS family needs one, and the target has to have been CREATED pointing at it: `--dns` is fixed at container creation and Docker offers no way to change it afterwards. Run `khaos resolver up --network %[1]s` and recreate the target against the address it prints, or `khaos range up` for a stack that is already wired: %w"
 	errResolverSilent = "khaos's chaos resolver %s did not answer its control surface at %s: %w"
+
+	credTierFormat = "credential tier open on %s at %s over %s, which reports %q, acting on the role %s"
+
+	errNoAdminSecret = "%s does not carry %s in its environment, so khaos has no administrative credential for the %s and will not guess one. khaos reads it from the container rather than taking it on a flag, because a flag is world-readable in /proc and a journal entry would outlive the run. Point --%s at the variable that holds it, or run `khaos range up --with-db` for a stack that is already wired"
+
+	errNoSubjectSecret = "%s does not carry %s in its environment, so khaos cannot read the credential its own connection pool authenticated with, and a rotation it cannot undo is not one khaos will perform"
 
 	errTargetOffNetwork = "%s is not attached to %s, so it cannot be using the chaos resolver that serves it and khaos could not count its queries: %w"
 	errProxyBind        = "khaos could not bind its fault proxy on %s, which is where the range's proxied gateway is already looking for it: %w. Something else took that port since the range came up; bring the range down and up again to pick a new one"
@@ -741,6 +748,7 @@ func rangeSupplies() []string {
 		experiment.ParamDNSHost,
 		experiment.ParamResolverNetwork,
 		experiment.ParamDNSAddress,
+		experiment.ParamEngine,
 	}
 }
 
@@ -754,6 +762,7 @@ const (
 	tierIdP
 	tierTLS
 	tierDNS
+	tierCred
 )
 
 func tierOf(kind string) tier {
@@ -766,6 +775,8 @@ func tierOf(kind string) tier {
 		return tierTLS
 	case inject.NeedsResolver(kind):
 		return tierDNS
+	case inject.NeedsCred(kind):
+		return tierCred
 	default:
 		return tierDirect
 	}
@@ -795,6 +806,7 @@ func rangeDefaults(
 ) map[string]string {
 	url := lab.ProtectedURL()
 	target := rangelab.IDPName
+	engine := ""
 
 	switch at {
 	case tierProxy:
@@ -813,13 +825,22 @@ func rangeDefaults(
 		url = lab.DNSProtectedURL()
 		target = rangelab.DNSGatewayName
 
+	// The target IS the engine here. Nothing of the operator's is mutated: the
+	// fault acts on a role khaos mints on that engine for the run. PostgreSQL
+	// is the zero-flag default because its own image carries the loopback
+	// `trust` rule that research 07 section 6.1 measured a probe through, so it
+	// is the engine where khaos's negative control earns its keep.
+	case tierCred:
+		url = ""
+		target = rangelab.PostgresName
+		engine = string(dbx.Postgres)
+
 	default:
 		// The direct tier's URL and target are the values set above.
 	}
 
-	return map[string]string{
+	defaults := map[string]string{
 		experiment.ParamTarget:    target,
-		experiment.ParamURL:       url,
 		experiment.ParamToken:     answers.Token,
 		experiment.ParamRevocable: answers.Revocable,
 		experiment.ParamAuthority: answers.Authority,
@@ -840,6 +861,21 @@ func rangeDefaults(
 		// every credential; an unroutable address would only be another outage.
 		experiment.ParamDNSAddress: rangelab.RogueAddress,
 	}
+
+	// Two answers are TIER-CONDITIONAL and are left out rather than filled with
+	// an empty string. The credential tier has no url because its probes are
+	// database connections, and no other tier has an engine. An empty answer
+	// would read as "the range claims to answer this and cannot", which is the
+	// shape that sends an operator looking for a flag that does nothing.
+	if url != "" {
+		defaults[experiment.ParamURL] = url
+	}
+
+	if engine != "" {
+		defaults[experiment.ParamEngine] = engine
+	}
+
+	return defaults
 }
 
 // fillFromRange fills every unsupplied parameter from a running range, all of
@@ -890,6 +926,12 @@ func fillFromRange(
 			rangelab.ErrRangeIncomplete,
 			rangelab.VerifierGatewayName,
 		)
+	}
+
+	if at == tierCred {
+		if err := lab.RequireStatefulTier(); err != nil {
+			return nil, err
+		}
 	}
 
 	answers, err := askTheRange(
@@ -1048,6 +1090,9 @@ func startProvider(
 // standUpTiers starts whichever in-process tiers this experiment needs. Every
 // one must answer before the BASELINE is measured through it, or the difference
 // between the phases is khaos rather than the fault.
+// standUpTiers opens whichever authorities this experiment declares. Each tier
+// has the same shape — stand it up, hand back the closer — so a sixth tier adds
+// one branch rather than another paragraph of lifecycle.
 func standUpTiers(
 	ctx context.Context,
 	out io.Writer,
@@ -1065,69 +1110,253 @@ func standUpTiers(
 		}
 	}
 
-	if spec.ProxyFault != nil {
-		fault, err := startProxy(ctx, out, work.Docker, *spec)
+	tiers := []func() (func(), error){
+		func() (func(), error) {
+			return standUpProxyTier(ctx, out, work.Docker, spec, &env)
+		},
+		func() (func(), error) {
+			return standUpIdPTier(ctx, out, work.Docker, spec, &env)
+		},
+		func() (func(), error) {
+			return standUpPKITier(out, spec, &env)
+		},
+		func() (func(), error) {
+			return standUpDNSTier(ctx, out, work.Docker, spec, target, &env)
+		},
+		func() (func(), error) {
+			return standUpCredTier(ctx, out, work.Docker, spec, target, &env)
+		},
+	}
+
+	for _, stand := range tiers {
+		closer, err := stand()
 		if err != nil {
 			return env, closeAll, err
 		}
-
-		closers = append(closers, func() { _ = fault.Close() })
-
-		env.Proxy = fault
-		env.ProxyFault = *spec.ProxyFault
-	}
-
-	if spec.IdPTrap != nil {
-		if err := startProvider(ctx, out, work.Docker, *spec); err != nil {
-			return env, closeAll, err
+		if closer != nil {
+			closers = append(closers, closer)
 		}
-
-		closers = append(closers, func() { _ = spec.IdP.Close() })
-
-		env.IdP = spec.IdP
-		env.IdPTrap = *spec.IdPTrap
-	}
-
-	if spec.PKITrap != nil {
-		if err := startAuthority(out, *spec); err != nil {
-			return env, closeAll, err
-		}
-
-		closers = append(closers, func() { _ = spec.Authority.Close() })
-
-		env.Authority = spec.Authority
-		env.PKITrap = *spec.PKITrap
-	}
-
-	// ATTACHED, not started: `--dns` is fixed at container creation, so a
-	// resolver started now would be one nothing is pointed at.
-	if spec.DNSTrap != nil {
-		client, err := attachResolver(ctx, out, work.Docker, *spec)
-		if err != nil {
-			return env, closeAll, err
-		}
-
-		if err := wireArrivalGuard(
-			ctx,
-			work.Docker,
-			spec,
-			client,
-			target,
-		); err != nil {
-			return env, closeAll, err
-		}
-
-		// This resolver outlives the khaos process; armed, it would stay armed.
-		closers = append(closers, func() {
-			_, _ = client.Disarm(context.WithoutCancel(ctx))
-		})
-
-		env.Resolver = client
-		env.ResolverNetwork = spec.ResolverNetwork
-		env.DNSTrap = *spec.DNSTrap
 	}
 
 	return env, closeAll, nil
+}
+
+func standUpProxyTier(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec *experiment.Experiment,
+	env *inject.Env,
+) (func(), error) {
+	if spec.ProxyFault == nil {
+		return nil, nil
+	}
+
+	fault, err := startProxy(ctx, out, docker, *spec)
+	if err != nil {
+		return nil, err
+	}
+
+	env.Proxy = fault
+	env.ProxyFault = *spec.ProxyFault
+
+	return func() { _ = fault.Close() }, nil
+}
+
+func standUpIdPTier(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec *experiment.Experiment,
+	env *inject.Env,
+) (func(), error) {
+	if spec.IdPTrap == nil {
+		return nil, nil
+	}
+
+	if err := startProvider(ctx, out, docker, *spec); err != nil {
+		return nil, err
+	}
+
+	env.IdP = spec.IdP
+	env.IdPTrap = *spec.IdPTrap
+
+	return func() { _ = spec.IdP.Close() }, nil
+}
+
+func standUpPKITier(
+	out io.Writer,
+	spec *experiment.Experiment,
+	env *inject.Env,
+) (func(), error) {
+	if spec.PKITrap == nil {
+		return nil, nil
+	}
+
+	if err := startAuthority(out, *spec); err != nil {
+		return nil, err
+	}
+
+	env.Authority = spec.Authority
+	env.PKITrap = *spec.PKITrap
+
+	return func() { _ = spec.Authority.Close() }, nil
+}
+
+// standUpDNSTier ATTACHES rather than starts: `--dns` is fixed at container
+// creation, so a resolver started now would be one nothing is pointed at.
+func standUpDNSTier(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec *experiment.Experiment,
+	target dockerx.Target,
+	env *inject.Env,
+) (func(), error) {
+	if spec.DNSTrap == nil {
+		return nil, nil
+	}
+
+	client, err := attachResolver(ctx, out, docker, *spec)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := wireArrivalGuard(ctx, docker, spec, client, target); err != nil {
+		return nil, err
+	}
+
+	env.Resolver = client
+	env.ResolverNetwork = spec.ResolverNetwork
+	env.DNSTrap = *spec.DNSTrap
+
+	// This resolver outlives the khaos process; armed, it would stay armed.
+	return func() {
+		_, _ = client.Disarm(context.WithoutCancel(ctx))
+	}, nil
+}
+
+// standUpCredTier opens the tier and hands back the closer that removes the
+// role khaos minted, so a minted role cannot outlive the run even when the
+// revert already restored the credential.
+func standUpCredTier(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec *experiment.Experiment,
+	target dockerx.Target,
+	env *inject.Env,
+) (func(), error) {
+	if spec.Cred == nil {
+		return nil, nil
+	}
+
+	plan, err := openCredTier(ctx, out, docker, *spec, target)
+	if err != nil {
+		return nil, err
+	}
+
+	env.Cred = spec.Cred.Tier
+	env.CredTrap = spec.Cred.Tier.Trap()
+	env.CredPlan = plan
+
+	return func() {
+		_ = spec.Cred.Tier.Close(context.WithoutCancel(ctx))
+	}, nil
+}
+
+// openCredTier reads the administrative credential out of the TARGET's own
+// environment and dials the engine on the container's own address. Neither the
+// credential nor a published port is involved: the first would outlive the run
+// in a journal or a command line, and the second would need the operator to
+// publish a database to the host.
+func openCredTier(
+	ctx context.Context,
+	out io.Writer,
+	docker *dockerx.Client,
+	spec experiment.Experiment,
+	target dockerx.Target,
+) (inject.CredPlan, error) {
+	cred := spec.Cred
+
+	environ, err := docker.ContainerEnv(ctx, target.ID)
+	if err != nil {
+		return inject.CredPlan{}, err
+	}
+
+	password, found := environ[cred.AdminVar]
+	if !found || password == "" {
+		return inject.CredPlan{}, fmt.Errorf(
+			errNoAdminSecret,
+			target.Name,
+			cred.AdminVar,
+			cred.Engine,
+			experiment.ParamAdminVar,
+		)
+	}
+
+	network, address, err := docker.OwnAddress(ctx, target.ID)
+	if err != nil {
+		return inject.CredPlan{}, err
+	}
+
+	config := dbx.Config{
+		Engine:   cred.Engine,
+		Address:  net.JoinHostPort(address, cred.Port),
+		Database: cred.Database,
+		Admin:    dbx.Credential{Role: cred.Admin, Password: password},
+	}
+
+	subject := dbx.Credential{}
+
+	plan := inject.CredPlan{
+		Engine:   cred.Engine,
+		Address:  config.Address,
+		Database: cred.Database,
+		Admin: inject.CredSource{
+			ContainerID: target.ID,
+			Role:        cred.Admin,
+			PasswordVar: cred.AdminVar,
+		},
+	}
+
+	if cred.Subject != "" {
+		value, ok := environ[cred.SubjectVar]
+		if !ok || value == "" {
+			return inject.CredPlan{}, fmt.Errorf(
+				errNoSubjectSecret,
+				target.Name,
+				cred.SubjectVar,
+			)
+		}
+
+		subject = dbx.Credential{Role: cred.Subject, Password: value}
+		plan.Subject = &inject.CredSource{
+			ContainerID: target.ID,
+			Role:        cred.Subject,
+			PasswordVar: cred.SubjectVar,
+		}
+	}
+
+	if err := cred.Tier.Open(ctx, config, subject); err != nil {
+		return inject.CredPlan{}, err
+	}
+
+	event(
+		out,
+		markPlan,
+		theme.TextFaint,
+		fmt.Sprintf(
+			credTierFormat,
+			cred.Engine,
+			config.Address,
+			network,
+			cred.Tier.Version(),
+			cred.Tier.Role(),
+		),
+	)
+
+	return plan, nil
 }
 
 // wireArrivalGuard counts the TARGET's own queries for the name under fault,
