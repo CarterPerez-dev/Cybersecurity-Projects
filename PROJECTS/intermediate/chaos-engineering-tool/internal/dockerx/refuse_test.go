@@ -297,6 +297,96 @@ func TestSocketIsRefusedThroughEveryReachablePath(t *testing.T) {
 	}
 }
 
+// TestDaemonStateContainmentIsDirectional is the control for the one narrow
+// allowance inside /var/lib/docker. The symmetric version of this test refused
+// every container holding a Docker-managed volume, which is every database,
+// cache and queue khaos could ever target, and the refusal told the operator to
+// remove a bind mount they never wrote.
+//
+// Every row in the refused list must stay refused: the allowance is one
+// volume's own data directory and nothing else.
+func TestDaemonStateContainmentIsDirectional(t *testing.T) {
+	refused := []string{
+		"/var/lib/docker",
+		"/var/lib/docker/",
+		"/var/lib/docker/containers",
+		"/var/lib/docker/containers/abc123",
+		"/var/lib/docker/overlay2",
+		"/var/lib/docker/image",
+		"/var/lib/docker/volumes",
+		"/var/lib/docker/volumes/metadata.db",
+		"/var/lib",
+		"/var",
+		"/",
+	}
+
+	for _, source := range refused {
+		t.Run("refused"+source, func(t *testing.T) {
+			target, guard := acceptable()
+			target.BindSources = []string{source}
+
+			refusal := Refuse(target, guard)
+			if refusal == nil ||
+				refusal.Predicate != PredicateSocketReachable {
+				t.Fatalf(
+					"a mount of %q reaches daemon state and was not refused",
+					source,
+				)
+			}
+		})
+	}
+
+	allowed := []string{
+		"/var/lib/docker/volumes/pgdata/_data",
+		"/var/lib/docker/volumes/pgdata/_data/pg_wal",
+		"/var/lib/docker/volumes/019fed45e77b712556a8beb2e4bc7347d/_data",
+	}
+
+	for _, source := range allowed {
+		t.Run("allowed"+source, func(t *testing.T) {
+			target, guard := acceptable()
+			target.BindSources = []string{source}
+
+			if refusal := Refuse(target, guard); refusal != nil {
+				t.Fatalf(
+					"%q is one volume's own data directory, which the daemon hands to the container itself, and it was refused by %s",
+					source,
+					refusal.Predicate,
+				)
+			}
+		})
+	}
+}
+
+// TestTheVolumeAllowanceCannotSmuggleTheSocket pins the reason the allowance is
+// safe: it is applied to the RESOLVED path, so a volume whose local driver
+// points at a sensitive host directory is judged by where it actually lands.
+func TestTheVolumeAllowanceCannotSmuggleTheSocket(t *testing.T) {
+	smuggled := []string{
+		"/var/run",
+		"/run",
+		DockerSocketPath,
+		"/var/lib/docker/volumes/../containers",
+		"/var/lib/docker/volumes/../../docker",
+	}
+
+	for _, source := range smuggled {
+		t.Run(source, func(t *testing.T) {
+			target, guard := acceptable()
+			target.BindSources = []string{source}
+
+			refusal := Refuse(target, guard)
+			if refusal == nil ||
+				refusal.Predicate != PredicateSocketReachable {
+				t.Fatalf(
+					"%q reaches the daemon and was not refused",
+					source,
+				)
+			}
+		})
+	}
+}
+
 func TestOrdinaryBindMountsAreAllowed(t *testing.T) {
 	harmless := []string{
 		"/srv/app/config",

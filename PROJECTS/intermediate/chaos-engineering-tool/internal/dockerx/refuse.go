@@ -283,7 +283,7 @@ func checkSocketReachable(t Target, _ Guard) *Refusal {
 			return refuse(
 				PredicateSocketReachable,
 				t,
-				"the container bind-mounts "+source+", which "+reason+
+				"the container mounts "+source+", which "+reason+
 					", and access to the Docker daemon is equivalent to root on this machine",
 				"remove that bind mount, or target a service that cannot reach the daemon",
 			)
@@ -328,7 +328,13 @@ func socketPaths() []string {
 func socketReachableFrom(source string) (string, bool) {
 	resolved := resolvePath(source)
 
-	if overlaps(resolved, daemonStatePath) {
+	// Containment is DIRECTIONAL. A mount that contains the daemon's state
+	// directory exposes it; one the daemon handed out from inside it does not.
+	// Every named and anonymous volume lives at
+	// /var/lib/docker/volumes/<name>/_data, so a symmetric test refuses every
+	// container with a volume - which is every database, every cache and every
+	// queue - while blaming the operator for a bind mount they never wrote.
+	if !managedVolume(resolved) && overlaps(resolved, daemonStatePath) {
 		return "exposes the Docker daemon state directory", true
 	}
 
@@ -347,6 +353,33 @@ func socketReachableFrom(source string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// managedVolume reports whether this path is ONE volume's data directory under
+// the daemon's volume root. The `_data` component is required, so the volume
+// root itself, the volume metadata beside it, and every other subtree of
+// /var/lib/docker stay refused: those expose every volume on the host, or
+// another container's filesystem, rather than the one volume the daemon handed
+// to this container.
+//
+// A volume created with `--opt device=/var/run` resolves to the device path and
+// never reaches this check, so the narrow allowance cannot be used to smuggle
+// the socket in.
+func managedVolume(resolved string) bool {
+	if !isAncestor(daemonVolumePath, resolved) {
+		return false
+	}
+
+	for _, element := range strings.Split(
+		strings.TrimPrefix(resolved, daemonVolumePath+pathSeparator),
+		pathSeparator,
+	) {
+		if element == volumeDataDir {
+			return true
+		}
+	}
+
+	return false
 }
 
 func resolvePath(path string) string {

@@ -35,6 +35,8 @@ const (
 	DockerSocketPath = "/var/run/docker.sock"
 	runSocketPath    = "/run/docker.sock"
 	daemonStatePath  = "/var/lib/docker"
+	daemonVolumePath = "/var/lib/docker/volumes"
+	volumeDataDir    = "_data"
 	socketBaseName   = "docker.sock"
 )
 
