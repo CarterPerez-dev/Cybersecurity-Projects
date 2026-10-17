@@ -66,6 +66,12 @@ type Env struct {
 	Cred     *dbx.Tier
 	CredTrap dbx.Trap
 	CredPlan CredPlan
+
+	// A POINTER, like every other tier's per-run state: Plan measures the size
+	// the target had and Confirm reads it back, and a copy would hand
+	// Confirm a zero - which read as "the file did not shrink" and aborted
+	// every truncation run before it measured anything.
+	SecretPlan *SecretPlan
 }
 
 // Mutator is one injectable fault. Plan returns what the revert needs so the

@@ -169,7 +169,16 @@ func TestRangeSuppliesIsExactlyTheKeySetOfRangeDefaults(t *testing.T) {
 // allTiers is every tier the range serves. A test that iterated only the two it
 // knew about would go on passing while a whole gateway's answers drifted.
 func allTiers() []tier {
-	return []tier{tierDirect, tierProxy, tierIdP, tierTLS, tierDNS, tierCred}
+	return []tier{
+		tierDirect,
+		tierProxy,
+		tierIdP,
+		tierTLS,
+		tierDNS,
+		tierCred,
+		tierPool,
+		tierSecret,
+	}
 }
 
 func tierName(at tier) string {
@@ -184,6 +193,10 @@ func tierName(at tier) string {
 		return "through khaos's own chaos resolver"
 	case tierCred:
 		return "over the engine's own administrative protocol"
+	case tierPool:
+		return "at the service whose pool holds the credential"
+	case tierSecret:
+		return "at the file the service verifies with"
 	default:
 		return "direct"
 	}
@@ -206,6 +219,12 @@ func fullLab() rangelab.Lab {
 		CertHost:      "dependency.khaos.invalid",
 
 		DNSPort: 30009,
+
+		// The stateful tier, which `range up --with-db` creates, plus the
+		// secret fixture, which the default range does.
+		Stateful:      true,
+		DBGatewayPort: 30010,
+		SecretPort:    30011,
 	}
 }
 
@@ -771,6 +790,8 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierTLS:    lab.TLSProtectedURL(),
 		tierDNS:    lab.DNSProtectedURL(),
 		tierCred:   "",
+		tierPool:   lab.DBProtectedURL(),
+		tierSecret: lab.SecretProtectedURL(),
 	}
 
 	seen := map[string]tier{}
@@ -825,6 +846,14 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 			// itself, on a role khaos mints there for the run.
 			case tierCred:
 				wantTarget = rangelab.PostgresName
+
+			// The pooled faults measure the SERVICE and rotate at the engine,
+			// so the consent they ask for is the service's.
+			case tierPool:
+				wantTarget = rangelab.DBGatewayName
+
+			case tierSecret:
+				wantTarget = rangelab.SecretGatewayName
 
 			default:
 				// The direct and proxy tiers fault the dependency itself.

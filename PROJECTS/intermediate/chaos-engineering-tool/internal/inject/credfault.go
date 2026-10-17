@@ -251,6 +251,20 @@ func readSource(
 	return dbx.Credential{Role: source.Role, Password: password}, nil
 }
 
+// IsPoolFault reports whether this mutation acts on a role belonging to the
+// TARGET rather than one khaos minted, which decides which container the range
+// points the experiment at.
+func IsPoolFault(kind string) bool {
+	mutator, ok := registry[kind]
+	if !ok {
+		return false
+	}
+
+	cred, isCred := mutator.(credMutator)
+
+	return isCred && cred.kind == dbx.PoolRotate
+}
+
 // NeedsCred tells the run to open a credential tier before the baseline,
 // derived from the registry rather than from the kind's spelling.
 func NeedsCred(kind string) bool {

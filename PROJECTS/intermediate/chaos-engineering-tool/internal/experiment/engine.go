@@ -218,6 +218,7 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		FaultFor:       timing.FaultFor,
 		Defect:         spec.Defect,
 		HeldCaveat:     spec.HeldCaveat,
+		ClosedWhen:     spec.ClosedWhen,
 	}
 
 	observation = e.measureBaseline(ctx, spec, timing, observation)

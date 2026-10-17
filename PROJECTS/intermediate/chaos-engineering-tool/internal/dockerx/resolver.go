@@ -59,7 +59,7 @@ const (
 	errListResolvers  = "list khaos's resolver containers: %w"
 	errResolverExists = "%w: %s already serves DNS for %s"
 
-	dynamicSelfFix = "`khaos resolver up` imports khaos's own binary as a one-layer container image with no base, because an unprivileged process cannot bind port 53 and Docker's --dns carries an address with no port, so the binary has to be statically linked. This one is dynamically linked and would fail to exec with no shared libraries to find. Rebuild with CGO_ENABLED=0 (the justfile and the release builds both do), or install the released binary. Running `dns.` experiments against a resolver that already exists, including the range's, does not need this"
+	dynamicSelfFix = "khaos imports its OWN binary as a one-layer container image with no base, and two tiers need that: `khaos resolver up`, because an unprivileged process cannot bind port 53 and Docker's --dns carries an address with no port, and the `credential.secret_file_` faults, because read-only is a property of the target's mount rather than of the volume and only a helper mounting it read-write can reach a `:ro` secret. A base-less image carries no shared libraries, so the binary has to be statically linked and this one is not. Rebuild with CGO_ENABLED=0 (the justfile and the release builds both do), or install the released binary. Running `dns.` experiments against a resolver that already exists, including the range's, does not need this, and no other family needs it at all"
 
 	filterLabelKey = "label"
 )

@@ -8,6 +8,7 @@ import (
 
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
+	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
 const (
@@ -163,6 +164,162 @@ func init() {
 			conditionDBExpiry,
 			defectDBExpiry,
 			caveatRotated,
+		),
+	})
+}
+
+const (
+	NameDBPoolStale     = "credential.db_pool_stale"
+	NameDBPendingWindow = "credential.db_pending_window"
+
+	summaryDBPoolStale = "rotate the password a service's own connection pool authenticated with, and see whether the service notices"
+
+	summaryDBPendingWindow = "rotate the password a service's pool authenticated with, and see whether its liveness probe keeps reporting healthy while no new connection can be made"
+
+	conditionDBPoolStale = "the password %s's own connection pool authenticated with being rotated at the engine"
+
+	conditionDBPendingWindow = "the password behind %s's liveness probe being rotated at the engine"
+
+	responsePool = "losing access on the credential that was taken away, rather than serving for as long as a connection that authenticated before the rotation stays in the pool"
+
+	responsePending = "a liveness answer that reflects whether the service can actually reach its database, rather than one a connection authenticated before the rotation can keep answering"
+
+	defectDBPool = "rotating the password its own connection pool authenticated with"
+
+	caveatPoolHeld = "khaos rotated the credential and the service carried on; database/sql closes a connection for age only when SetConnMaxLifetime is positive, and a connection that is checked out rather than idle is not bounded by it at all"
+
+	caveatPendingHeld = "the liveness endpoint answered throughout on a connection that authenticated before the rotation, while khaos's own read-back proves a new connection on that credential is refused; readiness has to dial to answer the question it is asking"
+
+	probeReadyName = "readiness-that-has-to-dial"
+
+	describeReady = "%s, which forces a connection of its own rather than answering from the pool"
+)
+
+// poolPolarity is the second place in the catalogue where HELD is the defect,
+// after the TLS family. A service that carries on unchanged has kept its
+// database access through a revocation, so "nothing looks wrong" is the
+// finding, and DENIED - the pool redialling and failing - is the correct
+// behaviour this experiment is looking for.
+var poolPolarity = Polarity{
+	// HELD and PERMITTED both, following the TLS family's convention. HELD is
+	// this fault's own finding; PERMITTED would be the gateway's own
+	// authorization failing open during the window, which is unrelated to the
+	// rotation and still a defect worth reporting rather than exiting 0 on.
+	Defects:   []Direction{Held, Permitted},
+	Rationale: "a service that keeps serving after the credential its pool authenticated with was rotated away has kept access that outlived its own revocation, and the operator who rotated it believes it did not",
+}
+
+// buildPool wires the three streams a pooled fault needs. The readiness
+// endpoint is the REVOKED stream rather than a confirmation step, which makes
+// it honest in both directions: refused during the fault it scores nothing and
+// the finding is the service carrying on, while accepted during the fault it
+// is a real finding that the rotation never reached the pool's dials.
+func buildPool(
+	primary func(*Params) string,
+	condition, defect, caveat string,
+) func(*Params) (Shape, error) {
+	return func(params *Params) (Shape, error) {
+		target := params.Get(ParamTarget)
+
+		spec, err := credSpec(params)
+		if err != nil {
+			return Shape{}, err
+		}
+
+		// Read HERE rather than in credSpec, because only the pooled
+		// experiments declare these three and a builder reading a parameter
+		// its experiment never declared is refused at build time.
+		spec.EngineTarget = params.Get(ParamEngineTarget)
+		spec.Subject = params.Get(ParamSubjectRole)
+		spec.SubjectVar = params.Get(ParamSubjectVar)
+
+		spec.Tier = dbx.NewTier(dbx.Trap{
+			Kind:   dbx.PoolRotate,
+			Role:   spec.Subject,
+			Minted: false,
+		})
+
+		ready := params.Get(ParamReadyURL)
+
+		return Shape{
+			Condition: fmt.Sprintf(condition, target),
+			Target:    target,
+			Probes: probe.Pair{
+				Valid: probe.NewHTTP(probe.HTTPOptions{
+					Name:       probeValidName,
+					URL:        primary(params),
+					Token:      params.Get(ParamToken),
+					Credential: probe.Valid,
+				}),
+				Invalid: probe.NewHTTP(probe.HTTPOptions{
+					Name:       probeInvalidName,
+					URL:        params.Get(ParamURL),
+					Token:      params.Get(ParamInvalidToken),
+					Credential: probe.Invalid,
+					Unique:     true,
+				}),
+				Revoked: probe.NewHTTP(probe.HTTPOptions{
+					Name:       probeReadyName,
+					Describe:   fmt.Sprintf(describeReady, ready),
+					URL:        ready,
+					Token:      params.Get(ParamToken),
+					Credential: probe.Revoked,
+				}),
+			},
+			Cred:       spec,
+			Defect:     defect,
+			HeldCaveat: caveat,
+
+			// A pool that redialled and could not authenticate makes the
+			// service UNAVAILABLE rather than refusing a credential, and that
+			// is this control failing closed. Without it the correct
+			// behaviour - losing access - reads as the service carrying on.
+			ClosedWhen: []probe.Disposition{probe.Unavailable},
+		}, nil
+	}
+}
+
+func init() {
+	catalogAdd(Definition{
+		Name:    NameDBPoolStale,
+		Family:  FamilyCredential,
+		Summary: summaryDBPoolStale,
+		Hypothesis: Hypothesis{
+			Condition: "the password a service's connection pool authenticated with being rotated",
+			Response:  responsePool,
+		},
+		Polarity:  poolPolarity,
+		FaultKind: inject.CredKind(dbx.PoolRotate),
+		Params: poolParams(
+			Param{Name: ParamURL, Usage: usageURL, Required: true},
+		),
+		Build: buildPool(
+			func(params *Params) string { return params.Get(ParamURL) },
+			conditionDBPoolStale,
+			defectDBPool,
+			caveatPoolHeld,
+		),
+	})
+
+	catalogAdd(Definition{
+		Name:    NameDBPendingWindow,
+		Family:  FamilyCredential,
+		Summary: summaryDBPendingWindow,
+		Hypothesis: Hypothesis{
+			Condition: "the password behind a service's liveness probe being rotated",
+			Response:  responsePending,
+		},
+		Polarity:  poolPolarity,
+		FaultKind: inject.CredKind(dbx.PoolRotate),
+		Params: poolParams(
+			Param{Name: ParamURL, Usage: usageURL, Required: true},
+			Param{Name: ParamHealthURL, Usage: usageHealthURL, Required: true},
+		),
+		Build: buildPool(
+			func(params *Params) string { return params.Get(ParamHealthURL) },
+			conditionDBPendingWindow,
+			defectDBPool,
+			caveatPendingHeld,
 		),
 	})
 }

@@ -37,28 +37,34 @@ const (
 	daemonStatePath  = "/var/lib/docker"
 	daemonVolumePath = "/var/lib/docker/volumes"
 	volumeDataDir    = "_data"
+	tmpfsType        = "tmpfs"
 	socketBaseName   = "docker.sock"
 )
 
 const ShortIDLen = 12
 
 type Target struct {
-	ID             string
-	Name           string
-	Image          string
-	Project        string
-	Service        string
-	Labels         map[string]string
-	Running        bool
-	NetworkMode    string
-	PidMode        string
-	IpcMode        string
-	UsernsMode     string
-	Privileged     bool
-	Capabilities   []string
-	Devices        []string
-	SecurityOpt    []string
-	BindSources    []string
+	ID           string
+	Name         string
+	Image        string
+	Project      string
+	Service      string
+	Labels       map[string]string
+	Running      bool
+	NetworkMode  string
+	PidMode      string
+	IpcMode      string
+	UsernsMode   string
+	Privileged   bool
+	Capabilities []string
+	Devices      []string
+	SecurityOpt  []string
+	BindSources  []string
+
+	// Mounts is every mount with its type and destination, which is what the
+	// mutator tier needs to reach a file inside one. BindSources carries only
+	// the sources, because the refusal predicates judge by resolved path.
+	Mounts         []Mount
 	NamespacePeers []string
 	Inspected      bool
 }

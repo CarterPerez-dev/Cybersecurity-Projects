@@ -121,6 +121,8 @@ enforcing in the first place.`
 
 	errNoAdminSecret = "%s does not carry %s in its environment, so khaos has no administrative credential for the %s and will not guess one. khaos reads it from the container rather than taking it on a flag, because a flag is world-readable in /proc and a journal entry would outlive the run. Point --%s at the variable that holds it, or run `khaos range up --with-db` for a stack that is already wired"
 
+	errNoPooledPath = "%w: this experiment rotates the credential a service's own connection pool authenticated with, and the running range has no %s; bring the range down and up again with `khaos range up --with-db`"
+
 	errNoSubjectSecret = "%s does not carry %s in its environment, so khaos cannot read the credential its own connection pool authenticated with, and a rotation it cannot undo is not one khaos will perform"
 
 	errTargetOffNetwork = "%s is not attached to %s, so it cannot be using the chaos resolver that serves it and khaos could not count its queries: %w"
@@ -510,7 +512,15 @@ func runExperiment(
 		return err
 	}
 
-	env, closeTiers, err := standUpTiers(ctx, out, work, &spec, accepted)
+	env, closeTiers, err := standUpTiers(
+		ctx,
+		out,
+		work,
+		&spec,
+		accepted,
+		dockerx.Filter{Project: project},
+		guard,
+	)
 	if err != nil {
 		return err
 	}
@@ -749,6 +759,12 @@ func rangeSupplies() []string {
 		experiment.ParamResolverNetwork,
 		experiment.ParamDNSAddress,
 		experiment.ParamEngine,
+		experiment.ParamEngineTarget,
+		experiment.ParamSubjectRole,
+		experiment.ParamSubjectVar,
+		experiment.ParamHealthURL,
+		experiment.ParamReadyURL,
+		experiment.ParamSecretPath,
 	}
 }
 
@@ -763,6 +779,8 @@ const (
 	tierTLS
 	tierDNS
 	tierCred
+	tierPool
+	tierSecret
 )
 
 func tierOf(kind string) tier {
@@ -775,6 +793,10 @@ func tierOf(kind string) tier {
 		return tierTLS
 	case inject.NeedsResolver(kind):
 		return tierDNS
+	case inject.NeedsSecret(kind):
+		return tierSecret
+	case inject.IsPoolFault(kind):
+		return tierPool
 	case inject.NeedsCred(kind):
 		return tierCred
 	default:
@@ -799,48 +821,92 @@ type rangeAnswers struct {
 	CertHost string
 }
 
-func rangeDefaults(
-	lab rangelab.Lab,
-	answers rangeAnswers,
-	at tier,
-) map[string]string {
-	url := lab.ProtectedURL()
-	target := rangelab.IDPName
-	engine := ""
+// tierAnswers is what one tier's own gateway and fixtures answer. Split out of
+// rangeDefaults so a seventh tier adds a case rather than another ten lines to
+// one function.
+type tierAnswers struct {
+	url          string
+	target       string
+	engine       string
+	engineTarget string
+	subjectRole  string
+	subjectVar   string
+	healthURL    string
+	readyURL     string
+	secretPath   string
+}
+
+func answersFor(lab rangelab.Lab, at tier) tierAnswers {
+	answers := tierAnswers{
+		url:    lab.ProtectedURL(),
+		target: rangelab.IDPName,
+	}
 
 	switch at {
 	case tierProxy:
-		url = lab.ProxiedProtectedURL()
+		answers.url = lab.ProxiedProtectedURL()
+
+	// The target is the gateway, not the provider: the fault lands on khaos's
+	// own provider, so the gateway is the only container to ask consent for.
 	case tierIdP:
-		// The target is the gateway, not the provider: the fault lands on khaos's
-		// own provider, so the gateway is the only container to ask consent for.
-		url = lab.VerifierProtectedURL()
-		target = rangelab.VerifierGatewayName
+		answers.url = lab.VerifierProtectedURL()
+		answers.target = rangelab.VerifierGatewayName
 
 	case tierTLS:
-		url = lab.TLSProtectedURL()
-		target = rangelab.TLSGatewayName
+		answers.url = lab.TLSProtectedURL()
+		answers.target = rangelab.TLSGatewayName
 
 	case tierDNS:
-		url = lab.DNSProtectedURL()
-		target = rangelab.DNSGatewayName
+		answers.url = lab.DNSProtectedURL()
+		answers.target = rangelab.DNSGatewayName
 
 	// The target IS the engine here. Nothing of the operator's is mutated: the
 	// fault acts on a role khaos mints on that engine for the run. PostgreSQL
 	// is the zero-flag default because its own image carries the loopback
-	// `trust` rule that research 07 section 6.1 measured a probe through, so it
-	// is the engine where khaos's negative control earns its keep.
+	// `trust` rule that research 07 section 6.1 measured a probe through, so
+	// it is the engine where khaos's negative control earns its keep.
 	case tierCred:
-		url = ""
-		target = rangelab.PostgresName
-		engine = string(dbx.Postgres)
+		answers.url = ""
+		answers.target = rangelab.PostgresName
+		answers.engine = string(dbx.Postgres)
+
+	// The pooled faults measure the SERVICE and perform the rotation at the
+	// engine, so they name both containers. The role is the fixture's own,
+	// never khaos's administrative one.
+	case tierPool:
+		answers.url = lab.DBProtectedURL()
+		answers.target = rangelab.DBGatewayName
+		answers.engine = string(dbx.Postgres)
+		answers.engineTarget = rangelab.PostgresName
+		answers.subjectRole = rangelab.AppRole
+		answers.subjectVar = rangelab.EnvDBPassword
+		answers.healthURL = lab.DBHealthURL()
+		answers.readyURL = lab.DBReadyURL()
+
+	// The one family that breaks a FILE rather than a credential, so the
+	// target is the service holding it and the path is read off the fixture
+	// rather than guessed.
+	case tierSecret:
+		answers.url = lab.SecretProtectedURL()
+		answers.target = rangelab.SecretGatewayName
+		answers.secretPath = rangelab.SecretPath
 
 	default:
 		// The direct tier's URL and target are the values set above.
 	}
 
+	return answers
+}
+
+func rangeDefaults(
+	lab rangelab.Lab,
+	answers rangeAnswers,
+	at tier,
+) map[string]string {
+	tiered := answersFor(lab, at)
+
 	defaults := map[string]string{
-		experiment.ParamTarget:    target,
+		experiment.ParamTarget:    tiered.target,
 		experiment.ParamToken:     answers.Token,
 		experiment.ParamRevocable: answers.Revocable,
 		experiment.ParamAuthority: answers.Authority,
@@ -857,22 +923,30 @@ func rangeDefaults(
 		experiment.ParamDNSHost:         rangelab.DNSDependencyName,
 		experiment.ParamResolverNetwork: rangelab.NetworkName,
 
-		// The redirect faults point at the range's ROGUE provider, which approves
-		// every credential; an unroutable address would only be another outage.
+		// The redirect faults point at the range's ROGUE provider, which
+		// approves every credential; an unroutable address would only be
+		// another outage.
 		experiment.ParamDNSAddress: rangelab.RogueAddress,
 	}
 
-	// Two answers are TIER-CONDITIONAL and are left out rather than filled with
-	// an empty string. The credential tier has no url because its probes are
-	// database connections, and no other tier has an engine. An empty answer
-	// would read as "the range claims to answer this and cannot", which is the
-	// shape that sends an operator looking for a flag that does nothing.
-	if url != "" {
-		defaults[experiment.ParamURL] = url
-	}
-
-	if engine != "" {
-		defaults[experiment.ParamEngine] = engine
+	// TIER-CONDITIONAL answers are left out rather than filled with an empty
+	// string. The credential tier has no url because its probes are database
+	// connections, and no other tier has an engine. An empty answer would read
+	// as "the range claims to answer this and cannot", which is the shape that
+	// sends an operator looking for a flag that does nothing.
+	for name, value := range map[string]string{
+		experiment.ParamURL:          tiered.url,
+		experiment.ParamEngine:       tiered.engine,
+		experiment.ParamEngineTarget: tiered.engineTarget,
+		experiment.ParamSubjectRole:  tiered.subjectRole,
+		experiment.ParamSubjectVar:   tiered.subjectVar,
+		experiment.ParamHealthURL:    tiered.healthURL,
+		experiment.ParamReadyURL:     tiered.readyURL,
+		experiment.ParamSecretPath:   tiered.secretPath,
+	} {
+		if value != "" {
+			defaults[name] = value
+		}
 	}
 
 	return defaults
@@ -912,26 +986,8 @@ func fillFromRange(
 	// Refuse before announcing, or the note names a URL resolved to port 0.
 	at := tierOf(definition.FaultKind)
 
-	if at == tierProxy && lab.ProxiedPort == 0 {
-		return nil, fmt.Errorf(
-			errNoProxiedPath,
-			rangelab.ErrRangeIncomplete,
-			rangelab.ProxiedGatewayName,
-		)
-	}
-
-	if at == tierIdP && (lab.VerifierPort == 0 || lab.Issuer == "") {
-		return nil, fmt.Errorf(
-			errNoVerifierPath,
-			rangelab.ErrRangeIncomplete,
-			rangelab.VerifierGatewayName,
-		)
-	}
-
-	if at == tierCred {
-		if err := lab.RequireStatefulTier(); err != nil {
-			return nil, err
-		}
+	if err := requireTier(lab, at); err != nil {
+		return nil, err
 	}
 
 	answers, err := askTheRange(
@@ -939,6 +995,7 @@ func fillFromRange(
 		reader,
 		lab,
 		fillable(definition, supplied),
+		at,
 	)
 	if err != nil {
 		return nil, err
@@ -968,6 +1025,56 @@ func fillFromRange(
 	note(out, fmt.Sprintf(msgUsingRange, strings.Join(resolved, listSep)))
 
 	return filled, nil
+}
+
+// requireTier refuses before the baseline when the running range is missing the
+// part this experiment needs, rather than letting the run report a fixture that
+// is not there as a target that was not enforcing. That is the M4 finding, and
+// each tier has arrived at it through its own door.
+func requireTier(lab rangelab.Lab, at tier) error {
+	switch at {
+	case tierProxy:
+		if lab.ProxiedPort == 0 {
+			return fmt.Errorf(
+				errNoProxiedPath,
+				rangelab.ErrRangeIncomplete,
+				rangelab.ProxiedGatewayName,
+			)
+		}
+
+	case tierIdP:
+		if lab.VerifierPort == 0 || lab.Issuer == "" {
+			return fmt.Errorf(
+				errNoVerifierPath,
+				rangelab.ErrRangeIncomplete,
+				rangelab.VerifierGatewayName,
+			)
+		}
+
+	case tierCred:
+		return lab.RequireStatefulTier()
+
+	case tierPool:
+		if err := lab.RequireStatefulTier(); err != nil {
+			return err
+		}
+
+		if lab.DBGatewayPort == 0 {
+			return fmt.Errorf(
+				errNoPooledPath,
+				rangelab.ErrRangeIncomplete,
+				rangelab.DBGatewayName,
+			)
+		}
+
+	case tierSecret:
+		return lab.RequireSecretTier()
+
+	default:
+		// The direct tier needs only the gateway Discover already found.
+	}
+
+	return nil
 }
 
 func partitionFillable(
@@ -1099,6 +1206,8 @@ func standUpTiers(
 	work *workspace.Workspace,
 	spec *experiment.Experiment,
 	target dockerx.Target,
+	filter dockerx.Filter,
+	guard dockerx.Guard,
 ) (inject.Env, func(), error) {
 	env := work.Env()
 
@@ -1124,7 +1233,18 @@ func standUpTiers(
 			return standUpDNSTier(ctx, out, work.Docker, spec, target, &env)
 		},
 		func() (func(), error) {
-			return standUpCredTier(ctx, out, work.Docker, spec, target, &env)
+			return standUpSecretTier(ctx, spec, target, &env)
+		},
+		func() (func(), error) {
+			return standUpCredTier(
+				ctx,
+				out,
+				work.Docker,
+				spec,
+				target,
+				credSources{filter: filter, guard: guard},
+				&env,
+			)
 		},
 	}
 
@@ -1236,22 +1356,62 @@ func standUpDNSTier(
 	}, nil
 }
 
+// standUpSecretTier resolves the mount the secret arrives on, which is the one
+// thing khaos replicates into its helper container, and mints the nonce that
+// authorises the helper's own subcommand. No closer: the helper exits on its
+// own and the revert runs another one.
+func standUpSecretTier(
+	_ context.Context,
+	spec *experiment.Experiment,
+	target dockerx.Target,
+	env *inject.Env,
+) (func(), error) {
+	if spec.Secret == nil {
+		return nil, nil
+	}
+
+	mount, err := dockerx.MountFor(target, spec.Secret.Mutation.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := newNonce()
+	if err != nil {
+		return nil, err
+	}
+
+	spec.Secret.Mount = mount
+	spec.Secret.Nonce = nonce
+	env.SecretPlan = spec.Secret
+
+	return nil, nil
+}
+
 // standUpCredTier opens the tier and hands back the closer that removes the
 // role khaos minted, so a minted role cannot outlive the run even when the
 // revert already restored the credential.
+// credSources carries what resolving a SECOND container needs, because the
+// pooled faults measure one container and perform the rotation at another, and
+// both have to pass the refusal predicates.
+type credSources struct {
+	filter dockerx.Filter
+	guard  dockerx.Guard
+}
+
 func standUpCredTier(
 	ctx context.Context,
 	out io.Writer,
 	docker *dockerx.Client,
 	spec *experiment.Experiment,
 	target dockerx.Target,
+	sources credSources,
 	env *inject.Env,
 ) (func(), error) {
 	if spec.Cred == nil {
 		return nil, nil
 	}
 
-	plan, err := openCredTier(ctx, out, docker, *spec, target)
+	plan, err := openCredTier(ctx, out, docker, *spec, target, sources)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,32 +1430,128 @@ func standUpCredTier(
 // credential nor a published port is involved: the first would outlive the run
 // in a journal or a command line, and the second would need the operator to
 // publish a database to the host.
+// credContainers resolves the engine, which is a SECOND container for a pooled
+// fault, and reads the environment of both. The engine goes through the same
+// refusal predicates as the target: khaos mutates state on it, so its consent
+// is not implied by the target's.
+func credContainers(
+	ctx context.Context,
+	docker *dockerx.Client,
+	cred *experiment.CredSpec,
+	target dockerx.Target,
+	sources credSources,
+) (dockerx.Target, map[string]string, map[string]string, error) {
+	engine := target
+
+	if cred.EngineTarget != "" {
+		accepted, err := docker.Accept(
+			ctx,
+			cred.EngineTarget,
+			sources.filter,
+			dockerx.Guard{
+				Project: sources.guard.Project,
+				SelfID:  sources.guard.SelfID,
+			},
+		)
+		if err != nil {
+			return engine, nil, nil, err
+		}
+
+		engine = accepted
+	}
+
+	engineEnv, err := docker.ContainerEnv(ctx, engine.ID)
+	if err != nil {
+		return engine, nil, nil, err
+	}
+
+	if engine.ID == target.ID {
+		return engine, engineEnv, engineEnv, nil
+	}
+
+	targetEnv, err := docker.ContainerEnv(ctx, target.ID)
+	if err != nil {
+		return engine, nil, nil, err
+	}
+
+	return engine, engineEnv, targetEnv, nil
+}
+
+// credRecipe is what a cold-started khaos needs to undo the fault, and it
+// carries no credential: each one is named by the variable it is READ FROM, on
+// the container that holds it.
+func credRecipe(
+	cred *experiment.CredSpec,
+	config dbx.Config,
+	engine, target dockerx.Target,
+	environ map[string]string,
+) (inject.CredPlan, dbx.Credential, error) {
+	plan := inject.CredPlan{
+		Engine:   cred.Engine,
+		Address:  config.Address,
+		Database: cred.Database,
+		Admin: inject.CredSource{
+			ContainerID: engine.ID,
+			Role:        cred.Admin,
+			PasswordVar: cred.AdminVar,
+		},
+	}
+
+	if cred.Subject == "" {
+		return plan, dbx.Credential{}, nil
+	}
+
+	value, ok := environ[cred.SubjectVar]
+	if !ok || value == "" {
+		return inject.CredPlan{}, dbx.Credential{}, fmt.Errorf(
+			errNoSubjectSecret,
+			target.Name,
+			cred.SubjectVar,
+		)
+	}
+
+	plan.Subject = &inject.CredSource{
+		ContainerID: target.ID,
+		Role:        cred.Subject,
+		PasswordVar: cred.SubjectVar,
+	}
+
+	return plan, dbx.Credential{Role: cred.Subject, Password: value}, nil
+}
+
 func openCredTier(
 	ctx context.Context,
 	out io.Writer,
 	docker *dockerx.Client,
 	spec experiment.Experiment,
 	target dockerx.Target,
+	sources credSources,
 ) (inject.CredPlan, error) {
 	cred := spec.Cred
 
-	environ, err := docker.ContainerEnv(ctx, target.ID)
+	engine, engineEnv, environ, err := credContainers(
+		ctx,
+		docker,
+		cred,
+		target,
+		sources,
+	)
 	if err != nil {
 		return inject.CredPlan{}, err
 	}
 
-	password, found := environ[cred.AdminVar]
+	password, found := engineEnv[cred.AdminVar]
 	if !found || password == "" {
 		return inject.CredPlan{}, fmt.Errorf(
 			errNoAdminSecret,
-			target.Name,
+			engine.Name,
 			cred.AdminVar,
 			cred.Engine,
 			experiment.ParamAdminVar,
 		)
 	}
 
-	network, address, err := docker.OwnAddress(ctx, target.ID)
+	network, address, err := docker.OwnAddress(ctx, engine.ID)
 	if err != nil {
 		return inject.CredPlan{}, err
 	}
@@ -1307,35 +1563,9 @@ func openCredTier(
 		Admin:    dbx.Credential{Role: cred.Admin, Password: password},
 	}
 
-	subject := dbx.Credential{}
-
-	plan := inject.CredPlan{
-		Engine:   cred.Engine,
-		Address:  config.Address,
-		Database: cred.Database,
-		Admin: inject.CredSource{
-			ContainerID: target.ID,
-			Role:        cred.Admin,
-			PasswordVar: cred.AdminVar,
-		},
-	}
-
-	if cred.Subject != "" {
-		value, ok := environ[cred.SubjectVar]
-		if !ok || value == "" {
-			return inject.CredPlan{}, fmt.Errorf(
-				errNoSubjectSecret,
-				target.Name,
-				cred.SubjectVar,
-			)
-		}
-
-		subject = dbx.Credential{Role: cred.Subject, Password: value}
-		plan.Subject = &inject.CredSource{
-			ContainerID: target.ID,
-			Role:        cred.Subject,
-			PasswordVar: cred.SubjectVar,
-		}
+	plan, subject, err := credRecipe(cred, config, engine, target, environ)
+	if err != nil {
+		return inject.CredPlan{}, err
 	}
 
 	if err := cred.Tier.Open(ctx, config, subject); err != nil {
@@ -1488,31 +1718,61 @@ func credentialParam(name string) bool {
 	return name == experiment.ParamToken || name == experiment.ParamRevocable
 }
 
+// askForCredentials asks whichever fixture will be the one VERIFYING. For the
+// secret family that is the fixture itself, because khaos never reads the
+// secret and a token signed with any other key would be refused for a reason
+// that has nothing to do with the fault.
+func askForCredentials(
+	ctx context.Context,
+	lab rangelab.Lab,
+	want func(string) bool,
+	at tier,
+	answers *rangeAnswers,
+) error {
+	if want(experiment.ParamToken) {
+		issue := lab.IssueToken
+
+		if at == tierSecret {
+			if err := lab.RequireSecretTier(); err != nil {
+				return err
+			}
+			issue = lab.IssueSecretToken
+		}
+
+		token, err := issue(ctx)
+		if err != nil {
+			return err
+		}
+
+		answers.Token = token
+	}
+
+	// A SECOND credential: revoking the one khaos keeps presenting as valid
+	// would also take away the stream proving the target is serving at all.
+	if want(experiment.ParamRevocable) {
+		revocable, err := lab.IssueToken(ctx)
+		if err != nil {
+			return err
+		}
+
+		answers.Revocable = revocable
+	}
+
+	return nil
+}
+
 func askTheRange(
 	ctx context.Context,
 	reader rangelab.PortReader,
 	lab rangelab.Lab,
 	missing []string,
+	at tier,
 ) (rangeAnswers, error) {
 	answers := rangeAnswers{}
 	want := func(name string) bool { return slices.Contains(missing, name) }
 
-	if want(experiment.ParamToken) {
-		token, err := lab.IssueToken(ctx)
-		if err != nil {
-			return rangeAnswers{}, err
-		}
-		answers.Token = token
-	}
-
-	// A SECOND credential: revoking the one khaos keeps presenting as valid would
-	// also take away the stream proving the target is serving at all.
-	if want(experiment.ParamRevocable) {
-		revocable, err := lab.IssueToken(ctx)
-		if err != nil {
-			return rangeAnswers{}, err
-		}
-		answers.Revocable = revocable
+	if err := askForCredentials(ctx, lab, want, at, &answers); err != nil {
+		return rangeAnswers{}, err
 	}
 
 	if want(experiment.ParamProxyListen) ||

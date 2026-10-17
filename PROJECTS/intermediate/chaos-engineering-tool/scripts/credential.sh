@@ -182,15 +182,22 @@ assert_control_held() {
         "the invalid credential was never rejected"
 }
 
+# EVERY helper below that greps ends in `|| true`, and that is not defensive
+# noise: with `set -e`, a grep inside a command substitution that legitimately
+# matches nothing kills the script, and `grep -c` does it even when printing a
+# perfectly good `0`. The symptom is a gate that exits 1 with no FAIL line at
+# all, which reads like a mystery rather than like a bug. It has fired three
+# times in this one file: on an unmatched confirmation line, on a count of
+# leftovers that was correctly zero, and on an absent environment variable.
 observable_of() {
     grep -E '^  plan  confirm   fault confirmed by ' <<<"$report" |
-        sed -E 's/^.*fault confirmed by //'
+        sed -E 's/^.*fault confirmed by //' || true
 }
 
 admin_password() {
     docker inspect "${CONTAINER[$1]}" \
         --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
-        grep "^${ADMIN_VAR[$1]}=" | cut -d= -f2-
+        grep "^${ADMIN_VAR[$1]}=" | cut -d= -f2- || true
 }
 
 engine_address() {
@@ -219,13 +226,31 @@ leftover_roles() {
     esac
 }
 
+# The pool configuration is fixed at container creation, deliberately, so a
+# gate spanning all three has to restart the range. A fixture that could be
+# reconfigured mid-run would let khaos change the target it is measuring.
 start_range() {
+    local pool="${1:-unbounded}"
+    local secret="${2:-unchecked}"
+
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --with-db --no-color --quiet >/dev/null 2>&1; then
-        fail "range up --with-db"
+    if ! "$BIN" range up --with-db --pool-mode "$pool" \
+        --secret-mode "$secret" --no-color --quiet >/dev/null 2>&1; then
+        fail "range up --with-db --pool-mode $pool --secret-mode $secret"
         return 1
     fi
     return 0
+}
+
+secret_leftovers() {
+    docker ps -a --filter "label=khaos.mutator=true" --format '{{.Names}}' |
+        wc -l | tr -d '[:space:]'
+}
+
+held_originals() {
+    docker exec khaos-range-gateway-secret \
+        sh -c 'ls /run/khaos-secrets/ 2>/dev/null' 2>/dev/null |
+        grep -c 'khaos-held' | tr -d '[:space:]' || true
 }
 
 echo "== the stateful tier is refused by name when it is not running =="
@@ -255,7 +280,7 @@ fi
 
 echo "== THE PAIR: rotation is not revocation, and termination is =="
 
-if start_range; then
+if start_range unbounded; then
     for engine in "${ENGINES[@]}"; do
         container="${CONTAINER[$engine]}"
 
@@ -301,6 +326,250 @@ if start_range; then
             fail "${engine} the rotation produced no observable to compare"
         fi
     done
+fi
+
+
+echo "== the pooled fixture: the fail-open is the DEFAULT configuration =="
+
+# Three pool configurations, and the verdict has to follow the configuration
+# rather than the fault. The fault is identical in all three runs.
+#
+#   unbounded  the shape a Go service has when nobody called
+#              SetConnMaxLifetime. HELD is the defect: the service carried on.
+#   bounded    the knob that converts a rotation into a revocation. DENIED is
+#              correct, and it arrives as UNAVAILABILITY rather than a refusal,
+#              which is why the experiment declares what failing closed means.
+#   held       the same lifetime as bounded, plus one connection checked out
+#              and never returned. The cleaner only walks the IDLE list, so the
+#              lifetime does not bound it and HELD is the defect again. This is
+#              the row research 07 section 5.3 did not have.
+declare -A WANT_VERDICT=(
+    [unbounded]="passed / HELD"
+    [bounded]="deviated / DENIED"
+    [held]="passed / HELD"
+)
+
+declare -A WANT_EXIT=(
+    [unbounded]=2
+    [bounded]=0
+    [held]=2
+)
+
+# What khaos DID is carried by the HELD CAVEAT for these two, not by the defect
+# phrase: that phrase is part of a leak reason and a leak is exactly what a
+# HELD finding does not have. Asserting the defect phrase here failed six times
+# against a product that was reporting correctly.
+declare -A WANT_CAVEAT=(
+    [credential.db_pool_stale]="khaos rotated the credential and the service carried on"
+    [credential.db_pending_window]="the liveness endpoint answered throughout on a connection that authenticated before the rotation"
+)
+
+for pool in unbounded bounded held; do
+    if ! start_range "$pool"; then
+        continue
+    fi
+
+    for experiment in credential.db_pool_stale credential.db_pending_window; do
+        run_experiment "$experiment"
+
+        label="${experiment#credential.} on a ${pool} pool"
+
+        assert_verdict "$label" "${WANT_VERDICT[$pool]}"
+        assert_exit "$label" "${WANT_EXIT[$pool]}"
+        assert_confirmed "$label"
+        assert_control_held "$label"
+
+        # A HELD verdict has to say what khaos did and what HELD means here.
+        # A DENIED one carries no caveat at all, deliberately: the caveat is
+        # the explanation of a survival.
+        if [[ "${WANT_VERDICT[$pool]}" == "passed / HELD" ]]; then
+            assert_report_has \
+                "${label} says what khaos did and what surviving it means" \
+                "${WANT_CAVEAT[$experiment]}"
+        else
+            assert_report_lacks \
+                "${label} does not explain a survival that did not happen" \
+                "${WANT_CAVEAT[$experiment]}"
+        fi
+
+        # The sharpest row, asserted per experiment rather than after the loop,
+        # where $report held the LAST experiment's output: a lifetime IS set in
+        # held mode and the service still carried on.
+        if [[ "$pool" == "held" &&
+            "$experiment" == "credential.db_pool_stale" ]]; then
+            assert_report_has \
+                "a checked-out connection is not bounded by the lifetime" \
+                "a connection that is checked out rather than idle is not bounded by it at all"
+        fi
+
+        # The correct configuration has to lose access rather than merely slow
+        # down, or DENIED would be an artefact of the probe timing out.
+        if [[ "$pool" == "bounded" ]]; then
+            assert_report_has \
+                "${label} stopped being able to serve" \
+                "the valid credential stopped being accepted"
+        fi
+    done
+done
+
+echo "== the secret file: one fault of four is a finding, and the other three say why =="
+
+# The four shapes are what make the one that matters discriminating. Research 07
+# part 8 is explicit that the empty file is the nastiest because it is the ONLY
+# one that is not an error at the syscall level: os.ReadFile returns no error
+# and an empty slice, so every error-handling path in the target is bypassed and
+# the empty value reaches the crypto. crypto/hmac then computes happily with a
+# zero-length key, which is CVE-2019-20933's exact shape.
+#
+# The other three are expected to make a correct target refuse and CANNOT do
+# anything else, which is what makes them the controls: if all four read the
+# same, khaos is not measuring the key at all.
+declare -A WANT_SECRET_UNCHECKED=(
+    [credential.secret_file_empty]="deviated / PERMITTED"
+    [credential.secret_file_truncated]="deviated / DENIED"
+    [credential.secret_file_missing]="deviated / DENIED"
+    [credential.secret_file_unreadable]="deviated / DENIED"
+)
+
+declare -A WANT_SECRET_EXIT=(
+    [credential.secret_file_empty]=2
+    [credential.secret_file_truncated]=0
+    [credential.secret_file_missing]=0
+    [credential.secret_file_unreadable]=0
+)
+
+if start_range unbounded unchecked; then
+    declare -A SECRET_OBSERVABLE=()
+
+    for experiment in "${!WANT_SECRET_UNCHECKED[@]}"; do
+        run_experiment "$experiment"
+
+        label="${experiment#credential.} against a verifier that does not check the length"
+
+        assert_verdict "$label" "${WANT_SECRET_UNCHECKED[$experiment]}"
+        assert_exit "$label" "${WANT_SECRET_EXIT[$experiment]}"
+        assert_confirmed "$label"
+        assert_control_held "$label"
+
+        SECRET_OBSERVABLE[$experiment]="$(observable_of)"
+    done
+
+    # The confirmation is read off the TARGET's own filesystem, so each fault
+    # has to name what the target now has rather than what khaos asked for.
+    assert_report_has \
+        "the empty-secret confirmation names the target's own copy" \
+        "is now zero bytes, and os.ReadFile returns no error on one"
+
+    distinct=$(printf '%s\n' "${SECRET_OBSERVABLE[@]}" | sort -u | wc -l)
+    if [[ "$distinct" == "${#SECRET_OBSERVABLE[@]}" ]]; then
+        pass "all four secret faults produce DISTINCT observables"
+    else
+        fail "the four secret faults produced ${distinct} distinct observables, so some of them are not evidence"
+    fi
+
+    # khaos's helper is short-lived by construction, and an orphan would be a
+    # container holding two file-permission capabilities over the operator's
+    # own volume.
+    left="$(secret_leftovers)"
+    if [[ "$left" == "0" ]]; then
+        pass "no mutator container is left behind"
+    else
+        fail "${left} mutator container(s) left behind"
+    fi
+
+    # The original is kept BESIDE the secret, inside the target's own mount, so
+    # khaos never carries it out - and the revert has to remove it again.
+    held="$(held_originals)"
+    if [[ "$held" == "0" ]]; then
+        pass "the original khaos kept beside the secret is gone after the revert"
+    else
+        fail "khaos left ${held} copy of the original inside the target's mount"
+    fi
+fi
+
+echo "== the length check is the fix, and khaos says so =="
+
+# The same four faults against a verifier that validates the length after every
+# read, which is what research 07 part 8 prescribes and what the upstream fix
+# for CVE-2019-20933 literally added. The one finding has to disappear.
+if start_range unbounded validated; then
+    run_experiment credential.secret_file_empty
+
+    assert_verdict \
+        "secret_file_empty against a verifier that checks the length" \
+        "deviated / DENIED"
+    assert_exit \
+        "secret_file_empty against a verifier that checks the length" 0
+    assert_confirmed \
+        "secret_file_empty against a verifier that checks the length"
+    assert_report_lacks \
+        "no credential was honoured once the length was checked" \
+        "was accepted"
+fi
+
+echo "== a secret khaos cannot reach reversibly is refused by name =="
+
+if start_range unbounded unchecked; then
+    # A path on no mount at all. A helper cannot reach it, and a cold-started
+    # revert could not put it back, so khaos declines rather than breaking
+    # something it could not undo.
+    run_unmeasured credential.secret_file_empty \
+        --target khaos-range-gateway-secret \
+        --url "http://127.0.0.1:1/protected" \
+        --token nothing \
+        --secret-path /etc/hostname
+
+    if [[ "$last_code" != 0 ]]; then
+        pass "a secret on no mount at all is refused"
+    else
+        fail "khaos broke a file it could not have restored"
+    fi
+
+    assert_report_has \
+        "the refusal names the reason and the fix" \
+        "Deliver the secret on a volume or a bind-mounted directory"
+
+    # A tmpfs is private to the container's own namespace, so a helper mounting
+    # the same spec gets an EMPTY filesystem: khaos would write a secret into
+    # nowhere and report a fault that landed.
+    run_unmeasured credential.secret_file_empty \
+        --target khaos-range-postgres \
+        --url "http://127.0.0.1:1/protected" \
+        --token nothing \
+        --secret-path /var/lib/postgresql/khaos-probe
+
+    if [[ "$last_code" != 0 ]]; then
+        pass "a secret on a tmpfs mount is refused"
+    else
+        fail "khaos accepted a secret on a tmpfs, which a helper cannot reach"
+    fi
+
+    assert_report_has \
+        "the tmpfs refusal names why a helper cannot reach it" \
+        "private to the container"
+fi
+
+echo "== the pooled faults put BOTH containers to the refusal predicates =="
+
+# khaos measures one container and performs the rotation at another, so the
+# engine's consent is not implied by the target's. A rotation at a container
+# that never consented would be khaos mutating something nobody approved.
+if start_range unbounded; then
+    run_unmeasured credential.db_pool_stale \
+        --target khaos-range-gateway-db \
+        --engine-target khaos-range-idp \
+        --engine postgres \
+        --subject-role appuser \
+        --subject-password-var KHAOS_RANGE_DB_PASSWORD \
+        --ready-url "http://127.0.0.1:1/ready" \
+        --url "http://127.0.0.1:1/protected" \
+        --token nothing
+
+    if [[ "$last_code" != 0 ]]; then
+        pass "an engine container with no administrative credential is refused"
+    else
+        fail "khaos accepted an engine container it could not read a credential from"
+    fi
 fi
 
 echo "== the two other controls an operator reaches for do not revoke either =="
@@ -434,7 +703,7 @@ fi
 echo "== census: every catalogued credential.db_ experiment was run here =="
 
 catalogued="$(NO_COLOR=1 "$BIN" run --help |
-    grep -oE '^  credential\.[a-z_]+' | tr -d ' ' | sort -u)"
+    grep -oE '^  credential\.[a-z_]+' | tr -d ' ' | sort -u || true)"
 
 if [[ -z "$catalogued" ]]; then
     fail "the census read no credential experiments at all, so it cannot fail for the right reason"

@@ -71,6 +71,10 @@ type Shape struct {
 	// already carries one field per tier.
 	Cred *CredSpec
 
+	// The secret tier's plan. The MOUNT is filled by the run, which is the
+	// only place that has the target's own inspection.
+	Secret *inject.SecretPlan
+
 	// Separate fields because the target addresses khaos by a name khaos cannot
 	// see from its own listener, so neither can be derived from the other.
 	AuthorityBase   string
@@ -80,6 +84,8 @@ type Shape struct {
 	Defect string
 
 	HeldCaveat string
+
+	ClosedWhen []probe.Disposition
 
 	// The liveness guard for a fault whose landing the probe streams cannot see.
 	Consulted     func() (int64, error)
@@ -268,6 +274,7 @@ func Build(
 		AuthorityTLS:    shape.AuthorityTLS,
 		Defect:          shape.Defect,
 		HeldCaveat:      shape.HeldCaveat,
+		ClosedWhen:      shape.ClosedWhen,
 		Consulted:       shape.Consulted,
 		ConsultedWhat:   shape.ConsultedWhat,
 		Unsupportable:   shape.Unsupportable,
@@ -277,6 +284,7 @@ func Build(
 		ResolverNetwork: shape.ResolverNetwork,
 		DNSHost:         shape.DNSHost,
 		Cred:            shape.Cred,
+		Secret:          shape.Secret,
 		IdleFor:         shape.IdleFor,
 		Act:             shape.Act,
 		ActDetail:       shape.ActDetail,

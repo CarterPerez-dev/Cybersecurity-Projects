@@ -4,6 +4,7 @@
 package experiment
 
 import (
+	"slices"
 	"time"
 
 	"github.com/CarterPerez-dev/khaos/internal/probe"
@@ -220,6 +221,12 @@ type Observation struct {
 	// than it appears to.
 	HeldCaveat string `json:"held_caveat,omitempty"`
 
+	// ClosedWhen is what this control's failing closed looks like BEYOND a
+	// refusal. Declared rather than assumed: a 503 decides nothing about a
+	// credential, and for a service whose database access was revoked it is
+	// the whole fail-closed outcome.
+	ClosedWhen []probe.Disposition `json:"closed_when,omitempty"`
+
 	// Defect names what khaos DID to the credential, in words, per experiment:
 	// the three experiments with a revoked stream invalidate it three different
 	// ways and a shared constant would describe two of them falsely.
@@ -398,6 +405,7 @@ func finish(
 ) Verdict {
 	if partial, total := unanswered(
 		observation.Fault,
+		closedWhen(observation)...,
 	); partial > 0 &&
 		partial < total {
 		verdict.Warnings = append(verdict.Warnings, WarningPartialOutage)
@@ -767,7 +775,7 @@ func forgedBaselineUnmet(
 }
 
 func direction(observation Observation) (Direction, []string) {
-	down, total := unanswered(observation.Fault)
+	down, total := unanswered(observation.Fault, closedWhen(observation)...)
 
 	if total > 0 && float64(down) >= float64(total)*crashFraction {
 		return Crashed, []string{sprintf(reasonCrashed, down, total)}
@@ -775,7 +783,13 @@ func direction(observation Observation) (Direction, []string) {
 
 	// The baseline guarantees the valid credential was accepted, so the latch
 	// starts armed: any later refusal is the target having stopped serving.
-	if denied := observation.Fault.Valid.RejectedAfter(true); denied > 0 {
+	// What counts as a refusal is declared by the experiment, because a 503 is
+	// not a statement about a credential and is the fail-closed outcome for a
+	// control whose dependency was taken away.
+	if denied := observation.Fault.Valid.ClosedAfter(
+		true,
+		closedWhen(observation)...,
+	); denied > 0 {
 		return Denied, []string{sprintf(reasonDenied, denied)}
 	}
 
@@ -785,7 +799,28 @@ func direction(observation Observation) (Direction, []string) {
 // unanswered counts across BOTH streams. A gateway that short-circuits the
 // invalid credential at the edge while hanging on the valid one is not a
 // crashed target, and judging the valid stream alone reports it as one.
-func unanswered(window probe.Window) (int, int) {
+// closedWhen is what this experiment treats as the valid stream failing
+// closed. Rejected always counts; nothing else does unless it is declared.
+func closedWhen(observation Observation) []probe.Disposition {
+	if len(observation.ClosedWhen) == 0 {
+		return []probe.Disposition{probe.Rejected}
+	}
+
+	return append(
+		[]probe.Disposition{probe.Rejected},
+		observation.ClosedWhen...,
+	)
+}
+
+// unanswered counts across BOTH streams, and a disposition the experiment
+// DECLARED as failing closed counts as the target answering. Without that, a
+// service that correctly refused every request because it had lost its secret
+// was reported as having stopped answering entirely - CRASHED, on a run where
+// it answered every single probe with a 503 and a reason.
+func unanswered(
+	window probe.Window,
+	closed ...probe.Disposition,
+) (int, int) {
 	down := 0
 	total := 0
 
@@ -795,9 +830,11 @@ func unanswered(window probe.Window) (int, int) {
 				continue
 			}
 			total++
-			if !outcome.Disposition.Answered() {
-				down++
+			if outcome.Disposition.Answered() ||
+				slices.Contains(closed, outcome.Disposition) {
+				continue
 			}
+			down++
 		}
 	}
 

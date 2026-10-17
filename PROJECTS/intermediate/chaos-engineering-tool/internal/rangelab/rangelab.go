@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 )
 
@@ -52,10 +53,12 @@ const (
 
 	// The stateful tier, opt-in behind `range up --with-db`. These are the only
 	// range services khaos does not implement itself.
-	PostgresName = "khaos-range-postgres"
-	MySQLName    = "khaos-range-mysql"
-	MariaDBName  = "khaos-range-mariadb"
-	RedisName    = "khaos-range-redis"
+	PostgresName      = "khaos-range-postgres"
+	MySQLName         = "khaos-range-mysql"
+	MariaDBName       = "khaos-range-mariadb"
+	RedisName         = "khaos-range-redis"
+	DBGatewayName     = "khaos-range-gateway-db"
+	SecretGatewayName = "khaos-range-gateway-secret"
 
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
@@ -91,6 +94,46 @@ const (
 	// container that holds it.
 	EnvDBPassword = "KHAOS_RANGE_DB_PASSWORD"
 
+	// A SECOND secret for the role the pooled fixture authenticates with, so
+	// rotating that role cannot touch the administrative credential khaos
+	// performs the rotation with.
+	EnvDBAppPassword = "KHAOS_RANGE_DB_APP_PASSWORD"
+	EnvDBGatewayPort = "KHAOS_RANGE_DB_GATEWAY_PORT"
+	EnvPoolMode      = "KHAOS_RANGE_POOL_MODE"
+	EnvSecretPort    = "KHAOS_RANGE_SECRET_PORT"
+	EnvSecretMode    = "KHAOS_RANGE_SECRET_MODE"
+
+	// AppRole is created by `range up` rather than by the engine's init hook,
+	// because the hook needs a file in the image and the data directory is a
+	// tmpfs. khaos has a SQL client of its own, so the fixture is seeded with
+	// it.
+	AppRole     = "appuser"
+	AppDatabase = "appdb"
+
+	// The secret the HMAC fixture verifies with, and the mount it arrives on.
+	// khaos never reads the file: it asks the fixture for a credential.
+	SecretPath = "/run/khaos-secrets/hmac"
+
+	// SecretValidated checks the secret's length after every read, which is
+	// what research 07 part 8 prescribes. SecretUnchecked is the
+	// CVE-2019-20933 shape: the empty value flows straight into the crypto.
+	SecretValidated = "validated"
+	SecretUnchecked = "unchecked"
+
+	SecretsName = "khaos-range-secrets"
+
+	secretTokenPath = "/secret-token"
+
+	// Pinned in the compose file, which is also what lets khaos seed the role
+	// before anything has read a published port.
+	PostgresAddress = "10.244.244.30"
+	postgresPort    = "5432"
+	adminRole       = "postgres"
+
+	PoolUnbounded = "unbounded"
+	PoolBounded   = "bounded"
+	PoolHeld      = "held"
+
 	profileFlag = "--profile"
 	dbProfile   = "db"
 
@@ -110,6 +153,7 @@ const (
 	probeTimeout  = time.Second
 
 	healthPath    = "/health"
+	readyPath     = "/ready"
 	protectedPath = "/protected"
 	tokenPath     = "/token"
 
@@ -152,6 +196,10 @@ const (
 	errNoDNSGateway      = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
 	errNoRangeResolver   = "%w: this experiment arms khaos's chaos resolver, and the running range has no %s; bring the range down and up again to create it"
 
+	errSeedRole = "khaos could not create the range's %s role on its own engine: %w"
+
+	errNoSecretGateway = "%w: this experiment breaks a secret FILE, and the running range has no %s; bring the range down and up again to create it"
+
 	errNoStatefulTier = "%w: this experiment acts on a real database engine, and the running range has none. khaos does not replace these dependencies with its own code, because the finding IS what three correct engines do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
 )
 
@@ -175,8 +223,11 @@ type Lab struct {
 	// Stateful is whether `range up --with-db` created the database tier. The
 	// password is minted per up and read back from the containers, never
 	// remembered from what khaos chose.
-	Stateful   bool
-	DBPassword string
+	Stateful      bool
+	DBPassword    string
+	DBAppPassword string
+	DBGatewayPort int
+	SecretPort    int
 
 	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
@@ -384,7 +435,7 @@ func (l Lab) ProxiedProtectedURL() string {
 func (l Lab) Up(
 	ctx context.Context,
 	out io.Writer,
-	failMode, cacheTTL, tlsMode string,
+	failMode, cacheTTL, tlsMode, poolMode, secretMode string,
 	withDB bool,
 ) error {
 	environ := append(os.Environ(),
@@ -402,6 +453,11 @@ func (l Lab) Up(
 		EnvCacheTTL+"="+cacheTTL,
 		EnvTLSMode+"="+tlsMode,
 		EnvDBPassword+"="+l.DBPassword,
+		EnvDBAppPassword+"="+l.DBAppPassword,
+		EnvDBGatewayPort+"="+strconv.Itoa(l.DBGatewayPort),
+		EnvPoolMode+"="+poolMode,
+		EnvSecretPort+"="+strconv.Itoa(l.SecretPort),
+		EnvSecretMode+"="+secretMode,
 	)
 
 	args := []string{"up", "--build", "--detach", "--wait"}
@@ -413,7 +469,65 @@ func (l Lab) Up(
 		return err
 	}
 
+	if withDB {
+		if err := l.seedAppRole(ctx); err != nil {
+			return err
+		}
+	}
+
 	return l.awaitReady(ctx)
+}
+
+// seedAppRole creates the role the pooled fixture authenticates with. It is
+// khaos's own SQL client rather than the engine's init hook, because the hook
+// reads a file from the image and the data directory is a tmpfs - and because
+// khaos needs the role to be a DIFFERENT one from the administrative
+// credential it performs rotations with.
+func (l Lab) seedAppRole(ctx context.Context) error {
+	client, err := dbx.Open(dbx.Config{
+		Engine:   dbx.Postgres,
+		Address:  net.JoinHostPort(PostgresAddress, postgresPort),
+		Database: AppDatabase,
+		Admin:    dbx.Credential{Role: adminRole, Password: l.DBPassword},
+	})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = client.Close() }()
+
+	deadline := time.Now().Add(readyTimeout)
+
+	for {
+		err = client.Ping(ctx)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf(errSeedRole, AppRole, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(readyInterval):
+		}
+	}
+
+	if err := client.CreateRole(ctx, dbx.Credential{
+		Role:     AppRole,
+		Password: l.DBAppPassword,
+	}); err != nil {
+		// Already there is success: the engine's data directory is a tmpfs, so
+		// this only happens when `range up` ran twice without a `down`.
+		if err := client.Rotate(ctx, dbx.Credential{
+			Role:     AppRole,
+			Password: l.DBAppPassword,
+		}); err != nil {
+			return fmt.Errorf(errSeedRole, AppRole, err)
+		}
+	}
+
+	return nil
 }
 
 func (l Lab) Down(ctx context.Context, out io.Writer) error {
@@ -429,6 +543,9 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvAuthorityPort+"="+strconv.Itoa(teardownPort),
 		EnvDependencyPort+"="+strconv.Itoa(teardownPort),
 		EnvDBPassword+"="+teardownPassword,
+		EnvDBAppPassword+"="+teardownPassword,
+		EnvDBGatewayPort+"="+strconv.Itoa(teardownPort),
+		EnvSecretPort+"="+strconv.Itoa(teardownPort),
 	)
 
 	// The profile is ALWAYS passed on the way down. Compose only removes the
@@ -517,10 +634,14 @@ func (l Lab) awaitReady(ctx context.Context) error {
 }
 
 func (l Lab) IssueToken(ctx context.Context) (string, error) {
+	return l.issueFrom(ctx, l.GatewayURL()+tokenPath)
+}
+
+func (l Lab) issueFrom(ctx context.Context, url string) (string, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		l.GatewayURL()+tokenPath,
+		url,
 		nil,
 	)
 	if err != nil {
@@ -656,7 +777,105 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 
 	lab.readStatefulTier(running)
 
+	if err = lab.readPooledTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+
+	if err = lab.readSecretTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+
 	return lab, nil
+}
+
+// readPooledTier reads the pooled fixture's published port, which is the one
+// service in the stateful tier khaos probes over HTTP.
+func (l *Lab) readPooledTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
+	gateway, ok := running[DBGatewayName]
+	if !ok {
+		return nil
+	}
+
+	port, err := reader.PublishedPort(ctx, gateway.ID, GatewayInternalPort)
+	if err != nil {
+		return err
+	}
+
+	l.DBGatewayPort = port
+
+	return nil
+}
+
+// readSecretTier reads the secret fixture's published port. Its absence is not
+// fatal: the experiments that do not need it must still work.
+func (l *Lab) readSecretTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
+	gateway, ok := running[SecretGatewayName]
+	if !ok {
+		return nil
+	}
+
+	port, err := reader.PublishedPort(ctx, gateway.ID, GatewayInternalPort)
+	if err != nil {
+		return err
+	}
+
+	l.SecretPort = port
+
+	return nil
+}
+
+func (l Lab) SecretGatewayURL() string {
+	return "http://" + net.JoinHostPort(
+		loopback,
+		strconv.Itoa(l.SecretPort),
+	)
+}
+
+func (l Lab) SecretProtectedURL() string {
+	return l.SecretGatewayURL() + protectedPath
+}
+
+// IssueSecretToken asks the HMAC fixture for a credential signed with whatever
+// secret it currently holds, so khaos never has to read the file - and so the
+// credential it presents as valid is the one the target would accept.
+func (l Lab) IssueSecretToken(ctx context.Context) (string, error) {
+	return l.issueFrom(ctx, l.SecretGatewayURL()+secretTokenPath)
+}
+
+func (l Lab) RequireSecretTier() error {
+	if l.SecretPort != 0 {
+		return nil
+	}
+
+	return fmt.Errorf(errNoSecretGateway, ErrRangeIncomplete, SecretGatewayName)
+}
+
+// DBGatewayURL is the pooled fixture's entry point.
+func (l Lab) DBGatewayURL() string {
+	return "http://" + net.JoinHostPort(
+		loopback,
+		strconv.Itoa(l.DBGatewayPort),
+	)
+}
+
+func (l Lab) DBProtectedURL() string {
+	return l.DBGatewayURL() + protectedPath
+}
+
+func (l Lab) DBHealthURL() string {
+	return l.DBGatewayURL() + healthPath
+}
+
+func (l Lab) DBReadyURL() string {
+	return l.DBGatewayURL() + readyPath
 }
 
 // readTLSTier reports whether the TLS gateway was there to read, because its

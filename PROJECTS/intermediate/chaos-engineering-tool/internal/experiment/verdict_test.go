@@ -451,3 +451,98 @@ func TestEveryVerdictCarriesAReason(t *testing.T) {
 		})
 	}
 }
+
+// TestFailingClosedIsDeclaredPerControl is the control for ClosedWhen, and it
+// is a control at BOTH ends: the same window reads HELD when nothing is
+// declared and DENIED when unavailability is, so neither the default nor the
+// declaration can be deleted without turning something red.
+//
+// It exists because a 503 is deliberately not a statement about a credential,
+// and the pooled-credential experiments measure a service whose fail-closed
+// outcome is exactly that. Measured against the range before this existed:
+// `--pool-mode bounded` lost its database access, answered 503 for 35 of 76
+// probes, and khaos reported `passed / HELD` - the correct behaviour read as
+// the defect.
+func TestFailingClosedIsDeclaredPerControl(t *testing.T) {
+	// Accepted first, so the latch the ordering rule needs is armed, then the
+	// service stops being able to answer at all.
+	faulted := probe.Window{
+		Valid: stream(
+			probe.Valid,
+			append(
+				repeat(probe.Accepted, 4),
+				repeat(probe.Unavailable, MinimumPaired)...,
+			)...),
+		Invalid: stream(
+			probe.Invalid,
+			repeat(probe.Rejected, MinimumPaired+4)...),
+	}
+
+	cases := []struct {
+		name       string
+		closedWhen []probe.Disposition
+		want       Direction
+	}{
+		{
+			name: "nothing declared, so only a refusal counts",
+			want: Held,
+		},
+		{
+			name:       "unavailability declared, so losing access counts",
+			closedWhen: []probe.Disposition{probe.Unavailable},
+			want:       Denied,
+		},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			verdict := Judge(Observation{
+				FaultConfirmed: true,
+				Baseline:       healthyBaseline(),
+				Fault:          faulted,
+				Recovery:       healthyRecovery(),
+				ClosedWhen:     test.closedWhen,
+			}, authPolarity)
+
+			if verdict.Direction != test.want {
+				t.Fatalf(
+					"direction = %q, want %q (reasons: %v)",
+					verdict.Direction,
+					test.want,
+					verdict.Reasons,
+				)
+			}
+		})
+	}
+}
+
+// TestADeclaredClosureNeverHidesARefusal pins the other half of the rule: the
+// declared set EXTENDS what counts as closed and never replaces it, so an
+// experiment that declares unavailability still reports a plain refusal.
+func TestADeclaredClosureNeverHidesARefusal(t *testing.T) {
+	verdict := Judge(Observation{
+		FaultConfirmed: true,
+		Baseline:       healthyBaseline(),
+		Fault: probe.Window{
+			Valid: stream(
+				probe.Valid,
+				append(
+					repeat(probe.Accepted, 4),
+					repeat(probe.Rejected, MinimumPaired)...,
+				)...),
+			Invalid: stream(
+				probe.Invalid,
+				repeat(probe.Rejected, MinimumPaired+4)...),
+		},
+		Recovery:   healthyRecovery(),
+		ClosedWhen: []probe.Disposition{probe.Unavailable},
+	}, authPolarity)
+
+	if verdict.Direction != Denied {
+		t.Fatalf(
+			"direction = %q, want %q; declaring one closure must not stop a refusal counting",
+			verdict.Direction,
+			Denied,
+		)
+	}
+}

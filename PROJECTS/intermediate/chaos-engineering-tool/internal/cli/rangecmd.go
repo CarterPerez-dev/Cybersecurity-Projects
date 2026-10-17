@@ -22,15 +22,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var ErrUnknownSecretMode = errors.New(
+	"that is not a secret handling the range fixture understands",
+)
+
+var ErrUnknownPoolMode = errors.New(
+	"that is not a pool configuration the range fixture understands",
+)
+
 var ErrUnknownFailMode = errors.New("the range has no such fail mode")
 
 const (
-	flagFailMode = "fail-mode"
-	flagCacheTTL = "cache-ttl"
-	flagTLSMode  = "tls-mode"
-	flagPort     = "port"
-	flagQuiet    = "quiet"
-	flagWithDB   = "with-db"
+	flagFailMode   = "fail-mode"
+	flagCacheTTL   = "cache-ttl"
+	flagTLSMode    = "tls-mode"
+	flagPort       = "port"
+	flagQuiet      = "quiet"
+	flagWithDB     = "with-db"
+	flagPoolMode   = "pool-mode"
+	flagSecretMode = "secret-mode"
+
+	mintedSecrets = 3
 
 	rangeShort = "bring up a target stack that is deliberately breakable"
 	rangeLong  = `The range is a small stack khaos ships so you have something to break before you
@@ -50,22 +62,29 @@ running.`
 	downShort   = "stop the range and remove everything it created"
 	statusShort = "show whether the range is running and where to reach it"
 
-	failModeUsage = "which bug the range carries. The introspecting gateways understand closed, open and stale-rearm; khaos's verifier gateway understands closed plus one mode per verifier defect, and `khaos range up --fail-mode ?` lists them all. An unrecognised value is refused rather than quietly leaving the range correct"
-	cacheTTLUsage = "how long the gateway caches an authorization decision"
-	tlsModeUsage  = "which reference TLS client the range's TLS gateway runs. `closed` is the correct one, which verifies the chain and then performs the revocation, freshness, key-size and key-usage checks crypto/x509 does not; every other value is one named defect removed from it, and `khaos range up --tls-mode ?` lists them. An unrecognised value is refused rather than quietly leaving the gateway correct, because a gateway that silently became correct would report every certificate experiment as fail-closed"
-	portUsage     = "host port for the gateway; the default is a random high port chosen at startup"
-	quietUsage    = "suppress compose build and start output"
-	withDBUsage   = "also start the stateful tier: PostgreSQL 18, MySQL 8.4, MariaDB 11.4 and a Redis for the rate limiter's datastore. These four are the only range services khaos does not implement itself, because the credential family's finding IS what three correct engines do, and they cost real startup time, so they are opt-in"
+	failModeUsage   = "which bug the range carries. The introspecting gateways understand closed, open and stale-rearm; khaos's verifier gateway understands closed plus one mode per verifier defect, and `khaos range up --fail-mode ?` lists them all. An unrecognised value is refused rather than quietly leaving the range correct"
+	cacheTTLUsage   = "how long the gateway caches an authorization decision"
+	tlsModeUsage    = "which reference TLS client the range's TLS gateway runs. `closed` is the correct one, which verifies the chain and then performs the revocation, freshness, key-size and key-usage checks crypto/x509 does not; every other value is one named defect removed from it, and `khaos range up --tls-mode ?` lists them. An unrecognised value is refused rather than quietly leaving the gateway correct, because a gateway that silently became correct would report every certificate experiment as fail-closed"
+	portUsage       = "host port for the gateway; the default is a random high port chosen at startup"
+	quietUsage      = "suppress compose build and start output"
+	secretModeUsage = "how the range's secret fixture handles the secret it reads. validated checks the length after every read, which is the correct handling and the fix for CVE-2019-20933; unchecked lets an empty value flow into the crypto, which is that CVE's own shape. An unrecognised value is refused rather than quietly leaving the fixture correct"
 
-	msgStarting        = "building and starting the range"
-	msgPortRetry       = "host port %d was taken between the check and the bind; picking another"
-	errPortBound       = "could not start the range on host port %d: %w"
-	portAttempts       = 3
-	msgRangeUp         = "range is up"
-	msgRangeDown       = "range is down"
-	msgRangeStopped    = "the range is not running; start it with `khaos range up`"
-	msgFailMode        = "fail mode %s"
-	msgTokenHint       = "a credential is issued on demand, so `khaos run` against the range needs no flags"
+	poolModeUsage = "how the stateful tier's pooled fixture configures its connection pool. unbounded is the DEFAULT configuration of a Go service rather than a broken one, because database/sql closes a connection for age only when SetConnMaxLifetime is positive; bounded sets a lifetime, which is the knob that turns a rotation into a revocation; held checks one connection out and never returns it, which no lifetime bounds at all"
+
+	withDBUsage = "also start the stateful tier: PostgreSQL 18, MySQL 8.4, MariaDB 11.4 and a Redis for the rate limiter's datastore. These four are the only range services khaos does not implement itself, because the credential family's finding IS what three correct engines do, and they cost real startup time, so they are opt-in"
+
+	msgStarting          = "building and starting the range"
+	msgPortRetry         = "host port %d was taken between the check and the bind; picking another"
+	errPortBound         = "could not start the range on host port %d: %w"
+	portAttempts         = 3
+	msgRangeUp           = "range is up"
+	msgRangeDown         = "range is down"
+	msgRangeStopped      = "the range is not running; start it with `khaos range up`"
+	msgFailMode          = "fail mode %s"
+	msgTokenHint         = "a credential is issued on demand, so `khaos run` against the range needs no flags"
+	errUnknownPoolMode   = "%w: %q (known pool modes: %s)"
+	errUnknownSecretMode = "%w: %q (known secret modes: %s)"
+
 	msgStatefulUp      = "the stateful tier is up: PostgreSQL, MySQL, MariaDB and Redis, none of them published to a host port"
 	msgPortHint        = "host port %d was chosen at random; pass --port to pin it"
 	errUnknownFailMode = "%w: %q (known modes: %s)"
@@ -123,6 +142,14 @@ func newRangeUpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			poolMode, err := cmd.Flags().GetString(flagPoolMode)
+			if err != nil {
+				return err
+			}
+			secretMode, err := cmd.Flags().GetString(flagSecretMode)
+			if err != nil {
+				return err
+			}
 			return runRangeUp(
 				cmd.Context(),
 				cmd.OutOrStdout(),
@@ -132,6 +159,8 @@ func newRangeUpCmd() *cobra.Command {
 				port,
 				quiet,
 				withDB,
+				poolMode,
+				secretMode,
 			)
 		},
 	}
@@ -142,6 +171,12 @@ func newRangeUpCmd() *cobra.Command {
 	cmd.Flags().Int(flagPort, 0, portUsage)
 	cmd.Flags().Bool(flagQuiet, false, quietUsage)
 	cmd.Flags().Bool(flagWithDB, false, withDBUsage)
+	cmd.Flags().String(flagPoolMode, rangelab.PoolUnbounded, poolModeUsage)
+	cmd.Flags().String(
+		flagSecretMode,
+		rangelab.SecretUnchecked,
+		secretModeUsage,
+	)
 
 	return cmd
 }
@@ -151,20 +186,43 @@ func newRangeUpCmd() *cobra.Command {
 // it arm the resolver, and a credential written into a public compose file is a
 // credential forever.
 func mintRangeSecrets(lab *rangelab.Lab) error {
-	nonce, err := newNonce()
-	if err != nil {
-		return err
+	secrets := make([]string, 0, mintedSecrets)
+
+	for range mintedSecrets {
+		secret, err := newNonce()
+		if err != nil {
+			return err
+		}
+		secrets = append(secrets, secret)
 	}
 
-	password, err := newNonce()
-	if err != nil {
-		return err
-	}
+	lab.ResolverNonce = secrets[0]
 
-	lab.ResolverNonce = nonce
-	lab.DBPassword = password
+	// Two database secrets, never one: the administrative credential khaos
+	// performs a rotation WITH must not be the credential it rotates.
+	lab.DBPassword = secrets[1]
+	lab.DBAppPassword = secrets[2]
 
 	return nil
+}
+
+// knownPoolModes is validated against the whole set and an unknown value is
+// refused by name, because one that silently left the fixture on its default
+// would report every pooled experiment against a stack that was not carrying
+// the configuration it was asked for.
+// knownSecretModes is validated against the whole set, because a typo that
+// left the fixture on its default would report every secret experiment against
+// a stack that was not carrying the configuration it was asked for.
+func knownSecretModes() []string {
+	return []string{rangelab.SecretValidated, rangelab.SecretUnchecked}
+}
+
+func knownPoolModes() []string {
+	return []string{
+		rangelab.PoolUnbounded,
+		rangelab.PoolBounded,
+		rangelab.PoolHeld,
+	}
 }
 
 func newRangeDownCmd() *cobra.Command {
@@ -227,16 +285,40 @@ func knownFailModes() []string {
 	return modes
 }
 
+// validateModes refuses an unknown value for any of the three, by name. One
+// flag drives every gateway and an unrecognised value would leave the whole
+// range behaving CORRECTLY, which makes a typo the worst possible outcome: the
+// stack comes up, nothing is broken, and every experiment reports a clean
+// survival against a fixture that was supposed to carry the bug.
+func validateModes(failMode, poolMode, secretMode string) error {
+	if !slices.Contains(knownFailModes(), failMode) {
+		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
+			strings.Join(knownFailModes(), listSep))
+	}
+
+	if !slices.Contains(knownPoolModes(), poolMode) {
+		return fmt.Errorf(errUnknownPoolMode, ErrUnknownPoolMode, poolMode,
+			strings.Join(knownPoolModes(), listSep))
+	}
+
+	if !slices.Contains(knownSecretModes(), secretMode) {
+		return fmt.Errorf(errUnknownSecretMode, ErrUnknownSecretMode,
+			secretMode, strings.Join(knownSecretModes(), listSep))
+	}
+
+	return nil
+}
+
 func runRangeUp(
 	ctx context.Context,
 	out io.Writer,
 	failMode, cacheTTL, tlsMode string,
 	port int,
 	quiet, withDB bool,
+	poolMode, secretMode string,
 ) error {
-	if !slices.Contains(knownFailModes(), failMode) {
-		return fmt.Errorf(errUnknownFailMode, ErrUnknownFailMode, failMode,
-			strings.Join(knownFailModes(), listSep))
+	if err := validateModes(failMode, poolMode, secretMode); err != nil {
+		return err
 	}
 
 	// Refused here because the container has nobody to return an error to.
@@ -282,7 +364,16 @@ func runRangeUp(
 			return err
 		}
 
-		err = lab.Up(ctx, progress, failMode, cacheTTL, tlsMode, withDB)
+		err = lab.Up(
+			ctx,
+			progress,
+			failMode,
+			cacheTTL,
+			tlsMode,
+			poolMode,
+			secretMode,
+			withDB,
+		)
 		if err == nil {
 			break
 		}

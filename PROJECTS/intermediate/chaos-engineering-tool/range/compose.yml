@@ -441,6 +441,88 @@ services:
       range:
         ipv4_address: 10.244.244.33
     restart: "no"
+  # The pooled-credential fixture, and the only range service that holds a
+  # database credential of its own. It is in the stateful profile because it
+  # cannot start without the engine.
+  #
+  # The credential is passed as separate variables rather than as one DSN, so
+  # khaos can read the PASSWORD on its own out of this container's environment,
+  # rotate that role at the engine, and put the same value back afterwards
+  # without ever journaling it.
+  gateway-db:
+    container_name: khaos-range-gateway-db
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["db"]
+    profiles: ["db"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      KHAOS_RANGE_DB_HOST: "postgres:5432"
+      KHAOS_RANGE_DB_USER: "appuser"
+      KHAOS_RANGE_DB_PASSWORD: "${KHAOS_RANGE_DB_APP_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      KHAOS_RANGE_DB_NAME: "appdb"
+      KHAOS_RANGE_POOL_MODE: "${KHAOS_RANGE_POOL_MODE:-unbounded}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_DB_GATEWAY_PORT:?khaos chooses this port; run `khaos range up --with-db`}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      idp:
+        condition: service_started
+    networks:
+      range:
+        ipv4_address: 10.244.244.34
+    # PROCESS liveness, not database liveness: /health is the endpoint these
+    # experiments measure, and a healthcheck pointed at it would make the
+    # fixture unstartable until its credential exists.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # The secret-delivery fixture. It re-reads its secret on EVERY request, which
+  # is what makes the fault observable: a service that read it once at startup
+  # holds the original for the life of the process.
+  #
+  # The volume is mounted READ-ONLY, which is how secrets are conventionally
+  # delivered and the whole reason khaos breaks them through a helper container:
+  # the archive API refuses a `:ro` mount with HTTP 400, while read-only-ness is
+  # a property of THIS mount rather than of the volume, so a helper mounting the
+  # same volume read-write writes straight through it.
+  gateway-secret:
+    container_name: khaos-range-gateway-secret
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["secret"]
+    environment:
+      KHAOS_RANGE_SECRET_MODE: "${KHAOS_RANGE_SECRET_MODE:-unchecked}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_SECRET_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    volumes:
+      - secrets:/run/khaos-secrets:ro
+    networks:
+      range:
+        ipv4_address: 10.244.244.16
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
 
 networks:
   range:
@@ -460,3 +542,10 @@ networks:
     ipam:
       config:
         - subnet: 10.244.244.0/24
+
+volumes:
+  # Seeded from the range image, which is what makes the read-only mount above
+  # possible: Docker copies the image's content at that path into a fresh named
+  # volume the first time it is mounted.
+  secrets:
+    name: khaos-range-secrets

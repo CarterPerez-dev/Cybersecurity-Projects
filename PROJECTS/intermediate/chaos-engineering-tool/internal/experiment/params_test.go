@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
+	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
@@ -33,7 +34,8 @@ const (
 // be given something its builder will accept, or the refusal under test is the
 // domain check rather than the thing the test is about.
 var legalSample = map[string]string{
-	ParamEngine: string(dbx.Postgres),
+	ParamEngine:     string(dbx.Postgres),
+	ParamSecretPath: "/run/khaos-secrets/hmac",
 }
 
 func fill(declared []Param) map[string]string {
@@ -351,9 +353,12 @@ func TestTheNegativeControlCredentialIsNotAcceptableToAnyVerifier(
 // owns the transport, and dbx's own suite proves the credential tier mints a
 // new password per sample.
 //
-// The non-HTTP set is pinned by FAMILY rather than derived, because a derived
-// exemption would silently swallow a sixth family that shipped a fixed control
-// credential by accident. A new family lands here and has to be looked at.
+// The split is derived from the REGISTRY rather than from a family name,
+// because the credential family carries both: the four engine-behaviour
+// experiments probe the engine over its own protocol, while the pooled and
+// secret ones probe a service over HTTP. It is asserted as an EQUALITY in both
+// directions, so a new family arriving on either side of it fails here and has
+// to be looked at rather than being silently exempted.
 func httpControlled(t *testing.T, definition Definition) bool {
 	t.Helper()
 
@@ -366,11 +371,14 @@ func httpControlled(t *testing.T, definition Definition) bool {
 
 	_, overHTTP := spec.Probes.Invalid.(*probe.HTTPProbe)
 
-	if overHTTP == (definition.Family == FamilyCredential) {
+	probesTheEngine := inject.NeedsCred(definition.FaultKind) &&
+		!inject.IsPoolFault(definition.FaultKind)
+
+	if overHTTP == probesTheEngine {
 		t.Fatalf(
-			"%s is in family %q and its negative control is over HTTP = %v; the credential family is the only one whose control is not an HTTP probe, so one of the two needs updating",
+			"%s probes the engine directly = %v and its negative control is over HTTP = %v; only the experiments acting on a role khaos minted have a non-HTTP control, so one of the two needs updating",
 			definition.Name,
-			definition.Family,
+			probesTheEngine,
 			overHTTP,
 		)
 	}

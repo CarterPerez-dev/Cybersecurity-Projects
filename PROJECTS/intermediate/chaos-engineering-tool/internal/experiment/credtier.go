@@ -12,11 +12,26 @@ import (
 )
 
 const (
-	ParamEngine     = "engine"
-	ParamEnginePort = "engine-port"
-	ParamDatabase   = "database"
-	ParamAdminRole  = "admin-role"
-	ParamAdminVar   = "admin-password-var"
+	ParamEngine       = "engine"
+	ParamEngineTarget = "engine-target"
+	ParamSubjectRole  = "subject-role"
+	ParamSubjectVar   = "subject-password-var"
+	ParamHealthURL    = "health-url"
+	ParamReadyURL     = "ready-url"
+	ParamEnginePort   = "engine-port"
+	ParamDatabase     = "database"
+	ParamAdminRole    = "admin-role"
+	ParamAdminVar     = "admin-password-var"
+
+	usageEngineTarget = "the consenting container running the engine the target authenticates against; khaos reads its administrative credential and its address from it, and the role it rotates belongs to the target rather than to khaos"
+
+	usageSubjectRole = "the database role the target's own connection pool authenticated with, which is the one khaos rotates"
+
+	usageSubjectVar = "the environment variable on the TARGET that holds the password its pool authenticated with; khaos reads it there and puts the same value back, so a rotation it could not undo is one it will not perform"
+
+	usageHealthURL = "the target's liveness endpoint, which is the one that answers on a pooled connection"
+
+	usageReadyURL = "the target's readiness endpoint, which is the one that has to dial"
 
 	usageEngine = "which database engine the target runs; the range fills this from the container's own image"
 
@@ -45,6 +60,12 @@ const (
 // one field per tier and would otherwise carry seven for this one.
 type CredSpec struct {
 	Tier *dbx.Tier
+
+	// EngineTarget is the container running the engine, which for a pooled
+	// fault is NOT the container being measured. khaos resolves both through
+	// the refusal predicates, because it mutates state on one and measures the
+	// other.
+	EngineTarget string
 
 	Engine   dbx.Engine
 	Port     string
@@ -98,7 +119,36 @@ var credParams = []Param{
 	{Name: ParamAdminVar, Usage: usageAdminVar},
 }
 
-const usageTargetEngine = "the consenting container running the database whose credential you want to rotate"
+// poolParams targets the SERVICE rather than the engine, so it needs both: the
+// container khaos measures and the container khaos performs the rotation at.
+func poolParams(extra ...Param) []Param {
+	params := []Param{
+		{Name: ParamTarget, Usage: usageTargetPooled, Required: true},
+		{Name: ParamEngineTarget, Usage: usageEngineTarget, Required: true},
+		{Name: ParamEngine, Usage: usageEngine},
+		{Name: ParamEnginePort, Usage: usageEnginePort},
+		{Name: ParamDatabase, Usage: usageDatabase},
+		{Name: ParamAdminRole, Usage: usageAdminRole},
+		{Name: ParamAdminVar, Usage: usageAdminVar},
+		{Name: ParamSubjectRole, Usage: usageSubjectRole, Required: true},
+		{Name: ParamSubjectVar, Usage: usageSubjectVar, Required: true},
+		{Name: ParamReadyURL, Usage: usageReadyURL, Required: true},
+		{
+			Name:    ParamInvalidToken,
+			Usage:   usageInvalidToken,
+			Default: DefaultInvalidToken,
+		},
+		{Name: ParamToken, Usage: usageToken, Required: true},
+	}
+
+	return append(params, extra...)
+}
+
+const (
+	usageTargetEngine = "the consenting container running the database whose credential you want to rotate"
+
+	usageTargetPooled = "the consenting container whose own connection pool you want to rotate the credential out from under"
+)
 
 // credSpec resolves the engine and then fills every unspecified input from what
 // that engine's official image ships, so a run against the range needs no flags

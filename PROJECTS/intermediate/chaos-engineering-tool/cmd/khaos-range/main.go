@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,7 +26,10 @@ const (
 	roleTLS      = "tls"
 	roleRogue    = "rogue"
 	roleResolver = "resolver"
+	roleDB       = "db"
+	roleSecret   = "secret"
 	roleHealth   = "healthcheck"
+	roleAlive    = "alivecheck"
 
 	envListen   = "KHAOS_RANGE_LISTEN"
 	envUpstream = "KHAOS_RANGE_UPSTREAM"
@@ -34,7 +38,26 @@ const (
 	envReresolve = "KHAOS_RANGE_RERESOLVE"
 	trueValue    = "true"
 	envFailMode  = "KHAOS_RANGE_FAIL_MODE"
-	envCacheTTL  = "KHAOS_RANGE_CACHE_TTL"
+
+	// The pooled-credential fixture's own database credential. khaos reads the
+	// password out of this container's environment, because the container is
+	// the only authority on what it authenticated with, and rotates that role
+	// at the engine.
+	envDBHost     = "KHAOS_RANGE_DB_HOST"
+	envDBUser     = "KHAOS_RANGE_DB_USER"
+	envDBPassword = "KHAOS_RANGE_DB_PASSWORD"
+	envDBName     = "KHAOS_RANGE_DB_NAME"
+	envPoolMode   = "KHAOS_RANGE_POOL_MODE"
+
+	defaultDBHost = "postgres:5432"
+	defaultDBUser = "appuser"
+	defaultDBName = "appdb"
+
+	envSecretPath = "KHAOS_RANGE_SECRET_PATH"
+	envSecretMode = "KHAOS_RANGE_SECRET_MODE"
+
+	defaultSecretPath = "/run/khaos-secrets/hmac"
+	envCacheTTL       = "KHAOS_RANGE_CACHE_TTL"
 
 	defaultListen   = ":8080"
 	defaultUpstream = "http://idp:8080"
@@ -51,11 +74,13 @@ const (
 	// look like the fault's.
 	readHeaderTimeout = 120 * time.Second
 
-	usage       = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|healthcheck>"
-	selfURL     = "http://127.0.0.1:8080/health"
-	healthWait  = 2 * time.Second
-	errorFormat = "khaos-range: %v\n"
-	exitError   = 1
+	usage          = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|db|secret|healthcheck|alivecheck>"
+	selfBase       = "http://127.0.0.1:8080"
+	selfHealthPath = "/health"
+	selfAlivePath  = "/alive"
+	healthWait     = 2 * time.Second
+	errorFormat    = "khaos-range: %v\n"
+	exitError      = 1
 )
 
 func main() {
@@ -71,7 +96,11 @@ func run() error {
 	}
 
 	if os.Args[1] == roleHealth {
-		return selfCheck()
+		return selfCheck(selfHealthPath)
+	}
+
+	if os.Args[1] == roleAlive {
+		return selfCheck(selfAlivePath)
 	}
 
 	// The resolver binds UDP and TCP, so it never reaches the server below.
@@ -135,6 +164,18 @@ func roleHandler(role string) (http.Handler, error) {
 		).routes(), nil
 	case roleRogue:
 		return newRogueProvider().routes(), nil
+	case roleSecret:
+		return newSecretGateway(
+			envOr(envSecretPath, defaultSecretPath),
+			envOr(envSecretMode, SecretUnchecked),
+		).routes(), nil
+	case roleDB:
+		return newDBGateway(
+			databaseDSN(),
+			envOr(envPoolMode, PoolUnbounded),
+			envOr(envUpstream, defaultUpstream),
+			envOr(envFailMode, FailClosed),
+		).routes(), nil
 	case roleTLS:
 		return newTLSGateway(
 			envOr(envUpstream, defaultUpstream),
@@ -150,10 +191,28 @@ func roleHandler(role string) (http.Handler, error) {
 	}
 }
 
-func selfCheck() error {
+// databaseDSN is assembled from separate variables rather than taken as one
+// string, so khaos can read the PASSWORD on its own out of this container's
+// environment and put the same value back after the run.
+func databaseDSN() string {
+	target := url.URL{
+		Scheme: "postgres",
+		User: url.UserPassword(
+			envOr(envDBUser, defaultDBUser),
+			os.Getenv(envDBPassword),
+		),
+		Host:     envOr(envDBHost, defaultDBHost),
+		Path:     "/" + envOr(envDBName, defaultDBName),
+		RawQuery: "sslmode=disable&connect_timeout=3",
+	}
+
+	return target.String()
+}
+
+func selfCheck(path string) error {
 	client := &http.Client{Timeout: healthWait}
 
-	response, err := client.Get(selfURL)
+	response, err := client.Get(selfBase + path)
 	if err != nil {
 		return err
 	}

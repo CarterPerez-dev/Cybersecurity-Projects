@@ -232,10 +232,34 @@ func targetFrom(raw container.InspectResponse) (Target, error) {
 	target.Project = target.Labels[LabelComposeProject]
 	target.Service = target.Labels[LabelComposeService]
 
-	for _, mount := range raw.Mounts {
-		if mount.Source != "" {
-			target.BindSources = append(target.BindSources, mount.Source)
+	// A tmpfs declared the SHORT way - compose's `tmpfs:` key, or `--tmpfs` -
+	// lands in HostConfig and leaves Mounts EMPTY, measured on the range's own
+	// postgres: `.Mounts` was `[]` while `.HostConfig.Tmpfs` carried the path.
+	// The long form (`--mount type=tmpfs`) does appear in Mounts. Two shapes,
+	// one meaning, and khaos has to see both or it refuses a secret on a tmpfs
+	// for the wrong reason.
+	if raw.HostConfig != nil {
+		for destination := range raw.HostConfig.Tmpfs {
+			target.Mounts = append(target.Mounts, Mount{
+				Type:        tmpfsType,
+				Destination: destination,
+				ReadWrite:   true,
+			})
 		}
+	}
+
+	for _, point := range raw.Mounts {
+		if point.Source != "" {
+			target.BindSources = append(target.BindSources, point.Source)
+		}
+
+		target.Mounts = append(target.Mounts, Mount{
+			Type:        string(point.Type),
+			Source:      point.Source,
+			Destination: point.Destination,
+			ReadWrite:   point.RW,
+			Name:        point.Name,
+		})
 	}
 
 	return target, nil

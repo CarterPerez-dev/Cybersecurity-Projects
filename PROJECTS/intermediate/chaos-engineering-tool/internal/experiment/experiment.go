@@ -12,6 +12,7 @@ import (
 
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/idp"
+	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
 	"github.com/CarterPerez-dev/khaos/internal/pki"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
@@ -130,9 +131,15 @@ type Experiment struct {
 	// client for a stock engine instead of standing a fake one up.
 	Cred *CredSpec
 
+	// Secret is a file inside the target, broken in place by a helper
+	// container that mounts only the mount containing it.
+	Secret *inject.SecretPlan
+
 	Defect string
 
 	HeldCaveat string
+
+	ClosedWhen []probe.Disposition
 
 	// The liveness guard for an experiment that faults an ENDPOINT rather than a
 	// credential, where the probe streams cannot see whether the fault landed.

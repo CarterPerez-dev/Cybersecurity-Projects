@@ -3,7 +3,10 @@
 
 package probe
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 type Stream struct {
 	Credential Credential `json:"credential"`
@@ -138,13 +141,23 @@ func (s Stream) AcceptedDespiteLapse() int {
 // be honoured: a target that served from cache and then started refusing has
 // stopped serving.
 func (s Stream) RejectedAfter(accepted bool) int {
+	return s.ClosedAfter(accepted, Rejected)
+}
+
+// ClosedAfter is RejectedAfter over a DECLARED set of dispositions, because
+// what counts as failing closed is a property of the control rather than of
+// the protocol. A 503 is not a statement about a credential, so it is never
+// Rejected - but for a service whose database access was revoked, becoming
+// unavailable IS the fail-closed outcome, and reading it as "kept serving"
+// would report the correct behaviour as the defect.
+func (s Stream) ClosedAfter(accepted bool, closed ...Disposition) int {
 	count := 0
 
 	for _, outcome := range s.Outcomes {
-		switch outcome.Disposition {
-		case Accepted:
+		switch {
+		case outcome.Disposition == Accepted:
 			accepted = true
-		case Rejected:
+		case slices.Contains(closed, outcome.Disposition):
 			if accepted {
 				count++
 			}

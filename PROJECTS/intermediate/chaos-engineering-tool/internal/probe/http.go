@@ -32,7 +32,13 @@ const (
 )
 
 type HTTPOptions struct {
-	Name       string
+	Name string
+
+	// Describe overrides the generic sentence for a stream whose POINT is not
+	// the credential it carries: a readiness endpoint that has to dial, or a
+	// credential signed with a zero-length key.
+	Describe string
+
 	Method     string
 	URL        string
 	Token      string
@@ -92,6 +98,10 @@ func (p *HTTPProbe) Credential() Credential {
 }
 
 func (p *HTTPProbe) Describe() string {
+	if p.options.Describe != "" {
+		return p.options.Describe
+	}
+
 	if p.options.Mint != nil {
 		return fmt.Sprintf(
 			describeHTTPMint,
