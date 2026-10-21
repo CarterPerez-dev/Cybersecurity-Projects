@@ -15,17 +15,18 @@ import (
 type Stage string
 
 const (
-	StageBaseline Stage = "baseline"
-	StageInject   Stage = "inject"
-	StageConfirm  Stage = "confirm"
-	StageObserve  Stage = "observe"
-	StageAct      Stage = "act"
-	StageShift    Stage = "shift"
-	StageIdle     Stage = "idle"
-	StageResume   Stage = "resume"
-	StageRevert   Stage = "revert"
-	StageRecover  Stage = "recover"
-	StageVerdict  Stage = "verdict"
+	StageBaseline  Stage = "baseline"
+	StageInject    Stage = "inject"
+	StageConfirm   Stage = "confirm"
+	StageObserve   Stage = "observe"
+	StageAct       Stage = "act"
+	StageShift     Stage = "shift"
+	StageColdStart Stage = "cold-start"
+	StageIdle      Stage = "idle"
+	StageResume    Stage = "resume"
+	StageRevert    Stage = "revert"
+	StageRecover   Stage = "recover"
+	StageVerdict   Stage = "verdict"
 )
 
 const (
@@ -42,6 +43,12 @@ const (
 	detailShiftFailed = "the second phase could not be established, so khaos has one window where it needs two: %v"
 	detailIdle        = "a credential leaked; pausing traffic for %s to see whether the cache is being re-armed"
 	detailResume      = "resuming traffic with the fault still applied"
+	detailColdStart   = "restarting the target so it initialises with the dependency already unreachable"
+
+	// How long the target gets to answer again after the restart. The
+	// settling samples are discarded: counting them would report khaos's own
+	// restart as the target having stopped answering.
+	settleFor = 30 * time.Second
 
 	// Breaks aliasing against the periodic target behaviour these experiments
 	// measure: cache TTLs, token refresh and crons.
@@ -62,7 +69,15 @@ type Injector interface {
 	Inject(ctx context.Context, kind, target string) error
 	Confirm(ctx context.Context) (string, error)
 	Revert(ctx context.Context) error
+
+	// Restart restarts the container the fault was applied to, for the one
+	// experiment whose fault is the target initialising without a dependency.
+	Restart(ctx context.Context) error
 }
+
+var ErrNeverCameBack = errors.New(
+	"khaos restarted the target and it never answered again, so there is no window to measure; the fault is still applied and was reverted",
+)
 
 var ErrNoProbePair = errors.New(
 	"an experiment needs both a valid and an invalid probe; the invalid one is the negative control that makes the verdict mean anything",
@@ -72,6 +87,11 @@ type Engine struct {
 	Injector Injector
 	Report   Reporter
 	Now      func() time.Time
+
+	// SettleFor bounds how long a cold-started target gets to answer again.
+	// Injectable for the same reason Now is: the default is longer than a
+	// test can wait for.
+	SettleFor time.Duration
 }
 
 // abandon reverts the fault and then concludes. The cause is joined with the
@@ -239,6 +259,7 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		observation.Baseline,
 		observation.ForgedBaseline,
 		observation.MintedByKhaos,
+		closedWhen(observation),
 	); unmet {
 		return e.conclude(result, observation, spec.Polarity, nil)
 	}
@@ -272,6 +293,10 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		return e.abandon(ctx, spec, result, observation, actErr)
 	}
 
+	if coldErr := e.coldStart(ctx, spec, timing); coldErr != nil {
+		return e.abandon(ctx, spec, result, observation, coldErr)
+	}
+
 	observation = e.measureFault(ctx, spec, timing, observation)
 
 	observation = e.shift(ctx, spec, timing, observation)
@@ -285,6 +310,67 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	}
 
 	return e.conclude(result, observation, spec.Polarity, revertErr)
+}
+
+// coldStart restarts the target with the fault already applied, so it
+// initialises without a dependency it held a moment ago. The baseline is
+// already measured by this point, which is the whole ordering: a target
+// booted broken refuses nothing and voids its own run.
+//
+// It then waits for the target to ANSWER rather than for the daemon to call
+// it running, and the settling samples are discarded: counting them would
+// report khaos's own restart as the target having stopped answering.
+func (e Engine) coldStart(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+) error {
+	if !spec.ColdStart {
+		return nil
+	}
+
+	e.emit(StageColdStart, detailColdStart)
+
+	if err := e.Injector.Restart(ctx); err != nil {
+		return err
+	}
+
+	if e.settled(ctx, spec, timing) {
+		return nil
+	}
+
+	return ErrNeverCameBack
+}
+
+// settled polls the valid stream until the target answers at all. A refusal
+// counts: a correct target that cannot evaluate its policy refuses every
+// request, and that is an answer.
+func (e Engine) settled(
+	ctx context.Context,
+	spec Experiment,
+	timing Timing,
+) bool {
+	deadline := e.now().Add(e.settleBudget())
+
+	for e.now().Before(deadline) {
+		if ctx.Err() != nil {
+			return false
+		}
+
+		if spec.Probes.Valid.Run(ctx).Disposition.Answered() {
+			return true
+		}
+
+		timer := time.NewTimer(timing.SampleInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return false
+		case <-timer.C:
+		}
+	}
+
+	return false
 }
 
 // measureFault records whether the target ever MET the fault, not just whether
@@ -525,6 +611,13 @@ func jitter(interval time.Duration) time.Duration {
 	}
 	//nolint:gosec // probe spread, not a secret
 	return time.Duration(rand.Float64() * span)
+}
+
+func (e Engine) settleBudget() time.Duration {
+	if e.SettleFor > 0 {
+		return e.SettleFor
+	}
+	return settleFor
 }
 
 func (e Engine) now() time.Time {

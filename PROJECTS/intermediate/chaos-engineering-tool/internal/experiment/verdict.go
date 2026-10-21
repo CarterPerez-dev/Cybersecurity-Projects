@@ -107,7 +107,7 @@ const (
 	reasonRedirects          = "the invalid credential was answered with a redirect %d time(s) during the baseline and never with a refusal; point --url at an endpoint that answers with a status rather than a login redirect"
 	reasonNoService          = "the valid credential was never accepted during the baseline, so the target was not serving before the fault"
 	reasonNoServiceMinted    = "the target never accepted a credential from khaos's own identity provider during the baseline. It may not resolve keys from the issuer khaos is serving; and if it caches its key set, a PREVIOUS khaos run's keys may still be cached, because khaos mints a fresh key set every run. Restart the target or shorten its key cache lifetime"
-	reasonPermitted          = "a credential the target had already rejected was accepted %d time(s) during the fault"
+	reasonPermitted          = "%s: an input the target had already refused was accepted %d time(s) during the fault"
 	reasonDenied             = "the valid credential stopped being accepted %d time(s) during the fault"
 	reasonCrashed            = "the target stopped answering %d of %d probes during the fault"
 	reasonHeld               = "the valid credential kept being accepted and the invalid one kept being rejected"
@@ -344,6 +344,7 @@ func epistemic(observation Observation) (Verdict, bool) {
 		observation.Baseline,
 		observation.ForgedBaseline,
 		observation.MintedByKhaos,
+		closedWhen(observation),
 	); unmet {
 		verdict.Epistemic = BaselineNotMet
 		verdict.Reasons = append(verdict.Reasons, reason)
@@ -503,7 +504,10 @@ func finish(
 		)
 	}
 
-	verdict.Recovery = recoveryOf(observation.Recovery)
+	verdict.Recovery = recoveryOf(
+		observation.Recovery,
+		closedWhen(observation),
+	)
 
 	switch verdict.Recovery {
 	case Degraded:
@@ -583,10 +587,22 @@ func leaked(observation Observation) []string {
 		)
 	}
 
+	// The DECLARED defect, like the two paths above. Without it, two
+	// experiments that read the same direction off the same observable print
+	// the same reason, and the verdict alone cannot tell an operator which
+	// bug they have: losing a loaded policy and never loading one are
+	// different fixes.
 	if monotonic := leakedMonotonic(
 		observation,
 	); monotonic >= MinimumToProveOpen {
-		reasons = append(reasons, sprintf(reasonPermitted, monotonic))
+		reasons = append(
+			reasons,
+			sprintf(
+				reasonPermitted,
+				orUnnamed(observation.Defect),
+				monotonic,
+			),
+		)
 	}
 
 	if served := servedWhileUnknown(
@@ -778,11 +794,19 @@ func orUnnamed(defect string) string {
 	return defect
 }
 
-// leakedMonotonic counts credentials the target had already rejected and then
-// accepted during the fault.
+// leakedMonotonic counts inputs the target had already refused and then
+// accepted during the fault. Both halves read the declared refusal: for a
+// limiter neither one is a Rejected.
 func leakedMonotonic(observation Observation) int {
-	rejectedInBaseline := observation.Baseline.Invalid.Any(probe.Rejected)
-	return observation.Fault.Invalid.AcceptedAfter(rejectedInBaseline)
+	closed := closedWhen(observation)
+
+	// The LATCH is epistemic -- it is the premise of the sentence this reason
+	// prints, "an input the target had already refused" -- while the count
+	// itself is directional.
+	return observation.Fault.Invalid.AcceptedAfter(
+		observation.Baseline.Invalid.AnyClosed(decided(closed)...),
+		closed...,
+	)
 }
 
 // revokedHonoured counts acceptances of a credential khaos invalidated at the
@@ -894,16 +918,23 @@ func resolveCause(
 	)
 }
 
+// closed is this control's own refusal, declared by the experiment. It
+// extends Rejected and never replaces it.
+//
+// The invalid stream needs it as much as the valid one does: a rate limiter's
+// negative control is the request over the budget, not a credential it never
+// inspects, and that refusal is a 429.
 func baselineUnmet(
 	baseline probe.Window,
 	expect probe.Expectation,
 	minted bool,
+	closed []probe.Disposition,
 ) (string, bool) {
 	if paired := baseline.Paired(); paired < MinimumPaired {
 		return sprintf(reasonThinBaseline, paired, MinimumPaired), true
 	}
 
-	if !baseline.Invalid.Any(probe.Rejected) {
+	if !baseline.Invalid.AnyClosed(decided(closed)...) {
 		if redirects := baseline.Invalid.Count(
 			probe.Redirected,
 		); redirects > 0 {
@@ -1067,6 +1098,40 @@ func closedWhen(observation Observation) []probe.Disposition {
 	)
 }
 
+// shutBy is closedWhen applied to one outcome, for the guards that walk a
+// stream position by position rather than asking it for a count.
+func shutBy(disposition probe.Disposition, closed []probe.Disposition) bool {
+	return slices.Contains(closed, disposition)
+}
+
+// decided narrows a declared set to the dispositions that are the target
+// DECIDING, and it is the difference between a directional question and an
+// epistemic one.
+//
+// ClosedWhen declares what failing closed looks like UNDER THE FAULT, which is
+// directional. Three guards ask something else: did khaos ever observe this
+// control decide about its negative control, and did the steady state return.
+// A 429 answers both -- a limiter that throttles has decided -- and a 503 does
+// not, which is why Answered() is false for it. Four families declare
+// Unavailable, and letting it through here read a target that 500s its
+// negative control as one that was enforcing, then printed that the invalid
+// credential kept being rejected.
+func decided(closed []probe.Disposition) []probe.Disposition {
+	out := make([]probe.Disposition, 0, len(closed))
+
+	for _, disposition := range closed {
+		if disposition.Answered() {
+			out = append(out, disposition)
+		}
+	}
+
+	if len(out) == 0 {
+		return []probe.Disposition{probe.Rejected}
+	}
+
+	return out
+}
+
 // unanswered counts across BOTH streams, and a disposition the experiment
 // DECLARED as failing closed counts as the target answering. Without that, a
 // service that correctly refused every request because it had lost its secret
@@ -1099,7 +1164,7 @@ func unanswered(
 // recoveryOf requires a run of consecutive healthy pairs, because a state
 // transition declared on one lucky sample is how a flaky recovery reads as a
 // clean one. An empty window is UNOBSERVED, never recovered.
-func recoveryOf(recovery probe.Window) Recovery {
+func recoveryOf(recovery probe.Window, closed []probe.Disposition) Recovery {
 	if recovery.Paired() == 0 {
 		return Unobserved
 	}
@@ -1107,7 +1172,10 @@ func recoveryOf(recovery probe.Window) Recovery {
 	run := 0
 	for i := 0; i < recovery.Valid.Len() && i < recovery.Invalid.Len(); i++ {
 		if recovery.Valid.Outcomes[i].Disposition == probe.Accepted &&
-			recovery.Invalid.Outcomes[i].Disposition == probe.Rejected {
+			shutBy(
+				recovery.Invalid.Outcomes[i].Disposition,
+				decided(closed),
+			) {
 			run++
 			if run >= RecoveryRunLength {
 				return Recovered

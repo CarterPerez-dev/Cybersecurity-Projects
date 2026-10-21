@@ -34,6 +34,10 @@ var ErrRevertFailed = errors.New(
 	"one or more faults could not be reverted; run `khaos reclaim` once the cause is fixed",
 )
 
+var ErrNoDaemon = errors.New(
+	"this run holds no Docker client, so khaos cannot restart the target",
+)
+
 type Progress func(record journal.Record, err error)
 
 type Registry func(kind string) (inject.Mutator, error)
@@ -306,6 +310,30 @@ func revertWith(
 	}
 
 	return log.Append(record)
+}
+
+// Restart stops and starts the target in place, for the one experiment whose
+// fault is the target INITIALISING without a dependency it already had.
+//
+// In place rather than recreated, which keeps the published port: a recreate
+// moves it under khaos's own probe mid-run.
+//
+// It journals nothing, unlike every other mutation here, and that is correct
+// rather than an omission: a stop followed by a start leaves the container
+// where it was, so there is no state a cold-started revert would have to undo.
+func (s *Session) Restart(
+	ctx context.Context,
+	target dockerx.Target,
+) error {
+	if s.env.Docker == nil {
+		return ErrNoDaemon
+	}
+
+	if err := s.env.Docker.Stop(ctx, target.ID); err != nil {
+		return err
+	}
+
+	return s.env.Docker.Start(ctx, target.ID)
 }
 
 func (s *Session) Confirm(

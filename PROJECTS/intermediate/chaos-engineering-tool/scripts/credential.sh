@@ -288,7 +288,7 @@ if "$BIN" range up --no-color --quiet >/dev/null 2>&1; then
         "khaos range up --with-db"
     assert_report_has \
         "the refusal says why khaos does not fake it" \
-        "the finding IS what three correct engines do"
+        "the finding IS what correct ones do"
 else
     fail "range up (without the stateful tier)"
 fi

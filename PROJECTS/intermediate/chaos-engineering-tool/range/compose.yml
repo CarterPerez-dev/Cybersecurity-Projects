@@ -600,6 +600,72 @@ services:
       retries: 15
     restart: "no"
 
+  # One gateway carrying three security controls, the way a real API gateway
+  # does. Each control dials its OWN address, so khaos's proxy severs exactly
+  # one and the other two keep answering.
+  #
+  # In the default range: only the limiter needs the stateful tier, so only
+  # control.ratelimit_store_down is refused without --with-db.
+  gateway-control:
+    container_name: khaos-range-gateway-control
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["control"]
+    environment:
+      KHAOS_RANGE_LIMIT_STORE: "host.docker.internal:${KHAOS_RANGE_CONTROL_STORE_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_POLICY_STORE: "http://host.docker.internal:${KHAOS_RANGE_CONTROL_POLICY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_RULES_STORE: "http://host.docker.internal:${KHAOS_RANGE_CONTROL_RULES_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      # Authentication is by SIGNATURE, not from a remembered set: the
+      # cold-start experiment restarts this container and a remembered set is
+      # empty afterwards.
+      KHAOS_RANGE_CONTROL_SECRET: "${KHAOS_RANGE_CONTROL_SECRET:?khaos mints this; run `khaos range up`}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this
+    # network's gateway: a listener on this network's own gateway address is
+    # unreachable from a container on it.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_CONTROL_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.19
+    # PROCESS liveness: a healthcheck on a measured endpoint would make the
+    # fixture unstartable the moment khaos severed a dependency.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # The policy document and the rule set. It publishes nothing, like the
+  # resolver: khaos's proxy forwards to it by its address on this network.
+  controld:
+    container_name: khaos-range-controld
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["controld"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    networks:
+      range:
+        ipv4_address: 10.244.244.21
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
 networks:
   range:
     name: khaos-range

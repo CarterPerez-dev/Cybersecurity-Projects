@@ -65,6 +65,11 @@ const (
 	// whose dependency is not a container: khaos plays that itself.
 	AuthzGatewayName = "khaos-range-gateway-authz"
 
+	// The backend publishes nothing: khaos forwards to it by its address on
+	// the range network.
+	ControlGatewayName = "khaos-range-gateway-control"
+	ControldName       = "khaos-range-controld"
+
 	LabelRange         = "khaos.range"
 	FailModeOpen       = "open"
 	FailModeShut       = "closed"
@@ -116,7 +121,24 @@ const (
 	EnvAuthzPort = "KHAOS_RANGE_AUTHZ_PORT"
 	EnvAuthzDep  = "KHAOS_RANGE_AUTHZ_DEP_PORT"
 	EnvAuthzBase = "KHAOS_RANGE_AUTHZ_BASE"
-	EnvAuthzMode = "KHAOS_RANGE_AUTHZ_MODE"
+
+	// One published port and one dependency port per control, read back out
+	// of the gateway's own environment rather than remembered: the container
+	// is the only authority on where it will actually dial.
+	EnvControlPort       = "KHAOS_RANGE_CONTROL_PORT"
+	EnvControlStorePort  = "KHAOS_RANGE_CONTROL_STORE_PORT"
+	EnvControlPolicyPort = "KHAOS_RANGE_CONTROL_POLICY_PORT"
+	EnvControlRulesPort  = "KHAOS_RANGE_CONTROL_RULES_PORT"
+
+	EnvLimitStore  = "KHAOS_RANGE_LIMIT_STORE"
+	EnvPolicyStore = "KHAOS_RANGE_POLICY_STORE"
+	EnvRulesStore  = "KHAOS_RANGE_RULES_STORE"
+
+	// The control gateway authenticates by SIGNATURE against this key rather
+	// than from a set it remembers, because the cold-start experiment
+	// restarts it and an in-memory set does not survive that.
+	EnvControlSecret = "KHAOS_RANGE_CONTROL_SECRET"
+	EnvAuthzMode     = "KHAOS_RANGE_AUTHZ_MODE"
 
 	// AuthzDistinguishes reads the dependency's three answers as three.
 	// AuthzCollapses is research 07 section 6.2's shape: anything that is not
@@ -172,6 +194,7 @@ const (
 	// before anything has read a published port.
 	PostgresAddress = "10.244.244.30"
 	postgresPort    = "5432"
+	redisPort       = "6379"
 	adminRole       = "postgres"
 
 	PoolUnbounded = "unbounded"
@@ -200,6 +223,14 @@ const (
 	readyPath     = "/ready"
 	protectedPath = "/protected"
 	tokenPath     = "/token"
+
+	flaggedTokenPath = "/flagged-token"
+
+	// The endpoint each control guards, which is also the only endpoint whose
+	// answer that control decides.
+	LimitedPath  = "/limited"
+	GovernedPath = "/governed"
+	FilteredPath = "/filtered"
 
 	errNoCompose  = "cannot find the range compose file; run khaos from the project directory, or set %s to the directory holding khaos's own range/compose.yml"
 	errUnreadable = "%w: %s could not be read: %v"
@@ -250,7 +281,11 @@ const (
 
 	errNoAuthzBase = "%w: this experiment answers a service's own authorization call, and %s does not carry %s, so khaos cannot tell where that service looks for its dependency; bring the range down and up again to recreate it"
 
-	errNoStatefulTier = "%w: this experiment acts on a real database engine, and the running range has none. khaos does not replace these dependencies with its own code, because the finding IS what three correct engines do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
+	errNoControlGateway = "%w: this experiment severs one of a gateway's security controls from its dependency, and the running range has no %s; bring the range down and up again to create it"
+
+	errNoControlAddr = "%w: this experiment severs %s, and %s does not carry %s, so khaos cannot tell where that control looks for it; bring the range down and up again to recreate it"
+
+	errNoStatefulTier = "%w: this experiment acts on a real stateful dependency -- a database engine, or the datastore a rate limiter counts in -- and the running range has none. khaos does not replace these with its own code, because the finding IS what correct ones do, so the stack has to be brought up with them: `khaos range down && khaos range up --with-db`"
 )
 
 // Lab is a located range. The khaos-side ports are chosen at `range up` rather
@@ -289,6 +324,20 @@ type Lab struct {
 	AuthzDepPort int
 	AuthzBase    string
 
+	// ControlPort is the gateway's published port; the three that follow are
+	// where it was told to find each control's dependency. The three Addr
+	// fields are read back out of its own environment.
+	ControlPort       int
+	ControlStorePort  int
+	ControlPolicyPort int
+	ControlRulesPort  int
+
+	ControlStoreAddr  string
+	ControlPolicyAddr string
+	ControlRulesAddr  string
+
+	ControlSecret string
+
 	// Read back from the TLS gateway's own environment, never remembered.
 	Dependency    string
 	AuthorityBase string
@@ -325,6 +374,11 @@ func Locate(ports Ports) (Lab, error) {
 		EnvPort:       ports.Env,
 		AuthzPort:     ports.Authz,
 		AuthzDepPort:  ports.AuthzDep,
+
+		ControlPort:       ports.Control,
+		ControlStorePort:  ports.ControlStore,
+		ControlPolicyPort: ports.ControlPolicy,
+		ControlRulesPort:  ports.ControlRules,
 	}, nil
 }
 
@@ -359,6 +413,14 @@ type Ports struct {
 	// here because the caller's environment names it at creation.
 	Authz    int
 	AuthzDep int
+
+	// The control gateway's published port, and the address each of its three
+	// controls dials its own dependency on. Three rather than one is what
+	// lets khaos sever the datastore while the other two keep answering.
+	Control       int
+	ControlStore  int
+	ControlPolicy int
+	ControlRules  int
 }
 
 // FreePorts picks every host port the range needs in one go, all distinct.
@@ -400,6 +462,10 @@ func FreePorts(also ...string) (Ports, error) {
 		&chosen.Env,
 		&chosen.Authz,
 		&chosen.AuthzDep,
+		&chosen.Control,
+		&chosen.ControlStore,
+		&chosen.ControlPolicy,
+		&chosen.ControlRules,
 	} {
 		port, err := pick()
 		if err != nil {
@@ -575,6 +641,11 @@ func (l Lab) Up(
 		EnvAuthzPort+"="+strconv.Itoa(l.AuthzPort),
 		EnvAuthzDep+"="+strconv.Itoa(l.AuthzDepPort),
 		EnvAuthzMode+"="+authzMode,
+		EnvControlPort+"="+strconv.Itoa(l.ControlPort),
+		EnvControlStorePort+"="+strconv.Itoa(l.ControlStorePort),
+		EnvControlPolicyPort+"="+strconv.Itoa(l.ControlPolicyPort),
+		EnvControlRulesPort+"="+strconv.Itoa(l.ControlRulesPort),
+		EnvControlSecret+"="+l.ControlSecret,
 		EnvReresolve+"="+reresolve,
 	)
 
@@ -668,6 +739,11 @@ func (l Lab) Down(ctx context.Context, out io.Writer) error {
 		EnvEnvPort+"="+strconv.Itoa(teardownPort),
 		EnvAuthzPort+"="+strconv.Itoa(teardownPort),
 		EnvAuthzDep+"="+strconv.Itoa(teardownPort),
+		EnvControlPort+"="+strconv.Itoa(teardownPort),
+		EnvControlStorePort+"="+strconv.Itoa(teardownPort),
+		EnvControlPolicyPort+"="+strconv.Itoa(teardownPort),
+		EnvControlRulesPort+"="+strconv.Itoa(teardownPort),
+		EnvControlSecret+"="+teardownPassword,
 	)
 
 	// The profile is ALWAYS passed on the way down. Compose only removes the
@@ -915,10 +991,11 @@ func (l *Lab) readM9Fixtures(
 	running map[string]dockerx.Target,
 ) error {
 	for name, into := range map[string]*int{
-		DBGatewayName:     &l.DBGatewayPort,
-		SecretGatewayName: &l.SecretPort,
-		EnvGatewayName:    &l.EnvPort,
-		AuthzGatewayName:  &l.AuthzPort,
+		DBGatewayName:      &l.DBGatewayPort,
+		SecretGatewayName:  &l.SecretPort,
+		EnvGatewayName:     &l.EnvPort,
+		AuthzGatewayName:   &l.AuthzPort,
+		ControlGatewayName: &l.ControlPort,
 	} {
 		gateway, ok := running[name]
 		if !ok {
@@ -953,6 +1030,33 @@ func (l *Lab) readM9Fixtures(
 	// error here would take every unrelated run down over one stale container.
 	// RequireAuthzTier refuses by name for the experiments that need it.
 	l.AuthzBase = environ[EnvAuthzBase]
+
+	return l.readControlTier(ctx, reader, running)
+}
+
+// readControlTier reads the three dependency addresses out of the gateway that
+// dials them. A container of that name carrying none of them is the tier being
+// ABSENT rather than an error: this runs inside Discover, which every
+// experiment calls, so a hard error here would take unrelated runs down over
+// one stale container. RequireControlTier refuses by name instead.
+func (l *Lab) readControlTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
+	gateway, ok := running[ControlGatewayName]
+	if !ok {
+		return nil
+	}
+
+	environ, err := reader.ContainerEnv(ctx, gateway.ID)
+	if err != nil {
+		return err
+	}
+
+	l.ControlStoreAddr = environ[EnvLimitStore]
+	l.ControlPolicyAddr = environ[EnvPolicyStore]
+	l.ControlRulesAddr = environ[EnvRulesStore]
 
 	return nil
 }
@@ -1044,6 +1148,170 @@ func (l Lab) RequireEnvTier() error {
 	}
 
 	return fmt.Errorf(errNoEnvGateway, ErrRangeIncomplete, EnvGatewayName)
+}
+
+// Control names one of the gateway's three controls, so a refusal and a
+// listen address can both be resolved from the experiment's own subject.
+type Control string
+
+const (
+	ControlLimiter Control = "the rate limiter from its datastore"
+	ControlPolicy  Control = "the policy engine from its policy store"
+	ControlRules   Control = "the rule matcher from its rules backend"
+)
+
+func (l Lab) ControlGatewayURL() string {
+	return "http://" + net.JoinHostPort(
+		loopback,
+		strconv.Itoa(l.ControlPort),
+	)
+}
+
+// IssueControlToken asks the gateway for a credential it will authenticate.
+func (l Lab) IssueControlToken(ctx context.Context) (string, error) {
+	return l.issueFrom(ctx, l.ControlGatewayURL()+tokenPath)
+}
+
+// RefusedInputURL is where khaos fetches a fresh input every control refuses,
+// once per probe rather than once per run: the credential is signed, so it
+// cannot carry an appended nonce, and a repeated one is answered from a
+// decision cache rather than by the control.
+func (l Lab) RefusedInputURL() string {
+	return l.ControlGatewayURL() + flaggedTokenPath
+}
+
+func (l Lab) controlDependency(at Control) (string, string) {
+	switch at {
+	case ControlLimiter:
+		return l.ControlStoreAddr, EnvLimitStore
+	case ControlPolicy:
+		return l.ControlPolicyAddr, EnvPolicyStore
+	default:
+		return l.ControlRulesAddr, EnvRulesStore
+	}
+}
+
+func (l Lab) RequireControlTier(at Control) error {
+	if l.ControlPort == 0 {
+		return fmt.Errorf(
+			errNoControlGateway,
+			ErrRangeIncomplete,
+			ControlGatewayName,
+		)
+	}
+
+	address, variable := l.controlDependency(at)
+	if address == "" {
+		return fmt.Errorf(
+			errNoControlAddr,
+			ErrRangeIncomplete,
+			at,
+			ControlGatewayName,
+			variable,
+		)
+	}
+
+	return nil
+}
+
+// ControlEndpoint says where khaos binds the proxy for one control and which
+// real dependency that proxy forwards to. The listen port comes from the
+// gateway's own environment and the upstream from the dependency's address on
+// the range network, which the host routes to.
+func (l Lab) ControlEndpoint(
+	ctx context.Context,
+	reader PortReader,
+	at Control,
+) (string, string, error) {
+	if err := l.RequireControlTier(at); err != nil {
+		return "", "", err
+	}
+
+	gatewayIP, err := reader.BridgeGateway(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	address, _ := l.controlDependency(at)
+
+	port, err := controlPort(address)
+	if err != nil {
+		return "", "", err
+	}
+
+	upstream, err := l.controlUpstream(ctx, reader, at)
+	if err != nil {
+		return "", "", err
+	}
+
+	return net.JoinHostPort(gatewayIP, strconv.Itoa(port)), upstream, nil
+}
+
+// controlPort reads the port out of either shape the gateway holds: the
+// limiter's datastore is a bare host:port and the other two are URLs.
+func controlPort(address string) (int, error) {
+	if strings.Contains(address, "://") {
+		return portOfURL(address)
+	}
+
+	_, raw, err := net.SplitHostPort(address)
+	if err != nil {
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			ControlGatewayName,
+			address,
+			err,
+		)
+	}
+
+	port, err := strconv.Atoi(raw)
+	if err != nil || port <= 0 {
+		return 0, fmt.Errorf(
+			errBadUpstream,
+			ErrRangeIncomplete,
+			ControlGatewayName,
+			address,
+			err,
+		)
+	}
+
+	return port, nil
+}
+
+func (l Lab) controlUpstream(
+	ctx context.Context,
+	reader PortReader,
+	at Control,
+) (string, error) {
+	name, port := ControldName, strconv.Itoa(GatewayInternalPort)
+	if at == ControlLimiter {
+		name, port = RedisName, redisPort
+	}
+
+	targets, err := reader.Targets(ctx, dockerx.Filter{Project: ProjectName})
+	if err != nil {
+		return "", err
+	}
+
+	for _, target := range targets {
+		if target.Name != name || !target.Running {
+			continue
+		}
+
+		address, err := reader.NetworkAddress(ctx, target.ID, NetworkName)
+		if err != nil {
+			return "", err
+		}
+
+		return net.JoinHostPort(address, port), nil
+	}
+
+	return "", fmt.Errorf(
+		errNoControlGateway,
+		ErrRangeIncomplete,
+		name,
+	)
 }
 
 func (l Lab) SecretGatewayURL() string {

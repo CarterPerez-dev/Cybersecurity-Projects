@@ -5,8 +5,13 @@ package run
 
 import (
 	"context"
+	"errors"
 
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
+)
+
+var ErrNothingApplied = errors.New(
+	"khaos was asked to restart the target before any fault had been applied, so there is no container it can be sure was meant",
 )
 
 type Resolver interface {
@@ -83,4 +88,16 @@ func (i *Injector) Confirm(ctx context.Context) (string, error) {
 
 func (i *Injector) Revert(ctx context.Context) error {
 	return i.Session.RevertAll(ctx, i.Progress)
+}
+
+// Restart restarts the container this run's fault was applied to, which is the
+// container the engine resolved and consent-checked before injecting. A
+// restart asked for before anything was injected is a refusal rather than a
+// guess at which container was meant.
+func (i *Injector) Restart(ctx context.Context) error {
+	if len(i.applied) == 0 {
+		return ErrNothingApplied
+	}
+
+	return i.Session.Restart(ctx, i.applied[0].target)
 }

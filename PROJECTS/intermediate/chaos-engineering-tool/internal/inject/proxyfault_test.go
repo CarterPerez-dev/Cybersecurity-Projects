@@ -35,7 +35,11 @@ func armed(t *testing.T, fault proxy.Fault) Env {
 	)
 	t.Cleanup(server.Close)
 
-	p, err := proxy.Open(loopback, strings.TrimPrefix(server.URL, "http://"))
+	p, err := proxy.Open(
+		loopback,
+		strings.TrimPrefix(server.URL, "http://"),
+		"",
+	)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -338,7 +342,7 @@ func TestInProcessKindsAreNotOfferedForDirectInjection(t *testing.T) {
 }
 
 func TestTheProxyBindRefusesAnExposedAddress(t *testing.T) {
-	if _, err := proxy.Open("0.0.0.0:0", "127.0.0.1:1"); err == nil {
+	if _, err := proxy.Open("0.0.0.0:0", "127.0.0.1:1", ""); err == nil {
 		t.Fatal("the fault proxy bound every address on the host")
 	}
 

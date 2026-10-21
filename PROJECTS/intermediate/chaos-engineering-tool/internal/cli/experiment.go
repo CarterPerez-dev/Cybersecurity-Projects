@@ -799,6 +799,7 @@ func rangeSupplies() []string {
 		experiment.ParamTarget,
 		experiment.ParamURL,
 		experiment.ParamToken,
+		experiment.ParamRefusedFrom,
 		experiment.ParamAuthority,
 		experiment.ParamRevocable,
 		experiment.ParamIssuer,
@@ -838,9 +839,29 @@ const (
 	tierSecret
 	tierEnv
 	tierAuthz
+
+	// Three tiers over ONE gateway, because that gateway carries three
+	// controls and each has its own measurement path. The mechanism cannot
+	// tell them apart: all three sever with the same proxy.
+	tierControlLimiter
+	tierControlPolicy
+	tierControlRules
 )
 
-func tierOf(kind string) tier {
+func tierOf(definition experiment.Definition) tier {
+	switch definition.Control {
+	case experiment.SubjectLimiter:
+		return tierControlLimiter
+	case experiment.SubjectPolicy:
+		return tierControlPolicy
+	case experiment.SubjectRules:
+		return tierControlRules
+	}
+
+	return tierForKind(definition.FaultKind)
+}
+
+func tierForKind(kind string) tier {
 	switch {
 	case inject.NeedsProxy(kind):
 		return tierProxy
@@ -901,6 +922,24 @@ type tierAnswers struct {
 	readyURL     string
 	secretPath   string
 	variable     string
+
+	// Where khaos fetches a fresh input the control must refuse, once per
+	// probe. The control family's negative control is signed, so it cannot
+	// carry an appended nonce and has to be re-issued instead.
+	refusedFrom string
+}
+
+// controlPath is the endpoint whose answer one control decides. Three tiers
+// share one gateway, so the path is the only thing that separates them.
+func controlPath(at tier) string {
+	switch at {
+	case tierControlLimiter:
+		return rangelab.LimitedPath
+	case tierControlPolicy:
+		return rangelab.GovernedPath
+	default:
+		return rangelab.FilteredPath
+	}
 }
 
 func answersFor(lab rangelab.Lab, at tier) tierAnswers {
@@ -973,6 +1012,14 @@ func answersFor(lab rangelab.Lab, at tier) tierAnswers {
 		answers.url = lab.AuthzProtectedURL()
 		answers.target = rangelab.AuthzGatewayName
 
+	// One gateway, three endpoints. The target is the gateway in all three:
+	// the fault lands on khaos's proxy in front of a dependency, so the
+	// gateway is the only container whose consent is needed.
+	case tierControlLimiter, tierControlPolicy, tierControlRules:
+		answers.url = lab.ControlGatewayURL() + controlPath(at)
+		answers.target = rangelab.ControlGatewayName
+		answers.refusedFrom = lab.RefusedInputURL()
+
 	default:
 		// The direct tier's URL and target are the values set above.
 	}
@@ -1019,6 +1066,7 @@ func rangeDefaults(
 	// sends an operator looking for a flag that does nothing.
 	for name, value := range map[string]string{
 		experiment.ParamURL:          tiered.url,
+		experiment.ParamRefusedFrom:  tiered.refusedFrom,
 		experiment.ParamEngine:       tiered.engine,
 		experiment.ParamEngineTarget: tiered.engineTarget,
 		experiment.ParamSubjectRole:  tiered.subjectRole,
@@ -1068,7 +1116,7 @@ func fillFromRange(
 	}
 
 	// Refuse before announcing, or the note names a URL resolved to port 0.
-	at := tierOf(definition.FaultKind)
+	at := tierOf(definition)
 
 	if err := requireTier(lab, at); err != nil {
 		return nil, err
@@ -1160,6 +1208,22 @@ func requireTier(lab rangelab.Lab, at tier) error {
 	case tierAuthz:
 		return lab.RequireAuthzTier()
 
+	// The limiter is the one control whose dependency is a real engine, so it
+	// is the one that needs the opt-in stateful tier. The other two are
+	// refused only when the gateway or its address is missing.
+	case tierControlLimiter:
+		if err := lab.RequireStatefulTier(); err != nil {
+			return err
+		}
+
+		return lab.RequireControlTier(rangelab.ControlLimiter)
+
+	case tierControlPolicy:
+		return lab.RequireControlTier(rangelab.ControlPolicy)
+
+	case tierControlRules:
+		return lab.RequireControlTier(rangelab.ControlRules)
+
 	default:
 		// The direct tier needs only the gateway Discover already found.
 	}
@@ -1239,7 +1303,7 @@ func startProxy(
 ) (*proxy.Proxy, error) {
 	listen, upstream := spec.ProxyListen, spec.ProxyUpstream
 
-	fault, err := proxy.Open(listen, upstream)
+	fault, err := proxy.Open(listen, upstream, spec.ProxyProbe)
 	if err != nil {
 		if errors.Is(err, proxy.ErrUnsafeBind) {
 			return nil, err
@@ -1923,7 +1987,8 @@ func portOf(issuer string) (int, error) {
 }
 
 func credentialParam(name string) bool {
-	return name == experiment.ParamToken || name == experiment.ParamRevocable
+	return name == experiment.ParamToken ||
+		name == experiment.ParamRevocable
 }
 
 // askForCredentials mints whichever credentials this experiment declared, from
@@ -1966,6 +2031,27 @@ func askForCredentials(
 	return nil
 }
 
+// proxyEndpointFor resolves which dependency this run's proxy sits in front
+// of. Every control family member severs with the same mechanism, so the
+// address comes from the tier rather than from the fault.
+func proxyEndpointFor(
+	ctx context.Context,
+	reader rangelab.PortReader,
+	lab rangelab.Lab,
+	at tier,
+) (string, string, error) {
+	switch at {
+	case tierControlLimiter:
+		return lab.ControlEndpoint(ctx, reader, rangelab.ControlLimiter)
+	case tierControlPolicy:
+		return lab.ControlEndpoint(ctx, reader, rangelab.ControlPolicy)
+	case tierControlRules:
+		return lab.ControlEndpoint(ctx, reader, rangelab.ControlRules)
+	default:
+		return lab.ProxyEndpoint(ctx, reader)
+	}
+}
+
 // issuerFor is whichever fixture will be the one VERIFYING. For the secret
 // family that is the fixture itself, because khaos never reads the secret and a
 // token signed with any other key would be refused for a reason that has
@@ -1996,6 +2082,9 @@ func issuerFor(
 
 		return lab.IssueAuthzToken, nil
 
+	case tierControlLimiter, tierControlPolicy, tierControlRules:
+		return lab.IssueControlToken, nil
+
 	default:
 		// Every other tier's credential comes from the range's own identity
 		// provider through the direct gateway.
@@ -2019,7 +2108,7 @@ func askTheRange(
 
 	if want(experiment.ParamProxyListen) ||
 		want(experiment.ParamProxyUpstream) {
-		listen, upstream, err := lab.ProxyEndpoint(ctx, reader)
+		listen, upstream, err := proxyEndpointFor(ctx, reader, lab, at)
 		if err != nil {
 			return rangeAnswers{}, err
 		}

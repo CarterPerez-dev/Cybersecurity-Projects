@@ -45,7 +45,7 @@ func through(t *testing.T) *Proxy {
 
 	server := upstreamServer(t)
 
-	p, err := Open(loopback, strings.TrimPrefix(server.URL, "http://"))
+	p, err := Open(loopback, strings.TrimPrefix(server.URL, "http://"), "")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -501,7 +501,7 @@ func TestAFaultThatCannotExpressItselfIsRefused(t *testing.T) {
 }
 
 func TestAnUnreachableDependencyIsNotMistakenForAFault(t *testing.T) {
-	p, err := Open(loopback, "127.0.0.1:1")
+	p, err := Open(loopback, "127.0.0.1:1", "")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -719,7 +719,7 @@ func TestAHalfClosingClientStillReceivesTheWholeAnswer(t *testing.T) {
 // input it MUST refuse rather than a comment saying what callers should pass.
 func TestOpenRefusesAnAddressThatWouldExposeTheProxy(t *testing.T) {
 	for _, addr := range []string{"0.0.0.0:0", ":0", "[::]:0", "0.0.0.0:45001"} {
-		p, err := Open(addr, "127.0.0.1:1")
+		p, err := Open(addr, "127.0.0.1:1", "")
 		if err == nil {
 			bound := p.Addr()
 			_ = p.Close()
@@ -808,7 +808,7 @@ func TestOpenRefusesThisHostsRoutableAddress(t *testing.T) {
 		t.Skip("this host has no non-bridge routable IPv4 address to try")
 	}
 
-	p, err := Open(net.JoinHostPort(routable, "45999"), "127.0.0.1:1")
+	p, err := Open(net.JoinHostPort(routable, "45999"), "127.0.0.1:1", "")
 	if err == nil {
 		bound := p.Addr()
 		_ = p.Close()
@@ -856,6 +856,7 @@ func TestOpenAcceptsABridgeAddress(t *testing.T) {
 			p, err := Open(
 				net.JoinHostPort(network.IP.String(), "0"),
 				"127.0.0.1:1",
+				"",
 			)
 			if err != nil {
 				t.Fatalf(

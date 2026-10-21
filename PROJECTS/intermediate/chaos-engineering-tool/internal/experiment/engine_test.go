@@ -45,9 +45,15 @@ type scriptedInjector struct {
 	injectErr     error
 	revertErr     error
 	confirmErr    error
+	restartErr    error
 	unconfirmable bool
 	injects       int
 	reverts       int
+	restarts      int
+
+	// restarted lets a probe see that the target went away, so a test can
+	// model a container that does not come back.
+	restarted *bool
 }
 
 func (i *scriptedInjector) Inject(context.Context, string, string) error {
@@ -73,6 +79,20 @@ func (i *scriptedInjector) Revert(context.Context) error {
 	i.reverts++
 	*i.faulted = false
 	return i.revertErr
+}
+
+func (i *scriptedInjector) Restart(context.Context) error {
+	i.restarts++
+
+	if i.restartErr != nil {
+		return i.restartErr
+	}
+
+	if i.restarted != nil {
+		*i.restarted = true
+	}
+
+	return nil
 }
 
 func quickTiming() Timing {
@@ -389,5 +409,191 @@ func TestTheHypothesisUsesTheCanonicalTemplate(t *testing.T) {
 	want := "In the event of the identity provider being unreachable, we are confident that our system will respond with a refusal."
 	if got := h.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// goneAfterRestart answers normally until the target is restarted and never
+// again, which is what a container that does not come back looks like. The
+// baseline has to be measurable or the run is voided before the restart and
+// the test passes for the wrong reason.
+type goneAfterRestart struct {
+	credential probe.Credential
+	restarted  *bool
+}
+
+func (p goneAfterRestart) Name() string { return "gone-after-restart" }
+
+func (p goneAfterRestart) Describe() string { return "a probe that stops answering" }
+
+func (p goneAfterRestart) Credential() probe.Credential { return p.credential }
+
+func (p goneAfterRestart) Run(context.Context) probe.Outcome {
+	disposition := probe.Accepted
+	if *p.restarted {
+		disposition = probe.Unreachable
+	}
+
+	return probe.Outcome{
+		At:          time.Now().UTC(),
+		Credential:  p.credential,
+		Disposition: disposition,
+	}
+}
+
+// coldSpec is a run whose fault is the target INITIALISING without a
+// dependency it had a moment ago.
+func coldSpec(valid, invalid probe.Probe) Experiment {
+	out := spec(valid, invalid)
+	out.ColdStart = true
+
+	return out
+}
+
+// The restart is the injection for this experiment, so a coldStart that
+// silently did nothing would leave the verdict, the exit code and the stage
+// line unchanged: the stage is emitted BEFORE the restart is attempted.
+func TestAColdStartRunActuallyRestartsTheTarget(t *testing.T) {
+	faulted := false
+	calls := 0
+
+	injector := &scriptedInjector{faulted: &faulted}
+	engine := Engine{Injector: injector}
+
+	if _, err := engine.Run(context.Background(), coldSpec(
+		scriptedProbe{
+			probe.Valid,
+			probe.Accepted,
+			probe.Accepted,
+			&faulted,
+			&calls,
+		},
+		scriptedProbe{
+			probe.Invalid,
+			probe.Rejected,
+			probe.Rejected,
+			&faulted,
+			&calls,
+		},
+	)); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	if injector.restarts != 1 {
+		t.Fatalf(
+			"a cold-start run restarted the target %d time(s), want exactly 1",
+			injector.restarts,
+		)
+	}
+}
+
+// And an experiment that does NOT declare it must not restart anything, or
+// every other family pays for this one.
+func TestAnOrdinaryRunNeverRestartsTheTarget(t *testing.T) {
+	faulted := false
+	calls := 0
+
+	injector := &scriptedInjector{faulted: &faulted}
+	engine := Engine{Injector: injector}
+
+	if _, err := engine.Run(context.Background(), spec(
+		scriptedProbe{
+			probe.Valid,
+			probe.Accepted,
+			probe.Accepted,
+			&faulted,
+			&calls,
+		},
+		scriptedProbe{
+			probe.Invalid,
+			probe.Rejected,
+			probe.Rejected,
+			&faulted,
+			&calls,
+		},
+	)); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	if injector.restarts != 0 {
+		t.Fatalf(
+			"an experiment that declares no cold start restarted the target %d time(s)",
+			injector.restarts,
+		)
+	}
+}
+
+// A restart khaos could not perform means the fault window would measure a
+// target in the wrong state, so the run is abandoned and the fault reverted
+// rather than reported.
+func TestAFailedRestartAbandonsTheRunAndRevertsTheFault(t *testing.T) {
+	faulted := false
+	calls := 0
+
+	wanted := errors.New("the daemon refused the restart")
+
+	injector := &scriptedInjector{faulted: &faulted, restartErr: wanted}
+	engine := Engine{Injector: injector}
+
+	_, err := engine.Run(context.Background(), coldSpec(
+		scriptedProbe{
+			probe.Valid,
+			probe.Accepted,
+			probe.Accepted,
+			&faulted,
+			&calls,
+		},
+		scriptedProbe{
+			probe.Invalid,
+			probe.Rejected,
+			probe.Rejected,
+			&faulted,
+			&calls,
+		},
+	))
+
+	if !errors.Is(err, wanted) {
+		t.Fatalf("the restart failure was not surfaced: %v", err)
+	}
+
+	if injector.reverts == 0 {
+		t.Fatal("the fault was left applied after the restart failed")
+	}
+
+	if faulted {
+		t.Fatal("the fault is still armed after the run abandoned")
+	}
+}
+
+// A target that never answers again produces a NAMED refusal rather than a
+// measured window: there is nothing to measure, and reporting HELD would
+// claim a survival khaos never saw.
+func TestATargetThatNeverComesBackIsNamedRatherThanMeasured(t *testing.T) {
+	faulted := false
+	calls := 0
+
+	injector := &scriptedInjector{faulted: &faulted}
+	engine := Engine{Injector: injector, SettleFor: 20 * time.Millisecond}
+
+	restarted := false
+	injector.restarted = &restarted
+
+	run := coldSpec(
+		goneAfterRestart{probe.Valid, &restarted},
+		scriptedProbe{
+			probe.Invalid,
+			probe.Rejected,
+			probe.Rejected,
+			&faulted,
+			&calls,
+		},
+	)
+
+	_, err := engine.Run(context.Background(), run)
+
+	if !errors.Is(err, ErrNeverCameBack) {
+		t.Fatalf(
+			"a target that never answered after the restart did not produce ErrNeverCameBack: %v",
+			err,
+		)
 	}
 }

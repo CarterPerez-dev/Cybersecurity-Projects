@@ -109,6 +109,10 @@ func (i *cachingInjector) Revert(context.Context) error {
 	return nil
 }
 
+func (i *cachingInjector) Restart(context.Context) error {
+	return nil
+}
+
 // The negative control here is deliberately NOT unique, and that is the opposite
 // of what network.dependency_outage needs. There, the control is a credential no
 // verifier could ever accept, so a FIXED one lets a cached refusal answer every

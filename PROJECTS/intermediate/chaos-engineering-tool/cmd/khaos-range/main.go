@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -29,6 +30,8 @@ const (
 	roleDB       = "db"
 	roleSecret   = "secret"
 	roleAuthz    = "authz"
+	roleControl  = "control"
+	roleControld = "controld"
 	roleHealth   = "healthcheck"
 	roleAlive    = "alivecheck"
 
@@ -63,6 +66,30 @@ const (
 
 	envAuthzMode = "KHAOS_RANGE_AUTHZ_MODE"
 
+	// One address per control, so khaos's proxy severs exactly one of the
+	// three. The policy store and the rule set terminate at the same backend
+	// and are still two dependencies, because the fault is in the path.
+	envLimitStore  = "KHAOS_RANGE_LIMIT_STORE"
+	envPolicyStore = "KHAOS_RANGE_POLICY_STORE"
+	envRulesStore  = "KHAOS_RANGE_RULES_STORE"
+	envLimit       = "KHAOS_RANGE_LIMIT"
+
+	// What the control gateway authenticates WITH. It verifies a signature
+	// rather than remembering what it issued, because the cold-start
+	// experiment restarts it.
+	envControlSecret = "KHAOS_RANGE_CONTROL_SECRET"
+
+	// Deliberately unreachable, like every other dependency default: a
+	// plausible one would let the gateway start and measure nothing.
+	defaultLimitStore  = "127.0.0.1:0"
+	defaultPolicyStore = "http://host.docker.internal:0"
+	defaultRulesStore  = "http://host.docker.internal:0"
+
+	// Generous enough that khaos's own probe interval never exhausts it, so
+	// the budget the experiment measures is the flagged credential's zero and
+	// never an artefact of how fast khaos asks.
+	defaultLimit = 1000
+
 	// Where the service-to-service caller asks for an authorization decision,
 	// which is khaos itself: no correct dependency answers a definitive deny
 	// on request.
@@ -87,7 +114,7 @@ const (
 	// look like the fault's.
 	readHeaderTimeout = 120 * time.Second
 
-	usage          = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|db|secret|authz|healthcheck|alivecheck>"
+	usage          = "usage: khaos-range <idp|gateway|verifier|tls|rogue|resolver|db|secret|authz|control|controld|healthcheck|alivecheck>"
 	selfBase       = "http://127.0.0.1:8080"
 	selfHealthPath = "/health"
 	selfAlivePath  = "/alive"
@@ -182,6 +209,17 @@ func roleHandler(role string) (http.Handler, error) {
 			envOr(envAuthzBase, defaultAuthzBase),
 			envOr(envAuthzMode, AuthzDistinguishes),
 		).routes(), nil
+	case roleControl:
+		return newControlGateway(
+			envOr(envLimitStore, defaultLimitStore),
+			envOr(envPolicyStore, defaultPolicyStore),
+			envOr(envRulesStore, defaultRulesStore),
+			envOr(envFailMode, FailClosed),
+			os.Getenv(envControlSecret),
+			int64Or(envLimit, defaultLimit),
+		).routes(), nil
+	case roleControld:
+		return newControlBackend().routes(), nil
 	case roleSecret:
 		return newSecretGateway(
 			envOr(envSecretPath, defaultSecretPath),
@@ -249,6 +287,14 @@ func envOr(name, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func int64Or(name string, fallback int64) int64 {
+	value, err := strconv.ParseInt(os.Getenv(name), 10, 64)
+	if err != nil || value < 0 {
+		return fallback
+	}
+	return value
 }
 
 func durationOr(name string, fallback time.Duration) time.Duration {

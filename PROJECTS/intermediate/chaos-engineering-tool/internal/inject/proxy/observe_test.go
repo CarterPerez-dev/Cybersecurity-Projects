@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -142,7 +143,11 @@ func TestASlowDependencyDoesNotConfirmAFaultThatIsNotHappening(t *testing.T) {
 		{Kind: Latency, Delay: 300 * time.Millisecond},
 	} {
 		t.Run(string(fault.Kind), func(t *testing.T) {
-			p, err := Open(loopback, strings.TrimPrefix(slow.URL, "http://"))
+			p, err := Open(
+				loopback,
+				strings.TrimPrefix(slow.URL, "http://"),
+				"",
+			)
 			if err != nil {
 				t.Fatalf("open: %v", err)
 			}
@@ -173,7 +178,7 @@ func TestASlowDependencyDoesNotConfirmAFaultThatIsNotHappening(t *testing.T) {
 // unattributable observation, and saying so voids the run instead of crediting
 // khaos for an outage it did not cause.
 func TestAnUnreachableDependencyCannotConfirmAnything(t *testing.T) {
-	p, err := Open(loopback, "127.0.0.1:1")
+	p, err := Open(loopback, "127.0.0.1:1", "")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -243,7 +248,7 @@ func TestPartialDoesNotConfirmWhenNothingWasTruncated(t *testing.T) {
 	)
 	defer server.Close()
 
-	p, err := Open(loopback, strings.TrimPrefix(server.URL, "http://"))
+	p, err := Open(loopback, strings.TrimPrefix(server.URL, "http://"), "")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -362,5 +367,78 @@ func TestMeasureReadsBothPathsOfTheDifferential(t *testing.T) {
 			proxied.total,
 			direct.total,
 		)
+	}
+}
+
+// The oracle needs the dependency to ANSWER on the direct path, and an HTTP
+// request is not something every dependency answers. Measured on
+// redis:7.4-alpine: the HTTP payload gets zero bytes and a close, so the
+// oracle reported the datastore unreachable and voided the limiter's run.
+func TestTheConfirmationProbeSpeaksTheDependencysProtocol(t *testing.T) {
+	// A dependency that answers RESP and nothing else, which is what the
+	// limiter's datastore is.
+	listener, err := net.Listen("tcp", loopback)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+
+			go func() {
+				defer func() { _ = conn.Close() }()
+
+				buffer := make([]byte, 64)
+
+				read, err := conn.Read(buffer)
+				if err != nil || !strings.Contains(
+					string(buffer[:read]),
+					"PING",
+				) {
+					return
+				}
+
+				_, _ = io.WriteString(conn, "+PONG\r\n")
+			}()
+		}
+	}()
+
+	upstream := listener.Addr().String()
+
+	for _, row := range []struct {
+		name   string
+		probe  string
+		answer bool
+	}{
+		{"the default HTTP request", "", false},
+		{"RESP", ProbeRESP, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			p, err := Open(loopback, upstream, row.probe)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			defer func() { _ = p.Close() }()
+
+			direct, _ := p.measure(
+				context.Background(),
+				p.upstream,
+				observeGrace,
+			)
+
+			if answered := direct.total > 0; answered != row.answer {
+				t.Fatalf(
+					"%s measured %d bytes on the direct path, want answered=%v",
+					row.name,
+					direct.total,
+					row.answer,
+				)
+			}
+		})
 	}
 }

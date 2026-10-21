@@ -179,7 +179,7 @@ func (p *Proxy) measure(
 
 	started := time.Now()
 
-	if _, err := io.WriteString(conn, probePayload); err != nil {
+	if _, err := io.WriteString(conn, p.probe); err != nil {
 		return reading{}, err
 	}
 

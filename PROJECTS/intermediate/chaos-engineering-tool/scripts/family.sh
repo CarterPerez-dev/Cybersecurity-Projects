@@ -177,9 +177,9 @@ assert_confirmed_by_an_observable() {
 # happened: "a credential khaos revoked was still accepted" is not "a credential
 # khaos minted with a deliberate defect was accepted".
 # Per CLASS, not an OR over every phrase khaos can print. An OR let a forgery
-# experiment satisfy this with the generic monotonic reason, which says a
-# credential the target had already rejected got through and says nothing about
-# the trap the experiment is named for.
+# experiment satisfy this with the generic monotonic reason, which says an
+# input the target had already refused got through and says nothing about the
+# trap the experiment is named for.
 assert_states_a_finding() {
     local label="$1" want="$2"
 
@@ -367,7 +367,7 @@ for row in "${CATCHING[@]}"; do
                 assert_reports_the_exposure_bound "$label"
                 ;;
             identity.introspection_error | identity.malformed_response | identity.idp_latency)
-                assert_states_a_finding "$label" "had already rejected"
+                assert_states_a_finding "$label" "had already refused"
                 assert_does_not_claim_a_revocation "$label"
                 ;;
             *)

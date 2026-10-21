@@ -181,6 +181,9 @@ func allTiers() []tier {
 		tierSecret,
 		tierEnv,
 		tierAuthz,
+		tierControlLimiter,
+		tierControlPolicy,
+		tierControlRules,
 	}
 }
 
@@ -204,6 +207,12 @@ func tierName(at tier) string {
 		return "at the variable the service verifies with"
 	case tierAuthz:
 		return "at the service whose authorization dependency khaos answers"
+	case tierControlLimiter:
+		return "at the rate limiter's datastore"
+	case tierControlPolicy:
+		return "at the policy engine's policy store"
+	case tierControlRules:
+		return "at the rule matcher's rules backend"
 	default:
 		return "direct"
 	}
@@ -239,6 +248,14 @@ func fullLab() rangelab.Lab {
 		// the caller itself publishes.
 		AuthzPort: 30014,
 		AuthzBase: "http://host.docker.internal:30013",
+
+		// The control gateway, and the three addresses it was told to find
+		// its three dependencies on. Distinct from each other because the
+		// whole point of the tier is that khaos severs exactly one.
+		ControlPort:       30015,
+		ControlStoreAddr:  "host.docker.internal:30016",
+		ControlPolicyAddr: "http://host.docker.internal:30017",
+		ControlRulesAddr:  "http://host.docker.internal:30018",
 	}
 }
 
@@ -750,7 +767,7 @@ func TestTheRangeCanSatisfyEveryExperimentsRequiredParameters(t *testing.T) {
 			defaults := rangeDefaults(
 				lab,
 				testAnswers,
-				tierOf(definition.FaultKind),
+				tierOf(definition),
 			)
 
 			supplied := map[string]string{}
@@ -808,6 +825,10 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 		tierSecret: lab.SecretProtectedURL(),
 		tierEnv:    lab.EnvProtectedURL(),
 		tierAuthz:  lab.AuthzProtectedURL(),
+
+		tierControlLimiter: lab.ControlGatewayURL() + rangelab.LimitedPath,
+		tierControlPolicy:  lab.ControlGatewayURL() + rangelab.GovernedPath,
+		tierControlRules:   lab.ControlGatewayURL() + rangelab.FilteredPath,
 	}
 
 	seen := map[string]tier{}
@@ -826,7 +847,7 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 
 	for _, definition := range experiment.Catalog() {
 		t.Run(definition.Name, func(t *testing.T) {
-			at := tierOf(definition.FaultKind)
+			at := tierOf(definition)
 			exercised[at] = true
 
 			defaults := rangeDefaults(lab, testAnswers, at)
@@ -882,6 +903,13 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 			// listener in khaos's own process rather than a container at all.
 			case tierAuthz:
 				wantTarget = rangelab.AuthzGatewayName
+
+			// One gateway for all three, because the fault lands on khaos's
+			// proxy in front of a dependency rather than on the dependency.
+			// The three tiers differ in which of its controls is measured,
+			// never in whose consent is needed.
+			case tierControlLimiter, tierControlPolicy, tierControlRules:
+				wantTarget = rangelab.ControlGatewayName
 
 			default:
 				// The direct and proxy tiers fault the dependency itself.

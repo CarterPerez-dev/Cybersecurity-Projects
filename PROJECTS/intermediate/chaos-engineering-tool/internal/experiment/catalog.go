@@ -58,6 +58,11 @@ type Shape struct {
 	ProxyListen   string
 	ProxyUpstream string
 
+	// What the confirmation probe says to the dependency. Empty keeps the
+	// HTTP request; a dependency that does not speak HTTP answers one with
+	// nothing, which the oracle correctly reads as unreachable.
+	ProxyProbe string
+
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
 
@@ -119,6 +124,12 @@ type Shape struct {
 	ShiftDetail string
 	ShiftWhat   string
 
+	// ColdStart restarts the target inside the fault window, so it
+	// INITIALISES with the dependency already unreachable. The baseline has
+	// to precede it: a target that boots broken refuses nothing, so khaos's
+	// own guard would void the run rather than measure one.
+	ColdStart bool
+
 	Unsupportable string
 	CacheRequired string
 	DeliveredWhat string
@@ -139,8 +150,14 @@ type Definition struct {
 	Hypothesis Hypothesis
 	Polarity   Polarity
 	FaultKind  string
-	Params     []Param
-	Build      func(*Params) (Shape, error)
+
+	// Control is which of a gateway's controls this experiment severs, for
+	// the family whose four members share one mechanism and one gateway and
+	// differ only in the dependency they take away.
+	Control ControlSubject
+
+	Params []Param
+	Build  func(*Params) (Shape, error)
 }
 
 const (
@@ -293,6 +310,7 @@ func Build(
 		ProxyFault:    shape.ProxyFault,
 		ProxyListen:   shape.ProxyListen,
 		ProxyUpstream: shape.ProxyUpstream,
+		ProxyProbe:    shape.ProxyProbe,
 		IdP:           shape.IdP,
 		IdPTrap:       shape.IdPTrap,
 
@@ -305,6 +323,7 @@ func Build(
 		Shift:           shape.Shift,
 		ShiftDetail:     shape.ShiftDetail,
 		ShiftWhat:       shape.ShiftWhat,
+		ColdStart:       shape.ColdStart,
 		AuthorityBase:   shape.AuthorityBase,
 		AuthorityListen: shape.AuthorityListen,
 		AuthorityTLS:    shape.AuthorityTLS,

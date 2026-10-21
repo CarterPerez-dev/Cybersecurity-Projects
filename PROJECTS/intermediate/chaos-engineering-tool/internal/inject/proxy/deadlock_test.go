@@ -27,7 +27,7 @@ func TestCloseDoesNotDeadlockAgainstAWedgedDependency(t *testing.T) {
 		}
 	}()
 
-	p, err := Open("127.0.0.1:0", wedged.Addr().String())
+	p, err := Open("127.0.0.1:0", wedged.Addr().String(), "")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

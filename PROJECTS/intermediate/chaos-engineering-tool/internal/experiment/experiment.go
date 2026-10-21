@@ -109,6 +109,9 @@ type Experiment struct {
 	ProxyListen   string
 	ProxyUpstream string
 
+	// What the confirmation probe says to the dependency. Empty keeps HTTP.
+	ProxyProbe string
+
 	IdP     *idp.Provider
 	IdPTrap *idp.Trap
 
@@ -151,6 +154,11 @@ type Experiment struct {
 	HeldCaveat string
 
 	ClosedWhen []probe.Disposition
+
+	// ColdStart restarts the target inside the fault window so it initialises
+	// with the dependency already gone. The baseline precedes it deliberately:
+	// a target that boots broken refuses nothing and voids its own run.
+	ColdStart bool
 
 	// The liveness guard for an experiment that faults an ENDPOINT rather than a
 	// credential, where the probe streams cannot see whether the fault landed.

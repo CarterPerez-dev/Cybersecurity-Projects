@@ -52,7 +52,7 @@ const (
 	flagAuthzMode  = "authz-mode"
 	flagDNSMode    = "dns-mode"
 
-	mintedSecrets = 4
+	mintedSecrets = 5
 
 	rangeShort = "bring up a target stack that is deliberately breakable"
 	rangeLong  = `The range is a small stack khaos ships so you have something to break before you
@@ -252,6 +252,13 @@ func mintRangeSecrets(lab *rangelab.Lab) error {
 	// gets its own from the range IMAGE, because a volume seeded from the
 	// image is what lets it be mounted read-only.
 	lab.SecretValue = secrets[3]
+
+	// The control gateway's signing key. It authenticates by SIGNATURE rather
+	// than from a set it remembers, because the cold-start experiment restarts
+	// it: an in-memory set is empty afterwards, every credential khaos holds
+	// reads as unknown, and the run measures the restart instead of the
+	// policy. Measured on a live range before this key existed.
+	lab.ControlSecret = secrets[4]
 
 	return nil
 }

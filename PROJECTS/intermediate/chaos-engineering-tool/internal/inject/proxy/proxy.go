@@ -32,6 +32,11 @@ const (
 
 	probePayload = "GET / HTTP/1.1\r\nHost: khaos.confirm\r\nConnection: close\r\n\r\n"
 
+	// RESP, for a dependency that speaks it. Measured on redis:7.4-alpine:
+	// the HTTP payload above gets zero bytes and a close, while this gets
+	// `+PONG\r\n`, and the oracle needs bytes on the direct path.
+	ProbeRESP = "*1\r\n$4\r\nPING\r\n"
+
 	observedHang      = "the dependency answers khaos directly but never through its proxy"
 	observedReset     = "the dependency answers khaos directly but resets through its proxy"
 	observedEOF       = "the dependency answers khaos directly but closes without answering through its proxy"
@@ -59,6 +64,13 @@ type Proxy struct {
 	listener net.Listener
 	state    atomic.Pointer[armed]
 
+	// What the confirmation probe SAYS to the dependency. The differential
+	// needs the dependency to answer on the direct path, and a dependency
+	// that does not speak HTTP answers an HTTP request with nothing at all:
+	// measured on Redis 7.4, which returns zero bytes and closes, so the
+	// oracle reported the dependency unreachable and voided the run.
+	probe string
+
 	// Both ends are held; closing the client cannot unblock the dependency.
 	mu   sync.Mutex
 	held map[net.Conn]struct{}
@@ -76,8 +88,9 @@ type Proxy struct {
 	probes   atomic.Int64
 }
 
-// Open binds the proxy and refuses an address that would expose it.
-func Open(listenAddr, upstream string) (*Proxy, error) {
+// Open binds the proxy and refuses an address that would expose it. An empty
+// probe keeps the HTTP request every dependency before Redis spoke.
+func Open(listenAddr, upstream, probe string) (*Proxy, error) {
 	if err := bindguard.Check(listenAddr, SubjectProxy); err != nil {
 		return nil, err
 	}
@@ -87,9 +100,14 @@ func Open(listenAddr, upstream string) (*Proxy, error) {
 		return nil, err
 	}
 
+	if probe == "" {
+		probe = probePayload
+	}
+
 	p := &Proxy{
 		upstream: upstream,
 		listener: listener,
+		probe:    probe,
 		held:     map[net.Conn]struct{}{},
 		closed:   make(chan struct{}),
 	}

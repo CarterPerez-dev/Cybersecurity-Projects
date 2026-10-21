@@ -5,6 +5,7 @@ package experiment
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -404,8 +405,22 @@ func TestTheCatalogueAsksForAFreshNegativeControlCredential(t *testing.T) {
 			var mu sync.Mutex
 			seen := map[string]bool{}
 
+			// The same server also ISSUES, for the family whose negative
+			// control is signed and therefore cannot carry an appended
+			// nonce: it varies by being re-issued per probe, so a census
+			// with nowhere to issue from measures zero distinct credentials
+			// and cannot tell a fresh control from a fixed one.
 			server := httptest.NewServer(
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.Method == http.MethodPost {
+						w.Header().Set("Content-Type", "application/json")
+						_, _ = w.Write(
+							[]byte(`{"token":"` + rand.Text() + `"}`),
+						)
+
+						return
+					}
+
 					mu.Lock()
 					seen[r.Header.Get("Authorization")] = true
 					mu.Unlock()
@@ -416,6 +431,10 @@ func TestTheCatalogueAsksForAFreshNegativeControlCredential(t *testing.T) {
 
 			supplied := fill(definition.Params)
 			supplied[ParamURL] = server.URL
+
+			if _, declared := supplied[ParamRefusedFrom]; declared {
+				supplied[ParamRefusedFrom] = server.URL
+			}
 
 			spec, err := Build(definition.Name, supplied, fastTiming)
 			if err != nil {

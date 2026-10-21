@@ -292,6 +292,7 @@ func TestTheTwoForgedGuardsDoNotFireOnEachOthersExpectation(t *testing.T) {
 		acceptedThroughout,
 		probe.ExpectAccepted,
 		true,
+		nil,
 	); unmet {
 		t.Error(
 			"ExpectAccepted voided a baseline where the forged stream WAS accepted",
@@ -302,6 +303,7 @@ func TestTheTwoForgedGuardsDoNotFireOnEachOthersExpectation(t *testing.T) {
 		rejectedThroughout,
 		probe.ExpectRejected,
 		true,
+		nil,
 	); unmet {
 		t.Error(
 			"ExpectRejected voided a baseline where the forged stream WAS rejected",
@@ -316,7 +318,7 @@ func TestAnAbsentForgedStreamIsNotGuarded(t *testing.T) {
 	bare := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
 
 	for _, expect := range []probe.Expectation{"", probe.ExpectAccepted, probe.ExpectRejected} {
-		if _, unmet := baselineUnmet(bare, expect, true); unmet {
+		if _, unmet := baselineUnmet(bare, expect, true, nil); unmet {
 			t.Errorf(
 				"a baseline with no forged stream was voided under expectation %q",
 				expect,
@@ -355,7 +357,7 @@ func TestEveryStreamThatLeakedIsStated(t *testing.T) {
 		t.Errorf("the forged stream's finding is missing: %s", joined)
 	}
 
-	if !strings.Contains(joined, "had already rejected") {
+	if !strings.Contains(joined, "had already refused") {
 		t.Errorf("the monotonic finding is missing: %s", joined)
 	}
 }
@@ -419,14 +421,14 @@ func TestTheIdentityTierSaysWhyItsOwnCredentialWasRefused(t *testing.T) {
 		MinimumToClaimClosed,
 	)
 
-	minted, unmet := baselineUnmet(refused, "", true)
+	minted, unmet := baselineUnmet(refused, "", true, nil)
 	if !unmet {
 		t.Fatal(
 			"a baseline where khaos's own credential was never accepted was not voided",
 		)
 	}
 
-	operator, unmet := baselineUnmet(refused, "", false)
+	operator, unmet := baselineUnmet(refused, "", false, nil)
 	if !unmet {
 		t.Fatal(
 			"a baseline where the operator's credential was never accepted was not voided",

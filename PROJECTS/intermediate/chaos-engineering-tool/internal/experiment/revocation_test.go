@@ -124,6 +124,10 @@ func (i *severingInjector) Revert(context.Context) error {
 	return nil
 }
 
+func (i *severingInjector) Restart(context.Context) error {
+	return nil
+}
+
 func registerRevocationExperiment(
 	t *testing.T,
 	url string,

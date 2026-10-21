@@ -34,6 +34,7 @@ var fastTiming = Timing{
 type service struct {
 	dependencyUp atomic.Bool
 	failOpen     bool
+	restarts     atomic.Int64
 }
 
 func (s *service) handler() http.Handler {
@@ -76,6 +77,13 @@ func (i *serviceInjector) Confirm(context.Context) (string, error) {
 
 func (i *serviceInjector) Revert(context.Context) error {
 	i.svc.dependencyUp.Store(true)
+	return nil
+}
+
+// Restart is the real thing for this fake: the service drops what it loaded
+// from its dependency, which is what a cold start under fault looks like.
+func (i *serviceInjector) Restart(context.Context) error {
+	i.svc.restarts.Add(1)
 	return nil
 }
 
