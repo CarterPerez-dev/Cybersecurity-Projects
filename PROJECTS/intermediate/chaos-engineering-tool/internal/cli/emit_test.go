@@ -14,6 +14,7 @@ import (
 
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/record"
+	"github.com/spf13/pflag"
 )
 
 func emitted(t *testing.T) (experiment.Result, experiment.Definition) {
@@ -395,5 +396,39 @@ func TestAProjectionThatCannotBeWrittenIsNotSilent(t *testing.T) {
 
 	if !errors.Is(err, ErrRecordUnwritten) {
 		t.Fatalf("a projection khaos could not write was silent: %v", err)
+	}
+}
+
+// pflag advertises a flag's value by the FIRST backquoted word in its usage
+// string, so that placeholder is prose maintained like a signature. Three of
+// these were wrong on arrival: `--record` takes a DIRECTORY and advertised
+// `run.json`, so an operator reads the help and passes a filename; `--junit`
+// advertised `skipped`, which is a JUnit element and not a value at all; and
+// `--metrics-out` advertised nothing and fell back to `string` beside two
+// neighbours that did not.
+func TestTheReportingFlagsAdvertiseWhatTheyTake(t *testing.T) {
+	definition := outage(t)
+	sub := experimentCmdFor(t, newRunCmd(), definition)
+
+	for name, want := range map[string]string{
+		flagRecord:     "dir",
+		flagJUnit:      "file",
+		flagMetricsOut: "file",
+	} {
+		flag := sub.Flags().Lookup(name)
+		if flag == nil {
+			t.Fatalf("--%s is not registered on %s", name, definition.Name)
+		}
+
+		got, _ := pflag.UnquoteUsage(flag)
+		if got != want {
+			t.Errorf(
+				"--%s advertises %q, want %q: a placeholder an operator can "+
+					"mistake for a value or a default sends them to the wrong shape",
+				name,
+				got,
+				want,
+			)
+		}
 	}
 }

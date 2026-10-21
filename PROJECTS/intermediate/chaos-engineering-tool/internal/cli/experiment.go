@@ -51,13 +51,13 @@ const (
 	outputText = "text"
 	outputJSON = "json"
 
-	recordUsage = "a directory to write the canonical run record into, as `run.json` plus an `events.jsonl` beside it carrying one line per observation. The record is what every other output khaos produces is a projection of, and it is the only form that survives the terminal scrolling away"
+	recordUsage = "a `dir`ectory to write the canonical run record into, as run.json plus an `events.jsonl` beside it carrying one line per observation. The record is what every other output khaos produces is a projection of, and it is the only form that survives the terminal scrolling away"
 
 	outputUsage = "`text` for the terminal report, or `json` to write the run record to stdout and suppress every other line, so `khaos run x --output json | jq .verdict` works"
 
-	junitUsage = "a file to write JUnit XML to, for CI test reporters. A run khaos declined to conclude from becomes a `skipped` rather than a `failure`, which is what stops thin evidence breaking a build on noise; only a control that failed in the direction this experiment declares a defect becomes a `failure`"
+	junitUsage = "a `file` to write JUnit XML to, for CI test reporters. A run khaos declined to conclude from becomes a skipped rather than a failure, which is what stops thin evidence breaking a build on noise; only a control that failed in the direction this experiment declares a defect becomes a failure"
 
-	metricsUsage = "a file to write Prometheus text exposition to, for node_exporter's textfile collector. Written atomically and consumed by pointing that collector at the directory; khaos stands up no server and opens no port"
+	metricsUsage = "a `file` to write Prometheus text exposition to, for node_exporter's textfile collector. Written atomically and consumed by pointing that collector at the directory; khaos stands up no server and opens no port"
 
 	failOnUsage = "which outcomes keep a non-zero exit code. `any` is the default and narrows nothing, because a run khaos declined to conclude from exiting 0 is a green build on no evidence; `never` reports every measurable outcome as 0 and leaves the detail to the run record; or name the outcomes to gate on, comma separated, where `defect` alone is the shape a pipeline that should only break on a security regression wants. A rollback failure, a usage error and an internal error ignore this flag, because an unreverted fault makes every later job on that runner untrustworthy"
 
