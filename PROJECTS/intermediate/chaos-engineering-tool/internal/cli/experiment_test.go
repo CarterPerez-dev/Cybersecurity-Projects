@@ -441,9 +441,23 @@ func TestEveryExperimentRegistersExactlyItsDeclaredParameters(t *testing.T) {
 				}
 
 				registered := stringFlags(cmd)
-				want := append(
-					[]string{flagProject},
-					names(definition.Params)...)
+
+				// These three belong to `run` alone: `plan` executes
+				// nothing, so it has no outcome to gate and no record to
+				// write, and a flag there would do nothing.
+				extra := []string{flagProject}
+				if verb == "run" {
+					extra = append(
+						extra,
+						flagFailOn,
+						flagRecord,
+						flagOutput,
+						flagJUnit,
+						flagMetricsOut,
+					)
+				}
+
+				want := slices.Concat(extra, names(definition.Params))
 				slices.Sort(registered)
 				slices.Sort(want)
 

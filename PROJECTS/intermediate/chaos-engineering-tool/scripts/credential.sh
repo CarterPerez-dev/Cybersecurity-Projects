@@ -136,6 +136,39 @@ assert_verdict() {
     fi
 }
 
+# exit_for_verdict maps an expected verdict onto khaos's exit contract.
+#
+# It takes the experiment's DECLARED DEFECT DIRECTIONS as its second argument,
+# and that is not decoration: the exit code is a function of (verdict,
+# polarity), never of the verdict alone. `passed / HELD` is 0 for most of the
+# catalogue and 2 for the pooled family, where poolPolarity declares HELD the
+# defect -- a lifetime that converts a rotation into a revocation is the thing
+# those experiments hunt. An earlier version of this helper read the verdict
+# string by itself and reported four pooled assertions as exit 0 when khaos
+# correctly returned 2.
+#
+# The directions are passed per section rather than looked up, so an inverted
+# polarity is visible at the call site instead of buried in a helper.
+exit_for_verdict() {
+    local verdict="$1" defects="${2:-PERMITTED}" direction
+
+    direction="${verdict##*/ }"
+
+    if [[ " ${defects} " == *" ${direction} "* ]]; then
+        echo 2
+        return
+    fi
+
+    case "$verdict" in
+    "passed / "*) echo 0 ;;
+    "deviated / "*) echo 3 ;;
+    *)
+        echo "exit_for_verdict: no code for the verdict '$verdict'" >&2
+        echo 99
+        ;;
+    esac
+}
+
 assert_exit() {
     local label="$1" want="$2"
     if [[ "$last_code" == "$want" ]]; then
@@ -249,9 +282,13 @@ start_range() {
     local secret="${2:-unchecked}"
 
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --with-db --pool-mode "$pool" \
-        --secret-mode "$secret" --no-color --quiet >/dev/null 2>&1; then
-        fail "range up --with-db --pool-mode $pool --secret-mode $secret"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --with-db --pool-mode "$pool" \
+        --secret-mode "$secret" --no-color --quiet 2>&1)"; then
+        fail "range up --with-db --pool-mode $pool --secret-mode $secret: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -364,12 +401,6 @@ declare -A WANT_VERDICT=(
     [held]="passed / HELD"
 )
 
-declare -A WANT_EXIT=(
-    [unbounded]=2
-    [bounded]=0
-    [held]=2
-)
-
 # What khaos DID is carried by the HELD CAVEAT for these two, not by the defect
 # phrase: that phrase is part of a leak reason and a leak is exactly what a
 # HELD finding does not have. Asserting the defect phrase here failed six times
@@ -390,7 +421,8 @@ for pool in unbounded bounded held; do
         label="${experiment#credential.} on a ${pool} pool"
 
         assert_verdict "$label" "${WANT_VERDICT[$pool]}"
-        assert_exit "$label" "${WANT_EXIT[$pool]}"
+        assert_exit "$label" \
+            "$(exit_for_verdict "${WANT_VERDICT[$pool]}" "HELD PERMITTED")"
         assert_confirmed "$label"
         assert_control_held "$label"
 
@@ -446,13 +478,6 @@ declare -A WANT_SECRET_UNCHECKED=(
     [credential.secret_file_unreadable]="deviated / DENIED"
 )
 
-declare -A WANT_SECRET_EXIT=(
-    [credential.secret_file_empty]=2
-    [credential.secret_file_truncated]=0
-    [credential.secret_file_missing]=0
-    [credential.secret_file_unreadable]=0
-)
-
 if start_range unbounded unchecked; then
     declare -A SECRET_OBSERVABLE=()
 
@@ -462,7 +487,7 @@ if start_range unbounded unchecked; then
         label="${experiment#credential.} against a verifier that does not check the length"
 
         assert_verdict "$label" "${WANT_SECRET_UNCHECKED[$experiment]}"
-        assert_exit "$label" "${WANT_SECRET_EXIT[$experiment]}"
+        assert_exit "$label" "$(exit_for_verdict "${WANT_SECRET_UNCHECKED[$experiment]}")"
         assert_confirmed "$label"
         assert_control_held "$label"
 
@@ -514,7 +539,7 @@ if start_range unbounded validated; then
         "secret_file_empty against a verifier that checks the length" \
         "deviated / DENIED"
     assert_exit \
-        "secret_file_empty against a verifier that checks the length" 0
+        "secret_file_empty against a verifier that checks the length" 3
     assert_confirmed \
         "secret_file_empty against a verifier that checks the length"
     assert_report_lacks \
@@ -582,11 +607,6 @@ declare -A WANT_ENV=(
     [validated]="deviated / DENIED"
 )
 
-declare -A WANT_ENV_EXIT=(
-    [unchecked]=2
-    [validated]=0
-)
-
 for secret in unchecked validated; do
     if ! start_range unbounded "$secret"; then
         continue
@@ -598,7 +618,7 @@ for secret in unchecked validated; do
         label="${experiment#credential.} against a ${secret} verifier"
 
         assert_verdict "$label" "${WANT_ENV[$secret]}"
-        assert_exit "$label" "${WANT_ENV_EXIT[$secret]}"
+        assert_exit "$label" "$(exit_for_verdict "${WANT_ENV[$secret]}")"
         assert_confirmed "$label"
         assert_control_held "$label"
     done
@@ -870,13 +890,6 @@ declare -A WANT_AUTHZ=(
     [cached]="passed / HELD"
 )
 
-declare -A WANT_AUTHZ_EXIT=(
-    [collapses]=2
-    [distinguishes]=0
-    [retries]=0
-    [cached]=0
-)
-
 for mode in collapses distinguishes retries cached; do
     if ! start_authz_range "$mode"; then
         continue
@@ -887,7 +900,8 @@ for mode in collapses distinguishes retries cached; do
     label="apikey_revoked against a ${mode} caller"
 
     assert_verdict "$label" "${WANT_AUTHZ[$mode]}"
-    assert_exit "$label" "${WANT_AUTHZ_EXIT[$mode]}"
+    assert_exit "$label" \
+        "$(exit_for_verdict "${WANT_AUTHZ[$mode]}" "PERMITTED DENIED")"
     assert_confirmed "$label"
     assert_control_held "$label" "the caller authenticates credentials"
 

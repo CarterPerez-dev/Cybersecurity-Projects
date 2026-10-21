@@ -155,8 +155,45 @@ func TestRollbackFailureOutranksEveryOtherExitCode(t *testing.T) {
 			exitRevertFailed,
 		},
 		{"cancellation alone", context.Canceled, exitInterrupted},
-		{"defect alone", cli.ErrDefectFound, exitDefect},
-		{"inconclusive alone", cli.ErrInconclusive, exitInconclusive},
+
+		// A finished run arrives carrying its own code, which is the shape
+		// exitFor actually produces. The bare sentinels below it reach here
+		// only from paths that never got a verdict.
+		{
+			"a defect carrying its code",
+			&cli.Exit{
+				Code:    cli.CodeDefect,
+				Outcome: cli.OutcomeDefect,
+				Err:     cli.ErrDefectFound,
+			},
+			cli.CodeDefect,
+		},
+		{
+			"a rollback failure carrying its code",
+			&cli.Exit{
+				Code: cli.CodeRollback,
+				Err:  run.ErrRevertFailed,
+			},
+			exitRevertFailed,
+		},
+		{
+			"an interrupted run carrying its code",
+			&cli.Exit{
+				Code:    cli.CodeInterrupted,
+				Outcome: cli.OutcomeInterrupted,
+				Err:     cli.ErrInconclusive,
+			},
+			cli.CodeInterrupted,
+		},
+		{
+			"a carried code joined with a rollback failure",
+			errors.Join(
+				&cli.Exit{Code: cli.CodeDefect, Err: cli.ErrDefectFound},
+				run.ErrRevertFailed,
+			),
+			exitRevertFailed,
+		},
+		{"defect alone, with no code", cli.ErrDefectFound, exitError},
 		{"anything else", errors.New("something broke"), exitError},
 	}
 

@@ -73,8 +73,13 @@ start_range() {
     [[ "$with_db" == "yes" ]] && args+=(--with-db)
 
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" "${args[@]}" >/dev/null 2>&1; then
-        fail "range up --fail-mode $fail_mode (with-db=$with_db)"
+
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" "${args[@]}" 2>&1)"; then
+        fail "range up --fail-mode $fail_mode (with-db=$with_db): $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -198,7 +203,12 @@ assert_denied() {
     assert_report_has \
         "${label} is not called a defect" \
         "without calling it a defect"
-    assert_exit "$label" 0
+
+    # 3, not 0. M10 gave a deviation in a direction the polarity does NOT
+    # call a defect its own exit code: the control did change under the
+    # fault, and reporting that as a clean pass hid a real availability
+    # finding behind a green build.
+    assert_exit "$label" 3
 }
 
 echo "== the three default-range controls, fail-open =="

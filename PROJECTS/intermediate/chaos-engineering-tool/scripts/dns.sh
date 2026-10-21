@@ -72,9 +72,13 @@ start_range() {
     local dns_mode="${2:-reresolve}"
 
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --fail-mode "$1" --dns-mode "$dns_mode" \
-        --no-color --quiet >/dev/null 2>&1; then
-        fail "range up --fail-mode $1 --dns-mode $dns_mode"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --fail-mode "$1" --dns-mode "$dns_mode" \
+        --no-color --quiet 2>&1)"; then
+        fail "range up --fail-mode $1 --dns-mode $dns_mode: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -354,7 +358,11 @@ if start_range open; then
     for fault in ttl_zero ttl_long; do
         run_experiment "dns.${fault}"
         assert_verdict "${fault} vs an uncached target" "unsupported"
-        assert_exit "${fault} vs an uncached target" 4
+
+        # 9, not 4. M10 gave UNSUPPORTED its own code: a question that does
+        # not apply to this target is not a measurement khaos failed to make,
+        # and it was indistinguishable from one while both exited 4.
+        assert_exit "${fault} vs an uncached target" 9
 
         # Anchored on the LIFETIME khaos served, which is the measurement the
         # verdict is entitled to make. The target's lookups do not scale with
@@ -394,7 +402,9 @@ if start_range closed; then
     for fault in nxdomain servfail; do
         run_experiment "dns.${fault}"
         assert_verdict "${fault} vs fail-closed" "deviated / DENIED"
-        assert_exit "${fault} vs fail-closed" 0
+
+    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
+        assert_exit "${fault} vs fail-closed" 3
         assert_confirmed "${fault}"
     done
 

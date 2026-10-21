@@ -42,6 +42,24 @@ const (
 	flagFaultFor    = "fault-for"
 	flagRecoverFor  = "recover-for"
 	flagSampleEvery = "sample-every"
+	flagFailOn      = "fail-on"
+	flagRecord      = "record"
+	flagOutput      = "output"
+	flagJUnit       = "junit"
+	flagMetricsOut  = "metrics-out"
+
+	outputText = "text"
+	outputJSON = "json"
+
+	recordUsage = "a directory to write the canonical run record into, as `run.json` plus an `events.jsonl` beside it carrying one line per observation. The record is what every other output khaos produces is a projection of, and it is the only form that survives the terminal scrolling away"
+
+	outputUsage = "`text` for the terminal report, or `json` to write the run record to stdout and suppress every other line, so `khaos run x --output json | jq .verdict` works"
+
+	junitUsage = "a file to write JUnit XML to, for CI test reporters. A run khaos declined to conclude from becomes a `skipped` rather than a `failure`, which is what stops thin evidence breaking a build on noise; only a control that failed in the direction this experiment declares a defect becomes a `failure`"
+
+	metricsUsage = "a file to write Prometheus text exposition to, for node_exporter's textfile collector. Written atomically and consumed by pointing that collector at the directory; khaos stands up no server and opens no port"
+
+	failOnUsage = "which outcomes keep a non-zero exit code. `any` is the default and narrows nothing, because a run khaos declined to conclude from exiting 0 is a green build on no evidence; `never` reports every measurable outcome as 0 and leaves the detail to the run record; or name the outcomes to gate on, comma separated, where `defect` alone is the shape a pipeline that should only break on a security regression wants. A rollback failure, a usage error and an internal error ignore this flag, because an unreverted fault makes every later job on that runner untrustworthy"
 
 	catalogShort = "list the experiments khaos ships"
 	catalogLong  = `Each experiment pairs a fault with two probes: one carrying a credential the
@@ -106,6 +124,7 @@ enforcing in the first place.`
 	errNoExperiment           = "name the experiment to %s (known experiments: %s)"
 	errNoRangeFor             = "%w by passing %s"
 	errInconclusive           = "%w (%s)"
+	errUnknownOutcome         = "%w: %q (khaos gates on: %s, or `any`, or `never`)"
 	verdictThinEvidence       = "the sample cannot rule out a bypass"
 	verdictRecoveryUnobserved = "recovery was never observed"
 	errNoProxiedPath          = "%w: this experiment injects through khaos's fault proxy, and the running range has no %s; bring the range down and up again to create it"
@@ -170,6 +189,10 @@ var ErrUnusableIssuer = errors.New(
 
 var ErrInconclusive = errors.New(
 	"this run did not reach a conclusion, so nothing can be concluded from it either way",
+)
+
+var ErrDeviated = errors.New(
+	"the target broke in a direction this experiment does not declare a defect, which is the correct outcome with an availability cost khaos did not measure",
 )
 
 func newCatalogCmd() *cobra.Command {
@@ -277,18 +300,57 @@ func newRunExperimentCmd(definition experiment.Definition) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Parsed BEFORE the run, so a typo that would have silenced the
+			// defect code is refused instead of discovered afterwards.
+			raw, err := cmd.Flags().GetString(flagFailOn)
+			if err != nil {
+				return err
+			}
+
+			gate, err := ParseGate(raw)
+			if err != nil {
+				return err
+			}
+
+			shape, err := outputShape(cmd)
+			if err != nil {
+				return err
+			}
+
+			into, err := cmd.Flags().GetString(flagRecord)
+			if err != nil {
+				return err
+			}
+
+			projections, err := projectionsOf(cmd)
+			if err != nil {
+				return err
+			}
+
 			return runExperiment(
 				cmd.Context(),
 				cmd.OutOrStdout(),
 				definition,
 				ttl,
 				given,
+				gate,
+				Output{
+					Shape:       shape,
+					Record:      into,
+					Projections: projections,
+				},
 			)
 		},
 	}
 
 	experimentFlags(cmd, definition)
 	cmd.Flags().Duration(flagTTL, lease.DefaultTTL, ttlUsage)
+	cmd.Flags().String(flagFailOn, FailOnAny, failOnUsage)
+	cmd.Flags().String(flagRecord, "", recordUsage)
+	cmd.Flags().String(flagOutput, outputText, outputUsage)
+	cmd.Flags().String(flagJUnit, "", junitUsage)
+	cmd.Flags().String(flagMetricsOut, "", metricsUsage)
 
 	return cmd
 }
@@ -518,51 +580,116 @@ func describe(out io.Writer, spec experiment.Experiment, resolved string) {
 	fmt.Fprintln(out)
 }
 
+// prepared is everything a run needs resolved before anything is injected:
+// the workspace lock, the experiment with its parameters bound, and the
+// container whose consent khaos checked.
+type prepared struct {
+	work     *workspace.Workspace
+	spec     experiment.Experiment
+	accepted dockerx.Target
+	guard    dockerx.Guard
+	project  string
+}
+
+// prepareRun does every step that can still refuse. Separated from the run
+// itself because nothing here touches the target: if this returns an error,
+// khaos has injected nothing and has nothing to revert.
+//
+// The caller owns closing the workspace, because the lock has to outlive
+// this function and be released after the run rather than before it.
+func prepareRun(
+	ctx context.Context,
+	human io.Writer,
+	definition experiment.Definition,
+	given inputs,
+) (prepared, error) {
+	work, err := workspace.OpenExclusive(ctx)
+	if err != nil {
+		return prepared{}, err
+	}
+
+	out := prepared{work: work, project: given.Project}
+	out.guard = dockerx.Guard{
+		Project: out.project,
+		SelfID:  dockerx.SelfContainerID(),
+	}
+
+	supplied, err := fillFromRange(
+		ctx,
+		human,
+		work.Docker,
+		definition,
+		given.Supplied,
+	)
+	if err != nil {
+		return out, err
+	}
+
+	out.spec, err = experiment.Build(
+		definition.Name,
+		supplied,
+		given.Timing,
+	)
+	if err != nil {
+		return out, err
+	}
+
+	out.accepted, err = work.Docker.Accept(
+		ctx,
+		out.spec.Fault.Target,
+		dockerx.Filter{Project: out.project},
+		out.guard,
+	)
+
+	return out, err
+}
+
+// Output is where a run's results go. Grouped because they are one decision
+// -- what this invocation should emit -- rather than three.
+type Output struct {
+	Shape       string
+	Record      string
+	Projections Projections
+}
+
+// human is where the terminal report goes, and under --output json that is
+// nowhere: stdout has to carry the record and nothing else, or piping it
+// into jq fails on the first banner line.
+func (o Output) human(out io.Writer) io.Writer {
+	if o.Shape == outputJSON {
+		return io.Discard
+	}
+
+	return out
+}
+
 func runExperiment(
 	ctx context.Context,
 	out io.Writer,
 	definition experiment.Definition,
 	ttl time.Duration,
 	given inputs,
+	gate Gate,
+	emit Output,
 ) error {
-	work, err := workspace.OpenExclusive(ctx)
-	if err != nil {
-		return err
-	}
-	defer work.Close()
+	human := emit.human(out)
 
-	supplied, err := fillFromRange(
-		ctx,
-		out,
-		work.Docker,
-		definition,
-		given.Supplied,
-	)
+	ready, err := prepareRun(ctx, human, definition, given)
+	if ready.work != nil {
+		defer ready.work.Close()
+	}
+
 	if err != nil {
 		return err
 	}
 
-	spec, err := experiment.Build(definition.Name, supplied, given.Timing)
-	if err != nil {
-		return err
-	}
-
-	project := given.Project
-	guard := dockerx.Guard{Project: project, SelfID: dockerx.SelfContainerID()}
-
-	accepted, err := work.Docker.Accept(
-		ctx,
-		spec.Fault.Target,
-		dockerx.Filter{Project: project},
-		guard,
-	)
-	if err != nil {
-		return err
-	}
+	work := ready.work
+	spec, accepted := ready.spec, ready.accepted
+	project, guard := ready.project, ready.guard
 
 	env, closeTiers, err := standUpTiers(
 		ctx,
-		out,
+		human,
 		work,
 		&spec,
 		accepted,
@@ -583,21 +710,28 @@ func runExperiment(
 	session := run.NewSession(env, work.Journal, ttl)
 
 	engine := wire(
-		out,
+		human,
 		session,
 		work.Docker,
 		dockerx.Filter{Project: project},
 		guard,
 	)
 
-	describe(out, spec, accepted.Name)
+	describe(human, spec, accepted.Name)
 
 	result, runErr := underLease(ctx, engine, spec, session)
 
 	result.RunID = session.RunID()
-	reportVerdict(out, result)
 
-	return exitFor(result, runErr)
+	// The exit is decided BEFORE anything is reported, because the record
+	// carries the code: the exit status is the only part of a run most CI
+	// ever sees, and a record that cannot explain it is not a record of the
+	// run.
+	outcome := gated(gate, exitFor(result, runErr))
+
+	reportVerdict(human, result)
+
+	return emitRecord(out, definition, result, outcome, emit)
 }
 
 func wire(
@@ -690,43 +824,85 @@ func exitFor(result experiment.Result, runErr error) error {
 		return runErr
 	}
 
+	// The state khaos left the target in outranks every verdict about it, and
+	// no --fail-on value may suppress either.
 	if result.Observation.RollbackFailed {
-		return run.ErrRevertFailed
+		return &Exit{
+			Code:    CodeRollback,
+			Outcome: outcomeRollback,
+			Err:     run.ErrRevertFailed,
+		}
 	}
 
 	if result.Verdict.Recovery == experiment.Degraded {
-		return ErrNotRecovered
+		return &Exit{
+			Code:    CodeRollback,
+			Outcome: outcomeRollback,
+			Err:     ErrNotRecovered,
+		}
 	}
 
+	// The DEFECT outranks the epistemic axis, because a proven bypass is
+	// reported even on thin evidence: one leaked request is a proof.
 	if result.Verdict.Defect {
-		return ErrDefectFound
+		return &Exit{
+			Code:    CodeDefect,
+			Outcome: OutcomeDefect,
+			Err:     ErrDefectFound,
+		}
 	}
 
-	if !conclusive(result.Verdict.Epistemic) {
-		return fmt.Errorf(
-			errInconclusive,
-			ErrInconclusive,
-			result.Verdict.Epistemic,
-		)
+	if code, outcome, matched := epistemicExit(
+		result.Verdict.Epistemic,
+	); matched {
+		return &Exit{
+			Code:    code,
+			Outcome: outcome,
+			Err: fmt.Errorf(
+				errInconclusive,
+				ErrInconclusive,
+				result.Verdict.Epistemic,
+			),
+		}
 	}
 
+	// Deviated in a direction this experiment's polarity does NOT call a
+	// defect: correct, with an availability cost khaos did not measure.
+	if result.Verdict.Epistemic == experiment.Deviated {
+		return &Exit{
+			Code:    CodeDeviated,
+			Outcome: OutcomeDeviated,
+			Err:     ErrDeviated,
+		}
+	}
+
+	// A HELD verdict khaos declined to call conclusive. Exiting 0 here would
+	// assert a control held on evidence khaos itself refused to stand behind.
 	if !result.Verdict.Conclusive {
-		return fmt.Errorf(errInconclusive, ErrInconclusive, verdictThinEvidence)
+		return &Exit{
+			Code:    CodeInconclusive,
+			Outcome: OutcomeInconclusive,
+			Err: fmt.Errorf(
+				errInconclusive,
+				ErrInconclusive,
+				verdictThinEvidence,
+			),
+		}
 	}
 
 	if result.Verdict.Recovery == experiment.Unobserved {
-		return fmt.Errorf(
-			errInconclusive,
-			ErrInconclusive,
-			verdictRecoveryUnobserved,
-		)
+		return &Exit{
+			Code:    CodeInconclusive,
+			Outcome: OutcomeInconclusive,
+			Err: fmt.Errorf(
+				errInconclusive,
+				ErrInconclusive,
+				verdictRecoveryUnobserved,
+			),
+		}
 	}
 
 	return nil
-}
-
-func conclusive(epistemic experiment.Epistemic) bool {
-	return epistemic == experiment.Passed || epistemic == experiment.Deviated
 }
 
 func reportVerdict(out io.Writer, result experiment.Result) {

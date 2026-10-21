@@ -65,8 +65,12 @@ fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
 start_range() {
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --fail-mode "$1" --quiet --no-color >/dev/null 2>&1; then
-        fail "range up --fail-mode $1"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --fail-mode "$1" --quiet --no-color 2>&1)"; then
+        fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -75,9 +79,21 @@ start_range() {
 # Sets the globals `report` and `last_code`. Never call it through a command
 # substitution: that runs it in a subshell and the report is lost while the exit
 # code still comes back, which looks like a passing gate with no evidence.
+# Extra arguments REPLACE the default timing rather than appending to it: two
+# copies of --fault-for on one command line is an ambiguity, and a helper that
+# silently dropped an override would make a section measure the default window
+# while claiming to measure a short one.
 run_experiment() {
+    local experiment="$1"
+    shift
+
+    local -a timing=("${TIMING[@]}")
+    if [[ $# -gt 0 ]]; then
+        timing=("$@")
+    fi
+
     set +e
-    report="$("$BIN" run "$1" --no-color "${TIMING[@]}" 2>&1)"
+    report="$("$BIN" run "$experiment" --no-color "${timing[@]}" 2>&1)"
     last_code=$?
     set -e
 }
@@ -175,7 +191,27 @@ assert_an_unconfirmable_fault_is_not_success() {
         return
     fi
 
-    assert_exit "an unconfirmable fault" "$last_code" 4
+    # The code is DERIVED from the epistemic word the run actually reported,
+    # not hardcoded. M10 split the one inconclusive code into three, and this
+    # check accepts three states: asserting a single code against a
+    # three-state regex is a flake that fires whenever the run lands on one
+    # of the other two.
+    local epistemic
+    epistemic="$(grep -E '^  verdict' <<<"$report" |
+        sed -E 's/^  verdict +([a-z-]+).*/\1/' | head -1 || true)"
+
+    local want
+    case "$epistemic" in
+    aborted) want=7 ;;
+    probe-error) want=5 ;;
+    baseline-not-met) want=8 ;;
+    *)
+        fail "could not read an epistemic word out of the verdict: ${epistemic}"
+        return
+        ;;
+    esac
+
+    assert_exit "an unconfirmable fault (${epistemic})" "$last_code" "$want"
 }
 
 assert_ran_with_no_flags() {
@@ -319,7 +355,11 @@ if start_range closed; then
         fi
 
         assert_verdict "${experiment} fail-closed" "deviated / DENIED"
-        assert_exit "${experiment} fail-closed" "$last_code" 0
+
+        # 3, not 0: M10 moved a deviation in a direction the polarity does
+        # NOT call a defect onto its own code. The target did change under the
+        # fault, and reporting that as a clean pass hid it.
+        assert_exit "${experiment} fail-closed" "$last_code" 3
 
         if grep -q "acceptable for this control" <<<"$report"; then
             pass "${experiment} fail-closed polarity spared the safe direction"
@@ -327,6 +367,41 @@ if start_range closed; then
             fail "${experiment} fail-closed polarity did not spare the safe direction"
         fi
     done
+fi
+
+# M10's most dangerous exit code, and the one no other gate exercises. A HELD
+# verdict khaos declined to call conclusive used to exit 0: khaos asserting a
+# control held on evidence it refused to stand behind, as a green build.
+#
+# Asserted as a PAIR. "exit 4 on a short window" alone is satisfied by any
+# failure; the same experiment with a full window exiting 0 is what proves the
+# 4 came from the sample floor and not from something else going wrong.
+if start_range closed; then
+    run_experiment "$EOF_DEPENDENT_FAULT" \
+        --baseline-for 4s --fault-for 3s --recover-for 2s --sample-every 300ms
+
+    assert_verdict "a thin HELD window" "passed / HELD"
+    assert_exit "a thin HELD window" "$last_code" 4
+
+    # The SHORTFALL, named with both numbers. Without this the assertion
+    # cannot tell a sample floor from any other inconclusive cause.
+    if grep -qE 'paired samples cannot rule one out' <<<"$report"; then
+        pass "a thin HELD window says how many samples it had and how many it needed"
+    else
+        fail "a thin HELD window did not name the sample shortfall: $(grep -E '^  why' <<<"$report" | head -2)"
+    fi
+
+    # The negative control: the same fault, a full window, exit 0.
+    run_experiment "$EOF_DEPENDENT_FAULT" "${TIMING[@]}"
+
+    assert_verdict "a full HELD window" "passed / HELD"
+    assert_exit "a full HELD window" "$last_code" 0
+
+    if grep -qE 'cannot rule one out' <<<"$report"; then
+        fail "a full window still claimed its evidence was thin"
+    else
+        pass "a full HELD window claims its conclusion without a caveat"
+    fi
 fi
 
 if [[ $failures -ne 0 ]]; then

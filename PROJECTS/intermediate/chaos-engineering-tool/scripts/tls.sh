@@ -50,8 +50,12 @@ fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 # reconfigured mid-run would let khaos change the target it is measuring.
 start_range() {
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --tls-mode "$1" --no-color --quiet >/dev/null 2>&1; then
-        fail "range up --tls-mode $1"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --tls-mode "$1" --no-color --quiet 2>&1)"; then
+        fail "range up --tls-mode $1: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -111,7 +115,9 @@ if start_range closed; then
     # this family declares it acceptable, so it must not be called a defect.
     run_experiment tls.leaf_expired
     assert_verdict "leaf-expired vs a correct client" "deviated / DENIED"
-    assert_exit "leaf-expired vs a correct client" 0
+
+    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
+    assert_exit "leaf-expired vs a correct client" 3
     assert_confirmed "leaf-expired"
 
     # THE CONTRAST, and the reason the unsupported verdict is honest rather
@@ -119,7 +125,7 @@ if start_range closed; then
     # certificate is a finding it can actually have.
     run_experiment tls.revoked_via_crl
     assert_verdict "revoked vs a client that checks" "deviated / DENIED"
-    assert_exit "revoked vs a client that checks" 0
+    assert_exit "revoked vs a client that checks" 3
 
     if grep -qE '^  verdict .*unsupported' <<<"$report"; then
         fail "revoked was called unsupported against a client that fetches the CRL, which excuses a real defect"
@@ -150,9 +156,13 @@ if start_range no-revocation-check; then
     run_experiment tls.revoked_via_crl
     assert_verdict "revoked vs a client that never asks" "unsupported"
 
-    # NOT zero. A revoked certificate in active use must never exit 0, and
-    # every inconclusive epistemic outcome exits 4.
-    assert_exit "revoked vs a client that never asks" 4
+    # NOT zero. A revoked certificate in active use must never exit 0.
+    #
+    # 9 rather than 4 as of M10: "every inconclusive epistemic outcome exits
+    # 4" was true when this was written and is not any more. UNSUPPORTED has
+    # its own code, because a question that does not apply to this target is
+    # a different thing from evidence khaos could not gather.
+    assert_exit "revoked vs a client that never asks" 9
 
     if grep -qE '^  verdict .*passed' <<<"$report"; then
         fail "a revoked certificate in active use was reported as a pass"
@@ -275,7 +285,7 @@ if start_range closed; then
     for experiment in tls.mtls_client_expired tls.mtls_client_absent; do
         run_experiment "$experiment"
         assert_verdict "${experiment} vs a client that reads" "deviated / DENIED"
-        assert_exit "${experiment} vs a client that reads" 0
+        assert_exit "${experiment} vs a client that reads" 3
     done
 fi
 
@@ -307,7 +317,7 @@ if start_range closed; then
     # revocation, so the hole is the HOOK rather than resumption itself.
     run_experiment tls.resumption_after_revocation
     assert_verdict "resumption vs a per-connection policy" "deviated / DENIED"
-    assert_exit "resumption vs a per-connection policy" 0
+    assert_exit "resumption vs a per-connection policy" 3
 fi
 
 if [[ "$failures" -gt 0 ]]; then

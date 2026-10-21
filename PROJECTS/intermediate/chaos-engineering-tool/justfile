@@ -97,7 +97,7 @@ fix:
 
 check: lint tidy-check test colors
 
-gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate dns-gate credential-gate control-gate
+gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate dns-gate credential-gate control-gate report-gate
 
 colors: build
     ./scripts/colors.sh
@@ -131,6 +131,9 @@ credential-gate: build
 
 control-gate: build
     ./scripts/control.sh
+
+report-gate: build
+    ./scripts/report.sh
 
 clean:
     rm -f {{binary}}

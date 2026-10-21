@@ -26,8 +26,12 @@ fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
 start_range() {
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --fail-mode "$1" --cache-ttl "${2:-2s}" --quiet --no-color >/dev/null 2>&1; then
-        fail "range up --fail-mode $1 --cache-ttl ${2:-2s}"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --fail-mode "$1" --cache-ttl "${2:-2s}" --quiet --no-color 2>&1)"; then
+        fail "range up --fail-mode $1 --cache-ttl ${2:-2s}: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -196,7 +200,9 @@ if start_range closed; then
     run_experiment
     assert_zero_flags "fail-closed"
     assert_verdict "fail-closed" "deviated / DENIED"
-    assert_exit "fail-closed" "$last_code" 0
+
+    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
+    assert_exit "fail-closed" "$last_code" 3
 
     if grep -q "acceptable for this control" <<<"$report"; then
         pass "fail-closed the deviation was recorded without calling it a defect"

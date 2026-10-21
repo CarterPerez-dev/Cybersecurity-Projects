@@ -200,9 +200,16 @@ type Experiment struct {
 }
 
 type Result struct {
-	Experiment  string        `json:"experiment"`
-	RunID       string        `json:"run_id"`
-	Hypothesis  string        `json:"hypothesis"`
+	Experiment string `json:"experiment"`
+	Family     string `json:"family"`
+	RunID      string `json:"run_id"`
+	Hypothesis string `json:"hypothesis"`
+
+	// Fault is carried on the RESULT rather than left on the spec, because
+	// the record is the product: a record that cannot say what was injected
+	// or where is not a record of the run.
+	Fault Fault `json:"fault"`
+
 	StartedAt   time.Time     `json:"started_at"`
 	Duration    time.Duration `json:"duration"`
 	Observation Observation   `json:"observation"`

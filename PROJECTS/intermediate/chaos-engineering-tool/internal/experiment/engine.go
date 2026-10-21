@@ -231,7 +231,9 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	timing := spec.Timing.withDefaults()
 	result := Result{
 		Experiment: spec.Name,
+		Family:     spec.Family,
 		Hypothesis: spec.Hypothesis.String(),
+		Fault:      spec.Fault,
 		StartedAt:  e.now(),
 	}
 

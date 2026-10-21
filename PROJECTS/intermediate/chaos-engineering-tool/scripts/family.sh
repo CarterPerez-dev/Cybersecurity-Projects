@@ -106,8 +106,12 @@ fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
 start_range() {
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --fail-mode "$1" --quiet --no-color >/dev/null 2>&1; then
-        fail "range up --fail-mode $1"
+    # The OUTPUT, not just the fact. A bare "range up failed" is what a
+    # transient startup error looks like in a two-hour gate run, and it
+    # leaves nothing to diagnose from.
+    local started
+    if ! started="$("$BIN" range up --fail-mode "$1" --quiet --no-color 2>&1)"; then
+        fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
         return 1
     fi
     return 0
@@ -132,6 +136,35 @@ assert_verdict() {
     else
         fail "${label} expected ${want}, got: $(verdict_line)"
     fi
+}
+
+# exit_for_verdict maps an expected verdict onto khaos's exit contract.
+#
+# The second argument is the experiment's DECLARED DEFECT DIRECTIONS, because
+# the code is a function of (verdict, polarity) and never of the verdict
+# alone: `passed / HELD` is 0 ordinarily and 2 wherever a polarity declares
+# HELD the defect. The loop below passes the default because the one inverted
+# experiment in this family, identity.key_rotation, is held out as INVERTED
+# and asserted separately -- but the helper takes the argument so that a
+# second inversion cannot pass silently.
+exit_for_verdict() {
+    local verdict="$1" defects="${2:-PERMITTED}" direction
+
+    direction="${verdict##*/ }"
+
+    if [[ " ${defects} " == *" ${direction} "* ]]; then
+        echo 2
+        return
+    fi
+
+    case "$verdict" in
+    "passed / "*) echo 0 ;;
+    "deviated / "*) echo 3 ;;
+    *)
+        echo "exit_for_verdict: no code for the verdict '$verdict'" >&2
+        echo 99
+        ;;
+    esac
 }
 
 assert_exit() {
@@ -389,9 +422,17 @@ if start_range closed; then
         for experiment in "${parts[@]:1}"; do
             label="${experiment} vs a correct verifier"
 
+            want_verdict="${CORRECT_VERDICT[$experiment]:-passed / HELD}"
+
             run_experiment "$experiment"
-            assert_exit "$label" "$last_code" 0
-            assert_verdict "$label" "${CORRECT_VERDICT[$experiment]:-passed / HELD}"
+
+            # DERIVED from the expected verdict rather than written beside it.
+            # M10 gave a deviation in a non-defect direction its own exit
+            # code, so four of these seventeen now exit 3 and the rest exit 0
+            # -- and a hand-maintained second table would be one more thing
+            # that can disagree with the first.
+            assert_exit "$label" "$last_code" "$(exit_for_verdict "$want_verdict")"
+            assert_verdict "$label" "$want_verdict"
 
             if grep -qE "^  verdict .*PERMITTED" <<<"$report"; then
                 fail "${label} found a bypass in a correct verifier: $(verdict_line)"

@@ -23,15 +23,14 @@ import (
 )
 
 const (
-	exitOK     = 0
-	exitError  = 1
-	exitDefect = 2
+	exitOK = cli.CodeOK
 
-	// An interrupted run is a kind of inconclusive one, so they share a code.
-	exitInconclusive = 4
-	exitInterrupted  = 4
+	// The catch-all. A bad flag, an unreadable config and an error khaos has
+	// no taxonomy entry for are all the operator's to fix before measuring.
+	exitError = cli.CodeUsage
 
-	exitRevertFailed = 6
+	exitInterrupted  = cli.CodeInterrupted
+	exitRevertFailed = cli.CodeRollback
 
 	noColorFlag     = "--" + cli.FlagNoColor
 	noColorFlagTrue = noColorFlag + "="
@@ -106,6 +105,11 @@ func noColorRequested(args []string) bool {
 // fail maps an error to an exit code, and the ORDER is the contract: the state
 // khaos left the target in outranks the verdict, and both outrank interruption.
 // errors.Join carries several at once, so the first match decides.
+//
+// A finished run arrives carrying its own code, because the precedence among
+// verdict outcomes is decided once where the run ends rather than re-derived
+// by a chain here that grows with every epistemic value. The checks below it
+// are for errors that never reached a verdict at all.
 func fail(err error) int {
 	if errors.Is(err, run.ErrRevertFailed) {
 		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
@@ -113,9 +117,18 @@ func fail(err error) int {
 		return exitRevertFailed
 	}
 
+	// Checked before the carried code as well as inside it: this is the one
+	// outcome nothing may suppress, so it is matched on the sentinel too and
+	// not only on a code some other layer computed.
 	if errors.Is(err, cli.ErrNotRecovered) {
 		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
 		return exitRevertFailed
+	}
+
+	var exit *cli.Exit
+	if errors.As(err, &exit) {
+		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
+		return exit.Code
 	}
 
 	if errors.Is(err, context.Canceled) {
@@ -125,14 +138,6 @@ func fail(err error) int {
 
 	fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
 	printFix(err)
-
-	if errors.Is(err, cli.ErrDefectFound) {
-		return exitDefect
-	}
-
-	if errors.Is(err, cli.ErrInconclusive) {
-		return exitInconclusive
-	}
 
 	return exitError
 }
