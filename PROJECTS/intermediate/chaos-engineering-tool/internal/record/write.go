@@ -179,16 +179,8 @@ func writeAtomic(path string, body []byte) error {
 func EventsOf(observation experiment.Observation) []Event {
 	out := []Event{}
 
-	for _, named := range []struct {
-		name   string
-		window probe.Window
-	}{
-		{"baseline", observation.Baseline},
-		{"fault", observation.Fault},
-		{"resumed", observation.Resumed},
-		{"recovery", observation.Recovery},
-	} {
-		out = append(out, eventsOfWindow(named.name, named.window)...)
+	for _, phase := range Phases(observation) {
+		out = append(out, eventsOfWindow(phase.Name, phase.Window)...)
 	}
 
 	return out

@@ -546,3 +546,111 @@ func TestADeclaredClosureNeverHidesARefusal(t *testing.T) {
 		)
 	}
 }
+
+// recoveryOf returned the moment it found its run of consecutive healthy pairs
+// and never looked at the rest of the window, so a recovery that collapsed
+// after two good samples was reported RECOVERED. A run whose last observed
+// state was broken could then exit 0.
+//
+// The criterion is now the END of the window rather than the first qualifying
+// run: recovery has to still be established when khaos stops looking. A late
+// recovery still counts, because a window that ends with a full healthy run
+// ends healthy however it started.
+func TestRecoveryIsJudgedAtTheEndOfTheWindowNotTheFirstGoodRun(t *testing.T) {
+	healthy := func(n int) []probe.Disposition {
+		out := make([]probe.Disposition, n)
+		for i := range out {
+			out[i] = probe.Accepted
+		}
+		return out
+	}
+
+	for name, tc := range map[string]struct {
+		valid []probe.Disposition
+		want  Recovery
+	}{
+		"healthy throughout": {
+			valid: healthy(6),
+			want:  Recovered,
+		},
+		"two good pairs then collapse": {
+			valid: []probe.Disposition{
+				probe.Accepted,
+				probe.Accepted,
+				probe.Unreachable,
+				probe.Unreachable,
+				probe.Unreachable,
+				probe.Unreachable,
+			},
+			want: Degraded,
+		},
+		"broken first then a full healthy run": {
+			valid: []probe.Disposition{
+				probe.Unreachable,
+				probe.Unreachable,
+				probe.Accepted,
+				probe.Accepted,
+				probe.Accepted,
+			},
+			want: Recovered,
+		},
+		"alternating never settles": {
+			valid: []probe.Disposition{
+				probe.Accepted,
+				probe.Unreachable,
+				probe.Accepted,
+				probe.Unreachable,
+				probe.Accepted,
+			},
+			want: Degraded,
+		},
+		"recovers only on the very last pair": {
+			valid: []probe.Disposition{
+				probe.Unreachable,
+				probe.Unreachable,
+				probe.Unreachable,
+				probe.Accepted,
+			},
+			want: Degraded,
+		},
+		// The brittleness guard. A single trailing blip in a long healthy
+		// window must NOT withdraw a recovery: this verdict maps to the one
+		// exit code no --fail-on value can suppress, and declaring it on one
+		// unlucky last sample makes every later job on that runner suspect.
+		"one trailing blip after a long healthy run": {
+			valid: append(healthy(12), probe.Unreachable),
+			want:  Recovered,
+		},
+		"two trailing blips are a sustained collapse": {
+			valid: append(
+				healthy(12),
+				probe.Unreachable,
+				probe.Unreachable,
+			),
+			want: Degraded,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			recovery := probe.Window{}
+
+			for _, disposition := range tc.valid {
+				at := time.Now().UTC()
+				recovery.Record(probe.Outcome{
+					At:          at,
+					Credential:  probe.Valid,
+					Disposition: disposition,
+				})
+				recovery.Record(probe.Outcome{
+					At:          at,
+					Credential:  probe.Invalid,
+					Disposition: probe.Rejected,
+				})
+			}
+
+			got := recoveryOf(recovery, nil)
+			if got != tc.want {
+				t.Fatalf("recovery = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}

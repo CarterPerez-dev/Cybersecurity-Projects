@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -53,6 +54,15 @@ every other fault on the machine.`
 	msgWatching  = "watching %s every %s, until you stop it"
 	msgStopped   = "stopped watching, %d fault(s) reclaimed"
 	msgDamaged   = "the journal has a damaged line; khaos acted on every record it could read, but cannot promise that is all of them"
+
+	errIntervalUsage = "%w: %s"
+)
+
+// A non-positive interval reached time.NewTicker, which panics, AFTER the
+// workspace had been opened and its lock taken. Refused by name instead, and
+// before anything is opened.
+var ErrIntervalNotPositive = errors.New(
+	"the reap interval has to be longer than zero, or there is no tick to check the journal on",
 )
 
 func newReclaimCmd() *cobra.Command {
@@ -125,6 +135,12 @@ func runReclaim(ctx context.Context, out io.Writer, expiredOnly bool) error {
 }
 
 func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
+	// Before the workspace, because a refusal that has already taken the lock
+	// is a refusal that cost the operator something.
+	if interval <= 0 {
+		return fmt.Errorf(errIntervalUsage, ErrIntervalNotPositive, interval)
+	}
+
 	work, err := workspace.OpenShared(ctx)
 	if err != nil {
 		return err

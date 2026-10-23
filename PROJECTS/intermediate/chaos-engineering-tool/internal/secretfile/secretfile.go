@@ -51,6 +51,8 @@ const (
 
 	defaultTruncate = 4
 
+	tempPrefix = ".khaos-holding-"
+
 	describeEmpty = "truncate %s to zero bytes in place, which is the one secret fault that is not an error at the syscall level: os.ReadFile returns no error and an empty slice, so every error-handling path in the target is bypassed"
 
 	describeTruncated = "cut %s down to a few bytes in place, which leaves a silently WRONG key rather than a missing one"
@@ -182,7 +184,7 @@ func (m Mutation) Apply() error {
 		return os.Truncate(m.Path, m.keep(info.Size()))
 
 	case Unreadable:
-		if err := copyFile(m.Path, m.Aside, info.Mode()); err != nil {
+		if err := publishCopy(m.Path, m.Aside, info.Mode()); err != nil {
 			return err
 		}
 
@@ -200,8 +202,13 @@ func (m Mutation) Apply() error {
 
 // hold copies the original aside and then makes the secret writable, in that
 // order: the copy has to happen while the file can still be read.
+//
+// The backup is PUBLISHED atomically, so its existence means it is complete.
+// Restore cannot tell a truncated backup from a genuinely short secret by
+// looking at it, and a 5-byte secret is a legitimate secret, so the guarantee
+// has to be structural rather than validated.
 func (m Mutation) hold(info os.FileInfo) error {
-	if err := copyFile(m.Path, m.Aside, info.Mode()); err != nil {
+	if err := publishCopy(m.Path, m.Aside, info.Mode()); err != nil {
 		return err
 	}
 
@@ -251,7 +258,7 @@ func (m Mutation) Restore() error {
 		return err
 	}
 
-	if err := copyFile(m.Aside, m.Path, held.Mode()); err != nil {
+	if err := copyInto(m.Aside, m.Path, held.Mode()); err != nil {
 		return err
 	}
 
@@ -262,7 +269,75 @@ func (m Mutation) Restore() error {
 	return os.Remove(m.Aside)
 }
 
-func copyFile(from, to string, mode os.FileMode) error {
+// publishCopy writes the copy to a temporary file in the destination's own
+// directory, flushes it, and renames it into place. A failed copy leaves
+// NOTHING at the destination, which is what lets a later Restore treat the
+// backup's existence as proof that the whole original is in it.
+//
+// Same directory because rename is only atomic within a filesystem, and the
+// flush before it because a rename that beats the data to disk publishes a
+// complete-looking backup with no bytes in it.
+func publishCopy(from, to string, mode os.FileMode) error {
+	//nolint:gosec // the path is the fault's subject, guarded by the nonce
+	source, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = source.Close() }()
+
+	if mode.Perm() == 0 {
+		mode = restoredMode
+	}
+
+	temp, err := os.CreateTemp(filepath.Dir(to), tempPrefix)
+	if err != nil {
+		return err
+	}
+
+	published := false
+
+	defer func() {
+		if !published {
+			_ = temp.Close()
+			//nolint:gosec // os.CreateTemp's own name, in the directory
+			// khaos derived from the destination; no caller supplies it
+			_ = os.Remove(temp.Name())
+		}
+	}()
+
+	if _, err := io.Copy(temp, source); err != nil {
+		return err
+	}
+
+	if err := temp.Sync(); err != nil {
+		return err
+	}
+
+	if err := temp.Chmod(mode.Perm()); err != nil {
+		return err
+	}
+
+	if err := temp.Close(); err != nil {
+		return err
+	}
+
+	//nolint:gosec // same: both paths are khaos's own, and the rename is what
+	// makes the backup's existence mean it is complete
+	if err := os.Rename(temp.Name(), to); err != nil {
+		return err
+	}
+
+	published = true
+
+	return nil
+}
+
+// copyInto overwrites the destination IN PLACE, keeping its inode. The secret
+// is restored this way rather than by rename because the whole reason this
+// tier runs in a helper container is that unlink-and-recreate is invisible to
+// a target holding the file open, and a restore that swapped the inode would
+// leave that target reading the fault forever.
+func copyInto(from, to string, mode os.FileMode) error {
 	//nolint:gosec // the path is the fault's subject, guarded by the nonce
 	source, err := os.Open(from)
 	if err != nil {

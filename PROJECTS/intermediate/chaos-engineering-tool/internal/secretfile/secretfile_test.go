@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -341,4 +342,134 @@ func TestVerifyRefusesAMalformedCredential(t *testing.T) {
 			t.Errorf("%q verified", token)
 		}
 	}
+}
+
+// The one outcome this package must never produce: khaos destroying the secret
+// it was asked to preserve.
+//
+// The backup used to be written at its FINAL path, so a copy that failed
+// partway left a short file where a complete original was expected, and a read
+// error left a zero-byte one. Restore read existence as proof of a complete
+// original, opened the untouched secret with O_TRUNC, and copied the stub over
+// it. A short write or a full filesystem was enough, and truncating the
+// original could itself free the space that let the destructive restore finish
+// and report success.
+//
+// Restore cannot tell a truncated backup from a genuinely short secret by
+// looking at it -- a 5-byte secret is a legitimate secret -- so the fix is
+// structural: the backup is published atomically, and a failed hold leaves
+// nothing behind for Restore to trust.
+func TestAFailedHoldLeavesTheOriginalIntactAndUnrestorable(t *testing.T) {
+	path, aside := seeded(t)
+
+	// /proc/self/mem opens cleanly and fails on the first read, so the copy
+	// fails with the destination already created under the old code.
+	failing := Mutation{Kind: Empty, Path: "/proc/self/mem", Aside: aside}
+
+	if err := failing.hold(modeOf(t, path)); err == nil {
+		t.Fatal("copying from an unreadable source reported success")
+	}
+
+	if _, err := os.Stat(aside); err == nil {
+		body, _ := os.ReadFile(aside)
+		t.Fatalf(
+			"a failed backup left %d bytes at the path Restore trusts as the whole original",
+			len(body),
+		)
+	}
+
+	// The chain that destroyed the secret: the revert that follows a failed
+	// apply must refuse, not restore from whatever is lying there.
+	mutation := Mutation{Kind: Empty, Path: path, Aside: aside}
+
+	if err := mutation.Restore(); err != nil {
+		t.Fatalf(
+			"an untouched secret with no backup should be already-restored, got: %v",
+			err,
+		)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the original is unreadable after the revert: %v", err)
+	}
+
+	if string(body) != original {
+		t.Fatalf(
+			"khaos destroyed the secret it was preserving: now %q (%d bytes), was %q (%d bytes)",
+			body,
+			len(body),
+			original,
+			len(original),
+		)
+	}
+}
+
+// Publishing atomically must not leave its temporary file behind either: the
+// secret's own directory is inside the target's mount, and a stray copy of a
+// credential there outlives the run.
+func TestAFailedHoldLeavesNoTemporaryCopyOfTheSecret(t *testing.T) {
+	path, aside := seeded(t)
+
+	failing := Mutation{Kind: Empty, Path: "/proc/self/mem", Aside: aside}
+	_ = failing.hold(modeOf(t, path))
+
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("reading the secret's directory: %v", err)
+	}
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), tempPrefix) {
+			t.Fatalf(
+				"a failed hold left %q beside the secret, which is a stray copy of a credential",
+				entry.Name(),
+			)
+		}
+	}
+}
+
+// The backup a SUCCESSFUL hold publishes has to be byte-identical and carry the
+// original's mode, or the restore puts back something the target cannot read.
+func TestThePublishedBackupIsTheWholeOriginal(t *testing.T) {
+	path, aside := seeded(t)
+
+	mutation := Mutation{Kind: Empty, Path: path, Aside: aside}
+
+	if err := mutation.hold(modeOf(t, path)); err != nil {
+		t.Fatalf("hold: %v", err)
+	}
+
+	body, err := os.ReadFile(aside)
+	if err != nil {
+		t.Fatalf("the published backup is unreadable: %v", err)
+	}
+
+	if string(body) != original {
+		t.Fatalf("the backup holds %q, want %q", body, original)
+	}
+
+	info, err := os.Stat(aside)
+	if err != nil {
+		t.Fatalf("stat the backup: %v", err)
+	}
+
+	if info.Mode().Perm() != secretPerm {
+		t.Fatalf(
+			"the backup is mode %#o, want the original's %#o",
+			info.Mode().Perm(),
+			secretPerm,
+		)
+	}
+}
+
+func modeOf(t *testing.T, path string) os.FileInfo {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+
+	return info
 }

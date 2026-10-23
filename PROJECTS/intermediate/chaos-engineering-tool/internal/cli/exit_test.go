@@ -4,9 +4,13 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/run"
@@ -438,6 +442,103 @@ func TestTheExitCodesAreTheirPublishedNumbers(t *testing.T) {
 	} {
 		if want.got != want.want {
 			t.Errorf("%s is %d, want %d", name, want.got, want.want)
+		}
+	}
+}
+
+// The code in the record and the code the process returns are the SAME
+// contract, and they were computed by two different lists.
+//
+// exitFor returned an execution error unclassified, exitDetail mapped anything
+// without a typed Exit to usage code 1, and the process boundary separately
+// recognised the rollback and cancellation sentinels. So a real rollback
+// failure wrote `exit.code: 1` into run.json while the process exited 6 -- the
+// artifact disagreeing with the status about the one outcome no --fail-on value
+// may suppress. The unit census never caught it because it called exitFor with
+// a nil execution error.
+func TestTheRecordedCodeIsTheCodeTheProcessReturns(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want int
+	}{
+		"a fault that could not be reverted": {
+			err:  run.ErrRevertFailed,
+			want: CodeRollback,
+		},
+		"a target that never recovered": {
+			err:  ErrNotRecovered,
+			want: CodeRollback,
+		},
+		"an interrupted run": {
+			err:  context.Canceled,
+			want: CodeInterrupted,
+		},
+		"an ordinary execution error": {
+			err:  errors.New("the daemon refused"),
+			want: CodeUsage,
+		},
+		"a wrapped rollback failure": {
+			err:  fmt.Errorf("reverting: %w", run.ErrRevertFailed),
+			want: CodeRollback,
+		},
+
+		// errors.Join is where the precedence actually bites: the state khaos
+		// left the target in outranks the verdict about it, and the RECORD has
+		// to agree with that, not just the status.
+		"a rollback failure joined with a defect": {
+			err:  errors.Join(ErrDefectFound, run.ErrRevertFailed),
+			want: CodeRollback,
+		},
+		"a rollback failure joined with cancellation": {
+			err:  errors.Join(context.Canceled, run.ErrRevertFailed),
+			want: CodeRollback,
+		},
+		"a carried defect code joined with a rollback failure": {
+			err: errors.Join(
+				&Exit{Code: CodeDefect, Err: ErrDefectFound},
+				run.ErrRevertFailed,
+			),
+			want: CodeRollback,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			outcome := exitFor(held(), tc.err)
+
+			if got := ExitCode(outcome); got != tc.want {
+				t.Errorf(
+					"the process would exit %d",
+					got,
+				)
+			}
+
+			if got, _ := exitDetail(outcome); got != tc.want {
+				t.Errorf(
+					"the record would say exit.code %d, want %d: an artifact that disagrees with the status is worse than no artifact",
+					got,
+					tc.want,
+				)
+			}
+		})
+	}
+}
+
+// `reap --interval 0` reached time.NewTicker(0), which panics, and it got
+// there AFTER the workspace was opened and its lock taken -- so the operator
+// paid for a refusal that arrived as a Go stack trace. Validated before
+// anything is opened.
+func TestANonPositiveReapIntervalIsRefusedBeforeAnythingOpens(t *testing.T) {
+	for _, interval := range []time.Duration{
+		0,
+		-time.Second,
+	} {
+		err := runReap(context.Background(), io.Discard, interval)
+
+		if !errors.Is(err, ErrIntervalNotPositive) {
+			t.Fatalf(
+				"reap --interval %s returned %v, want a refusal naming the interval",
+				interval,
+				err,
+			)
 		}
 	}
 }

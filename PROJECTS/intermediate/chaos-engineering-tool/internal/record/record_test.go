@@ -61,8 +61,17 @@ func finished() experiment.Result {
 		StartedAt: base,
 		Duration:  30 * time.Second,
 		Observation: experiment.Observation{
-			Baseline:       window(0, probe.Rejected),
-			Fault:          window(10*time.Second, probe.Accepted),
+			Baseline: window(0, probe.Rejected),
+			Fault:    window(10*time.Second, probe.Accepted),
+
+			// Shift and Resumed are the two windows this fixture used to
+			// claim it carried and did not. Both are real measured phases --
+			// shift is the second fault window the authorization tier needs,
+			// and resumed is what the idleness discriminator reads -- and
+			// leaving them empty is why a serializer that dropped one passed.
+			Shift:          window(15*time.Second, probe.Accepted),
+			Shifted:        true,
+			Resumed:        window(18*time.Second, probe.Rejected),
 			Recovery:       window(20*time.Second, probe.Rejected),
 			FaultConfirmed: true,
 			ConfirmMethod:  "a measured observable",
@@ -215,9 +224,14 @@ func TestEveryObservationReachesTheEventsFile(t *testing.T) {
 	// Requests, not Len: Len is Paired, and one paired sample is at least
 	// two requests. Counting pairs here would have asserted half the
 	// observations reached the file and called that complete.
-	want := result.Observation.Baseline.Requests() +
-		result.Observation.Fault.Requests() +
-		result.Observation.Recovery.Requests()
+	//
+	// Summed over Phases rather than over a list written here, because a
+	// hardcoded list of three windows is what let the shift window go
+	// unnoticed in both serializers.
+	want := 0
+	for _, phase := range Phases(result.Observation) {
+		want += phase.Window.Requests()
+	}
 
 	if len(events) != want {
 		t.Fatalf("wrote %d events for %d observations", len(events), want)
@@ -516,3 +530,63 @@ func inodeOf(path string) (uint64, error) {
 var errNoInode = errors.New(
 	"this platform does not expose an inode, so the rename cannot be distinguished from a truncation here",
 )
+
+// The record is canonical and every other output is a projection of it, so a
+// window the VERDICT reads must survive serialization. The shift window did
+// not: both the aggregate and the raw-event serializers enumerated their
+// phases separately and both listed four of the five, so a defect established
+// from the second fault window was saved without the observations that
+// established it -- with an events hash and count that were internally
+// consistent about the wrong set.
+func TestEveryMeasuredPhaseSurvivesTheRecord(t *testing.T) {
+	result := finished()
+
+	for name, window := range map[string]probe.Window{
+		"baseline": result.Observation.Baseline,
+		"fault":    result.Observation.Fault,
+		"shift":    result.Observation.Shift,
+		"resumed":  result.Observation.Resumed,
+		"recovery": result.Observation.Recovery,
+	} {
+		if window.Len() == 0 {
+			t.Fatalf(
+				"the fixture does not populate %q, so this test cannot see it dropped",
+				name,
+			)
+		}
+	}
+
+	rec := Of("1.2.3", result, definition(t), 2, "defect")
+
+	for _, name := range []string{
+		"baseline",
+		"fault",
+		"shift",
+		"resumed",
+		"recovery",
+	} {
+		if _, ok := rec.Windows[name]; !ok {
+			t.Errorf(
+				"the record has no %q window, so a verdict resting on it cannot be audited from the record",
+				name,
+			)
+		}
+	}
+
+	seen := map[string]int{}
+	for _, event := range EventsOf(result.Observation) {
+		seen[event.Window]++
+	}
+
+	for _, name := range []string{
+		"baseline",
+		"fault",
+		"shift",
+		"resumed",
+		"recovery",
+	} {
+		if seen[name] == 0 {
+			t.Errorf("events.jsonl carries no %q observation", name)
+		}
+	}
+}

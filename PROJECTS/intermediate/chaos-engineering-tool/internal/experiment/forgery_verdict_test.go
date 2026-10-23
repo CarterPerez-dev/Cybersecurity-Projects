@@ -616,3 +616,86 @@ func TestARequiredForgedStreamWithNoDecisionsCannotReportHeld(t *testing.T) {
 			verdict.Epistemic, Passed, strings.Join(verdict.Reasons, "; "))
 	}
 }
+
+// The guard that requires this experiment's own stream to have been MEASURED
+// counted transport observations as decisions.
+//
+// `Countable()` excludes only khaos's own failures, so a timeout, an
+// unreachable target and a throttle all satisfied a check whose own name and
+// comment say "the target actually decided about it". Thirty forged probes that
+// timed out therefore cleared the floor, and a healthy valid/invalid pair then
+// produced a CONCLUSIVE hold about a credential the target was never observed
+// to judge. `Answered()` is the discriminator -- the same one that split
+// `Unavailable` from `Unreachable` -- and this was the fourth site reading the
+// wrong one.
+func TestATimedOutForgedStreamIsNotEvidenceTheTargetDecided(t *testing.T) {
+	for _, disposition := range []probe.Disposition{
+		probe.Unreachable,
+		probe.Unavailable,
+	} {
+		t.Run(string(disposition), func(t *testing.T) {
+			observation := forgeryObservation(
+				window(
+					probe.Accepted,
+					probe.Rejected,
+					probe.Accepted,
+					"",
+					MinimumPaired,
+				),
+				window(
+					probe.Accepted,
+					probe.Rejected,
+					disposition,
+					"",
+					MinimumPaired,
+				),
+				probe.ExpectAccepted,
+			)
+
+			verdict := Judge(observation, idpPolarity)
+
+			if verdict.Epistemic != ProbeError {
+				t.Fatalf(
+					"verdict = %s / %s conclusive=%v, want %s: every forged probe was a %s, so the target was never seen to decide about the credential this experiment is about (%s)",
+					verdict.Epistemic,
+					verdict.Direction,
+					verdict.Conclusive,
+					ProbeError,
+					disposition,
+					strings.Join(verdict.Reasons, "; "),
+				)
+			}
+		})
+	}
+}
+
+// The other half, because a guard that rejects everything is not a guard: a
+// forged stream the target actually DECIDED about still clears the floor.
+func TestADecidedForgedStreamStillClearsTheFloor(t *testing.T) {
+	observation := forgeryObservation(
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Accepted,
+			"",
+			MinimumPaired,
+		),
+		window(
+			probe.Accepted,
+			probe.Rejected,
+			probe.Rejected,
+			"",
+			MinimumPaired,
+		),
+		probe.ExpectAccepted,
+	)
+
+	verdict := Judge(observation, idpPolarity)
+
+	if verdict.Epistemic == ProbeError {
+		t.Fatalf(
+			"a forged stream the target refused every time was reported unmeasurable: %s",
+			strings.Join(verdict.Reasons, "; "),
+		)
+	}
+}

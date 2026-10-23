@@ -4,12 +4,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/record"
+	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -124,9 +126,13 @@ func emitRecord(
 		return outcome
 	}
 
-	// A verdict khaos reached outranks a file it could not write.
+	// A verdict khaos reached outranks a file it could not write. The warning
+	// goes to the DIAGNOSTIC stream: writing it to out appended prose to the
+	// JSON document under --output json, which breaks that contract on the one
+	// path where CI needs machine-readable evidence.
 	if outcome != nil {
-		fmt.Fprintf(out, warnRecordWrite, writeErr)
+		fmt.Fprintf(emit.diagnostic(), warnRecordWrite, writeErr)
+
 		return outcome
 	}
 
@@ -163,9 +169,22 @@ func writeProjections(rec record.Record, into Projections) error {
 
 // exitDetail reads the code and the outcome name back off a finished run, so
 // the record can carry what khaos is about to return to the shell.
+//
+// It is the SAME classification the process boundary uses, because these were
+// two lists: this one mapped anything without a typed Exit to usage code 1
+// while the boundary recognised the rollback and cancellation sentinels on its
+// own, so a real rollback failure wrote exit.code 1 into run.json and exited 6.
 func exitDetail(outcome error) (int, string) {
 	if outcome == nil {
 		return CodeOK, ""
+	}
+
+	// Matched on the sentinels BEFORE any carried code, because these are the
+	// outcomes nothing may suppress and they must not depend on some other
+	// layer having wrapped them correctly.
+	if errors.Is(outcome, run.ErrRevertFailed) ||
+		errors.Is(outcome, ErrNotRecovered) {
+		return CodeRollback, string(outcomeRollback)
 	}
 
 	var exit *Exit
@@ -173,5 +192,18 @@ func exitDetail(outcome error) (int, string) {
 		return exit.Code, string(exit.Outcome)
 	}
 
+	if errors.Is(outcome, context.Canceled) {
+		return CodeInterrupted, string(OutcomeInterrupted)
+	}
+
 	return CodeUsage, ""
+}
+
+// ExitCode is the one authority on what a finished run returns to the shell.
+// The process boundary reads it rather than carrying its own table, so the
+// status and the record cannot disagree.
+func ExitCode(outcome error) int {
+	code, _ := exitDetail(outcome)
+
+	return code
 }

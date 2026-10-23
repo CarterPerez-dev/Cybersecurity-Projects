@@ -776,7 +776,11 @@ func requiredStreamThin(observation Observation) (string, bool) {
 		return "", false
 	}
 
-	if decided := observation.Fault.Forged.Countable(); decided < MinimumPaired {
+	// Answered(), not Countable(): a timeout or an unreachable target is a
+	// transport observation and not a decision about the credential, and
+	// Countable() excludes only khaos's own failures. This is the same
+	// discriminator that splits Unavailable from Unreachable.
+	if decided := observation.Fault.Forged.Answered(); decided < MinimumPaired {
 		return sprintf(reasonThinForged, decided, MinimumPaired), true
 	}
 
@@ -1164,25 +1168,49 @@ func unanswered(
 // recoveryOf requires a run of consecutive healthy pairs, because a state
 // transition declared on one lucky sample is how a flaky recovery reads as a
 // clean one. An empty window is UNOBSERVED, never recovered.
+//
+// The whole window is read, because this used to return the moment it found a
+// qualifying run: two healthy pairs followed by twenty broken ones was
+// RECOVERED, and a run whose last observed state was broken could exit 0.
+//
+// Recovery therefore needs two things -- it has to have been ESTABLISHED, and
+// it must not have collapsed for a sustained stretch afterwards. The same run
+// length governs both, because the reason a single healthy pair cannot declare
+// recovery is the reason a single failed one cannot withdraw it. A window of
+// fifteen pairs whose last sample happens to be a blip is still a recovery;
+// this verdict maps to the one exit code no --fail-on value can suppress, so
+// the cost of declaring it on noise lands on every later job.
 func recoveryOf(recovery probe.Window, closed []probe.Disposition) Recovery {
 	if recovery.Paired() == 0 {
 		return Unobserved
 	}
 
-	run := 0
+	healthy := 0
+	established := false
+	collapsed := 0
+
 	for i := 0; i < recovery.Valid.Len() && i < recovery.Invalid.Len(); i++ {
 		if recovery.Valid.Outcomes[i].Disposition == probe.Accepted &&
 			shutBy(
 				recovery.Invalid.Outcomes[i].Disposition,
 				decided(closed),
 			) {
-			run++
-			if run >= RecoveryRunLength {
-				return Recovered
+			healthy++
+			collapsed = 0
+
+			if healthy >= RecoveryRunLength {
+				established = true
 			}
+
 			continue
 		}
-		run = 0
+
+		healthy = 0
+		collapsed++
+	}
+
+	if established && collapsed < RecoveryRunLength {
+		return Recovered
 	}
 
 	return Degraded

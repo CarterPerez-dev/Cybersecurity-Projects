@@ -302,8 +302,14 @@ echo "== the codes this gate cannot reach, named rather than implied =="
 #                  internal/cli covers the mapping.
 #   9  UNSUPPORTED driven by scripts/dns.sh and scripts/tls.sh, against the
 #                  targets whose question genuinely does not apply.
-#   70 INTERNAL    a recovered panic. Reachable only from a khaos bug, so
-#                  there is nothing honest to assert.
+#   70 INTERNAL    a recovered panic, recovered at the process boundary in
+#                  cmd/khaos. This comment used to say there was "nothing
+#                  honest to assert" about it, which was itself the dishonest
+#                  part: no production path returned the code at all, and no
+#                  recover() existed anywhere, so the gate described a
+#                  mechanism khaos did not have. It is driven by a unit test
+#                  that panics through the real boundary and asserts both the
+#                  code and that deferred reverts still ran.
 #
 # A CENSUS rather than a comment. The paragraph above was an unconditional
 # `pass`, which is documentation wearing an assertion's clothes: it could not
@@ -327,6 +333,35 @@ if grep -q 'func TestNoTwoOutcomesShareACode' internal/cli/exit_test.go; then
     pass "the unit census that pins every code is present"
 else
     fail "the unit census is gone, so the codes this gate cannot drive are unverified"
+fi
+
+# A code with no producer is a published contract khaos does not honour, which
+# is what 70 was: declared, counted by the census above, asserted by number,
+# and returned from nowhere. The census cannot see that, because counting
+# constants proves declaration and never reachability.
+if grep -q 'code = cli.CodeInternal' cmd/khaos/main.go &&
+    grep -q 'func TestAPanicBecomesTheInternalCodeWithCleanupIntact' cmd/khaos/main_test.go; then
+    pass "the internal code has a producer and a test that panics through it"
+else
+    fail "exit 70 is declared with no production path, so the taxonomy publishes a code khaos never returns"
+fi
+
+# The refusal that used to be a panic: a non-positive interval reached
+# time.NewTicker AFTER the workspace lock was taken.
+if ! out="$("$BIN" reap --interval 0 --no-color 2>&1)"; then
+    if grep -q "longer than zero" <<<"$out"; then
+        pass "a non-positive reap interval is refused by name instead of panicking"
+    else
+        fail "reap --interval 0 failed without naming the cause: ${out}"
+    fi
+else
+    fail "reap --interval 0 was accepted"
+fi
+
+if grep -q "panic" <<<"$out"; then
+    fail "reap --interval 0 still panics: ${out}"
+else
+    pass "reap --interval 0 produces no stack trace"
 fi
 
 if [[ "$failures" -gt 0 ]]; then

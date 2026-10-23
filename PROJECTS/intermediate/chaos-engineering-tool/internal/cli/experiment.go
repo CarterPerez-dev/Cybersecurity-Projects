@@ -339,6 +339,7 @@ func newRunExperimentCmd(definition experiment.Definition) *cobra.Command {
 					Shape:       shape,
 					Record:      into,
 					Projections: projections,
+					Diagnostic:  cmd.ErrOrStderr(),
 				},
 			)
 		},
@@ -650,6 +651,13 @@ type Output struct {
 	Shape       string
 	Record      string
 	Projections Projections
+
+	// Diagnostic is where a failure that is NOT the verdict goes. It is
+	// separate from the report stream because a warning on stdout turns the
+	// --output json contract into a JSON document followed by a sentence, and
+	// it is separate from the report because under json the report is
+	// discarded while this must still be seen.
+	Diagnostic io.Writer
 }
 
 // human is where the terminal report goes, and under --output json that is
@@ -661,6 +669,16 @@ func (o Output) human(out io.Writer) io.Writer {
 	}
 
 	return out
+}
+
+// diagnostic defaults to stderr rather than to the report stream, so a caller
+// that forgets to set it cannot silently reintroduce the contamination.
+func (o Output) diagnostic() io.Writer {
+	if o.Diagnostic == nil {
+		return os.Stderr
+	}
+
+	return o.Diagnostic
 }
 
 func runExperiment(

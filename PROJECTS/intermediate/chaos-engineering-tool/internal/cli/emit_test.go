@@ -180,6 +180,7 @@ func TestAVerdictOutranksARecordThatCouldNotBeWritten(t *testing.T) {
 	}
 
 	out := &strings.Builder{}
+	diagnostic := &strings.Builder{}
 
 	err := emitRecord(
 		out,
@@ -187,8 +188,9 @@ func TestAVerdictOutranksARecordThatCouldNotBeWritten(t *testing.T) {
 		result,
 		defect,
 		Output{
-			Shape:  outputText,
-			Record: filepath.Join("/proc", "khaos-cannot-write-here"),
+			Shape:      outputText,
+			Record:     filepath.Join("/proc", "khaos-cannot-write-here"),
+			Diagnostic: diagnostic,
 		},
 	)
 
@@ -197,9 +199,21 @@ func TestAVerdictOutranksARecordThatCouldNotBeWritten(t *testing.T) {
 	}
 
 	// And the failure is still SAID, because an operator who asked for a
-	// record and did not get one must not have to guess.
-	if !strings.Contains(out.String(), "could not write the run record") {
-		t.Fatalf("the write failure was silent: %.80q", out.String())
+	// record and did not get one must not have to guess. On the DIAGNOSTIC
+	// stream, not the report stream: the same line on stdout appended prose to
+	// the JSON document under --output json.
+	if !strings.Contains(
+		diagnostic.String(),
+		"could not write the run record",
+	) {
+		t.Fatalf("the write failure was silent: %.80q", diagnostic.String())
+	}
+
+	if strings.Contains(out.String(), "could not write") {
+		t.Fatalf(
+			"the write failure reached the report stream, which is what breaks --output json: %.80q",
+			out.String(),
+		)
 	}
 }
 
@@ -430,5 +444,62 @@ func TestTheReportingFlagsAdvertiseWhatTheyTake(t *testing.T) {
 				want,
 			)
 		}
+	}
+}
+
+// --output json promises stdout carries the record and nothing else, so
+// `khaos run x --output json | jq .verdict` works. A write failure broke that
+// promise on exactly the path CI needs most: the JSON went to `out`, and so
+// did the prose warning about the artifact khaos could not write, so a defect
+// plus an invalid --record destination produced a JSON document followed by a
+// sentence. Diagnostics belong on stderr; the machine format gets the stream
+// it was asked for.
+func TestAnArtifactFailureNeverContaminatesTheJSONStream(t *testing.T) {
+	result, definition := emitted(t)
+
+	out := &strings.Builder{}
+	diagnostic := &strings.Builder{}
+
+	outcome := &Exit{
+		Code:    CodeDefect,
+		Outcome: OutcomeDefect,
+		Err:     ErrDefectFound,
+	}
+
+	err := emitRecord(
+		out,
+		definition,
+		result,
+		outcome,
+		Output{
+			Shape:      outputJSON,
+			Record:     filepath.Join("/proc", "khaos-cannot-write-here"),
+			Diagnostic: diagnostic,
+		},
+	)
+
+	// The verdict outranks the bookkeeping: the defect still comes back.
+	if !errors.Is(err, ErrDefectFound) {
+		t.Fatalf("the defect was replaced by the write failure: %v", err)
+	}
+
+	body := out.String()
+
+	var parsed record.Record
+	if jsonErr := json.Unmarshal([]byte(body), &parsed); jsonErr != nil {
+		t.Fatalf(
+			"stdout is not a single decodable JSON document, so the --output json contract is broken on the path CI depends on: %v\nstdout was: %q",
+			jsonErr,
+			body,
+		)
+	}
+
+	// And the failure is not swallowed: in CI the operator believes they have
+	// an artifact, so the warning has to land somewhere they will see it.
+	if !strings.Contains(diagnostic.String(), "could not write") {
+		t.Fatalf(
+			"the artifact failure was not reported on the diagnostic stream: %q",
+			diagnostic.String(),
+		)
 	}
 }

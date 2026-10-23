@@ -205,3 +205,51 @@ func TestRollbackFailureOutranksEveryOtherExitCode(t *testing.T) {
 		})
 	}
 }
+
+// Exit code 70 was published in the taxonomy as "a recovered panic" and
+// nothing in khaos recovered one: `CodeInternal` appeared in its own
+// declaration and in a numeric assertion, and in no production path at all.
+// A bug therefore crashed with a Go stack trace and whatever status the
+// runtime chose, which CI cannot tell from a tool that could not parse its
+// flags.
+//
+// The deferred cleanup below is the half that matters more than the code: the
+// panic still unwinds every frame, so a fault khaos had applied is still
+// reverted on the way out.
+func TestAPanicBecomesTheInternalCodeWithCleanupIntact(t *testing.T) {
+	reverted := false
+
+	code := guarded(func() int {
+		defer func() { reverted = true }()
+
+		panic("a bug in khaos")
+	})
+
+	if code != cli.CodeInternal {
+		t.Errorf(
+			"a recovered panic exited %d, want %d: the taxonomy publishes 70 for exactly this",
+			code,
+			cli.CodeInternal,
+		)
+	}
+
+	if !reverted {
+		t.Error(
+			"a deferred revert did not run while the panic unwound, so khaos would leave the fault applied",
+		)
+	}
+}
+
+// And the boundary is not a blanket: an ordinary run's code passes through
+// untouched, or every exit in the taxonomy would collapse to 70.
+func TestTheGuardLeavesAnOrdinaryExitAlone(t *testing.T) {
+	for _, want := range []int{
+		cli.CodeOK,
+		cli.CodeDefect,
+		cli.CodeRollback,
+	} {
+		if got := guarded(func() int { return want }); got != want {
+			t.Errorf("guarded changed exit %d into %d", want, got)
+		}
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -36,6 +37,11 @@ const (
 	noColorFlagTrue = noColorFlag + "="
 	errorFormat     = "%s: %v\n"
 	fixFormat       = "       fix: %s\n"
+	panicFormat     = "       cause: %v\n"
+)
+
+var internalFailure = errors.New(
+	"khaos hit a bug and stopped; every fault it had applied was reverted on the way out",
 )
 
 var errInterrupted = errors.New(
@@ -43,7 +49,34 @@ var errInterrupted = errors.New(
 )
 
 func main() {
-	os.Exit(execute())
+	os.Exit(guarded(execute))
+}
+
+// guarded is the boundary that makes CodeInternal reachable. The taxonomy
+// published code 70 as "a recovered panic" and nothing in khaos recovered
+// one, so a bug crashed with a Go stack trace and whatever exit status the
+// runtime chose -- indistinguishable to CI from a tool that could not parse
+// its flags.
+//
+// Recovering HERE and nowhere deeper is deliberate: the panic still unwinds
+// every frame below, so every deferred revert, lease release and lock
+// handoff runs exactly as it does on any other error path. khaos only
+// decides what to say about it.
+func guarded(run func() int) (code int) {
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+
+		fmt.Fprintf(os.Stderr, errorFormat, version.Name, internalFailure)
+		fmt.Fprintf(os.Stderr, panicFormat, recovered)
+		fmt.Fprint(os.Stderr, string(debug.Stack()))
+
+		code = cli.CodeInternal
+	}()
+
+	return run()
 }
 
 func execute() int {
@@ -110,36 +143,30 @@ func noColorRequested(args []string) bool {
 // verdict outcomes is decided once where the run ends rather than re-derived
 // by a chain here that grows with every epistemic value. The checks below it
 // are for errors that never reached a verdict at all.
+// fail decides what the operator READS. What the process RETURNS is decided by
+// cli.ExitCode, which is the same classification the run record carries, so
+// the status and the artifact cannot disagree. This function used to carry its
+// own table, and a rollback failure exited 6 while run.json said 1.
 func fail(err error) int {
-	if errors.Is(err, run.ErrRevertFailed) {
-		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
-		printFix(err)
-		return exitRevertFailed
-	}
+	code := cli.ExitCode(err)
 
-	// Checked before the carried code as well as inside it: this is the one
-	// outcome nothing may suppress, so it is matched on the sentinel too and
-	// not only on a code some other layer computed.
-	if errors.Is(err, cli.ErrNotRecovered) {
-		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
-		return exitRevertFailed
-	}
-
-	var exit *cli.Exit
-	if errors.As(err, &exit) {
-		fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
-		return exit.Code
-	}
-
+	// Cancellation gets its own wording, because "context canceled" is Go's
+	// phrasing for a decision the operator made.
 	if errors.Is(err, context.Canceled) {
 		fmt.Fprintf(os.Stderr, errorFormat, version.Name, errInterrupted)
-		return exitInterrupted
+
+		return code
 	}
 
 	fmt.Fprintf(os.Stderr, errorFormat, version.Name, err)
-	printFix(err)
 
-	return exitError
+	// The fix line is for a refusal that names one, which is every refusal
+	// predicate and every unrevertable fault.
+	if errors.Is(err, run.ErrRevertFailed) || code == exitError {
+		printFix(err)
+	}
+
+	return code
 }
 
 func printFix(err error) {
