@@ -340,10 +340,7 @@ func (m envMutator) Revert(
 
 	original := strings.TrimSuffix(plan.Held, dockerx.HeldSuffix)
 
-	// A cold start finds the replacement by NAME, because the original's name
-	// is what it took and the id was never journaled until it existed. That
-	// name is the ORIGINAL's, so it has to be resolved before anything
-	// destructive happens to it -- see removeReplacement.
+	// A cold start has only the NAME, and that name is the original's.
 	replaced := plan.ReplacedID
 	if replaced == "" {
 		replaced = original
@@ -353,10 +350,8 @@ func (m envMutator) Revert(
 		failures = append(failures, err)
 	}
 
-	// Already restored: the held name is gone and the original's name is the
-	// original. A revert that completed and failed only to append REVERTED is
-	// replayed from the journal, and replay must be a no-op rather than a
-	// second attempt at a state that already holds.
+	// A revert that completed and failed only to append REVERTED is replayed,
+	// and replay has to be a no-op rather than a second attempt.
 	if restored, err := m.alreadyRestored(
 		ctx,
 		env,
@@ -418,18 +413,10 @@ func ValidEnvKind(kind EnvKind) error {
 func (envMutator) Prefix() string { return KindEnvPrefix }
 
 // removeReplacement deletes the container khaos created, and NOTHING else.
-//
-// The name it is given is the original's own name whenever ReplacedID was
-// never journaled, which is every cold start: ReplacedID is written to the
-// in-memory plan after Recreate and the journal payload is never updated. So
-// a Remove on that name took the operator's container -- with its anonymous
-// volume and every log line -- in two reachable states: khaos dying between
-// the PENDING record and the rename, and a replay after a revert that already
-// succeeded. OriginalID was in the payload the whole time.
-//
-// The id is resolved first and the removal is addressed to the ID, not the
-// name, because the name can move between the two calls and this tier moves
-// names on purpose.
+// On a cold start the only handle is a NAME, and that name is the original's
+// own, so the id behind it decides: it is resolved first, compared against
+// OriginalID, and the removal is addressed to the id rather than the name,
+// which can move between the two calls.
 func (m envMutator) removeReplacement(
 	ctx context.Context,
 	env Env,
@@ -444,8 +431,6 @@ func (m envMutator) removeReplacement(
 	case err != nil:
 		return err
 	case id == plan.OriginalID:
-		// That name is the ORIGINAL. Nothing to remove, and removing it is
-		// the one thing this tier must never do.
 		return nil
 	}
 
@@ -458,8 +443,7 @@ func (m envMutator) removeReplacement(
 }
 
 // alreadyRestored reports that the original is back under its own name, by
-// IDENTITY rather than by the name being taken: a replacement still holding
-// that name would otherwise read as a completed revert.
+// IDENTITY: a replacement still holding that name reads the same otherwise.
 func (m envMutator) alreadyRestored(
 	ctx context.Context,
 	env Env,
@@ -471,8 +455,6 @@ func (m envMutator) alreadyRestored(
 	}
 
 	if _, err := env.Docker.Identify(ctx, plan.Held); err == nil {
-		// The original is still aside under its held name, so the revert has
-		// work to do.
 		return false, nil
 	} else if !errors.Is(err, dockerx.ErrContainerGone) {
 		return false, err

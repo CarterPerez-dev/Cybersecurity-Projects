@@ -126,10 +126,9 @@ func emitRecord(
 		return outcome
 	}
 
-	// A verdict khaos reached outranks a file it could not write. The warning
-	// goes to the DIAGNOSTIC stream: writing it to out appended prose to the
-	// JSON document under --output json, which breaks that contract on the one
-	// path where CI needs machine-readable evidence.
+	// A verdict khaos reached outranks a file it could not write, and the
+	// warning goes to the DIAGNOSTIC stream so --output json stays one
+	// decodable document.
 	if outcome != nil {
 		fmt.Fprintf(emit.diagnostic(), warnRecordWrite, writeErr)
 
@@ -170,18 +169,15 @@ func writeProjections(rec record.Record, into Projections) error {
 // exitDetail reads the code and the outcome name back off a finished run, so
 // the record can carry what khaos is about to return to the shell.
 //
-// It is the SAME classification the process boundary uses, because these were
-// two lists: this one mapped anything without a typed Exit to usage code 1
-// while the boundary recognised the rollback and cancellation sentinels on its
-// own, so a real rollback failure wrote exit.code 1 into run.json and exited 6.
+// It is the SAME classification the process boundary uses, so the status and
+// the artifact cannot disagree.
 func exitDetail(outcome error) (int, string) {
 	if outcome == nil {
 		return CodeOK, ""
 	}
 
-	// Matched on the sentinels BEFORE any carried code, because these are the
-	// outcomes nothing may suppress and they must not depend on some other
-	// layer having wrapped them correctly.
+	// Matched on the sentinels BEFORE any carried code: nothing may suppress
+	// these, so they cannot depend on another layer having wrapped them.
 	if errors.Is(outcome, run.ErrRevertFailed) ||
 		errors.Is(outcome, ErrNotRecovered) {
 		return CodeRollback, string(outcomeRollback)

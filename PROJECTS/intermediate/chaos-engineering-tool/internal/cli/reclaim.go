@@ -58,9 +58,8 @@ every other fault on the machine.`
 	errIntervalUsage = "%w: %s"
 )
 
-// A non-positive interval reached time.NewTicker, which panics, AFTER the
-// workspace had been opened and its lock taken. Refused by name instead, and
-// before anything is opened.
+// A non-positive interval reaches time.NewTicker, which panics. Refused by
+// name instead, before the workspace is opened and its lock taken.
 var ErrIntervalNotPositive = errors.New(
 	"the reap interval has to be longer than zero, or there is no tick to check the journal on",
 )
@@ -135,8 +134,8 @@ func runReclaim(ctx context.Context, out io.Writer, expiredOnly bool) error {
 }
 
 func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
-	// Before the workspace, because a refusal that has already taken the lock
-	// is a refusal that cost the operator something.
+	// Before the workspace: a refusal that already took the lock cost the
+	// operator something.
 	if interval <= 0 {
 		return fmt.Errorf(errIntervalUsage, ErrIntervalNotPositive, interval)
 	}

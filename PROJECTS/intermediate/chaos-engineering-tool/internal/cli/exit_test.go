@@ -447,15 +447,9 @@ func TestTheExitCodesAreTheirPublishedNumbers(t *testing.T) {
 }
 
 // The code in the record and the code the process returns are the SAME
-// contract, and they were computed by two different lists.
-//
-// exitFor returned an execution error unclassified, exitDetail mapped anything
-// without a typed Exit to usage code 1, and the process boundary separately
-// recognised the rollback and cancellation sentinels. So a real rollback
-// failure wrote `exit.code: 1` into run.json while the process exited 6 -- the
-// artifact disagreeing with the status about the one outcome no --fail-on value
-// may suppress. The unit census never caught it because it called exitFor with
-// a nil execution error.
+// contract. Computed by two lists, they disagreed: a rollback failure wrote
+// exit.code 1 into run.json while the process exited 6, about the one
+// outcome no --fail-on value may suppress.
 func TestTheRecordedCodeIsTheCodeTheProcessReturns(t *testing.T) {
 	for name, tc := range map[string]struct {
 		err  error
@@ -522,10 +516,9 @@ func TestTheRecordedCodeIsTheCodeTheProcessReturns(t *testing.T) {
 	}
 }
 
-// `reap --interval 0` reached time.NewTicker(0), which panics, and it got
-// there AFTER the workspace was opened and its lock taken -- so the operator
-// paid for a refusal that arrived as a Go stack trace. Validated before
-// anything is opened.
+// A non-positive reap interval reaches time.NewTicker, which panics, and it
+// got there after the workspace lock was taken. Refused before anything
+// opens.
 func TestANonPositiveReapIntervalIsRefusedBeforeAnythingOpens(t *testing.T) {
 	for _, interval := range []time.Duration{
 		0,

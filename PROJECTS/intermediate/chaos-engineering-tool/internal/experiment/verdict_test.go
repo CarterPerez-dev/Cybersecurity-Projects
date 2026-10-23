@@ -547,15 +547,8 @@ func TestADeclaredClosureNeverHidesARefusal(t *testing.T) {
 	}
 }
 
-// recoveryOf returned the moment it found its run of consecutive healthy pairs
-// and never looked at the rest of the window, so a recovery that collapsed
-// after two good samples was reported RECOVERED. A run whose last observed
-// state was broken could then exit 0.
-//
-// The criterion is now the END of the window rather than the first qualifying
-// run: recovery has to still be established when khaos stops looking. A late
-// recovery still counts, because a window that ends with a full healthy run
-// ends healthy however it started.
+// Recovery is judged over the WHOLE window: a run that collapses after two
+// good pairs is not recovered, and a late recovery still counts.
 func TestRecoveryIsJudgedAtTheEndOfTheWindowNotTheFirstGoodRun(t *testing.T) {
 	healthy := func(n int) []probe.Disposition {
 		out := make([]probe.Disposition, n)
@@ -613,10 +606,8 @@ func TestRecoveryIsJudgedAtTheEndOfTheWindowNotTheFirstGoodRun(t *testing.T) {
 			},
 			want: Degraded,
 		},
-		// The brittleness guard. A single trailing blip in a long healthy
-		// window must NOT withdraw a recovery: this verdict maps to the one
-		// exit code no --fail-on value can suppress, and declaring it on one
-		// unlucky last sample makes every later job on that runner suspect.
+		// A single trailing blip must NOT withdraw a recovery: this verdict
+		// maps to the one exit code no --fail-on value can suppress.
 		"one trailing blip after a long healthy run": {
 			valid: append(healthy(12), probe.Unreachable),
 			want:  Recovered,

@@ -67,20 +67,10 @@ func alive(name string) bool {
 // THE one outcome this tier must never produce: khaos destroying the
 // operator's own container.
 //
-// The revert removed the replacement by NAME, derived as Held minus the held
-// suffix -- which is the ORIGINAL's name. On a cold start ReplacedID is empty
-// because it is only ever written to the in-memory plan, never to the
-// journal, so that name is all the revert had. It is the original's name
-// whenever khaos died in either of two windows:
-//
-//   - after the journal recorded PENDING and before the rename, so the
-//     original is still sitting under its own name, or
-//   - after a revert already succeeded and only the final journal append
-//     failed, so the restored original is under its own name again.
-//
-// In both, a Remove(Force) took the operator's container, its anonymous
-// volume and every log line with it. OriginalID was in the payload the whole
-// time and the revert never read it.
+// On a cold start the revert has only a NAME to find the replacement by, and
+// that name is the original's. It resolves to the original in two windows:
+// khaos dying after the PENDING record and before the rename, and a replay
+// after a revert that already succeeded.
 func TestARevertNeverRemovesTheOriginalContainer(t *testing.T) {
 	client := dockerOrSkip(t)
 	defer func() { _ = client.Close() }()
@@ -141,11 +131,9 @@ func TestARevertNeverRemovesTheOriginalContainer(t *testing.T) {
 	}
 }
 
-// The NEGATIVE CONTROL on the guard above. A removeReplacement that simply
-// never removed anything would satisfy every assertion in that test, so this
-// one drives the state the fault actually produces -- the original renamed
-// aside, a replacement holding its name -- and requires the revert to remove
-// the replacement and put the original back.
+// The NEGATIVE CONTROL: a removeReplacement that never removed anything
+// would satisfy the test above, so this drives the state the fault really
+// produces and requires the replacement to go and the original to come back.
 func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 	client := dockerOrSkip(t)
 	defer func() { _ = client.Close() }()
@@ -154,8 +142,8 @@ func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 
 	originalID := seedOriginal(t, fixtureName)
 
-	// The fault's own sequence: the original goes aside under the held name,
-	// and a DIFFERENT container takes the name it vacated.
+	// The fault's own sequence: original aside, a different container on the
+	// name it vacated.
 	if err := exec.Command("docker", "rename", fixtureName, held).
 		Run(); err != nil {
 		t.Skipf("could not rename the fixture aside: %v", err)
@@ -174,9 +162,8 @@ func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 		Variable:   "A_SECRET",
 		Held:       held,
 		OriginalID: originalID,
-		// Deliberately empty: this is the cold-start shape, where the revert
-		// has only the name to go on. That is the dangerous path, so it is
-		// the one the control exercises.
+		// ReplacedID deliberately empty: the cold-start shape, which is the
+		// dangerous path.
 	})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)

@@ -776,10 +776,8 @@ func requiredStreamThin(observation Observation) (string, bool) {
 		return "", false
 	}
 
-	// Answered(), not Countable(): a timeout or an unreachable target is a
-	// transport observation and not a decision about the credential, and
-	// Countable() excludes only khaos's own failures. This is the same
-	// discriminator that splits Unavailable from Unreachable.
+	// Answered(), not Countable(): a timeout is a transport observation and
+	// not a decision about the credential.
 	if decided := observation.Fault.Forged.Answered(); decided < MinimumPaired {
 		return sprintf(reasonThinForged, decided, MinimumPaired), true
 	}
@@ -1169,17 +1167,12 @@ func unanswered(
 // transition declared on one lucky sample is how a flaky recovery reads as a
 // clean one. An empty window is UNOBSERVED, never recovered.
 //
-// The whole window is read, because this used to return the moment it found a
-// qualifying run: two healthy pairs followed by twenty broken ones was
-// RECOVERED, and a run whose last observed state was broken could exit 0.
-//
-// Recovery therefore needs two things -- it has to have been ESTABLISHED, and
-// it must not have collapsed for a sustained stretch afterwards. The same run
-// length governs both, because the reason a single healthy pair cannot declare
-// recovery is the reason a single failed one cannot withdraw it. A window of
-// fifteen pairs whose last sample happens to be a blip is still a recovery;
-// this verdict maps to the one exit code no --fail-on value can suppress, so
-// the cost of declaring it on noise lands on every later job.
+// Recovery needs two things: it has to have been ESTABLISHED, and it must
+// not have collapsed for a sustained stretch afterwards. The same run length
+// governs both, because the reason a single healthy pair cannot declare
+// recovery is the reason a single failed one cannot withdraw it -- and this
+// verdict maps to the one exit code no --fail-on value can suppress, so
+// declaring it on one noisy sample costs every later job on the runner.
 func recoveryOf(recovery probe.Window, closed []probe.Disposition) Recovery {
 	if recovery.Paired() == 0 {
 		return Unobserved

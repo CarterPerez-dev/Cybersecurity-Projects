@@ -64,11 +64,9 @@ func finished() experiment.Result {
 			Baseline: window(0, probe.Rejected),
 			Fault:    window(10*time.Second, probe.Accepted),
 
-			// Shift and Resumed are the two windows this fixture used to
-			// claim it carried and did not. Both are real measured phases --
-			// shift is the second fault window the authorization tier needs,
-			// and resumed is what the idleness discriminator reads -- and
-			// leaving them empty is why a serializer that dropped one passed.
+			// Shift is the authorization tier's second fault window and
+			// Resumed is what the idleness discriminator reads. A fixture
+			// missing either lets a serializer drop it unnoticed.
 			Shift:          window(15*time.Second, probe.Accepted),
 			Shifted:        true,
 			Resumed:        window(18*time.Second, probe.Rejected),
@@ -225,9 +223,8 @@ func TestEveryObservationReachesTheEventsFile(t *testing.T) {
 	// two requests. Counting pairs here would have asserted half the
 	// observations reached the file and called that complete.
 	//
-	// Summed over Phases rather than over a list written here, because a
-	// hardcoded list of three windows is what let the shift window go
-	// unnoticed in both serializers.
+	// Summed over Phases rather than a list written here, so a new phase
+	// cannot go uncounted.
 	want := 0
 	for _, phase := range Phases(result.Observation) {
 		want += phase.Window.Requests()
@@ -531,13 +528,9 @@ var errNoInode = errors.New(
 	"this platform does not expose an inode, so the rename cannot be distinguished from a truncation here",
 )
 
-// The record is canonical and every other output is a projection of it, so a
-// window the VERDICT reads must survive serialization. The shift window did
-// not: both the aggregate and the raw-event serializers enumerated their
-// phases separately and both listed four of the five, so a defect established
-// from the second fault window was saved without the observations that
-// established it -- with an events hash and count that were internally
-// consistent about the wrong set.
+// Every window the VERDICT reads has to survive serialization, or a defect
+// is saved without the observations that established it -- with an events
+// hash and count internally consistent about the wrong set.
 func TestEveryMeasuredPhaseSurvivesTheRecord(t *testing.T) {
 	result := finished()
 

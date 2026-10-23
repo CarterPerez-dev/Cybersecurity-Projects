@@ -617,17 +617,10 @@ func TestARequiredForgedStreamWithNoDecisionsCannotReportHeld(t *testing.T) {
 	}
 }
 
-// The guard that requires this experiment's own stream to have been MEASURED
-// counted transport observations as decisions.
-//
-// `Countable()` excludes only khaos's own failures, so a timeout, an
-// unreachable target and a throttle all satisfied a check whose own name and
-// comment say "the target actually decided about it". Thirty forged probes that
-// timed out therefore cleared the floor, and a healthy valid/invalid pair then
-// produced a CONCLUSIVE hold about a credential the target was never observed
-// to judge. `Answered()` is the discriminator -- the same one that split
-// `Unavailable` from `Unreachable` -- and this was the fourth site reading the
-// wrong one.
+// The guard requiring this experiment's own stream to have been MEASURED
+// must count DECISIONS, not transport: Countable() excludes only khaos's own
+// failures, so a stream of timeouts would clear the floor and produce a hold
+// about a credential the target was never observed to judge.
 func TestATimedOutForgedStreamIsNotEvidenceTheTargetDecided(t *testing.T) {
 	for _, disposition := range []probe.Disposition{
 		probe.Unreachable,

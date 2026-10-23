@@ -140,12 +140,9 @@ func (c *Client) Capture(
 }
 
 // Identify resolves a name to the IMMUTABLE container id behind it, or
-// ErrContainerGone when nothing answers to that name.
-//
-// A name is a label the daemon lets any container hold, and this tier hands
-// one container's name to another on purpose. Anything destructive therefore
-// has to ask which container a name currently means before acting on it, and
-// then act on the id rather than on the name it came from.
+// ErrContainerGone when nothing answers to it. A name is a label the daemon
+// lets any container hold, and the environment tier hands one container's
+// name to another on purpose, so anything destructive resolves first.
 func (c *Client) Identify(ctx context.Context, ref string) (string, error) {
 	result, err := c.api.ContainerInspect(
 		ctx,

@@ -52,16 +52,12 @@ func main() {
 	os.Exit(guarded(execute))
 }
 
-// guarded is the boundary that makes CodeInternal reachable. The taxonomy
-// published code 70 as "a recovered panic" and nothing in khaos recovered
-// one, so a bug crashed with a Go stack trace and whatever exit status the
-// runtime chose -- indistinguishable to CI from a tool that could not parse
-// its flags.
+// guarded is the boundary that makes CodeInternal reachable, so a bug exits
+// 70 rather than with whatever status the runtime chose.
 //
 // Recovering HERE and nowhere deeper is deliberate: the panic still unwinds
 // every frame below, so every deferred revert, lease release and lock
-// handoff runs exactly as it does on any other error path. khaos only
-// decides what to say about it.
+// handoff runs as it does on any other error path.
 func guarded(run func() int) (code int) {
 	defer func() {
 		recovered := recover()
@@ -143,10 +139,9 @@ func noColorRequested(args []string) bool {
 // verdict outcomes is decided once where the run ends rather than re-derived
 // by a chain here that grows with every epistemic value. The checks below it
 // are for errors that never reached a verdict at all.
-// fail decides what the operator READS. What the process RETURNS is decided by
-// cli.ExitCode, which is the same classification the run record carries, so
-// the status and the artifact cannot disagree. This function used to carry its
-// own table, and a rollback failure exited 6 while run.json said 1.
+// fail decides what the operator READS. What the process RETURNS is decided
+// by cli.ExitCode, the same classification the run record carries, so the
+// status and the artifact cannot disagree.
 func fail(err error) int {
 	code := cli.ExitCode(err)
 

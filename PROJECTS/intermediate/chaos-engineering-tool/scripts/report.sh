@@ -303,22 +303,12 @@ echo "== the codes this gate cannot reach, named rather than implied =="
 #   9  UNSUPPORTED driven by scripts/dns.sh and scripts/tls.sh, against the
 #                  targets whose question genuinely does not apply.
 #   70 INTERNAL    a recovered panic, recovered at the process boundary in
-#                  cmd/khaos. This comment used to say there was "nothing
-#                  honest to assert" about it, which was itself the dishonest
-#                  part: no production path returned the code at all, and no
-#                  recover() existed anywhere, so the gate described a
-#                  mechanism khaos did not have. It is driven by a unit test
-#                  that panics through the real boundary and asserts both the
-#                  code and that deferred reverts still ran.
+#                  cmd/khaos and driven by a unit test that panics through
+#                  it, asserting the code AND that deferred reverts ran.
 #
-# A CENSUS rather than a comment. The paragraph above was an unconditional
-# `pass`, which is documentation wearing an assertion's clothes: it could not
-# fail, so it could not notice a thirteenth code arriving with nothing
-# covering it. This counts the taxonomy in the source and holds it to the
-# number this gate and the unit census between them account for.
-# [[:space:]] rather than \t: grep -E treats a backslash-t as a literal
-# `t`, so the tab form matched nothing and this census reported 0 under
-# bash while appearing to work when the same line was pasted into zsh.
+# A CENSUS rather than a comment, so a thirteenth code cannot arrive with
+# nothing covering it. [[:space:]] rather than \t, which grep -E reads as a
+# literal `t`.
 declared="$(grep -cE '^[[:space:]]+Code[A-Za-z]+ += ' internal/cli/exit.go || true)"
 
 if [[ "$declared" == 12 ]]; then
@@ -335,10 +325,8 @@ else
     fail "the unit census is gone, so the codes this gate cannot drive are unverified"
 fi
 
-# A code with no producer is a published contract khaos does not honour, which
-# is what 70 was: declared, counted by the census above, asserted by number,
-# and returned from nowhere. The census cannot see that, because counting
-# constants proves declaration and never reachability.
+# Counting constants proves DECLARATION and never REACHABILITY, so the code
+# needs a producer too.
 if grep -q 'code = cli.CodeInternal' cmd/khaos/main.go &&
     grep -q 'func TestAPanicBecomesTheInternalCodeWithCleanupIntact' cmd/khaos/main_test.go; then
     pass "the internal code has a producer and a test that panics through it"
@@ -346,8 +334,7 @@ else
     fail "exit 70 is declared with no production path, so the taxonomy publishes a code khaos never returns"
 fi
 
-# The refusal that used to be a panic: a non-positive interval reached
-# time.NewTicker AFTER the workspace lock was taken.
+# A non-positive interval reaches time.NewTicker, after the workspace lock.
 if ! out="$("$BIN" reap --interval 0 --no-color 2>&1)"; then
     if grep -q "longer than zero" <<<"$out"; then
         pass "a non-positive reap interval is refused by name instead of panicking"

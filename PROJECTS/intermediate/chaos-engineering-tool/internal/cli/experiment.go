@@ -652,11 +652,10 @@ type Output struct {
 	Record      string
 	Projections Projections
 
-	// Diagnostic is where a failure that is NOT the verdict goes. It is
-	// separate from the report stream because a warning on stdout turns the
-	// --output json contract into a JSON document followed by a sentence, and
-	// it is separate from the report because under json the report is
-	// discarded while this must still be seen.
+	// Diagnostic is where a failure that is NOT the verdict goes: separate
+	// from stdout so --output json stays one decodable document, and
+	// separate from the report because json discards the report while this
+	// still has to be seen.
 	Diagnostic io.Writer
 }
 

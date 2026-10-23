@@ -206,16 +206,9 @@ func TestRollbackFailureOutranksEveryOtherExitCode(t *testing.T) {
 	}
 }
 
-// Exit code 70 was published in the taxonomy as "a recovered panic" and
-// nothing in khaos recovered one: `CodeInternal` appeared in its own
-// declaration and in a numeric assertion, and in no production path at all.
-// A bug therefore crashed with a Go stack trace and whatever status the
-// runtime chose, which CI cannot tell from a tool that could not parse its
-// flags.
-//
-// The deferred cleanup below is the half that matters more than the code: the
-// panic still unwinds every frame, so a fault khaos had applied is still
-// reverted on the way out.
+// A bug has to exit 70 rather than with whatever status the runtime chose.
+// The deferred cleanup matters more than the code: the panic still unwinds
+// every frame, so an applied fault is still reverted on the way out.
 func TestAPanicBecomesTheInternalCodeWithCleanupIntact(t *testing.T) {
 	reverted := false
 

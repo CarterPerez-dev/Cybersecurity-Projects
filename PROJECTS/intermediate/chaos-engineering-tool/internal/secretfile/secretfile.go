@@ -205,8 +205,7 @@ func (m Mutation) Apply() error {
 //
 // The backup is PUBLISHED atomically, so its existence means it is complete.
 // Restore cannot tell a truncated backup from a genuinely short secret by
-// looking at it, and a 5-byte secret is a legitimate secret, so the guarantee
-// has to be structural rather than validated.
+// looking at it, so the guarantee is structural rather than validated.
 func (m Mutation) hold(info os.FileInfo) error {
 	if err := publishCopy(m.Path, m.Aside, info.Mode()); err != nil {
 		return err
@@ -269,10 +268,9 @@ func (m Mutation) Restore() error {
 	return os.Remove(m.Aside)
 }
 
-// publishCopy writes the copy to a temporary file in the destination's own
-// directory, flushes it, and renames it into place. A failed copy leaves
-// NOTHING at the destination, which is what lets a later Restore treat the
-// backup's existence as proof that the whole original is in it.
+// publishCopy writes to a temporary file in the destination's own directory,
+// flushes it, and renames it into place, so a failed copy leaves NOTHING a
+// later Restore could mistake for a complete original.
 //
 // Same directory because rename is only atomic within a filesystem, and the
 // flush before it because a rename that beats the data to disk publishes a
@@ -332,11 +330,9 @@ func publishCopy(from, to string, mode os.FileMode) error {
 	return nil
 }
 
-// copyInto overwrites the destination IN PLACE, keeping its inode. The secret
-// is restored this way rather than by rename because the whole reason this
-// tier runs in a helper container is that unlink-and-recreate is invisible to
-// a target holding the file open, and a restore that swapped the inode would
-// leave that target reading the fault forever.
+// copyInto overwrites the destination IN PLACE, keeping its inode. A rename
+// here would swap the inode, and a target holding the file open would read
+// the fault forever.
 func copyInto(from, to string, mode os.FileMode) error {
 	//nolint:gosec // the path is the fault's subject, guarded by the nonce
 	source, err := os.Open(from)

@@ -414,12 +414,9 @@ func TestAProjectionThatCannotBeWrittenIsNotSilent(t *testing.T) {
 }
 
 // pflag advertises a flag's value by the FIRST backquoted word in its usage
-// string, so that placeholder is prose maintained like a signature. Three of
-// these were wrong on arrival: `--record` takes a DIRECTORY and advertised
-// `run.json`, so an operator reads the help and passes a filename; `--junit`
-// advertised `skipped`, which is a JUnit element and not a value at all; and
-// `--metrics-out` advertised nothing and fell back to `string` beside two
-// neighbours that did not.
+// string, so the placeholder is prose maintained like a signature. --record
+// takes a DIRECTORY, and advertising a filename sends an operator to the
+// wrong shape.
 func TestTheReportingFlagsAdvertiseWhatTheyTake(t *testing.T) {
 	definition := outage(t)
 	sub := experimentCmdFor(t, newRunCmd(), definition)
@@ -448,12 +445,8 @@ func TestTheReportingFlagsAdvertiseWhatTheyTake(t *testing.T) {
 }
 
 // --output json promises stdout carries the record and nothing else, so
-// `khaos run x --output json | jq .verdict` works. A write failure broke that
-// promise on exactly the path CI needs most: the JSON went to `out`, and so
-// did the prose warning about the artifact khaos could not write, so a defect
-// plus an invalid --record destination produced a JSON document followed by a
-// sentence. Diagnostics belong on stderr; the machine format gets the stream
-// it was asked for.
+// `khaos run x --output json | jq .verdict` works. A defect plus an
+// unwritable --record must not append prose to that document.
 func TestAnArtifactFailureNeverContaminatesTheJSONStream(t *testing.T) {
 	result, definition := emitted(t)
 

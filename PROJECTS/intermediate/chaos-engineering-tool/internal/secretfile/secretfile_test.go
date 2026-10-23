@@ -347,18 +347,9 @@ func TestVerifyRefusesAMalformedCredential(t *testing.T) {
 // The one outcome this package must never produce: khaos destroying the secret
 // it was asked to preserve.
 //
-// The backup used to be written at its FINAL path, so a copy that failed
-// partway left a short file where a complete original was expected, and a read
-// error left a zero-byte one. Restore read existence as proof of a complete
-// original, opened the untouched secret with O_TRUNC, and copied the stub over
-// it. A short write or a full filesystem was enough, and truncating the
-// original could itself free the space that let the destructive restore finish
-// and report success.
-//
 // Restore cannot tell a truncated backup from a genuinely short secret by
-// looking at it -- a 5-byte secret is a legitimate secret -- so the fix is
-// structural: the backup is published atomically, and a failed hold leaves
-// nothing behind for Restore to trust.
+// looking at it, so the guarantee is structural: the backup is published
+// atomically, and a failed hold leaves nothing behind to trust.
 func TestAFailedHoldLeavesTheOriginalIntactAndUnrestorable(t *testing.T) {
 	path, aside := seeded(t)
 

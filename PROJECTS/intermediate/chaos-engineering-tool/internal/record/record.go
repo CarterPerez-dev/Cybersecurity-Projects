@@ -197,15 +197,9 @@ type Phase struct {
 }
 
 // Phases is the ONE enumeration of the measured windows, in the order the
-// engine measures them. The aggregate serializer and the raw-event serializer
-// each used to carry their own list and each listed four of the five: `shift`,
-// the second fault window the authorization tier needs and the verdict reads
-// at three sites, was in neither. A defect established from it was written to
-// a record that did not contain the observations establishing it, with an
-// events hash and count that were internally consistent about the wrong set.
-//
-// Both serializers read this, so a phase added to the engine cannot go missing
-// from one of them.
+// engine measures them. Both serializers read it, so a phase added to the
+// engine cannot go missing from one of them and leave a verdict resting on
+// observations the record does not carry.
 func Phases(observation experiment.Observation) []Phase {
 	return []Phase{
 		{"baseline", observation.Baseline},
