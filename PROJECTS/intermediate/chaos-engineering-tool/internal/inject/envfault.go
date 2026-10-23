@@ -338,19 +338,39 @@ func (m envMutator) Revert(
 
 	var failures []error
 
+	original := strings.TrimSuffix(plan.Held, dockerx.HeldSuffix)
+
 	// A cold start finds the replacement by NAME, because the original's name
-	// is what it took and the id was never journaled until it existed.
+	// is what it took and the id was never journaled until it existed. That
+	// name is the ORIGINAL's, so it has to be resolved before anything
+	// destructive happens to it -- see removeReplacement.
 	replaced := plan.ReplacedID
 	if replaced == "" {
-		replaced = strings.TrimSuffix(plan.Held, dockerx.HeldSuffix)
+		replaced = original
 	}
 
-	if err := env.Docker.Remove(ctx, replaced); err != nil &&
-		!errors.Is(err, dockerx.ErrContainerGone) {
+	if err := m.removeReplacement(ctx, env, plan, replaced); err != nil {
 		failures = append(failures, err)
 	}
 
-	original := strings.TrimSuffix(plan.Held, dockerx.HeldSuffix)
+	// Already restored: the held name is gone and the original's name is the
+	// original. A revert that completed and failed only to append REVERTED is
+	// replayed from the journal, and replay must be a no-op rather than a
+	// second attempt at a state that already holds.
+	if restored, err := m.alreadyRestored(
+		ctx,
+		env,
+		plan,
+		original,
+	); err != nil {
+		failures = append(failures, err)
+	} else if restored {
+		if err := env.Docker.Start(ctx, plan.OriginalID); err != nil {
+			failures = append(failures, err)
+		}
+
+		return errors.Join(failures...)
+	}
 
 	if err := env.Docker.Rename(ctx, plan.Held, original); err != nil {
 		return errors.Join(append(failures, err)...)
@@ -396,3 +416,76 @@ func ValidEnvKind(kind EnvKind) error {
 
 // Prefix declares this tier's kinds to the registry.
 func (envMutator) Prefix() string { return KindEnvPrefix }
+
+// removeReplacement deletes the container khaos created, and NOTHING else.
+//
+// The name it is given is the original's own name whenever ReplacedID was
+// never journaled, which is every cold start: ReplacedID is written to the
+// in-memory plan after Recreate and the journal payload is never updated. So
+// a Remove on that name took the operator's container -- with its anonymous
+// volume and every log line -- in two reachable states: khaos dying between
+// the PENDING record and the rename, and a replay after a revert that already
+// succeeded. OriginalID was in the payload the whole time.
+//
+// The id is resolved first and the removal is addressed to the ID, not the
+// name, because the name can move between the two calls and this tier moves
+// names on purpose.
+func (m envMutator) removeReplacement(
+	ctx context.Context,
+	env Env,
+	plan EnvPlan,
+	ref string,
+) error {
+	id, err := env.Docker.Identify(ctx, ref)
+
+	switch {
+	case errors.Is(err, dockerx.ErrContainerGone):
+		return nil
+	case err != nil:
+		return err
+	case id == plan.OriginalID:
+		// That name is the ORIGINAL. Nothing to remove, and removing it is
+		// the one thing this tier must never do.
+		return nil
+	}
+
+	if err := env.Docker.Remove(ctx, id); err != nil &&
+		!errors.Is(err, dockerx.ErrContainerGone) {
+		return err
+	}
+
+	return nil
+}
+
+// alreadyRestored reports that the original is back under its own name, by
+// IDENTITY rather than by the name being taken: a replacement still holding
+// that name would otherwise read as a completed revert.
+func (m envMutator) alreadyRestored(
+	ctx context.Context,
+	env Env,
+	plan EnvPlan,
+	original string,
+) (bool, error) {
+	if plan.OriginalID == "" {
+		return false, nil
+	}
+
+	if _, err := env.Docker.Identify(ctx, plan.Held); err == nil {
+		// The original is still aside under its held name, so the revert has
+		// work to do.
+		return false, nil
+	} else if !errors.Is(err, dockerx.ErrContainerGone) {
+		return false, err
+	}
+
+	id, err := env.Docker.Identify(ctx, original)
+
+	switch {
+	case errors.Is(err, dockerx.ErrContainerGone):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+
+	return id == plan.OriginalID, nil
+}

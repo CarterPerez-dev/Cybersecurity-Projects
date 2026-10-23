@@ -139,6 +139,26 @@ func (c *Client) Capture(
 	return spec, nil
 }
 
+// Identify resolves a name to the IMMUTABLE container id behind it, or
+// ErrContainerGone when nothing answers to that name.
+//
+// A name is a label the daemon lets any container hold, and this tier hands
+// one container's name to another on purpose. Anything destructive therefore
+// has to ask which container a name currently means before acting on it, and
+// then act on the id rather than on the name it came from.
+func (c *Client) Identify(ctx context.Context, ref string) (string, error) {
+	result, err := c.api.ContainerInspect(
+		ctx,
+		ref,
+		client.ContainerInspectOptions{},
+	)
+	if err != nil {
+		return "", c.classify(err)
+	}
+
+	return result.Container.ID, nil
+}
+
 // Rename is how the original is kept. The replacement takes the name, so every
 // peer addressing the service by name reaches the replacement.
 func (c *Client) Rename(ctx context.Context, containerID, name string) error {
