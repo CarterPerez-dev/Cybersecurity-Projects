@@ -130,6 +130,28 @@ func (c *Client) Endpoints(
 	return result.Container.NetworkSettings.Networks, nil
 }
 
+// Running reports whether the container is up, which is how a restart
+// obligation knows there is still something to put back.
+func (c *Client) Running(
+	ctx context.Context,
+	containerID string,
+) (bool, error) {
+	result, err := c.api.ContainerInspect(
+		ctx,
+		containerID,
+		client.ContainerInspectOptions{},
+	)
+	if err != nil {
+		return false, fmt.Errorf(
+			errState,
+			ShortID(containerID),
+			c.classify(err),
+		)
+	}
+
+	return result.Container.State != nil && result.Container.State.Running, nil
+}
+
 func (c *Client) Paused(ctx context.Context, containerID string) (bool, error) {
 	result, err := c.api.ContainerInspect(
 		ctx,

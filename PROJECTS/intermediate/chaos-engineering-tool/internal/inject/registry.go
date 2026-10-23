@@ -24,6 +24,7 @@ import (
 
 const (
 	KindPause      = "container-pause"
+	KindRestart    = "container-restart"
 	KindDisconnect = "network-disconnect"
 
 	errUnknownKind   = "%w: %q (known kinds: %s)"
@@ -34,6 +35,8 @@ const (
 	confirmDisconnect = "reading the container back as detached from every network"
 
 	describePause      = "freeze every process in %s so it stops answering without closing its connections"
+	describeRestart    = "stop %s and start it again, so it initialises without a dependency it already had"
+	confirmRestart     = "%s is stopped, read back off the daemon"
 	describeDisconnect = "detach %s from every network it is on, then reattach it with the same aliases, addresses and driver options"
 )
 
@@ -100,6 +103,7 @@ type Mutator interface {
 
 var registry = map[string]Mutator{
 	KindPause:      pauseMutator{},
+	KindRestart:    restartMutator{},
 	KindDisconnect: disconnectMutator{},
 }
 
@@ -133,7 +137,7 @@ func Kinds() []string {
 func DirectKinds() []string {
 	kinds := make([]string, 0, len(registry))
 	for kind, mutator := range registry {
-		if inProcess(mutator) {
+		if inProcess(mutator) || internal(mutator) {
 			continue
 		}
 		kinds = append(kinds, kind)
@@ -152,6 +156,18 @@ type perRun interface {
 // in-process-shaped name cannot be quietly offered under `khaos inject`.
 func inProcess(mutator Mutator) bool {
 	_, ok := mutator.(perRun)
+	return ok
+}
+
+// obligation is a mutation khaos records so its OWN recovery can undo it,
+// never one an operator asks for. Declared by the same self-identifying
+// shape as perRun rather than by a list somebody has to remember.
+type obligation interface {
+	Obligation()
+}
+
+func internal(mutator Mutator) bool {
+	_, ok := mutator.(obligation)
 	return ok
 }
 
@@ -175,6 +191,23 @@ func PerRunPrefixes() []string {
 	slices.Sort(prefixes)
 
 	return prefixes
+}
+
+// ObligationKinds are khaos's own recovery bookkeeping, DERIVED from the
+// registry so the exclusion cannot drift from the mutators that declare it.
+// A hand-written list is how thirty-six pki- kinds once shipped as offerable.
+func ObligationKinds() []string {
+	kinds := make([]string, 0, len(registry))
+
+	for kind, mutator := range registry {
+		if internal(mutator) {
+			kinds = append(kinds, kind)
+		}
+	}
+
+	slices.Sort(kinds)
+
+	return kinds
 }
 
 func IsDirect(kind string) bool {
@@ -444,3 +477,89 @@ func (disconnectMutator) Confirm(
 	}
 	return confirmDisconnect, true, nil
 }
+
+// restartMutator carries the obligation a cold start creates between its stop
+// and its start. The pair is not a fault -- it leaves the container where it
+// was -- but only once BOTH halves complete, and a stop whose start never
+// follows leaves the operator's target down with nothing owed to anyone.
+type restartMutator struct{}
+
+func (restartMutator) Describe(_ Env, t dockerx.Target) string {
+	return fmt.Sprintf(describeRestart, t.Name)
+}
+
+// RestartPayload records the state the target was in BEFORE khaos stopped it,
+// so recovery starts only what khaos took down.
+type RestartPayload struct {
+	WasRunning bool `json:"was_running"`
+}
+
+func (restartMutator) Plan(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (json.RawMessage, error) {
+	running, err := env.Docker.Running(ctx, t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return journal.EncodePayload(RestartPayload{WasRunning: running})
+}
+
+func (restartMutator) Apply(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+	_ json.RawMessage,
+) error {
+	return env.Docker.Stop(ctx, t.ID)
+}
+
+// Revert puts back only a container khaos stopped and that is still down.
+func (restartMutator) Revert(
+	ctx context.Context,
+	env Env,
+	record journal.Record,
+) error {
+	var payload RestartPayload
+	if len(record.Payload) > 0 {
+		if err := record.DecodePayload(&payload); err != nil {
+			return err
+		}
+	}
+
+	if !payload.WasRunning {
+		return nil
+	}
+
+	running, err := env.Docker.Running(ctx, record.TargetID)
+	if err != nil {
+		return err
+	}
+
+	if running {
+		return nil
+	}
+
+	return env.Docker.Start(ctx, record.TargetID)
+}
+
+// Confirm reads back that the target is down, which is the only observable
+// half of a restart that a reclaim can act on.
+func (restartMutator) Confirm(
+	ctx context.Context,
+	env Env,
+	t dockerx.Target,
+) (string, bool, error) {
+	running, err := env.Docker.Running(ctx, t.ID)
+	if err != nil || running {
+		return "", false, err
+	}
+
+	return fmt.Sprintf(confirmRestart, t.Name), true, nil
+}
+
+// Obligation marks this as khaos's own bookkeeping: it is resolvable by
+// Lookup so a reclaim can revert it, and absent from `khaos inject`.
+func (restartMutator) Obligation() {}

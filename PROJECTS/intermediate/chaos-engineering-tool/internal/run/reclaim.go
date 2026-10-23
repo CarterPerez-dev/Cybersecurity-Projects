@@ -17,6 +17,38 @@ import (
 // settleSuffix mirrors statedir.Paths.Settle.
 const settleSuffix = ".settle"
 
+const (
+	// Contention on the settle lock is two short critical sections
+	// colliding, so it is worth waiting out rather than walking past.
+	settleAttempts = 25
+	settleBackoff  = 20 * time.Millisecond
+)
+
+// holdSettle serialises read-then-append between a run and the reaper. The
+// returned release is always safe to call.
+//
+// A filesystem that cannot flock is a different answer from a lock somebody
+// holds: retrying it would stall every recovery there forever, so it
+// proceeds unlocked.
+func holdSettle(path string) func() {
+	for attempt := range settleAttempts {
+		settle, err := lock.Acquire(path + settleSuffix)
+		if err == nil {
+			return func() { _ = settle.Release() }
+		}
+
+		if !errors.Is(err, lock.ErrHeld) {
+			return func() {}
+		}
+
+		if attempt < settleAttempts-1 {
+			time.Sleep(settleBackoff)
+		}
+	}
+
+	return func() {}
+}
+
 type Reclaimed struct {
 	Record journal.Record
 	Err    error
@@ -53,9 +85,7 @@ func Reclaim(
 	now time.Time,
 	expiredOnly bool,
 ) Sweep {
-	if settle, err := lock.Acquire(log.Path() + settleSuffix); err == nil {
-		defer func() { _ = settle.Release() }()
-	}
+	defer holdSettle(log.Path())()
 
 	return reclaimWith(ctx, env, log, now, expiredOnly, inject.Lookup)
 }

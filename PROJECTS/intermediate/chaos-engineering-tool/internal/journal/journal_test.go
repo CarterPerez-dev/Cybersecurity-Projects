@@ -360,43 +360,66 @@ func TestIDsAreDistinct(t *testing.T) {
 	}
 }
 
-// A completed reversion is terminal. Plain last-write-wins let a stale renewal
-// resurrect a fault the reaper had already undone, and khaos then renewed a
-// lease for a target nothing was holding.
-func TestAReversionCannotBeUndoneByALaterApplied(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "journal.ndjson")
-
-	log, err := Open(path)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	defer func() { _ = log.Close() }()
-
-	const id = "mutation-1"
-
-	for _, record := range []Record{
-		{MutationID: id, Kind: "container-pause", TargetID: "abc", Phase: PhasePending},
-		{MutationID: id, Kind: "container-pause", TargetID: "abc", Phase: PhaseApplied},
-		// The reaper wins the race and reverts.
-		{MutationID: id, Kind: "container-pause", TargetID: "abc", Phase: PhaseReverted},
-		// A renewal that read the journal BEFORE that reversion lands late.
-		{MutationID: id, Kind: "container-pause", TargetID: "abc", Phase: PhaseApplied},
+// A completed reversion is terminal against a RENEWAL and re-openable by an
+// APPLICATION, and the journal has to tell those apart: a stale renewal must
+// not resurrect a fault the reaper undid, while an Apply that completed after
+// the reaper reverted it leaves a LIVE fault that has to stay recoverable.
+func TestAReversionIsTerminalForARenewalAndNotForAnApplication(t *testing.T) {
+	for name, tc := range map[string]struct {
+		last Phase
+		want int
+	}{
+		"a stale renewal landing after the reversion": {
+			last: PhaseRenewed,
+			want: 0,
+		},
+		"an apply that completed after the reversion": {
+			last: PhaseApplied,
+			want: 1,
+		},
 	} {
-		if err := log.Append(record); err != nil {
-			t.Fatalf("append: %v", err)
-		}
-	}
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "journal.ndjson")
 
-	outstanding, err := Outstanding(path)
-	if err != nil {
-		t.Fatalf("outstanding: %v", err)
-	}
+			log, err := Open(path)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			defer func() { _ = log.Close() }()
 
-	if len(outstanding) != 0 {
-		t.Fatalf(
-			"a reverted mutation came back as outstanding: %+v",
-			outstanding,
-		)
+			const id = "mutation-1"
+
+			for _, phase := range []Phase{
+				PhasePending,
+				PhaseApplied,
+				// The reaper wins the race and reverts.
+				PhaseReverted,
+				tc.last,
+			} {
+				if err := log.Append(Record{
+					MutationID: id,
+					Kind:       "container-pause",
+					TargetID:   "abc",
+					Phase:      phase,
+				}); err != nil {
+					t.Fatalf("append: %v", err)
+				}
+			}
+
+			outstanding, err := Outstanding(path)
+			if err != nil {
+				t.Fatalf("outstanding: %v", err)
+			}
+
+			if len(outstanding) != tc.want {
+				t.Fatalf(
+					"%d outstanding, want %d: a %s record following a reversion",
+					len(outstanding),
+					tc.want,
+					tc.last,
+				)
+			}
+		})
 	}
 }
 

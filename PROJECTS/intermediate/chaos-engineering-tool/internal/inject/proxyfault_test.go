@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -295,8 +296,12 @@ func TestInProcessKindsAreNotOfferedForDirectInjection(t *testing.T) {
 		)
 	}
 
+	// Obligations are the third category and are DERIVED too: khaos's own
+	// recovery bookkeeping, resolvable by Lookup and never offered.
+	obligations := ObligationKinds()
+
 	for _, kind := range Kinds() {
-		wantDirect := true
+		wantDirect := !slices.Contains(obligations, kind)
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(kind, prefix) {
 				wantDirect = false

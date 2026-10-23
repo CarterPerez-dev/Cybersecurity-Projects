@@ -21,6 +21,11 @@ const (
 	PhaseApplied  Phase = "applied"
 	PhaseReverted Phase = "reverted"
 	PhaseFailed   Phase = "failed"
+
+	// PhaseRenewed is an expiry extension and nothing else. It is distinct
+	// from PhaseApplied because an application re-opens a mutation a reaper
+	// already reverted and a renewal must never be able to.
+	PhaseRenewed Phase = "renewed"
 )
 
 const (
@@ -100,7 +105,7 @@ func (r Record) Expired(now time.Time) bool {
 
 func (r Record) Outstanding() bool {
 	return r.Phase == PhasePending || r.Phase == PhaseApplied ||
-		r.Phase == PhaseFailed
+		r.Phase == PhaseFailed || r.Phase == PhaseRenewed
 }
 
 type Journal struct {
@@ -206,10 +211,17 @@ func Outstanding(path string) ([]Record, error) {
 			order = append(order, record.MutationID)
 		}
 
-		// A completed reversion is TERMINAL: nothing re-applies a mutation ID,
-		// and last-write-wins would let a stale renewal resurrect the record.
-		if record.Phase == PhaseReverted {
+		// A reversion is terminal against a renewal, because last-write-wins
+		// would let a stale one resurrect the record. It is NOT terminal
+		// against an application: a reaper can revert a mutation whose Apply
+		// is still in flight, and that Apply leaves a live fault that has to
+		// stay recoverable.
+		switch record.Phase {
+		case PhaseReverted:
 			settled[record.MutationID] = true
+		case PhaseApplied:
+			delete(settled, record.MutationID)
+		case PhasePending, PhaseFailed, PhaseRenewed:
 		}
 
 		latest[record.MutationID] = record

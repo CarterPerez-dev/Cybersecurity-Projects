@@ -14,7 +14,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/lease"
-	"github.com/CarterPerez-dev/khaos/internal/lock"
 )
 
 const (
@@ -125,6 +124,11 @@ func (s *Session) Inject(
 		return err
 	}
 
+	// Remembered BEFORE the apply: an Apply that stops, renames and creates
+	// containers is not instant, and a record outside the renewable set
+	// cannot have its expiry extended while that work is in flight.
+	s.remember(record)
+
 	applyErr := mutator.Apply(ctx, s.env, target, payload)
 	record.At = time.Now().UTC()
 
@@ -149,9 +153,7 @@ func (s *Session) Inject(
 func (s *Session) Renew() error {
 	// The same settle lock Reclaim takes: read-then-append is two operations
 	// and the reaper runs beside this.
-	if settle, err := lock.Acquire(s.log.Path() + settleSuffix); err == nil {
-		defer func() { _ = settle.Release() }()
-	}
+	defer holdSettle(s.log.Path())()
 
 	live, err := journal.Outstanding(s.log.Path())
 	if err != nil {
@@ -221,9 +223,21 @@ func (s *Session) settle(mutationID string, failure error) {
 	}
 }
 
+// remember is keyed on the mutation id: the same record arrives twice, once
+// before its apply and once with the phase that apply produced, and two
+// entries would renew a stale copy and revert the same fault twice.
 func (s *Session) remember(record journal.Record) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	for i := range s.mutations {
+		if s.mutations[i].MutationID == record.MutationID {
+			s.mutations[i] = record
+
+			return
+		}
+	}
+
 	s.mutations = append(s.mutations, record)
 }
 
@@ -239,7 +253,9 @@ func (s *Session) renewable(
 	dropped := 0
 
 	for i := range s.mutations {
-		if s.mutations[i].Phase != journal.PhaseApplied {
+		// PENDING is renewable too: it is a mutation still inside its Apply.
+		if s.mutations[i].Phase != journal.PhaseApplied &&
+			s.mutations[i].Phase != journal.PhasePending {
 			continue
 		}
 
@@ -252,7 +268,13 @@ func (s *Session) renewable(
 
 		s.mutations[i].ExpiresAt = expiry
 		s.mutations[i].At = now
-		out = append(out, s.mutations[i])
+
+		// Emitted as a RENEWAL while the session's copy keeps its real
+		// phase, so the journal can tell holding from applying.
+		renewal := s.mutations[i]
+		renewal.Phase = journal.PhaseRenewed
+
+		out = append(out, renewal)
 	}
 
 	return out, dropped
@@ -318,9 +340,11 @@ func revertWith(
 // In place rather than recreated, which keeps the published port: a recreate
 // moves it under khaos's own probe mid-run.
 //
-// It journals nothing, unlike every other mutation here, and that is correct
-// rather than an omission: a stop followed by a start leaves the container
-// where it was, so there is no state a cold-started revert would have to undo.
+// The pair leaves the container where it was, but only once BOTH halves
+// complete. A stop whose start never follows -- a failed start, a cancelled
+// context, a dead khaos -- leaves the operator's target down, so the window
+// between them carries a journalled obligation that a cold reclaim can act
+// on.
 func (s *Session) Restart(
 	ctx context.Context,
 	target dockerx.Target,
@@ -329,11 +353,77 @@ func (s *Session) Restart(
 		return ErrNoDaemon
 	}
 
-	if err := s.env.Docker.Stop(ctx, target.ID); err != nil {
+	running, err := s.env.Docker.Running(ctx, target.ID)
+	if err != nil {
 		return err
 	}
 
-	return s.env.Docker.Start(ctx, target.ID)
+	payload, err := journal.EncodePayload(
+		inject.RestartPayload{WasRunning: running},
+	)
+	if err != nil {
+		return err
+	}
+
+	record := journal.Record{
+		MutationID: journal.NewID(),
+		RunID:      s.runID,
+		LeaseID:    s.lease.ID(),
+		Kind:       inject.KindRestart,
+		Daemon:     s.daemon(),
+		TargetID:   target.ID,
+		TargetName: target.Name,
+		Payload:    payload,
+		Phase:      journal.PhasePending,
+		ExpiresAt:  s.lease.ExpiresAt(),
+	}
+
+	if err := s.log.Append(record); err != nil {
+		return err
+	}
+
+	s.remember(record)
+
+	if err := s.settleRestart(ctx, record, target); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// settleRestart performs the stop and the start, and leaves the record
+// OUTSTANDING for anything it did not finish.
+func (s *Session) settleRestart(
+	ctx context.Context,
+	record journal.Record,
+	target dockerx.Target,
+) error {
+	record.At = time.Now().UTC()
+
+	if err := s.env.Docker.Stop(ctx, target.ID); err != nil {
+		// Stopped or not is unknown here, so the obligation stands and a
+		// reclaim decides by reading the container back.
+		record.Phase = journal.PhaseFailed
+		record.Detail = err.Error()
+		s.remember(record)
+		_ = s.log.Append(record)
+
+		return err
+	}
+
+	if err := s.env.Docker.Start(ctx, target.ID); err != nil {
+		record.Phase = journal.PhaseApplied
+		record.Detail = err.Error()
+		s.remember(record)
+		_ = s.log.Append(record)
+
+		return err
+	}
+
+	record.Phase = journal.PhaseReverted
+	s.remember(record)
+
+	return s.log.Append(record)
 }
 
 func (s *Session) Confirm(

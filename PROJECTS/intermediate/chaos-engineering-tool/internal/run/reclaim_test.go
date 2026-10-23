@@ -5,10 +5,13 @@ package run
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/CarterPerez-dev/khaos/internal/journal"
+	"github.com/CarterPerez-dev/khaos/internal/lock"
 )
 
 // A fault on another daemon is left alone AND left outstanding.
@@ -72,5 +75,44 @@ func TestASweepWillNotSettleAFaultFromAnotherDaemon(t *testing.T) {
 		t.Fatal(
 			"no case refused, so this table cannot detect a check that always allows",
 		)
+	}
+}
+
+// The settle lock serialises read-then-append between a run and the reaper,
+// so ordinary contention has to be waited out rather than walked past.
+func TestTheSettleLockIsWaitedForRatherThanWalkedPast(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "journal.jsonl")
+
+	held, err := lock.Acquire(path + settleSuffix)
+	if err != nil {
+		t.Fatalf("seed the contention: %v", err)
+	}
+
+	entered := make(chan time.Time, 1)
+
+	go func() {
+		release := holdSettle(path)
+		entered <- time.Now()
+		release()
+	}()
+
+	// It must NOT have sailed straight through while the lock was held.
+	select {
+	case at := <-entered:
+		t.Fatalf(
+			"holdSettle returned at %s with the lock still held by someone else, so the critical section is not serialised",
+			at.Format(time.RFC3339Nano),
+		)
+	case <-time.After(60 * time.Millisecond):
+	}
+
+	if err := held.Release(); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("holdSettle never acquired the lock after it was released")
 	}
 }

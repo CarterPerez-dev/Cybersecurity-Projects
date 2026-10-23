@@ -35,6 +35,12 @@ type fake struct {
 	journalAtApply []journal.Record
 	path           string
 	unconfirmable  bool
+
+	// entered is closed when Apply begins and blocks until release is
+	// closed, so a test can act on the journal with a mutation held INSIDE
+	// its application.
+	entered chan struct{}
+	release chan struct{}
 }
 
 func (f *fake) Describe(
@@ -63,6 +69,12 @@ func (f *fake) Apply(
 	if f.path != "" {
 		f.journalAtApply, _ = journal.Outstanding(f.path)
 	}
+
+	if f.entered != nil {
+		close(f.entered)
+		<-f.release
+	}
+
 	return f.applyErr
 }
 
@@ -461,4 +473,164 @@ func TestAnUnknownKindIsRefused(t *testing.T) {
 	) {
 		t.Fatalf("got %v, want ErrUnknownKind", err)
 	}
+}
+
+// A mutation settled by the reaper while its own Apply is still running
+// leaves a live fault that no later recovery can see, because Outstanding
+// treats the reversion as terminal.
+//
+// The window is held open by a channel rather than a sleep, so this fails for
+// the reason it names rather than on a slow machine.
+func TestAMutationBeingAppliedIsNotSettledByTheReaper(t *testing.T) {
+	log := tempJournal(t)
+
+	mutator := &fake{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	registry := registryOf(map[string]inject.Mutator{fakeKind: mutator})
+
+	// A lease far shorter than the application takes.
+	session := newSessionWith(inject.Env{}, log, time.Millisecond, registry)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- session.Inject(context.Background(), fakeKind, target())
+	}()
+
+	<-mutator.entered
+
+	// The reaper runs while Apply is still inside the mutator, with a clock
+	// well past the lease.
+	sweep := reclaimWith(
+		context.Background(),
+		inject.Env{},
+		log,
+		time.Now().UTC().Add(time.Hour),
+		true,
+		registry,
+	)
+
+	close(mutator.release)
+
+	if err := <-done; err != nil {
+		t.Fatalf("inject: %v", err)
+	}
+
+	if len(sweep.Results) == 0 {
+		// The reaper left it alone, which is the outcome this test wants.
+		// Nothing further to check.
+		return
+	}
+
+	// It was reverted mid-apply. Then the fault MUST still be accounted for,
+	// because Apply completed and the target is carrying it.
+	live, err := journal.Outstanding(log.Path())
+	if err != nil {
+		t.Fatalf("outstanding: %v", err)
+	}
+
+	if len(live) == 0 {
+		t.Fatalf(
+			"the reaper reverted a mutation while it was still being applied, and the applied fault is now outstanding to nobody: %d record(s) reclaimed, 0 outstanding",
+			len(sweep.Results),
+		)
+	}
+}
+
+// A mutation INSIDE its own Apply has to be renewable, or its durable expiry
+// lapses while the work is in flight.
+func TestAMutationIsRenewableWhileItIsStillBeingApplied(t *testing.T) {
+	log := tempJournal(t)
+
+	mutator := &fake{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	registry := registryOf(map[string]inject.Mutator{fakeKind: mutator})
+
+	session := newSessionWith(inject.Env{}, log, time.Hour, registry)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- session.Inject(context.Background(), fakeKind, target())
+	}()
+
+	<-mutator.entered
+
+	before := expiryOf(t, log.Path())
+
+	if err := session.Renew(); err != nil {
+		t.Fatalf("renew: %v", err)
+	}
+
+	after := expiryOf(t, log.Path())
+
+	close(mutator.release)
+
+	if err := <-done; err != nil {
+		t.Fatalf("inject: %v", err)
+	}
+
+	if !after.After(before) {
+		t.Fatalf(
+			"the expiry of a mutation still inside its Apply did not move (%s -> %s), so the reaper is free to revert it mid-application",
+			before,
+			after,
+		)
+	}
+}
+
+// And a renewal has to SAY it is a renewal: while it is indistinguishable
+// from an application, a reversion can never be safely re-opened by a real
+// one.
+func TestARenewalIsJournaledAsARenewalNotAnApplication(t *testing.T) {
+	log := tempJournal(t)
+	registry := registryOf(map[string]inject.Mutator{fakeKind: &fake{}})
+
+	session := newSessionWith(inject.Env{}, log, time.Hour, registry)
+
+	if err := session.Inject(
+		context.Background(),
+		fakeKind,
+		target(),
+	); err != nil {
+		t.Fatalf("inject: %v", err)
+	}
+
+	if err := session.Renew(); err != nil {
+		t.Fatalf("renew: %v", err)
+	}
+
+	records, _ := journal.Replay(log.Path())
+	if len(records) == 0 {
+		t.Fatal("the journal is empty")
+	}
+
+	last := records[len(records)-1]
+
+	if last.Phase != journal.PhaseRenewed {
+		t.Fatalf(
+			"a renewal was journaled as %q, want %q: while a renewal is indistinguishable from an application, a reversion can never be safely re-opened by a real one",
+			last.Phase,
+			journal.PhaseRenewed,
+		)
+	}
+}
+
+// expiryOf reads the latest expiry the journal carries for any outstanding
+// mutation.
+func expiryOf(t *testing.T, path string) time.Time {
+	t.Helper()
+
+	records, _ := journal.Replay(path)
+
+	var latest time.Time
+	for _, record := range records {
+		if record.ExpiresAt.After(latest) {
+			latest = record.ExpiresAt
+		}
+	}
+
+	return latest
 }
