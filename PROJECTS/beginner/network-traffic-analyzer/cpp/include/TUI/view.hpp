@@ -5,8 +5,8 @@
 
 class View {
   public:
-	ftxui::Element render(const StatsSnapshot &data, const std::string &interface, const std::string &filter,
-						  bool capture_finished, std::chrono::seconds timer);
+	static ftxui::Element render(const StatsSnapshot &data, const std::string &interface, const std::string &filter,
+								 bool capture_finished, std::chrono::seconds timer);
 
   private:
 	static ftxui::Element render_header(const StatsSnapshot &data, const std::string &interface,
