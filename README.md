@@ -26,13 +26,22 @@
 <h2 align="center"><strong>View Complete Projects:</strong></h2>
 <div align="center">
   <a href="https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS">
-    <img src="https://img.shields.io/badge/Full_Source_Code-42/70-blue?style=for-the-badge&logo=github" alt="Projects"/>
+    <img src="https://img.shields.io/badge/Full_Source_Code-43/70-blue?style=for-the-badge&logo=github" alt="Projects"/>
   </a>
 </div>
 
 <p align="center"><sub><em>Currently building: DDoS Mitigation Tool</em></sub></p>
 
 ---
+
+<div align="center">
+  <a href="https://trendshift.io/repositories/20757?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-20757" target="_blank" rel="noopener noreferrer">
+    <img src="https://trendshift.io/api/badge/repositories/20757" alt="CarterPerez-dev/Cybersecurity-Projects | GitHub Trending #1 Repository of the Day" width="250" height="55"/>
+  </a>
+  <a href="https://trendshift.io/repositories/20757?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-20757" target="_blank" rel="noopener noreferrer">
+    <img src="https://trendshift.io/api/badge/trendshift/repositories/20757/daily?language=Go" alt="CarterPerez-dev/Cybersecurity-Projects | Trendshift Go #1 Repository of the Day" width="250" height="55"/>
+  </a>
+</div>
 
 ## Quick Navigation
 
