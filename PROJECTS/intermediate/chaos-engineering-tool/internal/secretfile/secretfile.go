@@ -41,7 +41,6 @@ const (
 	AsideSuffix = ".khaos-held"
 
 	unreadableMode = 0o000
-	restoredMode   = 0o600
 
 	// A secret is conventionally delivered read-only, and the OWNER of a 0400
 	// file cannot write it either. Making it writable first means the
@@ -81,10 +80,12 @@ var ErrBadPath = errors.New(
 // Mutation is one secret-file fault, performed INSIDE the target's own mount by
 // a short-lived container. Every field is a path in the container's namespace.
 type Mutation struct {
-	Kind  Kind   `json:"kind"`
-	Path  string `json:"path"`
-	Aside string `json:"aside"`
-	Bytes int    `json:"bytes,omitempty"`
+	Kind         Kind    `json:"kind"`
+	Path         string  `json:"path"`
+	Aside        string  `json:"aside"`
+	Bytes        int     `json:"bytes,omitempty"`
+	OriginalMode *uint32 `json:"original_mode,omitempty"`
+	OriginalSize *int64  `json:"original_size,omitempty"`
 }
 
 func Kinds() []string {
@@ -239,8 +240,10 @@ func (m Mutation) Restore() error {
 
 	held, err := os.Stat(m.Aside)
 	if err != nil {
-		// Already restored is success: a revert runs again after a reclaim.
-		if _, err := os.Stat(m.Path); err == nil && m.Kind != Unreadable {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if m.alreadyRestored() {
 			return nil
 		}
 
@@ -268,6 +271,20 @@ func (m Mutation) Restore() error {
 	return os.Remove(m.Aside)
 }
 
+func (m Mutation) alreadyRestored() bool {
+	info, err := os.Stat(m.Path)
+	if err != nil {
+		return false
+	}
+	if m.OriginalSize != nil && info.Size() != *m.OriginalSize {
+		return false
+	}
+	if m.OriginalMode != nil {
+		return uint32(info.Mode().Perm()) == *m.OriginalMode
+	}
+	return m.Kind != Unreadable || info.Mode().Perm() != unreadableMode
+}
+
 // publishCopy writes to a temporary file in the destination's own directory,
 // flushes it, and renames it into place, so a failed copy leaves NOTHING a
 // later Restore could mistake for a complete original.
@@ -282,10 +299,6 @@ func publishCopy(from, to string, mode os.FileMode) error {
 		return err
 	}
 	defer func() { _ = source.Close() }()
-
-	if mode.Perm() == 0 {
-		mode = restoredMode
-	}
 
 	temp, err := os.CreateTemp(filepath.Dir(to), tempPrefix)
 	if err != nil {
@@ -340,10 +353,6 @@ func copyInto(from, to string, mode os.FileMode) error {
 		return err
 	}
 	defer func() { _ = source.Close() }()
-
-	if mode.Perm() == 0 {
-		mode = restoredMode
-	}
 
 	// Truncated rather than appended, so a restore over a longer file leaves
 	// no tail of the fault behind.

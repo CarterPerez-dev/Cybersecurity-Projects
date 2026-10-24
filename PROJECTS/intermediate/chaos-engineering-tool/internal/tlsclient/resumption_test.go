@@ -21,11 +21,6 @@ import (
 // the FIRST handshake and skipped on every resumption afterwards, for as long
 // as the ticket lives -- which Go caps at seven days (common.go:983-985).
 //
-// Expiry cannot survive it. Go's client re-verifies the cached chain for
-// NotAfter and chain validity before offering a ticket and drops the entry if
-// it fails, which research 04 section 7.4 measured. REVOCATION survives,
-// because nothing anywhere checks it.
-//
 // The sequence this asserts is the one khaos's own phases produce: establish a
 // session while the certificate is good, then revoke it, then connect again.
 
@@ -93,6 +88,10 @@ func TestASessionIsEstablishedAndThenResumed(t *testing.T) {
 // being used.
 func TestARevokedCertificateSurvivesResumption(t *testing.T) {
 	a, addr, cache := session(t)
+	before, err := a.Served()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	client := resuming(t, a, cache, tlsclient.PolicyInPeerCallback)
 
@@ -111,6 +110,15 @@ func TestARevokedCertificateSurvivesResumption(t *testing.T) {
 	}
 
 	after := client.Decide(t.Context(), addr)
+	current, err := a.Served()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Leaf.SerialNumber.Cmp(before.Leaf.SerialNumber) != 0 {
+		t.Fatal(
+			"the revoked identity differs from the cached baseline identity",
+		)
+	}
 
 	if !after.Resumed {
 		t.Fatal(
@@ -146,10 +154,47 @@ func TestACorrectClientCatchesRevocationDespiteResumption(t *testing.T) {
 
 	after := client.Decide(t.Context(), addr)
 
+	if !after.Resumed {
+		t.Fatal("the correct client did not resume the baseline session")
+	}
 	if after.Accepted {
 		t.Fatal(
 			"the correct client used a revoked certificate, so putting the policy in the peer callback is not what made the other client vulnerable",
 		)
+	}
+}
+
+func TestOCSPRevokesTheCachedLeafOnResumption(t *testing.T) {
+	for _, mode := range []tlsclient.Mode{
+		tlsclient.Correct, tlsclient.PolicyInPeerCallback,
+	} {
+		t.Run(string(mode), func(t *testing.T) {
+			a, addr, cache := session(t)
+			before, err := a.Served()
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := resuming(t, a, cache, mode)
+			if first := client.Decide(t.Context(), addr); !first.Accepted {
+				t.Fatal(first.Reason)
+			}
+			if err := a.Arm(pki.Trap{
+				Kind: pki.OCSPRevoked, Host: host,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			current, err := a.Served()
+			if err != nil || current.Leaf.SerialNumber.Cmp(
+				before.Leaf.SerialNumber,
+			) != 0 {
+				t.Fatalf("revocation changed the cached identity: %v", err)
+			}
+			after := client.Decide(t.Context(), addr)
+			if !after.Resumed ||
+				after.Accepted != (mode == tlsclient.PolicyInPeerCallback) {
+				t.Fatalf("resumed OCSP decision: %+v", after)
+			}
+		})
 	}
 }
 
@@ -160,13 +205,6 @@ func TestACorrectClientCatchesRevocationDespiteResumption(t *testing.T) {
 // VerifyPeerCertificate that means every certificate fault is invisible for the
 // ticket's lifetime, not only the ones nothing checks: an expired leaf, which
 // crypto/x509 refuses outright on a full handshake, is accepted here.
-//
-// This is NOT the case research 04 section 7.4 measured, and the first version
-// of this test confused the two. There, the CACHED certificate itself expired
-// while time passed, and Go's client correctly re-verified the cached chain for
-// NotAfter, dropped the entry and fell back to a full handshake that failed
-// closed. That behaviour is real and is not what happens when the server swaps
-// to a different, expired certificate underneath a live ticket.
 func TestAResumedSessionIgnoresWhatTheServerNowServes(t *testing.T) {
 	a, addr, cache := session(t)
 
@@ -201,7 +239,7 @@ func TestAResumedSessionIgnoresWhatTheServerNowServes(t *testing.T) {
 	// And the contrast: a client that does NOT reuse sessions sees the expired
 	// certificate and refuses it, so the acceptance above is the resumption and
 	// not something about the chain khaos minted.
-	fresh := resuming(t, a, cache, tlsclient.Correct)
+	fresh := resuming(t, a, nil, tlsclient.Correct)
 
 	if direct := fresh.Decide(t.Context(), addr); direct.Accepted {
 		t.Fatal(

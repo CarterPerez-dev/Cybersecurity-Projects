@@ -297,7 +297,7 @@ func TestRevertAllContinuesPastAFailureAndReportsIt(t *testing.T) {
 
 	if !errors.Is(err, ErrRevertFailed) {
 		t.Fatalf(
-			"got %v, want an error wrapping ErrRevertFailed so M10 can map it to an exit code",
+			"got %v, want an error wrapping ErrRevertFailed for the rollback exit code",
 			err,
 		)
 	}

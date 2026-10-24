@@ -17,21 +17,8 @@ const (
 	// fallback policy.
 	AuthzDistinguishes = "distinguishes"
 
-	// AuthzCollapses is research 07 section 6.2's exact shape:
-	//
-	//	if err != nil || resp.StatusCode != 200 { return Allow }
-	//
-	// The dependency said no, loudly and correctly, and the caller read it as
-	// "no answer". It is the single most common fail-open in service-to-service
-	// code because error handling is usually written as "did it work" rather
-	// than "what did it say".
 	AuthzCollapses = "collapses"
 
-	// AuthzRetries reaches the right verdict the wrong way: generic retry
-	// middleware that retries any non-2xx, so a definitive refusal is asked
-	// again and again. It fails CLOSED, which is why it is a third mode rather
-	// than a variant of the second, and it is the shape research 07 section 6.2
-	// step 4 names as the retry storm.
 	AuthzRetries = "retries"
 
 	// AuthzCached is also CORRECT, and it exists because khaos's own verdict
@@ -77,16 +64,6 @@ const (
 	authzBackoff  = 50 * time.Millisecond
 )
 
-// authzGateway is the CALLER, and the only range fixture whose dependency is
-// not a container: khaos serves that itself, because no correct authorization
-// service answers a definitive deny on request.
-//
-// AUTHENTICATION is this service's own job and it is correct in every mode.
-// That separation is what makes the experiment measurable: a caller that allows
-// on any non-200 from its authorization dependency has no authorization check
-// at all, so khaos's baseline guard would correctly void a run against one that
-// did nothing else. Research 07's row is about a service whose other checks
-// work and whose authorization check collapses.
 type authzGateway struct {
 	dependency string
 	mode       string

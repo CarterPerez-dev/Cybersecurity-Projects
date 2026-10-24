@@ -4,9 +4,6 @@
 
 set -euo pipefail
 
-# M8's exit gate. Four things have to be true of the `dns.` family, and every
-# one of them is about khaos declining to say more than it knows.
-#
 #   1. The MASKED faults are refused by name, not approximated. Docker's
 #      embedded resolver rewrites REFUSED to SERVFAIL and answers SERVFAIL
 #      itself at a measured 4.001s rather than letting a query go unanswered,
@@ -17,14 +14,6 @@ set -euo pipefail
 #   2. The delay ceiling is enforced from the same measurement. At or above
 #      4.000s a slow answer silently becomes the timeout fault, so khaos
 #      refuses the magnitude rather than serving a different experiment.
-#
-#   3. TRUNCATION SHIPS, which is the correction this milestone is built on.
-#      Research 05 recorded it as absorbed entirely by the embedded resolver;
-#      it is not. `tc=1` reaches the client in every truncating shape and the
-#      client's RFC 5966 TCP retry arrives at khaos's resolver. The original
-#      measurement used `dig` without `+ignore`, so dig performed the fallback
-#      itself and reported the clean answer -- the instrument absorbed the
-#      fault and the daemon was blamed.
 #
 #   4. A fault the target never MET is aborted, not survived. A DNS fault can
 #      be armed, confirmed at khaos's own resolver, and reach nothing: Go's
@@ -79,6 +68,7 @@ start_range() {
     if ! started="$("$BIN" range up --fail-mode "$1" --dns-mode "$dns_mode" \
         --no-color --quiet 2>&1)"; then
         fail "range up --fail-mode $1 --dns-mode $dns_mode: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -359,9 +349,6 @@ if start_range open; then
         run_experiment "dns.${fault}"
         assert_verdict "${fault} vs an uncached target" "unsupported"
 
-        # 9, not 4. M10 gave UNSUPPORTED its own code: a question that does
-        # not apply to this target is not a measurement khaos failed to make,
-        # and it was indistinguishable from one while both exited 4.
         assert_exit "${fault} vs an uncached target" 9
 
         # Anchored on the LIFETIME khaos served, which is the measurement the
@@ -391,11 +378,6 @@ fi
 echo "== against a gateway that fails CLOSED =="
 
 if start_range closed; then
-    # DENIED is the correct outcome with an availability cost, and this family
-    # declares it acceptable, so it must not be called a defect. Research 05
-    # section 10 calls fail-closed bad in a DIFFERENT way: DNS becomes a single
-    # point of failure and anyone who can break it can deny the service. That is
-    # not a security defect and khaos will not report it as one.
     # The faults that make the dependency UNFINDABLE. A gateway that cannot
     # resolve its identity provider refuses everything: failed closed, correct,
     # with an availability cost this family declares acceptable.
@@ -403,7 +385,6 @@ if start_range closed; then
         run_experiment "dns.${fault}"
         assert_verdict "${fault} vs fail-closed" "deviated / DENIED"
 
-    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
         assert_exit "${fault} vs fail-closed" 3
         assert_confirmed "${fault}"
     done
@@ -417,9 +398,6 @@ if start_range closed; then
     # gateway explicitly configured to fail closed serves invalid credentials
     # exactly as the fail-open one does, and both report PERMITTED.
     #
-    # Research 05 section 10 states it as the inversion: the control does not
-    # merely stop working when the name moves, it grants access to whoever took
-    # the name.
     for fault in wrong_address cname_chain; do
         run_experiment "dns.${fault}"
         assert_verdict "${fault} vs fail-closed" "deviated / PERMITTED"
@@ -513,13 +491,6 @@ fi
 
 echo "== the rotation: a zone change that does not reach the target =="
 
-# `dns.ttl_rotate` is the one fault that MOVES the zone rather than answering it
-# wrongly, so the honest path serves the new address afterwards. Research 05
-# section 6.5 carries the polarity and it is NOT inverted: khaos rotates the
-# name to the address `wrong_address` uses, so a target that FOLLOWS the
-# rotation starts trusting a host on the strength of a name, which is the same
-# defect from the same evidence and stays PERMITTED.
-#
 # Both directions, because the finding is which one happened:
 #
 #   reresolve  the target asks again, follows the rotation, and accepts what the

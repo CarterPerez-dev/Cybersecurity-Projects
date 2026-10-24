@@ -35,6 +35,17 @@ func (a *Authority) buildRevocation(
 	host string,
 	now time.Time,
 ) (*Chain, error) {
+	if trap.Kind == RevokedViaCRL || trap.Kind == OCSPRevoked {
+		a.mu.RLock()
+		if a.armed != nil && (a.trap.Kind == "" || a.trap.Kind == PassThrough ||
+			a.trap.Kind == RevokedViaCRL || a.trap.Kind == OCSPRevoked) {
+			chain := *a.armed
+			a.mu.RUnlock()
+			return &chain, nil
+		}
+		a.mu.RUnlock()
+	}
+
 	template, err := a.leaf(host, now, DefaultLeafDays)
 	if err != nil {
 		return nil, err

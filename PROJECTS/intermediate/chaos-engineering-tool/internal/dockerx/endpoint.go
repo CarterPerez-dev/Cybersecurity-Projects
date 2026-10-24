@@ -17,6 +17,7 @@ import (
 const (
 	EnvDockerHost    = "DOCKER_HOST"
 	EnvDockerContext = "DOCKER_CONTEXT"
+	EnvDockerConfig  = "DOCKER_CONFIG"
 	EnvXDGRuntime    = "XDG_RUNTIME_DIR"
 
 	SourceEnvHost       = "DOCKER_HOST"
@@ -63,6 +64,10 @@ func ResolveEndpoint(
 	environ func(string) string,
 	home string,
 ) (Endpoint, error) {
+	config := environ(EnvDockerConfig)
+	if config == "" {
+		config = filepath.Join(home, dockerDir)
+	}
 	if host := environ(EnvDockerHost); host != "" {
 		return Endpoint{Host: host, Source: SourceEnvHost}, nil
 	}
@@ -76,7 +81,7 @@ func ResolveEndpoint(
 	}
 
 	if name := environ(EnvDockerContext); name != "" {
-		host, ok := contextHost(home, name)
+		host, ok := contextHost(config, name)
 		if !ok {
 			return Endpoint{}, fmt.Errorf(
 				errUnresolvableContext,
@@ -88,8 +93,8 @@ func ResolveEndpoint(
 		return Endpoint{Host: host, Source: SourceEnvContext, Name: name}, nil
 	}
 
-	if name, ok := currentContext(home); ok && name != defaultContext {
-		host, found := contextHost(home, name)
+	if name, ok := currentContext(config); ok && name != defaultContext {
+		host, found := contextHost(config, name)
 		if !found {
 			return Endpoint{}, fmt.Errorf(
 				errUnresolvableContext,
@@ -142,9 +147,9 @@ func (e Endpoint) SocketPath() (string, bool) {
 	return strings.TrimPrefix(e.Host, unixScheme), true
 }
 
-func currentContext(home string) (string, bool) {
+func currentContext(config string) (string, bool) {
 	//nolint:gosec // the operator's own ~/.docker/config.json
-	raw, err := os.ReadFile(filepath.Join(home, dockerDir, configFile))
+	raw, err := os.ReadFile(filepath.Join(config, configFile))
 	if err != nil {
 		return "", false
 	}
@@ -157,11 +162,10 @@ func currentContext(home string) (string, bool) {
 	return cfg.CurrentContext, cfg.CurrentContext != ""
 }
 
-func contextHost(home, name string) (string, bool) {
+func contextHost(config, name string) (string, bool) {
 	digest := sha256.Sum256([]byte(name))
 	path := filepath.Join(
-		home,
-		dockerDir,
+		config,
 		contextsDir,
 		contextMetaDir,
 		hex.EncodeToString(digest[:]),
@@ -185,6 +189,30 @@ func contextHost(home, name string) (string, bool) {
 	}
 
 	return endpoint.Host, true
+}
+
+func ComposeEnvironment(environ []string) ([]string, error) {
+	values := make(map[string]string, len(environ))
+	for _, entry := range environ {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = value
+		}
+	}
+	endpoint, err := ResolveEndpoint(func(key string) string {
+		return values[key]
+	}, homeDir())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(environ)+1)
+	for _, entry := range environ {
+		key, _, _ := strings.Cut(entry, "=")
+		if key != EnvDockerContext && key != EnvDockerHost {
+			out = append(out, entry)
+		}
+	}
+	return append(out, EnvDockerHost+"="+endpoint.Host), nil
 }
 
 func exists(path string) bool {

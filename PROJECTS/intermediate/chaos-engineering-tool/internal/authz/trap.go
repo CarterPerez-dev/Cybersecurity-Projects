@@ -19,10 +19,6 @@ const (
 	// network fault only ever makes a dependency unreachable.
 	Deny Kind = "deny"
 
-	// Outage is the discriminator phase. It is armed second, on the same run,
-	// and research 07 section 6.2 is why: a correct caller behaves DIFFERENTLY
-	// under a deny than under an absence of an answer, and a caller that
-	// behaves identically has collapsed the two into one branch.
 	Outage Kind = "outage"
 )
 

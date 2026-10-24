@@ -105,6 +105,12 @@ func newSecretMutateCmd() *cobra.Command {
 	cmd.Flags().String(flagMutateMode, "", usageSecretMode)
 	cmd.Flags().Int(flagSecretBytes, 0, usageSecretBytes)
 	cmd.Flags().Bool(flagSecretBack, false, usageSecretBack)
+	cmd.Flags().Uint32(
+		"original-mode", 0, "original permission bits captured before the fault",
+	)
+	cmd.Flags().Int64(
+		"original-size", 0, "original size captured before the fault",
+	)
 
 	return cmd
 }
@@ -144,6 +150,20 @@ func secretMutation(cmd *cobra.Command) (secretfile.Mutation, bool, error) {
 		Path:  path,
 		Aside: aside,
 		Bytes: bytes,
+	}
+	if cmd.Flags().Changed("original-mode") {
+		originalMode, err := cmd.Flags().GetUint32("original-mode")
+		if err != nil {
+			return secretfile.Mutation{}, false, err
+		}
+		mutation.OriginalMode = &originalMode
+	}
+	if cmd.Flags().Changed("original-size") {
+		originalSize, err := cmd.Flags().GetInt64("original-size")
+		if err != nil {
+			return secretfile.Mutation{}, false, err
+		}
+		mutation.OriginalSize = &originalSize
 	}
 
 	return mutation, restore, mutation.Validate()

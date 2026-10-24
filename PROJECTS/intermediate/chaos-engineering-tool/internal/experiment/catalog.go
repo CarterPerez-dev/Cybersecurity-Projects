@@ -347,6 +347,7 @@ func Build(
 		Act:             shape.Act,
 		ActDetail:       shape.ActDetail,
 		Timing:          timing,
+		Configuration:   configuration(name, params, timing),
 	}
 
 	if shape.Condition != "" {

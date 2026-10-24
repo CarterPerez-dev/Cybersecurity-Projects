@@ -485,7 +485,7 @@ func TestFailingClosedIsDeclaredPerControl(t *testing.T) {
 	}{
 		{
 			name: "nothing declared, so only a refusal counts",
-			want: Held,
+			want: Undetermined,
 		},
 		{
 			name:       "unavailability declared, so losing access counts",

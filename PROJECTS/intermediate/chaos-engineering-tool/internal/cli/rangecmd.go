@@ -55,37 +55,33 @@ const (
 	mintedSecrets = 5
 
 	rangeShort = "bring up a target stack that is deliberately breakable"
-	rangeLong  = `The range is a small stack khaos ships so you have something to break before you
-point it at anything you care about.
+	rangeLong  = `The range provides disposable gateways and dependencies for network,
+identity, TLS, DNS, credential, and security-control experiments.
 
-It is a gateway in front of an identity provider. Pause the provider and the
-gateway has to decide what to do without it. In ` + "`--fail-mode closed`" + ` it refuses,
-which is correct. In ` + "`--fail-mode open`" + ` it serves anyway, which is the defect
-khaos exists to find, modelled on the Okta delegated-authentication advisory
-where a cached decision was reachable only while the agent was unreachable.
+Choose closed or deliberately defective behavior with the mode flags.
+The database tier is optional. Every target carries the consent label,
+and published services bind to loopback on available high ports.
 
-Both containers carry the consent label, and the gateway's host port is a
-random high one chosen at startup, so it never collides with anything already
-running.`
+Range build files are bundled into khaos, so no source checkout is required.`
 
 	upShort     = "build and start the range, then wait until it answers"
 	downShort   = "stop the range and remove everything it created"
 	statusShort = "show whether the range is running and where to reach it"
 
-	failModeUsage   = "which bug the range carries. The introspecting gateways understand closed, open and stale-rearm; khaos's verifier gateway understands closed plus one mode per verifier defect, and `khaos range up --fail-mode ?` lists them all. An unrecognised value is refused rather than quietly leaving the range correct"
+	failModeUsage   = "gateway behavior: closed, open, stale-rearm, or a verifier defect; use ? to list modes"
 	cacheTTLUsage   = "how long the gateway caches an authorization decision"
-	tlsModeUsage    = "which reference TLS client the range's TLS gateway runs. `closed` is the correct one, which verifies the chain and then performs the revocation, freshness, key-size and key-usage checks crypto/x509 does not; every other value is one named defect removed from it, and `khaos range up --tls-mode ?` lists them. An unrecognised value is refused rather than quietly leaving the gateway correct, because a gateway that silently became correct would report every certificate experiment as fail-closed"
+	tlsModeUsage    = "TLS verification behavior: closed or one named verification defect; use ? to list modes"
 	portUsage       = "host port for the gateway; the default is a random high port chosen at startup"
 	quietUsage      = "suppress compose build and start output"
-	secretModeUsage = "how the range's secret fixture handles the secret it reads. validated checks the length after every read, which is the correct handling and the fix for CVE-2019-20933; unchecked lets an empty value flow into the crypto, which is that CVE's own shape. An unrecognised value is refused rather than quietly leaving the fixture correct"
+	secretModeUsage = "secret validation: validated checks every read; unchecked accepts empty values"
 
-	dnsModeUsage = "how the range's DNS gateway resolves its dependency's name. reresolve resolves on every request, which is a client that opens a fresh connection per call; pinned resolves once and reuses the connection, which is the DEFAULT behaviour of a Go service and the shape that never sees a zone rotation. Both are real, and `dns.ttl_rotate` needs both to assert its verdict in two directions. An unrecognised value is refused rather than quietly leaving the gateway re-resolving"
+	dnsModeUsage = "DNS behavior: reresolve opens a connection per request; pinned reuses one connection"
 
-	authzModeUsage = "how the range's service-to-service caller reads its authorization dependency's answers. distinguishes reads allow, deny and unknown as three outcomes, which is correct; collapses reads anything that is not a 200 as an absence of an answer and allows it, which is research 07's F20 and the single most common fail-open in service-to-service code; retries reaches the right verdict the wrong way, asking again every time it does not like an answer, which hammers the dependency with a credential it has already been told is dead; cached is correct as well and is the shape khaos's own verdict machinery was wrong about, holding a one-second decision cache and expressing its refusals as 503 rather than 403. An unrecognised value is refused rather than quietly leaving the caller correct"
+	authzModeUsage = "authorization behavior: distinguishes, collapses, retries, or cached"
 
-	poolModeUsage = "how the stateful tier's pooled fixture configures its connection pool. unbounded is the DEFAULT configuration of a Go service rather than a broken one, because database/sql closes a connection for age only when SetConnMaxLifetime is positive; bounded sets a lifetime, which is the knob that turns a rotation into a revocation; held checks one connection out and never returns it, which no lifetime bounds at all"
+	poolModeUsage = "connection lifetime: unbounded, bounded, or held outside the pool"
 
-	withDBUsage = "also start the stateful tier: PostgreSQL 18, MySQL 8.4, MariaDB 11.4 and a Redis for the rate limiter's datastore. These four are the only range services khaos does not implement itself, because the credential family's finding IS what three correct engines do, and they cost real startup time, so they are opt-in"
+	withDBUsage = "also start PostgreSQL, MySQL, MariaDB, and the Redis rate-limit datastore"
 
 	msgStarting          = "building and starting the range"
 	msgPortRetry         = "host port %d was taken between the check and the bind; picking another"
@@ -457,6 +453,9 @@ func runRangeUp(
 		return err
 	}
 	defer work.Close()
+	if err := work.RequireClean(); err != nil {
+		return err
+	}
 
 	progress := io.Writer(os.Stderr)
 	if quiet {

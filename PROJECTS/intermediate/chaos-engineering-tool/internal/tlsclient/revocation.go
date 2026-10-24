@@ -37,14 +37,21 @@ func (c *Client) revocation(
 	}
 
 	decision := Decision{Accepted: true, Resumed: state.DidResume}
+	if state.DidResume {
+		state.OCSPResponse = nil
+	}
 
 	if reason, ok := c.fromStaple(state, leaf, issuer, &decision); !ok {
-		return Decision{Reason: reason, AskedOCSP: decision.AskedOCSP}
+		return Decision{
+			Reason: reason, AskedOCSP: decision.AskedOCSP,
+			Resumed: state.DidResume,
+		}
 	}
 
 	if reason, ok := c.fromOCSP(ctx, leaf, issuer, &decision); !ok {
 		return Decision{
 			Reason:    reason,
+			Resumed:   state.DidResume,
 			AskedOCSP: decision.AskedOCSP,
 			AskedCRL:  decision.AskedCRL,
 		}
@@ -53,6 +60,7 @@ func (c *Client) revocation(
 	if reason, ok := c.fromCRL(ctx, leaf, issuer, &decision); !ok {
 		return Decision{
 			Reason:    reason,
+			Resumed:   state.DidResume,
 			AskedOCSP: decision.AskedOCSP,
 			AskedCRL:  decision.AskedCRL,
 		}

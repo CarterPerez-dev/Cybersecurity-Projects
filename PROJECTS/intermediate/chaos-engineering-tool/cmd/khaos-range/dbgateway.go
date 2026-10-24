@@ -37,9 +37,6 @@ const (
 	// attempt, so the pool redials and the stale secret surfaces.
 	PoolBounded = "bounded"
 
-	// PoolHeld is the sharpest shape and the one research 07 section 5.3 did
-	// not have: a connection CHECKED OUT and never returned is age-unbounded,
-	// because the cleaner only ever walks the idle list.
 	PoolHeld = "held"
 
 	boundedLifetime = 2 * time.Second

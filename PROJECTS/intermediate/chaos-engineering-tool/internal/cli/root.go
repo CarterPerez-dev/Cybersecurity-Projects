@@ -18,9 +18,8 @@ const (
 	rootLong  = `khaos injects controlled security failures into a Docker-scoped target and
 measures whether the target failed closed or failed open.
 
-Every other chaos tool asks whether the system stayed up. khaos asks which way
-it broke, by probing with a legitimate credential and an invalid one at the
-same time and comparing how the two move.
+It probes with legitimate and invalid credentials before, during, and after
+each fault, then reports the observed security behavior and recovery status.
 
 Run khaos with no arguments in a terminal to open the interactive console.`
 
@@ -54,6 +53,10 @@ func NewRoot() *cobra.Command {
 		newCatalogCmd(),
 		newPlanCmd(),
 		newRunCmd(),
+		newRunsCmd(),
+		newShowCmd(),
+		newFileRunCmd(false),
+		newFileRunCmd(true),
 		newReclaimCmd(),
 		newReapCmd(),
 	)

@@ -6,6 +6,7 @@ package dbx
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -181,10 +182,8 @@ func (s *Session) markLost(why string) {
 func (s *Session) Close() error {
 	connErr := s.conn.Close()
 	poolErr := s.pool.Close()
-
-	if connErr != nil {
-		return connErr
+	if errors.Is(connErr, sql.ErrConnDone) {
+		connErr = nil
 	}
-
-	return poolErr
+	return errors.Join(connErr, poolErr)
 }

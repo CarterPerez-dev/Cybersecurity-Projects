@@ -49,6 +49,9 @@ func TestEveryFaultIsReversible(t *testing.T) {
 			if err := mutation.Restore(); err != nil {
 				t.Fatalf("restore: %v", err)
 			}
+			if err := mutation.Restore(); err != nil {
+				t.Fatalf("replayed restore: %v", err)
+			}
 
 			restored, err := os.ReadFile(path)
 			if err != nil {
@@ -86,10 +89,6 @@ func TestEveryFaultIsReversible(t *testing.T) {
 	}
 }
 
-// TestEachFaultIsTheSHAPE research 07 part 8 describes, measured rather than
-// asserted. The four shapes are what make them distinguishable from outside: an
-// empty read is not an error, a truncated one is not either, a missing one is
-// ErrNotExist and an unreadable one is ErrPermission.
 func TestEachFaultIsTheShapeTheResearchDescribes(t *testing.T) {
 	t.Run("empty reads as success with an empty slice", func(t *testing.T) {
 		path, aside := seeded(t)

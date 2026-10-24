@@ -32,6 +32,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --fail-mode "$1" --cache-ttl "${2:-2s}" --quiet --no-color 2>&1)"; then
         fail "range up --fail-mode $1 --cache-ttl ${2:-2s}: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -201,7 +202,6 @@ if start_range closed; then
     assert_zero_flags "fail-closed"
     assert_verdict "fail-closed" "deviated / DENIED"
 
-    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
     assert_exit "fail-closed" "$last_code" 3
 
     if grep -q "acceptable for this control" <<<"$report"; then

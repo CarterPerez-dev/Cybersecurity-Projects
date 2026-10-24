@@ -57,13 +57,6 @@ const (
 	TTLZero Kind = "ttl-zero"
 	TTLLong Kind = "ttl-long"
 
-	// AddressRotated MOVES THE ZONE rather than answering it wrongly, which is
-	// what makes it the only trap whose arming changes what the HONEST path
-	// serves. It is the operational act behind DNS-based failover and endpoint
-	// revocation, and the finding is whether it reached the target at all --
-	// research 05 section 6.5 carries the polarity, which is NOT inverted: the
-	// rotation points at the same endpoint `wrong-address` uses, so a target
-	// that follows it starts trusting a host on the strength of a name.
 	AddressRotated Kind = "address-rotated"
 
 	// REFUSED BY KHAOS: the embedded resolver rewrites both to SERVFAIL, and a

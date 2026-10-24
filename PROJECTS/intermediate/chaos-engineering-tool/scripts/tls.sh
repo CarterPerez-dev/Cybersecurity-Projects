@@ -4,9 +4,6 @@
 
 set -euo pipefail
 
-# M7's exit gate. Two things have to be true of the `tls.` family, and both of
-# them are about khaos declining to say more than it knows.
-#
 #   1. `revoked` reports UNSUPPORTED against a target that never checks
 #      revocation, and a DEFECT-CAPABLE verdict against one that does. Go's
 #      crypto/x509 performs no revocation checking of any kind and has no
@@ -56,6 +53,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --tls-mode "$1" --no-color --quiet 2>&1)"; then
         fail "range up --tls-mode $1: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -116,7 +114,6 @@ if start_range closed; then
     run_experiment tls.leaf_expired
     assert_verdict "leaf-expired vs a correct client" "deviated / DENIED"
 
-    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
     assert_exit "leaf-expired vs a correct client" 3
     assert_confirmed "leaf-expired"
 
@@ -150,18 +147,12 @@ if start_range closed; then
     fi
 fi
 
-echo "== M7 exit gate, first half: revocation is UNSUPPORTED, never a pass =="
+echo "== revocation support checks =="
 
 if start_range no-revocation-check; then
     run_experiment tls.revoked_via_crl
     assert_verdict "revoked vs a client that never asks" "unsupported"
 
-    # NOT zero. A revoked certificate in active use must never exit 0.
-    #
-    # 9 rather than 4 as of M10: "every inconclusive epistemic outcome exits
-    # 4" was true when this was written and is not any more. UNSUPPORTED has
-    # its own code, because a question that does not apply to this target is
-    # a different thing from evidence khaos could not gather.
     assert_exit "revoked vs a client that never asks" 9
 
     if grep -qE '^  verdict .*passed' <<<"$report"; then
@@ -183,7 +174,7 @@ if start_range no-revocation-check; then
     fi
 fi
 
-echo "== M7 exit gate, second half: identical errors are disambiguated =="
+echo "== certificate fault attribution checks =="
 
 if start_range closed; then
     # All three produce `x509: certificate signed by unknown authority`, with
@@ -215,10 +206,6 @@ if start_range closed; then
         fail "only ${#observed[@]} of the three unknown-authority faults were observable"
     fi
 
-    # The SECOND identical group, which research 04's fault table got wrong.
-    # Both extended key-usage faults come back as InvalidReason 4 on go1.26.5;
-    # the row claiming the CA-level one yields Reason 9 is impossible, because
-    # crypto/x509 never constructs that reason at all.
     declare -A eku=()
 
     for experiment in tls.eku_client_auth_only tls.eku_constrained_intermediate; do
@@ -258,11 +245,6 @@ fi
 
 echo "== mutual TLS: the client has to NOTICE being refused =="
 
-# khaos's server rejects both of these correctly, whatever the client verifies.
-# The finding is whether the client finds out, and under TLS 1.3 that comes down
-# to whether it reads: research 04 section 7.2 measured every row of the
-# ClientAuth matrix returning a successful tls.Dial even where the server served
-# nothing at all.
 if start_range dial-only; then
     for experiment in tls.mtls_client_expired tls.mtls_client_absent; do
         run_experiment "$experiment"

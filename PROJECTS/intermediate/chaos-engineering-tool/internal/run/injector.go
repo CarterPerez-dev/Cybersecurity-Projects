@@ -87,7 +87,7 @@ func (i *Injector) Confirm(ctx context.Context) (string, error) {
 }
 
 func (i *Injector) Revert(ctx context.Context) error {
-	return i.Session.RevertAll(ctx, i.Progress)
+	return i.Session.RevertFaults(ctx, i.Progress)
 }
 
 // Restart restarts the container this run's fault was applied to, which is the

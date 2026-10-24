@@ -4,8 +4,6 @@
 
 set -euo pipefail
 
-# M9's `control.` exit gate. Five things have to be true of this family.
-#
 #   1. EVERY experiment is asserted in BOTH directions on a live range. A
 #      fail-open target reports `deviated / PERMITTED` exit 2 and a fail-closed
 #      one reports `passed / HELD` exit 0 on the identical fault. One direction
@@ -80,6 +78,7 @@ start_range() {
     local started
     if ! started="$("$BIN" "${args[@]}" 2>&1)"; then
         fail "range up --fail-mode $fail_mode (with-db=$with_db): $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -204,10 +203,6 @@ assert_denied() {
         "${label} is not called a defect" \
         "without calling it a defect"
 
-    # 3, not 0. M10 gave a deviation in a direction the polarity does NOT
-    # call a defect its own exit code: the control did change under the
-    # fault, and reporting that as a clean pass hid a real availability
-    # finding behind a green build.
     assert_exit "$label" 3
 }
 
@@ -260,9 +255,6 @@ if start_range open; then
         "policy_store_cold_start does not claim a policy was dropped" \
         "stops being enforced when its store is unreachable"
 
-    # The limiter needs the stateful tier and this range does not have it, so
-    # it is refused BY NAME rather than reported as a control that was not
-    # enforcing. That is the M4 finding arriving through another door.
     run_experiment control.ratelimit_store_down "${TIMING[@]}"
     if [[ "$last_code" == 0 ]]; then
         fail "ratelimit_store_down ran without the stateful tier, so it measured a datastore that is not there"

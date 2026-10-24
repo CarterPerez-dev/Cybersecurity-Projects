@@ -44,6 +44,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --fail-mode "$1" --cache-ttl "$CACHE_TTL" --quiet --no-color 2>&1)"; then
         fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -77,8 +78,6 @@ assert_exit() {
     fi
 }
 
-# THE milestone assertion. Two targets that are indistinguishable under steady
-# traffic must come back with DIFFERENT causes, because they need different fixes.
 assert_cause() {
     local label="$1" want="$2"
     if grep -qE "^  cause .*${want}" <<<"$report"; then
@@ -160,7 +159,7 @@ assert_a_failed_revocation_voids_the_run() {
 if start_range stale-rearm; then
     run_experiment
     assert_verdict "re-armed cache" "deviated / PERMITTED"
-    assert_cause "re-armed cache" "TTL-EXTENSION"
+    assert_cause "re-armed cache" "LAPSED-ON-PAUSE"
     assert_exit "re-armed cache" "$last_code" 2
     assert_phase "re-armed cache" "act" "so nothing it measured had been revoked"
     assert_phase "re-armed cache" "idle" "so the two causes were never separated"
@@ -185,7 +184,6 @@ if start_range closed; then
     run_experiment
     assert_verdict "fail-closed" "deviated / DENIED"
 
-    # 3, not 0: M10 gave a deviation in a non-defect direction its own code.
     assert_exit "fail-closed" "$last_code" 3
     assert_no_cause "fail-closed"
 

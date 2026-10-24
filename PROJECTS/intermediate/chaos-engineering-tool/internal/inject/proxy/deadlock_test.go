@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// A dependency that accepts and never answers. This is what research 06 section
-// 6.1 measured for both `docker pause` and `docker network disconnect`: a silent
-// hang, no RST, no FIN, no error.
 func TestCloseDoesNotDeadlockAgainstAWedgedDependency(t *testing.T) {
 	wedged, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

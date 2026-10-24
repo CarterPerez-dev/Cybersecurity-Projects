@@ -288,12 +288,6 @@ func assertKeySet(t *testing.T, defaults map[string]string) map[string]bool {
 	return answered
 }
 
-// The M4 defect, generalised. Fusing the operator's target with the range's URL
-// pauses a container they named and measures a service they did not.
-// Per EXPERIMENT, not per range. The refusal must name the parameters this
-// experiment declares and the range could have answered, and nothing else:
-// demanding a flag the experiment does not take would send the operator looking
-// for something that does not exist.
 func TestAPartlySuppliedInvocationIsRefusedRatherThanFused(t *testing.T) {
 	definition := outage(t)
 
@@ -885,6 +879,8 @@ func TestEveryExperimentIsPointedAtTheGatewayItsFaultActuallyAffects(
 			wantTarget := rangelab.IDPName
 
 			switch at {
+			case tierProxy:
+				wantTarget = rangelab.ProxiedGatewayName
 			case tierIdP:
 				wantTarget = rangelab.VerifierGatewayName
 			case tierTLS:

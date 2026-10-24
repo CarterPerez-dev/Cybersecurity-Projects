@@ -181,12 +181,32 @@ func TestThinEvidenceIsSkippedRatherThanFailed(t *testing.T) {
 
 	root := parseSuites(t, body)
 
-	if root.Failures != 0 {
-		t.Fatalf("a thin-evidence run reports %d failures", root.Failures)
+	if root.Failures != 0 || root.Errors != 0 {
+		t.Fatalf(
+			"thin evidence reports failures=%d errors=%d",
+			root.Failures, root.Errors,
+		)
 	}
 
 	if root.Skipped != 1 {
 		t.Fatalf("a thin-evidence run reports %d skips, want 1", root.Skipped)
+	}
+}
+
+func TestDegradedRecoveryIsAValidityErrorEvenAfterAHold(t *testing.T) {
+	rec := shaped("deviated", "HELD", false, true)
+	rec.Verdict.Recovery = "degraded"
+	body, err := JUnit(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := parseSuites(t, body)
+	if root.Errors != 1 || root.Failures != 0 {
+		t.Fatalf(
+			"degraded recovery: errors=%d failures=%d",
+			root.Errors,
+			root.Failures,
+		)
 	}
 }
 

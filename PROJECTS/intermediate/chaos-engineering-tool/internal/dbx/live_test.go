@@ -46,9 +46,9 @@ func liveConfig(t *testing.T, engine Engine) Config {
 	parts := strings.Split(raw, ",")
 	if len(parts) != liveFields {
 		t.Fatalf(
-			"%s = %q, want host:port,database,adminrole,adminpassword",
+			"%s has %d fields, want host:port,database,adminrole,adminpassword",
 			name,
-			raw,
+			len(parts),
 		)
 	}
 
@@ -60,8 +60,6 @@ func liveConfig(t *testing.T, engine Engine) Config {
 	}
 }
 
-// TestRotationIsNotRevocation is the milestone's exit gate as a differential.
-// One held session, one rotation, and the engine's own answer at both ends.
 func TestRotationIsNotRevocation(t *testing.T) {
 	for _, engine := range []Engine{Postgres, MySQL, MariaDB} {
 		t.Run(string(engine), func(t *testing.T) {
@@ -147,7 +145,18 @@ func TestRotationIsNotRevocation(t *testing.T) {
 				session.Query(ctx),
 				Terminated,
 			)
+			wantClosedSession(t, session)
 		})
+	}
+}
+
+func wantClosedSession(t *testing.T, session *Session) {
+	t.Helper()
+	if err := session.Close(); err != nil {
+		t.Fatalf("closing an already terminated session: %v", err)
+	}
+	if err := session.Close(); err != nil {
+		t.Fatalf("repeating session close: %v", err)
 	}
 }
 
@@ -419,6 +428,49 @@ func wantAnswer(t *testing.T, what string, got Result, want Answer) {
 			want,
 			got.Detail,
 		)
+	}
+}
+
+func TestAwkwardPasswordsRoundTripAcrossSQLModes(t *testing.T) {
+	for _, engine := range []Engine{Postgres, MySQL, MariaDB} {
+		t.Run(string(engine), func(t *testing.T) {
+			config := liveConfig(t, engine)
+			ctx, cancel := context.WithTimeout(t.Context(), liveTimeout)
+			defer cancel()
+			client, role := liveRole(t, ctx, config)
+			client.admin.SetMaxOpenConns(1)
+			modes := []string{""}
+			if engine.MySQLFamily() {
+				modes = append(modes, "NO_BACKSLASH_ESCAPES")
+			}
+			for _, mode := range modes {
+				if engine.MySQLFamily() {
+					if _, err := client.admin.ExecContext(
+						ctx, "SET SESSION sql_mode = ?", mode,
+					); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for _, password := range []string{`slash\value`, `quote'and\slash`, `trailing\`, "tab\tand\nnewline"} {
+					cred := Credential{Role: role, Password: password}
+					if err := client.Rotate(ctx, cred); err != nil {
+						t.Fatalf("rotate in mode %q: %v", mode, err)
+					}
+					wantAnswer(
+						t, "password round trip", client.Try(ctx, cred), Served,
+					)
+					wrong := Credential{
+						Role: role, Password: password + "wrong",
+					}
+					wantAnswer(
+						t,
+						"wrong-password control",
+						client.Try(ctx, wrong),
+						Refused,
+					)
+				}
+			}
+		})
 	}
 }
 

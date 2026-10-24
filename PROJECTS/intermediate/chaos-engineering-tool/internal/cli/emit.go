@@ -104,38 +104,51 @@ func emitRecord(
 		)
 	}
 
-	if emit.Shape == outputJSON {
-		body, err := record.Encode(rec)
-		if err != nil {
-			return err
-		}
-
-		if _, err := out.Write(body); err != nil {
-			return err
-		}
-	}
-
-	// The projections are derived from the record AFTER it is complete, so
-	// they carry its events reference and its exit code and cannot describe
-	// a different run than the one on disk.
 	if err := writeProjections(rec, emit.Projections); err != nil {
 		writeErr = errors.Join(writeErr, err)
 	}
 
-	if writeErr == nil {
-		return outcome
+	if writeErr != nil {
+		outcome = publicationFailure(&rec, outcome, writeErr)
+		writeErr = errors.Join(writeErr, correctArtifacts(rec, emit))
 	}
 
-	// A verdict khaos reached outranks a file it could not write, and the
-	// warning goes to the DIAGNOSTIC stream so --output json stays one
-	// decodable document.
-	if outcome != nil {
+	if emit.Shape == outputJSON {
+		body, err := record.Encode(rec)
+		if err == nil {
+			var written int
+			written, err = out.Write(body)
+			if err == nil && written != len(body) {
+				err = io.ErrShortWrite
+			}
+		}
+		if err != nil {
+			outcome = publicationFailure(&rec, outcome, err)
+			writeErr = errors.Join(writeErr, err, correctArtifacts(rec, emit))
+		}
+	}
+
+	if writeErr != nil {
 		fmt.Fprintf(emit.diagnostic(), warnRecordWrite, writeErr)
-
-		return outcome
 	}
+	return outcome
+}
 
-	return fmt.Errorf(errRecordWrite, ErrRecordUnwritten, writeErr)
+func publicationFailure(rec *record.Record, outcome, failure error) error {
+	rec.ArtifactErrors = append(rec.ArtifactErrors, failure.Error())
+	if outcome == nil {
+		outcome = fmt.Errorf(errRecordWrite, ErrRecordUnwritten, failure)
+	}
+	rec.Exit.Code, rec.Exit.Outcome = exitDetail(outcome)
+	return outcome
+}
+
+func correctArtifacts(rec record.Record, emit Output) error {
+	var err error
+	if emit.Record != "" {
+		err = record.WriteRecord(emit.Record, rec)
+	}
+	return errors.Join(err, writeProjections(rec, emit.Projections))
 }
 
 // writeProjections writes each derived file that was asked for. They are

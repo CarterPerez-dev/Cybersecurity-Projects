@@ -260,7 +260,7 @@ func runResolverUp(cmd *cobra.Command, _ []string) error {
 	}
 
 	if err := waitReady(ctx, resolver); err != nil {
-		return err
+		return docker.DiscardResolver(ctx, resolver.ID, err)
 	}
 
 	_, err = fmt.Fprintf(

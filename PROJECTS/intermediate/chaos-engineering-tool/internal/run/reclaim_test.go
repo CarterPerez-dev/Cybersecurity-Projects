@@ -4,6 +4,7 @@
 package run
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -91,7 +92,10 @@ func TestTheSettleLockIsWaitedForRatherThanWalkedPast(t *testing.T) {
 	entered := make(chan time.Time, 1)
 
 	go func() {
-		release := holdSettle(path)
+		release, err := holdSettle(context.Background(), path)
+		if err != nil {
+			return
+		}
 		entered <- time.Now()
 		release()
 	}()
@@ -103,7 +107,7 @@ func TestTheSettleLockIsWaitedForRatherThanWalkedPast(t *testing.T) {
 			"holdSettle returned at %s with the lock still held by someone else, so the critical section is not serialised",
 			at.Format(time.RFC3339Nano),
 		)
-	case <-time.After(60 * time.Millisecond):
+	case <-time.After(600 * time.Millisecond):
 	}
 
 	if err := held.Release(); err != nil {

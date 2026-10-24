@@ -5,13 +5,17 @@ package journal
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+
+	"github.com/CarterPerez-dev/khaos/internal/lock"
 )
 
 type Phase string
@@ -109,6 +113,7 @@ func (r Record) Outstanding() bool {
 }
 
 type Journal struct {
+	mu   sync.Mutex
 	path string
 	file *os.File
 }
@@ -136,6 +141,18 @@ func (j *Journal) Path() string {
 }
 
 func (j *Journal) Append(record Record) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	held, err := lock.AcquireContext(ctx, j.path+".write")
+	if err != nil {
+		return fmt.Errorf(errAppend, err)
+	}
+	defer func() { _ = held.Release() }()
+	if err := j.refresh(); err != nil {
+		return err
+	}
 	if record.At.IsZero() {
 		record.At = time.Now().UTC()
 	}
@@ -153,10 +170,47 @@ func (j *Journal) Append(record Record) error {
 }
 
 func (j *Journal) Close() error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	return j.file.Close()
 }
 
+func (j *Journal) refresh() error {
+	opened, err := j.file.Stat()
+	if err != nil {
+		return err
+	}
+	current, err := os.Stat(j.path)
+	if err == nil && os.SameFile(opened, current) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	reopened, err := Open(j.path)
+	if err != nil {
+		return err
+	}
+	_ = j.file.Close()
+	j.file = reopened.file
+	return nil
+}
+
 func Replay(path string) ([]Record, error) {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	held, err := lock.AcquireContext(ctx, path+".write")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = held.Release() }()
+	return replay(path)
+}
+
+func replay(path string) ([]Record, error) {
 	//nolint:gosec // khaos's own journal, from statedir.Paths
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -201,7 +255,10 @@ func Replay(path string) ([]Record, error) {
 
 func Outstanding(path string) ([]Record, error) {
 	records, damage := Replay(path)
+	return outstanding(records), damage
+}
 
+func outstanding(records []Record) []Record {
 	latest := make(map[string]Record, len(records))
 	order := make([]string, 0, len(records))
 	settled := make(map[string]bool, len(records))
@@ -219,9 +276,9 @@ func Outstanding(path string) ([]Record, error) {
 		switch record.Phase {
 		case PhaseReverted:
 			settled[record.MutationID] = true
-		case PhaseApplied:
+		case PhaseApplied, PhaseFailed:
 			delete(settled, record.MutationID)
-		case PhasePending, PhaseFailed, PhaseRenewed:
+		case PhasePending, PhaseRenewed:
 		}
 
 		latest[record.MutationID] = record
@@ -237,14 +294,22 @@ func Outstanding(path string) ([]Record, error) {
 		}
 	}
 
-	return out, damage
+	return out
 }
 
 func Compact(path string) error {
-	outstanding, err := Outstanding(path)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	held, err := lock.AcquireContext(ctx, path+".write")
 	if err != nil {
 		return err
 	}
+	defer func() { _ = held.Release() }()
+	records, err := replay(path)
+	if err != nil {
+		return err
+	}
+	live := outstanding(records)
 
 	temp := path + tempSuffix
 
@@ -255,7 +320,7 @@ func Compact(path string) error {
 	}
 
 	encoder := json.NewEncoder(file)
-	for _, record := range outstanding {
+	for _, record := range live {
 		if err := encoder.Encode(record); err != nil {
 			_ = file.Close()
 			_ = os.Remove(temp)

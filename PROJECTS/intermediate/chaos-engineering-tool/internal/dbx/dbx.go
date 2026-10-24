@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
 )
 
 type Engine string
@@ -371,6 +372,20 @@ func (c *Client) alter(
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
+	if c.config.Engine.MySQLFamily() {
+		_, err := c.admin.ExecContext(
+			ctx,
+			fmt.Sprintf(
+				statement, quoteIdentifier(c.config.Engine, cred.Role), "?",
+			),
+			cred.Password,
+		)
+		return err
+	}
+	if strings.ContainsRune(cred.Password, 0) {
+		return errors.New("PostgreSQL passwords cannot contain a NUL byte")
+	}
+
 	_, err := c.admin.ExecContext(
 		ctx,
 		fmt.Sprintf(
@@ -422,10 +437,8 @@ func quoteIdentifier(engine Engine, name string) string {
 	return `"` + name + `"`
 }
 
-// quoteLiteral is single-quote doubling, which both dialects accept, and it is
-// applied to passwords rather than relying on the input being generated.
 func quoteLiteral(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	return pq.QuoteLiteral(value)
 }
 
 // dsn names no default database on the MySQL family, deliberately. khaos's
@@ -450,6 +463,7 @@ func dsn(
 		config.Timeout = dialTimeout
 		config.ReadTimeout = queryTimeout
 		config.WriteTimeout = queryTimeout
+		config.InterpolateParams = true
 
 		return config.FormatDSN()
 	}

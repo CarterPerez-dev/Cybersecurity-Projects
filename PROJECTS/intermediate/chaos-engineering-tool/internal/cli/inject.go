@@ -151,6 +151,9 @@ func runInject(
 		return err
 	}
 	defer work.Close()
+	if err := work.RequireClean(); err != nil {
+		return err
+	}
 
 	mutator, err := inject.Lookup(kind)
 	if err != nil {
@@ -175,6 +178,7 @@ func runInject(
 	}
 
 	session := run.NewSession(work.Env(), work.Journal, ttl)
+	defer recoverInjection(ctx, out, session)
 
 	if session.Lease().TTL() != ttl {
 		note(out, fmt.Sprintf(msgClamped, session.Lease().TTL()))
@@ -216,6 +220,23 @@ func runInject(
 	}
 
 	return errors.Join(skipCancellation(waitErr), revertErr)
+}
+
+func recoverInjection(
+	ctx context.Context,
+	out io.Writer,
+	session *run.Session,
+) {
+	if failure := recover(); failure != nil {
+		cleanup, cancel := context.WithTimeout(
+			context.WithoutCancel(ctx), run.CleanupTimeout,
+		)
+		defer cancel()
+		if err := revert(cleanup, out, session); err != nil {
+			panic(fmt.Errorf("%v; emergency rollback failed: %w", failure, err))
+		}
+		panic(failure)
+	}
 }
 
 func hold_(

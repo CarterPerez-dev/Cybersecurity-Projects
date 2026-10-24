@@ -552,10 +552,6 @@ func TestAnUnpinnedProviderNamesItselfAfterBinding(t *testing.T) {
 	}
 }
 
-// The key-set fetch count is the measurement research 07 requirement R5 exists
-// for: how often a verifier refetches, which no third-party provider will tell
-// you. khaos's own read-back goes over the same HTTP surface, so without the
-// correction khaos's instrumentation would appear in the number khaos reports.
 func TestKhaosOwnConfirmationDoesNotInflateTheFetchCount(t *testing.T) {
 	for _, kind := range []Kind{JWKSUnreachable, KidRollover, KeyRotation} {
 		t.Run(string(kind), func(t *testing.T) {

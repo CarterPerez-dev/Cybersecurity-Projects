@@ -183,12 +183,6 @@ services:
     restart: "no"
 
 
-  # The service a DNS redirect fault points the target at, and the reason
-  # `dns.wrong_address` is a fail-open demonstration rather than an outage.
-  # It approves every credential, including ones khaos never issued, which is
-  # the shape of an attacker who has won a name. Research 05 section 10: a
-  # hostname allowlist does not merely stop working when the name moves, it
-  # actively authorises the new host.
   rogue:
     container_name: khaos-range-rogue
     build:

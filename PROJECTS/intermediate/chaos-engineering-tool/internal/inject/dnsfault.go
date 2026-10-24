@@ -128,13 +128,15 @@ func (m dnsMutator) Revert(
 
 	if client == nil {
 		var payload dnsPayload
-		if len(record.Payload) > 0 {
-			if err := record.DecodePayload(&payload); err != nil {
-				return err
-			}
+		if err := record.DecodePayload(&payload); err != nil {
+			return err
 		}
 
-		client = reconnectResolver(ctx, env, payload)
+		var err error
+		client, err = reconnectResolver(ctx, env, payload)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Nothing left to disarm is SUCCESS: the resolver named is gone, so it took
@@ -148,21 +150,21 @@ func (m dnsMutator) Revert(
 	return err
 }
 
-// reconnectResolver returns no error ON PURPOSE: every way it can fail to
-// produce a client means the resolver that held the fault is not there, so the
-// caller treats nil as a revert with nothing left to do.
 func reconnectResolver(
 	ctx context.Context,
 	env Env,
 	payload dnsPayload,
-) *dnsrv.Client {
+) (*dnsrv.Client, error) {
 	if env.Docker == nil || payload.Network == "" {
-		return nil
+		return nil, ErrNoResolver
 	}
 
 	resolver, err := env.Docker.FindResolver(ctx, payload.Network)
 	if err != nil {
-		return nil
+		if errors.Is(err, dockerx.ErrResolverNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
 	return dnsrv.NewClient(
@@ -170,7 +172,7 @@ func reconnectResolver(
 		dockerx.ResolverControlURL(resolver.Address),
 		resolver.Nonce,
 		payload.Control,
-	)
+	), nil
 }
 
 // Confirm asks the resolver the same question the target asks, never reading

@@ -47,6 +47,7 @@ const (
 	flagOutput      = "output"
 	flagJUnit       = "junit"
 	flagMetricsOut  = "metrics-out"
+	flagAbortAfter  = "abort-after"
 
 	outputText = "text"
 	outputJSON = "json"
@@ -371,6 +372,8 @@ func experimentFlags(cmd *cobra.Command, definition experiment.Definition) {
 		Duration(flagRecoverFor, experiment.DefaultRecoveryFor, recoverUsage)
 	cmd.Flags().
 		Duration(flagSampleEvery, experiment.DefaultSampleInterval, sampleUsage)
+	cmd.Flags().Int(flagAbortAfter, 0,
+		"stop and revert after this many consecutive unhealthy probe pairs; zero disables the rule")
 }
 
 // paramUsage names the environment variable too, because a channel an operator
@@ -386,9 +389,11 @@ func paramUsage(param experiment.Param) string {
 }
 
 type inputs struct {
-	Project  string
-	Supplied map[string]string
-	Timing   experiment.Timing
+	Project    string
+	Supplied   map[string]string
+	Timing     experiment.Timing
+	AbortAfter int
+	Expected   experiment.Identity
 }
 
 func experimentInputs(
@@ -432,7 +437,18 @@ func experimentInputs(
 		return inputs{}, err
 	}
 
-	return inputs{Project: project, Supplied: supplied, Timing: timing}, nil
+	abortAfter, err := cmd.Flags().GetInt(flagAbortAfter)
+	if err != nil || abortAfter < 0 {
+		return inputs{}, errors.New(
+			"--abort-after must be zero or a positive count",
+		)
+	}
+	return inputs{
+		Project:    project,
+		Supplied:   supplied,
+		Timing:     timing,
+		AbortAfter: abortAfter,
+	}, nil
 }
 
 // envFor is the environment variable that supplies a parameter when its flag is
@@ -552,6 +568,11 @@ func runPlan(
 		return err
 	}
 
+	if err := verifyReplayTarget(
+		given.Expected, target, work.Docker,
+	); err != nil {
+		return err
+	}
 	describe(out, spec, target.Name)
 	note(out, planOnly)
 	fmt.Fprintln(out)
@@ -610,6 +631,9 @@ func prepareRun(
 	}
 
 	out := prepared{work: work, project: given.Project}
+	if err := work.RequireClean(); err != nil {
+		return out, err
+	}
 	out.guard = dockerx.Guard{
 		Project: out.project,
 		SelfID:  dockerx.SelfContainerID(),
@@ -641,6 +665,11 @@ func prepareRun(
 		dockerx.Filter{Project: out.project},
 		out.guard,
 	)
+	if err == nil {
+		err = verifyReplayTarget(given.Expected, out.accepted, work.Docker)
+	}
+	out.spec.AbortAfter = given.AbortAfter
+	attachConfiguration(&out.spec, given, out.accepted, work.Docker)
 
 	return out, err
 }
@@ -688,7 +717,7 @@ func runExperiment(
 	given inputs,
 	gate Gate,
 	emit Output,
-) error {
+) (failure error) {
 	human := emit.human(out)
 
 	ready, err := prepareRun(ctx, human, definition, given)
@@ -703,6 +732,10 @@ func runExperiment(
 	work := ready.work
 	spec, accepted := ready.spec, ready.accepted
 	project, guard := ready.project, ready.guard
+	session := run.NewSession(work.Env(), work.Journal, ttl)
+	closeTiers := func() {}
+	defer func() { closeTiers() }()
+	defer finishSession(ctx, session, &failure)
 
 	env, closeTiers, err := standUpTiers(
 		ctx,
@@ -712,19 +745,14 @@ func runExperiment(
 		accepted,
 		dockerx.Filter{Project: project},
 		guard,
+		session,
 	)
-
-	// BEFORE the error check, because standUpTiers hands the closer back WITH
-	// its error: a tier that failed is one position past tiers that already
-	// bound a listener, and khaos's claim that nothing is left listening has to
-	// hold by construction rather than because the process happens to exit.
-	defer closeTiers()
-
 	if err != nil {
 		return err
 	}
 
-	session := run.NewSession(env, work.Journal, ttl)
+	session.Configure(env)
+	guard.ExpectedID = accepted.ID
 
 	engine := wire(
 		human,
@@ -739,6 +767,27 @@ func runExperiment(
 	result, runErr := underLease(ctx, engine, spec, session)
 
 	result.RunID = session.RunID()
+	if env.Cred != nil {
+		result.Configuration.Versions["database"] = env.Cred.Version()
+	}
+	if emit.Record == "" {
+		emit.Record = work.Paths.Run(result.RunID)
+	}
+	cleanup, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx), run.CleanupTimeout,
+	)
+	cleanupErr := session.RevertAll(cleanup, nil)
+	cancel()
+	if cleanupErr != nil {
+		result.Observation.RollbackFailed = true
+		result.Verdict.Warnings = append(
+			result.Verdict.Warnings, experiment.WarningRollbackFailed,
+		)
+		result.Verdict.Reasons = append(
+			result.Verdict.Reasons, cleanupErr.Error(),
+		)
+		runErr = errors.Join(runErr, cleanupErr)
+	}
 
 	// The exit is decided BEFORE anything is reported, because the record
 	// carries the code: the exit status is the only part of a run most CI
@@ -749,6 +798,25 @@ func runExperiment(
 	reportVerdict(human, result)
 
 	return emitRecord(out, definition, result, outcome, emit)
+}
+
+func finishSession(
+	ctx context.Context,
+	session *run.Session,
+	failure *error,
+) {
+	cleanup, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx), run.CleanupTimeout,
+	)
+	defer cancel()
+	cleanupErr := session.RevertAll(cleanup, nil)
+	if caught := recover(); caught != nil {
+		if cleanupErr != nil {
+			panic(fmt.Errorf("%v; emergency cleanup: %w", caught, cleanupErr))
+		}
+		panic(caught)
+	}
+	*failure = errors.Join(*failure, cleanupErr)
 }
 
 func wire(
@@ -812,6 +880,7 @@ func underLease(
 ) (experiment.Result, error) {
 	keepCtx, stopKeeping := context.WithCancel(ctx)
 	renewals := make(chan error, 1)
+	defer stopKeeping()
 
 	go func() {
 		renewals <- session.Lease().Keep(
@@ -819,12 +888,18 @@ func underLease(
 			func(time.Time) error { return session.Renew() },
 		)
 	}()
+	defer func() {
+		stopKeeping()
+		<-renewals
+	}()
 
 	result, runErr := engine.Run(ctx, spec)
 
 	stopKeeping()
 
-	if keepErr := <-renewals; !errors.Is(keepErr, context.Canceled) {
+	keepErr := <-renewals
+	renewals <- keepErr
+	if keepErr != nil && !errors.Is(keepErr, context.Canceled) {
 		result.Verdict.Epistemic = experiment.Aborted
 		result.Verdict.Conclusive = false
 		result.Verdict.Reasons = append(result.Verdict.Reasons, keepErr.Error())
@@ -837,10 +912,6 @@ func underLease(
 // exitFor maps a finished run onto khaos's exit contract, and the ORDER is the
 // contract: the state of the operator's system outranks the verdict about it.
 func exitFor(result experiment.Result, runErr error) error {
-	if runErr != nil {
-		return runErr
-	}
-
 	// The state khaos left the target in outranks every verdict about it, and
 	// no --fail-on value may suppress either.
 	if result.Observation.RollbackFailed {
@@ -857,6 +928,10 @@ func exitFor(result experiment.Result, runErr error) error {
 			Outcome: outcomeRollback,
 			Err:     ErrNotRecovered,
 		}
+	}
+
+	if runErr != nil {
+		return runErr
 	}
 
 	// The DEFECT outranks the epistemic axis, because a proven bypass is
@@ -1144,6 +1219,7 @@ func answersFor(lab rangelab.Lab, at tier) tierAnswers {
 	switch at {
 	case tierProxy:
 		answers.url = lab.ProxiedProtectedURL()
+		answers.target = rangelab.ProxiedGatewayName
 
 	// The target is the gateway, not the provider: the fault lands on khaos's
 	// own provider, so the gateway is the only container to ask consent for.
@@ -1159,11 +1235,6 @@ func answersFor(lab rangelab.Lab, at tier) tierAnswers {
 		answers.url = lab.DNSProtectedURL()
 		answers.target = rangelab.DNSGatewayName
 
-	// The target IS the engine here. Nothing of the operator's is mutated: the
-	// fault acts on a role khaos mints on that engine for the run. PostgreSQL
-	// is the zero-flag default because its own image carries the loopback
-	// `trust` rule that research 07 section 6.1 measured a probe through, so
-	// it is the engine where khaos's negative control earns its keep.
 	case tierCred:
 		answers.url = ""
 		answers.target = rangelab.PostgresName
@@ -1352,10 +1423,6 @@ func fillFromRange(
 	return filled, nil
 }
 
-// requireTier refuses before the baseline when the running range is missing the
-// part this experiment needs, rather than letting the run report a fixture that
-// is not there as a target that was not enforcing. That is the M4 finding, and
-// each tier has arrived at it through its own door.
 func requireTier(lab rangelab.Lab, at tier) error {
 	switch at {
 	case tierProxy:
@@ -1568,6 +1635,7 @@ func standUpTiers(
 	target dockerx.Target,
 	filter dockerx.Filter,
 	guard dockerx.Guard,
+	session *run.Session,
 ) (inject.Env, func(), error) {
 	env := work.Env()
 
@@ -1581,7 +1649,7 @@ func standUpTiers(
 
 	tiers := []func() (func(), error){
 		func() (func(), error) {
-			return standUpProxyTier(ctx, out, work.Docker, spec, &env)
+			return standUpProxyTier(ctx, out, work.Docker, spec, target, &env)
 		},
 		func() (func(), error) {
 			return standUpIdPTier(ctx, out, work.Docker, spec, &env)
@@ -1612,6 +1680,7 @@ func standUpTiers(
 				target,
 				credSources{filter: filter, guard: guard},
 				&env,
+				session,
 			)
 		},
 	}
@@ -1654,6 +1723,7 @@ func standUpProxyTier(
 	out io.Writer,
 	docker *dockerx.Client,
 	spec *experiment.Experiment,
+	target dockerx.Target,
 	env *inject.Env,
 ) (func(), error) {
 	if spec.ProxyFault == nil {
@@ -1674,10 +1744,48 @@ func standUpProxyTier(
 		return nil, err
 	}
 
+	if err := wireProxyArrival(ctx, docker, fault, spec, target); err != nil {
+		return nil, errors.Join(err, fault.Close())
+	}
+
 	env.Proxy = fault
 	env.ProxyFault = *spec.ProxyFault
 
 	return func() { _ = fault.Close() }, nil
+}
+
+func wireProxyArrival(
+	ctx context.Context,
+	docker *dockerx.Client,
+	fault *proxy.Proxy,
+	spec *experiment.Experiment,
+	target dockerx.Target,
+) error {
+	endpoints, err := docker.Endpoints(ctx, target.ID)
+	if err != nil {
+		return err
+	}
+	var addresses []string
+	for _, endpoint := range endpoints {
+		if endpoint == nil {
+			continue
+		}
+		if endpoint.IPAddress.IsValid() {
+			addresses = append(addresses, endpoint.IPAddress.String())
+		}
+		if endpoint.GlobalIPv6Address.IsValid() {
+			addresses = append(addresses, endpoint.GlobalIPv6Address.String())
+		}
+	}
+	if err := fault.WatchSources(addresses); err != nil {
+		return err
+	}
+	spec.Consulted = fault.TargetConnections
+	spec.ConsultedWhat = "the dependency through khaos's proxy"
+	spec.Delivered = fault.FaultConnections
+	spec.DeliveredWhat = "connect to the fault proxy from the target's network addresses"
+	spec.DeliveredHint = "Check the target's dependency route and any address translation between the target and the proxy."
+	return nil
 }
 
 func standUpIdPTier(
@@ -1871,12 +1979,15 @@ func standUpCredTier(
 	target dockerx.Target,
 	sources credSources,
 	env *inject.Env,
+	session *run.Session,
 ) (func(), error) {
 	if spec.Cred == nil {
 		return nil, nil
 	}
 
-	plan, err := openCredTier(ctx, out, docker, *spec, target, sources)
+	plan, err := openCredTier(
+		ctx, out, docker, *spec, target, sources, env, session,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1885,9 +1996,7 @@ func standUpCredTier(
 	env.CredTrap = spec.Cred.Tier.Trap()
 	env.CredPlan = plan
 
-	return func() {
-		_ = spec.Cred.Tier.Close(context.WithoutCancel(ctx))
-	}, nil
+	return nil, nil
 }
 
 // openCredTier reads the administrative credential out of the TARGET's own
@@ -1991,6 +2100,8 @@ func openCredTier(
 	spec experiment.Experiment,
 	target dockerx.Target,
 	sources credSources,
+	env *inject.Env,
+	session *run.Session,
 ) (inject.CredPlan, error) {
 	cred := spec.Cred
 
@@ -2028,12 +2139,21 @@ func openCredTier(
 		Admin:    dbx.Credential{Role: cred.Admin, Password: password},
 	}
 
-	plan, subject, err := credRecipe(cred, config, engine, target, environ)
+	plan, _, err := credRecipe(cred, config, engine, target, environ)
 	if err != nil {
 		return inject.CredPlan{}, err
 	}
 
-	if err := cred.Tier.Open(ctx, config, subject); err != nil {
+	env.Cred = cred.Tier
+	env.CredTrap = cred.Tier.Trap()
+	env.CredPlan = plan
+	session.Configure(*env)
+	if err := session.Renew(); err != nil {
+		return inject.CredPlan{}, err
+	}
+	if err := session.Inject(
+		ctx, inject.KindCredentialTier, engine,
+	); err != nil {
 		return inject.CredPlan{}, err
 	}
 
@@ -2140,7 +2260,12 @@ func attachResolver(
 func startAuthority(
 	out io.Writer,
 	spec experiment.Experiment,
-) error {
+) (failure error) {
+	defer func() {
+		if failure != nil {
+			failure = errors.Join(failure, spec.Authority.Close())
+		}
+	}()
 	if err := spec.Authority.Listen(spec.AuthorityListen); err != nil {
 		return fmt.Errorf(errAuthorityBind, spec.AuthorityListen, err)
 	}

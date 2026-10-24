@@ -10,6 +10,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
@@ -153,6 +154,7 @@ func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
 	defer ticker.Stop()
 
 	reclaimed := 0
+	failed := map[string]bool{}
 
 	for {
 		select {
@@ -160,7 +162,7 @@ func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
 			fmt.Fprintln(out)
 			note(out, fmt.Sprintf(msgStopped, reclaimed))
 			fmt.Fprintln(out)
-			return nil
+			return reapExit(work.Journal.Path(), failed, time.Now().UTC())
 		case <-ticker.C:
 			sweep := run.Reclaim(
 				ctx,
@@ -170,9 +172,26 @@ func runReap(ctx context.Context, out io.Writer, interval time.Duration) error {
 				true,
 			)
 			report(out, sweep)
-			reclaimed += len(sweep.Results)
+			reclaimed += sweep.Succeeded()
+			for _, result := range sweep.Results {
+				if result.Err != nil {
+					failed[result.Record.MutationID] = true
+				} else {
+					delete(failed, result.Record.MutationID)
+				}
+			}
 		}
 	}
+}
+
+func reapExit(path string, failed map[string]bool, now time.Time) error {
+	outstanding, damage := journal.Outstanding(path)
+	for _, record := range outstanding {
+		if failed[record.MutationID] || record.Expired(now) {
+			return errors.Join(damage, run.ErrRevertFailed)
+		}
+	}
+	return damage
 }
 
 func openFor(
@@ -190,10 +209,8 @@ func report(out io.Writer, sweep run.Sweep) {
 		event(out, markError, theme.StatusError, msgDamaged)
 	}
 
-	failed := false
 	for _, result := range sweep.Results {
 		if result.Err != nil {
-			failed = true
 			event(
 				out,
 				markError,
@@ -221,7 +238,7 @@ func report(out io.Writer, sweep run.Sweep) {
 		)
 	}
 
-	if len(sweep.Results) > 0 && !failed {
-		note(out, fmt.Sprintf(msgReclaimed, len(sweep.Results)))
+	if sweep.Succeeded() > 0 {
+		note(out, fmt.Sprintf(msgReclaimed, sweep.Succeeded()))
 	}
 }

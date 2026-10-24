@@ -9,6 +9,8 @@ RUN go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
+COPY bundle.go ./
+COPY range ./range
 RUN CGO_ENABLED=0 go build -trimpath -o /out/khaos-range ./cmd/khaos-range
 
 FROM alpine:3.22

@@ -125,17 +125,6 @@ func subjects() []subject {
 			beforeFault: true,
 		},
 
-		// A token that WAS legitimate. The rotation withdraws its key, so a
-		// verifier that refetches cannot find the kid and refuses.
-		//
-		// TWO modes still honour it, and the second is the one that matters. A
-		// forever cache obviously never notices. But a verifier that refetches
-		// only on an unknown `kid` never notices either, because NOTHING in this
-		// cell presents a new-key token: research 07 section 2.3's point is that
-		// the eviction of the retired key is a side effect of the refetch a
-		// new-key token triggers. That is the realistic shape for a low-traffic
-		// service, and khaos's own experiment was hiding it by supplying the
-		// new-key traffic itself.
 		{
 			trap:    idp.KidRollover,
 			present: func(p *idp.Provider) (string, error) { return p.HonestToken() },

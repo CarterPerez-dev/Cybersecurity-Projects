@@ -14,7 +14,7 @@ const (
 	// Version is the record's own schema version, independent of khaos's. A
 	// consumer that parses this file needs to know when its shape changed,
 	// and the binary's version moves for reasons that do not touch it.
-	Version = 1
+	Version = 2
 
 	// EventsFile sits beside the record rather than inside it. A sixty-second
 	// run at 300ms over four streams is roughly 800 observations: embedded
@@ -28,15 +28,6 @@ const (
 	timeLayout = time.RFC3339Nano
 )
 
-// Record is the canonical artifact. Every other output khaos emits is a
-// projection of it, which is asserted rather than asserted-about: if the
-// terminal can show something this struct does not carry, the record is
-// incomplete and a test fails.
-//
-// It carries ONLY what khaos measured. Research 08's schema also lists host
-// details, compose-file hashes, image digests, confidence intervals and a
-// probe footprint; khaos measures none of those, and an empty key is a claim
-// that something was looked at. The gap is documented, not papered over.
 type Record struct {
 	Schema  int    `json:"schema_version"`
 	Khaos   string `json:"khaos_version"`
@@ -46,8 +37,10 @@ type Record struct {
 
 	DurationMS int64 `json:"duration_ms"`
 
-	Experiment Experiment `json:"experiment"`
-	Fault      Fault      `json:"fault"`
+	Experiment    Experiment               `json:"experiment"`
+	Fault         Fault                    `json:"fault"`
+	Configuration experiment.Configuration `json:"configuration"`
+	HaltReason    string                   `json:"halt_reason,omitempty"`
 
 	Windows map[string]Window `json:"windows"`
 
@@ -56,7 +49,8 @@ type Record struct {
 	// Exit is what khaos returned to the shell, in the record, because the
 	// exit code is the only part of a run most CI ever sees and a record that
 	// cannot explain it is not a record of the run.
-	Exit Exit `json:"exit"`
+	Exit           Exit     `json:"exit"`
+	ArtifactErrors []string `json:"artifact_errors,omitempty"`
 
 	// Events names the file beside this one and the hash of its bytes, so a
 	// record cannot be silently separated from the observations it summarises.
@@ -138,12 +132,14 @@ func Of(
 	ended := result.StartedAt.Add(result.Duration)
 
 	return Record{
-		Schema:     Version,
-		Khaos:      version,
-		RunID:      result.RunID,
-		Started:    result.StartedAt.UTC().Format(time.RFC3339Nano),
-		Ended:      ended.UTC().Format(time.RFC3339Nano),
-		DurationMS: result.Duration.Milliseconds(),
+		Schema:        Version,
+		Khaos:         version,
+		RunID:         result.RunID,
+		Started:       result.StartedAt.UTC().Format(time.RFC3339Nano),
+		Ended:         ended.UTC().Format(time.RFC3339Nano),
+		DurationMS:    result.Duration.Milliseconds(),
+		Configuration: result.Configuration,
+		HaltReason:    result.Observation.HaltReason,
 		Experiment: Experiment{
 			Name:       result.Experiment,
 			Family:     result.Family,
@@ -217,7 +213,8 @@ func windows(observation experiment.Observation) map[string]Window {
 	out := map[string]Window{}
 
 	for _, phase := range Phases(observation) {
-		if phase.Window.Len() == 0 {
+		if phase.Window.Valid.Len()+phase.Window.Invalid.Len()+
+			phase.Window.Revoked.Len()+phase.Window.Forged.Len() == 0 {
 			continue
 		}
 

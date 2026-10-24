@@ -8,9 +8,6 @@ import (
 	"testing"
 )
 
-// Testing loopback alone was weaker than it read. The published container ports
-// go to 127.0.0.1, but four tiers bind the Docker bridge gateway, and a port
-// free on one is not evidence it is free on the other. An audit found it.
 func TestAPortTakenOnAnyRequiredAddressIsNotFree(t *testing.T) {
 	// A second loopback address stands in for the bridge gateway: it is a
 	// different address on the same host, which is the whole property under

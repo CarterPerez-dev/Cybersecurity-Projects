@@ -4,9 +4,6 @@
 
 set -euo pipefail
 
-# M9's exit gate for the database half of the `credential.` family: rotation
-# distinguishes rotation from revocation on all three engines.
-#
 # This is the first family whose authority behaves CORRECTLY. Every other tier
 # exists because no correct dependency will emit the defect - no correct
 # provider mints `alg: none`, no correct CA signs an expired leaf. Here the
@@ -20,14 +17,6 @@ set -euo pipefail
 #      plus one statement, `db_rotate_terminate`, returns `passed / HELD` exit 0
 #      on the same engine. One statement is the entire difference between a
 #      change of admission policy and a revocation.
-#
-#   2. THE NEGATIVE CONTROL EARNS ITS KEEP HERE. Research 07 section 6.1 is a
-#      write-up of a probe that reported PostgreSQL accepting a rotated-away
-#      password: it connected over loopback inside the server container, where
-#      `postgres:18` ships `host all all 127.0.0.1 trust` AHEAD of scram, so no
-#      password was ever evaluated. khaos's invalid stream presents a password
-#      that was never correct and requires the engine to refuse it, which is the
-#      control that was missing. A run that cannot establish it is void.
 #
 #   3. EVERY OBSERVABLE IS THE ENGINE'S OWN MESSAGE. The confirmation quotes
 #      what the engine said, per engine, and the four faults produce DISTINCT
@@ -90,8 +79,14 @@ failures=0
 report=""
 last_code=0
 ran=()
+active_pid=""
 
 cleanup() {
+    if [[ -n "$active_pid" ]]; then
+        kill -9 "$active_pid" 2>/dev/null || true
+        wait "$active_pid" 2>/dev/null || true
+    fi
+    "$BIN" reclaim --no-color >/dev/null 2>&1 || true
     "$BIN" range down --no-color >/dev/null 2>&1 || true
     rm -rf "$KHAOS_STATE_DIR"
 }
@@ -205,9 +200,6 @@ assert_report_lacks() {
     fi
 }
 
-# The baseline guard that research 07 section 6.1 paid for. If the engine ever
-# accepted the never-valid password, khaos voids the run by name rather than
-# reporting a finding, and this asserts the run was NOT voided that way.
 assert_control_held() {
     local label="$1"
     # The subject is a parameter because this one helper now serves two kinds of
@@ -264,6 +256,45 @@ leftover_roles() {
     esac
 }
 
+kill_credential_at() {
+    local engine="$1" stage="$2" log attempt reached=0 had_role=0 baseline=4s
+    if [[ "$stage" == baseline ]]; then
+        baseline=60s
+    fi
+    log="${KHAOS_STATE_DIR}/kill-${engine}-${stage}.log"
+    "$BIN" run credential.db_rotate --target "${CONTAINER[$engine]}" \
+        --engine "$engine" --baseline-for "$baseline" --fault-for 2s \
+        --recover-for 60s --sample-every 300ms --no-color \
+        >"$log" 2>&1 &
+    active_pid=$!
+    for ((attempt = 0; attempt < 60; attempt++)); do
+        if grep -qE "plan[[:space:]]+${stage}[[:space:]]" "$log"; then
+            reached=1
+            break
+        fi
+        kill -0 "$active_pid" 2>/dev/null || break
+        sleep 1
+    done
+    if [[ "$reached" != 1 ]]; then
+        fail "${engine} did not reach ${stage} before interruption"
+        cat "$log"
+    elif [[ "$(leftover_roles "$engine")" != 1 ]]; then
+        fail "${engine} ${stage} did not hold exactly one temporary role"
+    else
+        had_role=1
+    fi
+    kill -9 "$active_pid" 2>/dev/null || true
+    wait "$active_pid" 2>/dev/null || true
+    active_pid=""
+    if "$BIN" reclaim --no-color >>"$log" 2>&1 && \
+        [[ "$(leftover_roles "$engine")" == 0 && "$had_role" == 1 ]]; then
+        pass "${engine} kill during ${stage} left a role that cold reclaim removed"
+    else
+        fail "${engine} cold cleanup after ${stage} left a role or failed"
+        cat "$log"
+    fi
+}
+
 # The pool configuration is fixed at container creation, deliberately, so a
 # gate spanning all three has to restart the range. A fixture that could be
 # reconfigured mid-run would let khaos change the target it is measuring.
@@ -289,6 +320,7 @@ start_range() {
     if ! started="$("$BIN" range up --with-db --pool-mode "$pool" \
         --secret-mode "$secret" --no-color --quiet 2>&1)"; then
         fail "range up --with-db --pool-mode $pool --secret-mode $secret: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -393,8 +425,6 @@ echo "== the pooled fixture: the fail-open is the DEFAULT configuration =="
 #              which is why the experiment declares what failing closed means.
 #   held       the same lifetime as bounded, plus one connection checked out
 #              and never returned. The cleaner only walks the IDLE list, so the
-#              lifetime does not bound it and HELD is the defect again. This is
-#              the row research 07 section 5.3 did not have.
 declare -A WANT_VERDICT=(
     [unbounded]="passed / HELD"
     [bounded]="deviated / DENIED"
@@ -461,16 +491,6 @@ done
 
 echo "== the secret file: one fault of four is a finding, and the other three say why =="
 
-# The four shapes are what make the one that matters discriminating. Research 07
-# part 8 is explicit that the empty file is the nastiest because it is the ONLY
-# one that is not an error at the syscall level: os.ReadFile returns no error
-# and an empty slice, so every error-handling path in the target is bypassed and
-# the empty value reaches the crypto. crypto/hmac then computes happily with a
-# zero-length key, which is CVE-2019-20933's exact shape.
-#
-# The other three are expected to make a correct target refuse and CANNOT do
-# anything else, which is what makes them the controls: if all four read the
-# same, khaos is not measuring the key at all.
 declare -A WANT_SECRET_UNCHECKED=(
     [credential.secret_file_empty]="deviated / PERMITTED"
     [credential.secret_file_truncated]="deviated / DENIED"
@@ -529,9 +549,6 @@ fi
 
 echo "== the length check is the fix, and khaos says so =="
 
-# The same four faults against a verifier that validates the length after every
-# read, which is what research 07 part 8 prescribes and what the upstream fix
-# for CVE-2019-20933 literally added. The one finding has to disappear.
 if start_range unbounded validated; then
     run_experiment credential.secret_file_empty
 
@@ -801,6 +818,11 @@ done
 
 echo "== the classifier is a differential against all three engines =="
 
+for engine in "${ENGINES[@]}"; do
+    kill_credential_at "$engine" baseline
+    kill_credential_at "$engine" recover
+done
+
 # Including the confirmation oracle's inert control, which is the one assertion
 # an oracle gutted to `return true` cannot satisfy.
 differential_env=()
@@ -851,33 +873,14 @@ fi
 
 echo "== service to service: a DENY and a SILENCE are different answers =="
 
-# The one fault in this family whose authority is khaos itself again, and the
-# only one that needs TWO fault windows. Research 07 section 6.2: an
-# authorization dependency has three outcomes - allow, deny and unknown - and
-# only `unknown` is eligible for a fallback policy. A caller written as
-#
-#     if err != nil || resp.StatusCode != 200 { return Allow }
-#
-# has two branches where it needs three, and one window cannot show that: the
-# acceptance under a deny is already a finding, but what PROVES the mechanism is
-# that the same caller behaves identically when the dependency answers nothing
-# at all. So khaos denies one credential, measures, then makes its own
-# dependency unavailable, measures again, and reads the pair.
-#
-# Each phase measures an INDEPENDENT branch, so all four cells of that matrix
-# exist and three of the modes below are three of them. `collapses` ignores the
-# deny, `distinguishes` honours both, and `retries` honours both and asks again
-# every time, which is the same section's retry storm.
-#
-# This tier needs no stateful tier: it is in the DEFAULT range, and that is
-# asserted by bringing the range up without `--with-db`.
 start_authz_range() {
     local mode="$1"
 
     "$BIN" range down --no-color >/dev/null 2>&1 || true
-    if ! "$BIN" range up --authz-mode "$mode" --no-color --quiet \
-        >/dev/null 2>&1; then
-        fail "range up --authz-mode $mode"
+    local started
+    if ! started="$("$BIN" range up --authz-mode "$mode" --no-color --quiet 2>&1)"; then
+        fail "range up --authz-mode $mode: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -936,10 +939,10 @@ if start_authz_range collapses; then
 
     assert_report_has \
         "the collapse is named as serving in both phases" \
-        "the target served in BOTH phases"
+        "permitted access during both"
     assert_report_has \
-        "and it is named as two branches where three are needed" \
-        "two branches where it needs three"
+        "both dependency outcomes are named" \
+        "definitive denial and an unavailable dependency"
     assert_report_lacks \
         "a collapsing caller is not credited with the third branch" \
         "That is the third branch"
@@ -953,7 +956,7 @@ if start_authz_range distinguishes; then
         "That is the third branch, and khaos observed it rather than inferring it"
     assert_report_lacks \
         "and is not reported as having collapsed anything" \
-        "served in BOTH phases"
+        "permitted access during both"
 
     # The negative control for the retry-storm instrument. A caller that asks
     # once per request must NOT be reported as retrying, or the instrument says
@@ -983,23 +986,6 @@ fi
 
 echo "== the regression control: a correct caller that refuses with 503 =="
 
-# THE INPUT THIS GATE MUST REJECT, and it could not until now. An audit found
-# khaos reporting a CORRECT fail-closed caller as `deviated / PERMITTED` with
-# "this target's fallback is to allow": the order-sensitive counts that stop
-# khaos calling a short decision cache a bypass reset on a REFUSAL, and this
-# experiment declares a 503 as its refusal, so a caller that served one request
-# from a one-second cache and then correctly refused with 503s read as a bypass.
-#
-# The three modes above cannot produce it. They answer 403 and hold no cache, so
-# the sequence is unreachable against them - which is exactly why the defect
-# shipped under 204 green assertions. This mode answers 503 and caches for a
-# second, in BOTH fault windows, so it exercises both halves of the fix:
-# `AcceptedDespiteLapse` on window one's revoked stream and
-# `AcceptedSinceLastRefusal` on window two's valid stream.
-#
-# VERIFIED by reverting the fix against this fixture on a live range: the same
-# run returns `deviated / PERMITTED` exit 2 with the predicate gutted, and
-# `passed / HELD` exit 0 with it in place.
 if start_authz_range cached; then
     run_experiment credential.apikey_revoked
 
@@ -1012,7 +998,7 @@ if start_authz_range cached; then
         "this target's fallback is to allow"
     assert_report_lacks \
         "and is not reported as having served in both phases" \
-        "served in BOTH phases"
+        "permitted access during both"
     assert_report_lacks \
         "and no bypass is claimed against it" \
         "was still accepted"

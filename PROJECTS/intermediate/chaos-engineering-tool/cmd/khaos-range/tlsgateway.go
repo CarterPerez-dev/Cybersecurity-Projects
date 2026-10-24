@@ -93,13 +93,17 @@ func dialAddress(raw string) string {
 // client is built per request, because a trust store or certificate held from
 // boot could never experience a fault armed after startup.
 func (g *tlsGateway) client(ctx context.Context) *tlsclient.Client {
+	var sessions tls.ClientSessionCache
+	if g.mode == tlsclient.PolicyInPeerCallback {
+		sessions = g.sessions
+	}
 	return tlsclient.New(tlsclient.Config{
 		Mode:     g.mode,
 		Host:     g.certHost,
 		Roots:    g.trustStore(ctx),
 		Timeout:  dependencyTimeout,
 		Identity: g.identity(ctx),
-		Sessions: g.sessions,
+		Sessions: sessions,
 	})
 }
 

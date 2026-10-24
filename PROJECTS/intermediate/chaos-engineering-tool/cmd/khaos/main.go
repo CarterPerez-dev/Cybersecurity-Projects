@@ -41,7 +41,7 @@ const (
 )
 
 var internalFailure = errors.New(
-	"khaos hit a bug and stopped; every fault it had applied was reverted on the way out",
+	"khaos hit a bug and stopped; run `khaos reclaim` to verify recovery and retry any unfinished rollback",
 )
 
 var errInterrupted = errors.New(

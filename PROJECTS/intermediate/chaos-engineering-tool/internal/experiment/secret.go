@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"sync"
 
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/probe"
@@ -84,20 +83,6 @@ const (
 	usageTokenSecret = "a credential the target currently accepts, which the range asks the target itself to issue because khaos never reads the secret"
 )
 
-// memoised fetches the valid credential ONCE. It cannot be re-fetched per
-// sample: after the fault the target would sign with the broken secret, so the
-// stream khaos presents as valid would become a second forged one and the
-// control would collapse into it.
-func memoised(token string) func(context.Context) (string, error) {
-	var once sync.Once
-
-	return func(context.Context) (string, error) {
-		once.Do(func() {})
-
-		return token, nil
-	}
-}
-
 func buildSecret(
 	kind secretfile.Kind,
 	state, defect string,
@@ -133,7 +118,7 @@ func buildSecret(
 					Name:       probeValidName,
 					URL:        url,
 					Credential: probe.Valid,
-					Mint:       memoised(params.Get(ParamToken)),
+					Token:      params.Get(ParamToken),
 				}),
 				// The negative control is signed with the EMPTY key, which is
 				// the one thing about it that must not vary, and freshly

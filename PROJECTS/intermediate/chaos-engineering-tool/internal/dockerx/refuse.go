@@ -179,7 +179,7 @@ func checkSharedNamespace(t Target, _ Guard) *Refusal {
 		t,
 		"the container shares the network namespace of "+ShortID(
 			peer,
-		)+", which has not consented, so a fault would reach it too",
+		)+"; select that owner so khaos can enumerate every sharing container",
 		"target "+ShortID(peer)+" directly once it carries the consent label",
 	)
 }

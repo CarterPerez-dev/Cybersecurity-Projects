@@ -4,12 +4,14 @@
 package lock
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -40,6 +42,23 @@ var (
 
 type Lock struct {
 	file *os.File
+}
+
+func AcquireContext(ctx context.Context, path string) (*Lock, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		held, err := Acquire(path)
+		if !errors.Is(err, ErrHeld) {
+			return held, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
 }
 
 func Acquire(path string) (*Lock, error) {

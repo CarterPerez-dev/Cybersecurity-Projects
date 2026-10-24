@@ -10,11 +10,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
-// This provider mints credentials that are deliberately defective -- `alg:
-// none`, a signature over a zero-length key, a token carrying its own verifying
-// key -- and serves the key set a target resolves them against. It had no bind
-// guard at all while the fault proxy had carried one since M5, so the rule was
-// a property of one tier rather than of khaos. An audit found it.
 func TestAnExposedBindIsRefused(t *testing.T) {
 	for _, addr := range []string{"0.0.0.0:45999", ":45999", "[::]:45999"} {
 		provider, err := New(Config{})

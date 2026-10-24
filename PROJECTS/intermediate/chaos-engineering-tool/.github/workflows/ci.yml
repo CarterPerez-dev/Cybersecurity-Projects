@@ -7,6 +7,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -15,17 +16,18 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
-      - name: gofmt
-        run: test -z "$(gofmt -l .)"
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
 
-      - name: vet
-        run: go vet ./...
+      - name: installer syntax and shell checks
+        run: bash -n install.sh && shellcheck install.sh
 
       - name: module tidiness
         run: go mod tidy -diff
@@ -34,7 +36,7 @@ jobs:
         run: go test -race ./...
 
       - name: build
-        run: go build -o khaos ./cmd/khaos
+        run: CGO_ENABLED=0 go build -trimpath -o khaos ./cmd/khaos
 
       - name: color degradation gate
         run: ./scripts/colors.sh

@@ -72,8 +72,10 @@ type Proxy struct {
 	probe string
 
 	// Both ends are held; closing the client cannot unblock the dependency.
-	mu   sync.Mutex
-	held map[net.Conn]struct{}
+	mu           sync.Mutex
+	held         map[net.Conn]struct{}
+	sources      map[string]int64
+	faultSources map[string]int64
 
 	// inert forwards normally with a fault armed: a negative control.
 	inert atomic.Bool
@@ -105,11 +107,13 @@ func Open(listenAddr, upstream, probe string) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		upstream: upstream,
-		listener: listener,
-		probe:    probe,
-		held:     map[net.Conn]struct{}{},
-		closed:   make(chan struct{}),
+		upstream:     upstream,
+		listener:     listener,
+		probe:        probe,
+		held:         map[net.Conn]struct{}{},
+		closed:       make(chan struct{}),
+		sources:      map[string]int64{},
+		faultSources: map[string]int64{},
 	}
 
 	p.state.Store(&armed{fault: Fault{Kind: PassThrough}})
@@ -155,6 +159,9 @@ func (p *Proxy) swap(fault Fault) {
 
 	previous := p.state.Load()
 	p.state.Store(&armed{fault: fault, generation: previous.generation + 1})
+	for address := range p.faultSources {
+		p.faultSources[address] = 0
+	}
 
 	conns := make([]net.Conn, 0, len(p.held))
 	for conn := range p.held {
@@ -220,6 +227,7 @@ func (p *Proxy) serve() {
 		}
 
 		p.accepted.Add(1)
+		p.countSource(conn.RemoteAddr())
 		p.wg.Add(1)
 
 		go func() {
@@ -279,11 +287,7 @@ func (p *Proxy) sever(client net.Conn, fault Fault, generation uint64) bool {
 		p.severed.Add(1)
 		return true
 	case EOF:
-		// The kernel sends FIN only on an empty receive queue, RST otherwise.
-		drain(client)
-		_ = client.Close()
-		p.severed.Add(1)
-		return true
+		return p.eof(client, generation)
 	default:
 		return p.hold(client, generation)
 	}
@@ -301,19 +305,21 @@ func settle(client net.Conn) {
 	_, _ = client.Read(buffer)
 }
 
-// drain runs to the deadline: a short read is not an empty queue.
-func drain(client net.Conn) {
-	if err := client.SetReadDeadline(time.Now().Add(drainWindow)); err != nil {
-		return
+func (p *Proxy) eof(client net.Conn, generation uint64) bool {
+	if !p.track(generation, client) {
+		return false
 	}
-
-	buffer := make([]byte, copyBuffer)
-
-	for {
-		if _, err := client.Read(buffer); err != nil {
-			return
+	defer p.untrack(client)
+	p.severed.Add(1)
+	if tcp, ok := client.(*net.TCPConn); ok {
+		if err := tcp.CloseWrite(); err != nil {
+			return true
 		}
 	}
+	if err := client.SetReadDeadline(time.Now().Add(hangCeiling)); err == nil {
+		_, _ = io.Copy(io.Discard, client)
+	}
+	return true
 }
 
 // hold implements Hang: keep the connection open and answer nothing.

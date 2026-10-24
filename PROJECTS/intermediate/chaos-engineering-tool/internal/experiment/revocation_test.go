@@ -374,7 +374,7 @@ func TestTheDiscriminatorReadsTheStreamThatLeaked(t *testing.T) {
 		none  bool
 		cause Cause
 	}{
-		{"re-armed on every failed check", true, false, TTLExtension},
+		{"re-armed on every failed check", true, false, LapsedOnPause},
 		{"stale past the pause", false, true, StalePastPause},
 	}
 

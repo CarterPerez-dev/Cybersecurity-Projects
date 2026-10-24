@@ -6,7 +6,20 @@ package inject
 import (
 	"slices"
 	"testing"
+
+	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 )
+
+func TestEveryMutatorCanDescribeWithoutAPlan(t *testing.T) {
+	for kind, mutator := range registry {
+		t.Run(kind, func(t *testing.T) {
+			got := mutator.Describe(Env{}, dockerx.Target{Name: "target"})
+			if got == "" {
+				t.Fatal("mutator has no description before planning")
+			}
+		})
+	}
+}
 
 // An obligation kind is khaos's own bookkeeping: a reclaim has to be able to
 // resolve it, and `khaos inject` must never offer it. Both halves matter --

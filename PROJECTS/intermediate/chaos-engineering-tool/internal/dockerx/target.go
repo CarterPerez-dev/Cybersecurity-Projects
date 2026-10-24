@@ -47,6 +47,7 @@ type Target struct {
 	ID           string
 	Name         string
 	Image        string
+	ImageID      string
 	Project      string
 	Service      string
 	Labels       map[string]string

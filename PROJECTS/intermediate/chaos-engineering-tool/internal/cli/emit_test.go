@@ -37,6 +37,39 @@ func emitted(t *testing.T) (experiment.Result, experiment.Definition) {
 	return result, definition
 }
 
+func TestSurvivingArtifactsCarryProjectionFailureAndFinalExit(t *testing.T) {
+	result, definition := emitted(t)
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("occupied"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := &strings.Builder{}
+	err := emitRecord(out, definition, result, nil, Output{
+		Shape: outputJSON, Record: dir,
+		Projections: Projections{JUnit: filepath.Join(blocker, "junit.xml")},
+	})
+	if !errors.Is(err, ErrRecordUnwritten) {
+		t.Fatalf("publication error = %v", err)
+	}
+	disk, readErr := os.ReadFile(filepath.Join(dir, record.RecordFile))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, body := range [][]byte{disk, []byte(out.String())} {
+		var rec record.Record
+		if decodeErr := json.Unmarshal(body, &rec); decodeErr != nil {
+			t.Fatal(decodeErr)
+		}
+		if rec.Exit.Code != ExitCode(err) || len(rec.ArtifactErrors) == 0 {
+			t.Fatalf(
+				"publication failure absent: exit=%+v errors=%v",
+				rec.Exit, rec.ArtifactErrors,
+			)
+		}
+	}
+}
+
 // Under --output json, stdout carries the record and NOTHING else. A single
 // banner line makes `khaos run x --output json | jq .verdict` fail on the
 // first byte, and that failure names jq rather than khaos.

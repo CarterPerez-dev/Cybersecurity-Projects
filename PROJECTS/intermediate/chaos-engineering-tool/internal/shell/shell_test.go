@@ -5,12 +5,40 @@ package shell
 
 import (
 	"bytes"
+	"context"
+	"io"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/CarterPerez-dev/khaos/internal/lock"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
+	"github.com/spf13/cobra"
 )
+
+func TestConsolePreservesCredentialBackslashes(t *testing.T) {
+	app := newConsole(io.Discard)
+	menu := app.ActiveMenu()
+	var got []string
+	menu.SetCommands(func() *cobra.Command {
+		root := &cobra.Command{Use: "khaos"}
+		root.AddCommand(&cobra.Command{
+			Use: "capture",
+			Run: func(_ *cobra.Command, args []string) { got = args },
+		})
+		return root
+	})
+	err := menu.RunCommandLine(
+		context.Background(), `capture C:\secrets\ "a b" password\`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{`C:\secrets\`, "a b", `password\`}
+	if !slices.Equal(got, want) {
+		t.Fatalf("arguments = %q, want %q", got, want)
+	}
+}
 
 // busy holds the instance lock for the duration of a test, which is what a live
 // run holds while it owns a fault. The state dir is redirected first so the

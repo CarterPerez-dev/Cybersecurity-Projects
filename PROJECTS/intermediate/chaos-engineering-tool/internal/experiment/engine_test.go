@@ -303,6 +303,9 @@ func TestTheEngineNeverInjectsIntoATargetThatWasNotEnforcing(t *testing.T) {
 			BaselineNotMet,
 		)
 	}
+	if result.Observation.FaultFor != 0 {
+		t.Fatal("a refused run claimed time observing an uninjected fault")
+	}
 }
 
 func TestTheEngineDetectsAControlThatGaveWayUnderFault(t *testing.T) {

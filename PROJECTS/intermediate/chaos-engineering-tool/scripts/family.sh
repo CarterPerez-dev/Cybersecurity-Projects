@@ -30,11 +30,6 @@ TIMING=(--baseline-for 3s --fault-for 6s --recover-for 2s --sample-every 150ms)
 
 VERIFIER_GATEWAY=khaos-range-gateway-verifier
 
-# Each row is a fail mode followed by the experiments that mode must let through.
-# The mapping is deliberately many-to-one in places: `alg-any` is a single
-# structural defect, resolving the key and THEN dispatching on the token's
-# algorithm, and it is the root cause of both `alg: none` acceptance and
-# HS256/RS256 confusion. Research 07 frames them that way and so does the range.
 CATCHING=(
     "alg-any|identity.alg_none|identity.alg_confusion"
     "trust-embedded-key|identity.embedded_jwk"
@@ -51,11 +46,6 @@ CATCHING=(
     # container instead of the gate working around it.
     "jwks-cache-forever|identity.kid_rollover"
     "jwks-cache-forever|identity.key_rotation"
-    # Refetch only on an unknown kid, never on a timer. Research 07 section 2.3
-    # calls this "the whole finding": the eviction of a retired key is a side
-    # effect of the refetch a NEW-key token triggers, so a target with no
-    # new-key traffic honours the retired key for an unbounded time. khaos's own
-    # valid stream used to supply that traffic and hide it.
     "jwks-kid-only|identity.kid_rollover"
     "introspect-fail-open|identity.introspection_error|identity.malformed_response|identity.idp_latency"
     "decision-cache-forever|identity.revoked_token"
@@ -112,6 +102,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --fail-mode "$1" --quiet --no-color 2>&1)"; then
         fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -223,9 +214,6 @@ assert_states_a_finding() {
     fi
 }
 
-# The exposure as a NUMBER. A count of acceptances with no span leaves the reader
-# inferring the window from the timing flags, and research 07 section 2.2 calls
-# this the real exposure window of a leaked key.
 assert_reports_the_exposure_bound() {
     local label="$1"
     if grep -qE "^  why .*accepted over a span of at least" <<<"$report"; then
@@ -235,9 +223,6 @@ assert_reports_the_exposure_bound() {
     fi
 }
 
-# khaos must never claim a cache has no expiry from a bounded observation.
-# Research 07's open question 5 bans exactly that: "label it as a bound, never as
-# caches forever".
 assert_never_claims_an_unbounded_cache() {
     local label="$1"
     if grep -qiE "no expiry at all|caches forever" <<<"$report"; then
@@ -426,11 +411,6 @@ if start_range closed; then
 
             run_experiment "$experiment"
 
-            # DERIVED from the expected verdict rather than written beside it.
-            # M10 gave a deviation in a non-defect direction its own exit
-            # code, so four of these seventeen now exit 3 and the rest exit 0
-            # -- and a hand-maintained second table would be one more thing
-            # that can disagree with the first.
             assert_exit "$label" "$last_code" "$(exit_for_verdict "$want_verdict")"
             assert_verdict "$label" "$want_verdict"
 

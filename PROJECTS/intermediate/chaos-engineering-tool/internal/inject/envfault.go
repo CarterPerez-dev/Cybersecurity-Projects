@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -28,7 +29,8 @@ const (
 	// required-field check written with the wrong one does not fire.
 	EnvEmpty EnvKind = "empty"
 
-	KindEnvPrefix = "env-"
+	KindEnvPrefix    = "env-"
+	ReplacementLabel = "khaos.replacement"
 
 	errNoEnvPlan = "%w: %s needs to be told which variable to take away"
 
@@ -81,6 +83,7 @@ type EnvPlan struct {
 	// left for the rollback to guess.
 	OriginalID string `json:"original_id"`
 	ReplacedID string `json:"replaced_id,omitempty"`
+	Owner      string `json:"owner,omitempty"`
 }
 
 // envMutator is the only tier that REPLACES the target. Everything else mutates
@@ -99,7 +102,10 @@ func init() {
 }
 
 func (m envMutator) Describe(env Env, target dockerx.Target) string {
-	variable := env.EnvPlan.Variable
+	variable := ""
+	if env.EnvPlan != nil {
+		variable = env.EnvPlan.Variable
+	}
 	if variable == "" {
 		variable = string(m.kind)
 	}
@@ -174,6 +180,7 @@ func (m envMutator) Plan(
 
 	plan.Held = dockerx.HeldName(spec.Name)
 	plan.OriginalID = target.ID
+	plan.Owner = journal.NewID()
 
 	return journal.EncodePayload(*plan)
 }
@@ -198,6 +205,11 @@ func (m envMutator) Apply(
 	}
 
 	environ := m.replacement(spec.Config.Env, plan.Variable)
+	spec.Config.Labels = maps.Clone(spec.Config.Labels)
+	if spec.Config.Labels == nil {
+		spec.Config.Labels = map[string]string{}
+	}
+	spec.Config.Labels[ReplacementLabel] = plan.Owner
 
 	// Stopped before the rename, because two containers cannot both hold the
 	// network's static address and the service's aliases.
@@ -213,10 +225,6 @@ func (m envMutator) Apply(
 	if err != nil {
 		// The original is still there under its held name, so the revert can
 		// put it back whatever happened here.
-		if replaced != "" {
-			_ = env.Docker.Remove(context.WithoutCancel(ctx), replaced)
-		}
-
 		return err
 	}
 
@@ -332,11 +340,9 @@ func (m envMutator) Revert(
 		plan.ReplacedID = env.EnvPlan.ReplacedID
 	}
 
-	if env.Docker == nil || plan.Held == "" {
+	if env.Docker == nil || plan.Held == "" || plan.OriginalID == "" {
 		return fmt.Errorf(errNoEnvPlan, ErrNoEnvPlan, EnvFaultKind(m.kind))
 	}
-
-	var failures []error
 
 	original := strings.TrimSuffix(plan.Held, dockerx.HeldSuffix)
 
@@ -347,39 +353,28 @@ func (m envMutator) Revert(
 	}
 
 	if err := m.removeReplacement(ctx, env, plan, replaced); err != nil {
-		failures = append(failures, err)
+		return err
 	}
 
-	// A revert that completed and failed only to append REVERTED is replayed,
-	// and replay has to be a no-op rather than a second attempt.
-	if restored, err := m.alreadyRestored(
-		ctx,
-		env,
-		plan,
-		original,
-	); err != nil {
-		failures = append(failures, err)
-	} else if restored {
-		if err := env.Docker.Start(ctx, plan.OriginalID); err != nil {
-			failures = append(failures, err)
+	spec, err := env.Docker.Capture(ctx, plan.OriginalID)
+	if err != nil {
+		return err
+	}
+	if spec.Name != original {
+		if spec.Name != plan.Held {
+			return fmt.Errorf(
+				"original container %s was renamed to %q outside this mutation",
+				plan.OriginalID, spec.Name,
+			)
 		}
-
-		return errors.Join(failures...)
+		if err := env.Docker.Rename(
+			ctx, plan.OriginalID, original,
+		); err != nil {
+			return err
+		}
 	}
 
-	if err := env.Docker.Rename(ctx, plan.Held, original); err != nil {
-		return errors.Join(append(failures, err)...)
-	}
-
-	// Started by the name it now has, not by the one it had a line ago. The
-	// first version started plan.Held, which the rename had just taken away,
-	// so the original came back STOPPED and the next run reported the range as
-	// missing the fixture.
-	if err := env.Docker.Start(ctx, original); err != nil {
-		failures = append(failures, err)
-	}
-
-	return errors.Join(failures...)
+	return env.Docker.Start(ctx, plan.OriginalID)
 }
 
 // NeedsEnv tells the run this mutation replaces the target, derived from the
@@ -412,11 +407,6 @@ func ValidEnvKind(kind EnvKind) error {
 // Prefix declares this tier's kinds to the registry.
 func (envMutator) Prefix() string { return KindEnvPrefix }
 
-// removeReplacement deletes the container khaos created, and NOTHING else.
-// On a cold start the only handle is a NAME, and that name is the original's
-// own, so the id behind it decides: it is resolved first, compared against
-// OriginalID, and the removal is addressed to the id rather than the name,
-// which can move between the two calls.
 func (m envMutator) removeReplacement(
 	ctx context.Context,
 	env Env,
@@ -433,6 +423,17 @@ func (m envMutator) removeReplacement(
 	case id == plan.OriginalID:
 		return nil
 	}
+	spec, err := env.Docker.Capture(ctx, id)
+	if err != nil {
+		return err
+	}
+	if plan.Owner == "" || spec.Config.Labels[ReplacementLabel] != plan.Owner {
+		return fmt.Errorf(
+			"container %s at %q is not owned by this mutation; refusing removal",
+			id,
+			ref,
+		)
+	}
 
 	if err := env.Docker.Remove(ctx, id); err != nil &&
 		!errors.Is(err, dockerx.ErrContainerGone) {
@@ -440,34 +441,4 @@ func (m envMutator) removeReplacement(
 	}
 
 	return nil
-}
-
-// alreadyRestored reports that the original is back under its own name, by
-// IDENTITY: a replacement still holding that name reads the same otherwise.
-func (m envMutator) alreadyRestored(
-	ctx context.Context,
-	env Env,
-	plan EnvPlan,
-	original string,
-) (bool, error) {
-	if plan.OriginalID == "" {
-		return false, nil
-	}
-
-	if _, err := env.Docker.Identify(ctx, plan.Held); err == nil {
-		return false, nil
-	} else if !errors.Is(err, dockerx.ErrContainerGone) {
-		return false, err
-	}
-
-	id, err := env.Docker.Identify(ctx, original)
-
-	switch {
-	case errors.Is(err, dockerx.ErrContainerGone):
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return id == plan.OriginalID, nil
 }

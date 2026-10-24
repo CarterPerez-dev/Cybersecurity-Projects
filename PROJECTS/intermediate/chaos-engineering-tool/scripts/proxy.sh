@@ -71,6 +71,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --fail-mode "$1" --quiet --no-color 2>&1)"; then
         fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0
@@ -191,11 +192,6 @@ assert_an_unconfirmable_fault_is_not_success() {
         return
     fi
 
-    # The code is DERIVED from the epistemic word the run actually reported,
-    # not hardcoded. M10 split the one inconclusive code into three, and this
-    # check accepts three states: asserting a single code against a
-    # three-state regex is a flake that fires whenever the run lands on one
-    # of the other two.
     local epistemic
     epistemic="$(grep -E '^  verdict' <<<"$report" |
         sed -E 's/^  verdict +([a-z-]+).*/\1/' | head -1 || true)"
@@ -322,10 +318,6 @@ if start_range open; then
         assert_confirmed_on_the_socket "$experiment"
 
         if [[ "$experiment" == "$EOF_DEPENDENT_FAULT" ]]; then
-            # Confirmed at the socket, and correctly finding nothing: this
-            # target reads a Content-Length and is not the kind of caller this
-            # fault breaks. Asserting a bypass here is what hid the payload
-            # delay for an entire milestone.
             assert_verdict "$experiment" "passed / HELD"
             assert_exit "$experiment" "$last_code" 0
             continue
@@ -356,9 +348,6 @@ if start_range closed; then
 
         assert_verdict "${experiment} fail-closed" "deviated / DENIED"
 
-        # 3, not 0: M10 moved a deviation in a direction the polarity does
-        # NOT call a defect onto its own code. The target did change under the
-        # fault, and reporting that as a clean pass hid it.
         assert_exit "${experiment} fail-closed" "$last_code" 3
 
         if grep -q "acceptable for this control" <<<"$report"; then
@@ -369,10 +358,6 @@ if start_range closed; then
     done
 fi
 
-# M10's most dangerous exit code, and the one no other gate exercises. A HELD
-# verdict khaos declined to call conclusive used to exit 0: khaos asserting a
-# control held on evidence it refused to stand behind, as a green build.
-#
 # Asserted as a PAIR. "exit 4 on a short window" alone is satisfied by any
 # failure; the same experiment with a full window exiting 0 is what proves the
 # 4 came from the sample floor and not from something else going wrong.

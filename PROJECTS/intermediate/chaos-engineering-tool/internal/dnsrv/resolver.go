@@ -170,6 +170,8 @@ func New(cfg Config) (*Resolver, error) {
 
 // Zone reports the names this resolver is authoritative for.
 func (r *Resolver) Zone() map[string]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return maps.Clone(r.zone)
 }
 
@@ -306,6 +308,8 @@ func (r *Resolver) Arm(trap Trap) error {
 	if err := trap.Validate(); err != nil {
 		return err
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if trap.Kind != PassThrough {
 		if err := r.inZone(trap.Host); err != nil {
@@ -327,19 +331,24 @@ func (r *Resolver) Arm(trap Trap) error {
 	// control this package relies on would pass against a mutation it was
 	// built to catch. Measured -- it did.
 	if trap.Kind == AddressRotated && !trap.Inert {
-		previous, err := r.Rotate(trap.Host, trap.Address)
+		if r.rotated.name != "" &&
+			dns.CanonicalName(r.rotated.name) != dns.CanonicalName(trap.Host) {
+			return fmt.Errorf(
+				"restore the active rotation of %s before rotating %s",
+				r.rotated.name, trap.Host,
+			)
+		}
+		previous, err := r.rotate(trap.Host, trap.Address)
 		if err != nil {
 			return err
 		}
 
-		r.mu.Lock()
-		r.rotated = rotation{name: trap.Host, from: previous}
-		r.mu.Unlock()
+		if r.rotated.name == "" {
+			r.rotated = rotation{name: trap.Host, from: previous}
+		}
 	}
 
-	r.mu.Lock()
 	r.trap = trap
-	r.mu.Unlock()
 
 	return nil
 }
@@ -374,14 +383,17 @@ func (r *Resolver) inZone(host string) error {
 // endpoint revocation, and the finding khaos measures is whether it reached the
 // target at all.
 func (r *Resolver) Rotate(name, address string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.rotate(name, address)
+}
+
+func (r *Resolver) rotate(name, address string) (string, error) {
 	if err := validAddress(address); err != nil {
 		return "", err
 	}
 
 	canonical := dns.CanonicalName(name)
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	previous, ok := r.zone[canonical]
 	if !ok {
@@ -412,19 +424,16 @@ func (r *Resolver) Rotate(name, address string) (string, error) {
 // changing an operator's resolution permanently.
 func (r *Resolver) Disarm() {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	moved := r.rotated
 	r.rotated = rotation{}
 	r.trap = Trap{}
-	r.mu.Unlock()
 
 	if moved.name == "" {
 		return
 	}
 
-	// Best effort and deliberately not reported: Disarm has no error channel,
-	// and the restore can only fail for a name that is no longer in the zone,
-	// which this resolver has no path to.
-	_, _ = r.Rotate(moved.name, moved.from)
+	r.zone[dns.CanonicalName(moved.name)] = moved.from
 }
 
 // rotation is what a restore needs: the name and the address it answered with
@@ -432,12 +441,6 @@ func (r *Resolver) Disarm() {
 type rotation struct {
 	name string
 	from string
-}
-
-func (r *Resolver) armed() Trap {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.trap
 }
 
 // Arrivals is attributed by SOURCE rather than totalled: khaos's own probes
@@ -505,23 +508,29 @@ func (r *Resolver) handle(w dns.ResponseWriter, req *dns.Msg) {
 
 	r.record(sourceAddr(w.RemoteAddr()))
 
-	name, authoritative := r.lookup(question.Name)
+	honest, trap, authoritative := r.answerState(question.Name)
 	if !authoritative {
 		r.reply(w, req, r.forwardQuery(req, w))
 		return
 	}
 
-	r.recordQuery(sourceAddr(w.RemoteAddr()), name)
+	r.recordQuery(sourceAddr(w.RemoteAddr()), honest.Host)
 
-	trap := r.armed()
-	if !r.applies(trap, name) {
+	if !r.applies(trap, honest.Host) {
 		r.countHonest()
-		r.reply(w, req, r.honestAnswer(req, question, name))
+		r.reply(w, req, r.synthesize(req, question, honest, addressAnswer))
 		return
 	}
 
 	r.countFaulted()
-	r.reply(w, req, r.serveFault(trap, req, question, name, w))
+	r.reply(w, req, r.serveFault(trap, req, question, honest, w))
+}
+
+func (r *Resolver) answerState(name string) (Trap, Trap, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	zoneName, found := r.lookup(name)
+	return Trap{Host: zoneName, Address: r.zone[zoneName]}, r.trap, found
 }
 
 // lookup matches the whole name or the name plus a suffix, because a container's
@@ -551,30 +560,15 @@ func (r *Resolver) applies(trap Trap, zoneName string) bool {
 	return dns.CanonicalName(trap.Host) == zoneName
 }
 
-// honestAnswer is measured by every baseline, so it has to be
-// indistinguishable from a correct resolver's answer.
-func (r *Resolver) honestAnswer(
-	req *dns.Msg,
-	question dns.Question,
-	zoneName string,
-) *dns.Msg {
-	return r.synthesize(req, question, Trap{
-		Host:    zoneName,
-		Address: r.zone[zoneName],
-	}, addressAnswer)
-}
-
 // serveFault acts on khaos's OWN honest answer for the name, so each trap
 // corrupts exactly ONE property rather than being two faults reported as one.
 func (r *Resolver) serveFault(
 	trap Trap,
 	req *dns.Msg,
 	question dns.Question,
-	zoneName string,
+	honest Trap,
 	w dns.ResponseWriter,
 ) *dns.Msg {
-	honest := Trap{Host: zoneName, Address: r.zone[zoneName]}
-
 	switch trap.Kind {
 	case NXDomain:
 		return authoritativeRcode(req, dns.RcodeNameError)
@@ -584,7 +578,7 @@ func (r *Resolver) serveFault(
 
 	case WrongAddress:
 		return r.synthesize(req, question, Trap{
-			Host:    zoneName,
+			Host:    honest.Host,
 			Address: trap.address(),
 		}, addressAnswer)
 
@@ -592,7 +586,7 @@ func (r *Resolver) serveFault(
 		// Ends at the trap's address, not the honest one, or the indirection
 		// changes nothing about where the traffic went.
 		return r.synthesize(req, question, Trap{
-			Host:    zoneName,
+			Host:    honest.Host,
 			Address: trap.address(),
 		}, chainAnswer)
 

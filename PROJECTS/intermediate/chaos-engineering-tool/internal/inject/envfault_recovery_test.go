@@ -6,6 +6,7 @@ package inject
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -17,7 +18,6 @@ import (
 
 const (
 	fixtureImage = "alpine:3.22"
-	fixtureName  = "khaos-envrevert-original"
 )
 
 // dockerOrSkip connects to the daemon, or skips: this package's other tiers
@@ -25,6 +25,9 @@ const (
 // without a real container to rename.
 func dockerOrSkip(t *testing.T) *dockerx.Client {
 	t.Helper()
+	if os.Getenv("KHAOS_DOCKER_TESTS") != "1" {
+		t.Skip("set KHAOS_DOCKER_TESTS=1 to run Docker integration tests")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -41,23 +44,53 @@ func dockerOrSkip(t *testing.T) *dockerx.Client {
 // returns its immutable id. Created through the CLI rather than through
 // dockerx, because dockerx creates only from a captured spec and the point
 // here is to own a container khaos did not make.
-func seedOriginal(t *testing.T, name string) string {
+func seedOriginal(t *testing.T, name string, labels ...string) string {
 	t.Helper()
 
-	_ = exec.Command("docker", "rm", "-f", name).Run()
-
-	out, err := exec.Command(
-		"docker", "create", "--name", name, fixtureImage, "sleep", "300",
-	).Output()
+	args := []string{"create", "--name", name}
+	for _, label := range labels {
+		args = append(args, "--label", label)
+	}
+	args = append(args, fixtureImage, "sleep", "300")
+	out, err := exec.Command("docker", args...).Output()
 	if err != nil {
-		t.Skipf("could not create the fixture container: %v", err)
+		t.Fatalf("could not create the fixture container: %v", err)
 	}
 
 	id := strings.TrimSpace(string(out))
 
-	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
+	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", id).Run() })
 
 	return id
+}
+
+func TestRecoveryRefusesAnUnownedContainerReusingTheOriginalName(t *testing.T) {
+	client := dockerOrSkip(t)
+	defer client.Close()
+	name := "khaos-env-unowned-" + strings.ToLower(journal.NewID())
+	id := seedOriginal(t, name)
+	held := dockerx.HeldName(name)
+	if err := exec.Command("docker", "rename", id, held).Run(); err != nil {
+		t.Fatal(err)
+	}
+	unrelated := seedOriginal(t, name)
+	payload, err := journal.EncodePayload(EnvPlan{
+		Kind: EnvUnset, Variable: "SECRET", Held: held, OriginalID: id,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	err = (envMutator{kind: EnvUnset}).Revert(
+		ctx, Env{Docker: client}, journal.Record{Payload: payload},
+	)
+	if err == nil || !alive(unrelated) || !alive(id) {
+		t.Fatalf(
+			"unowned container recovery: error=%v original=%v unrelated=%v",
+			err, alive(id), alive(unrelated),
+		)
+	}
 }
 
 func alive(name string) bool {
@@ -89,6 +122,7 @@ func TestARevertNeverRemovesTheOriginalContainer(t *testing.T) {
 		"the revert already ran":    {mustSucceed: true},
 	} {
 		t.Run(name, func(t *testing.T) {
+			fixtureName := "khaos-envrevert-" + strings.ToLower(journal.NewID())
 			originalID := seedOriginal(t, fixtureName)
 
 			payload, err := json.Marshal(EnvPlan{
@@ -138,6 +172,7 @@ func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 	client := dockerOrSkip(t)
 	defer func() { _ = client.Close() }()
 
+	fixtureName := "khaos-envrevert-" + strings.ToLower(journal.NewID())
 	held := fixtureName + dockerx.HeldSuffix
 
 	originalID := seedOriginal(t, fixtureName)
@@ -149,9 +184,8 @@ func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 		t.Skipf("could not rename the fixture aside: %v", err)
 	}
 
-	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", held).Run() })
-
-	replacementID := seedOriginal(t, fixtureName)
+	owner := journal.NewID()
+	replacementID := seedOriginal(t, fixtureName, ReplacementLabel+"="+owner)
 
 	if replacementID == originalID {
 		t.Fatal("the fixture did not create a second container")
@@ -162,6 +196,7 @@ func TestARevertStillRemovesAGenuineReplacement(t *testing.T) {
 		Variable:   "A_SECRET",
 		Held:       held,
 		OriginalID: originalID,
+		Owner:      owner,
 		// ReplacedID deliberately empty: the cold-start shape, which is the
 		// dangerous path.
 	})

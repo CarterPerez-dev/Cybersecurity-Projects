@@ -21,7 +21,7 @@ const (
 
 	errMissingOnMountPoint = "%w: %s IS the mount point rather than a file inside one, and a mount point cannot be renamed, so khaos cannot make it vanish. The in-place faults still work here; a secret delivered as a whole directory can also be made to vanish"
 
-	describeSecret = "%s, performed in place by a short-lived container of khaos's own that mounts only %s, holds no capabilities and joins no network"
+	describeSecret = "%s, performed in place by a short-lived container of khaos's own that mounts only %s, drops all capabilities except DAC_OVERRIDE for reading and writing the secret and FOWNER for restoring its permissions, and joins no network"
 
 	confirmEmpty      = "the target's own copy of %s is now zero bytes, and os.ReadFile returns no error on one"
 	confirmTruncated  = "the target's own copy of %s is %d bytes where it was %d"
@@ -164,6 +164,9 @@ func (m secretMutator) Plan(
 	// Written back through the pointer as well as journaled: the confirmation
 	// is a DIFFERENCE and has to know what the target had.
 	plan.Before = stat.Size
+	mode := stat.Mode & modeBits
+	plan.Mutation.OriginalMode = &mode
+	plan.Mutation.OriginalSize = &stat.Size
 
 	return journal.EncodePayload(*plan)
 }
@@ -307,6 +310,16 @@ func mutateArgs(plan SecretPlan, restore bool) []string {
 			args,
 			applyBytes,
 			fmt.Sprintf(bytesFormat, plan.Mutation.Bytes),
+		)
+	}
+	if plan.Mutation.OriginalMode != nil {
+		args = append(
+			args, "--original-mode", fmt.Sprint(*plan.Mutation.OriginalMode),
+		)
+	}
+	if plan.Mutation.OriginalSize != nil {
+		args = append(
+			args, "--original-size", fmt.Sprint(*plan.Mutation.OriginalSize),
 		)
 	}
 

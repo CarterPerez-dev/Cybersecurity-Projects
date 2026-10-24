@@ -10,12 +10,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 )
 
-// BOTH listeners, because they are different exposures and each had none. The
-// TLS one presents certificates khaos deliberately broke -- expired, revoked,
-// wrongly named, signed with a weak key -- and the HTTP one serves the CRL and
-// OCSP responses that decide whether a certificate is still good. The fault
-// proxy had carried this guard since M5 and neither of these did, so the rule
-// was a property of one tier rather than of khaos. An audit found it.
 func TestBothListenersRefuseAnExposedBind(t *testing.T) {
 	for _, addr := range []string{"0.0.0.0:45999", ":45999", "[::]:45999"} {
 		t.Run(addr, func(t *testing.T) {

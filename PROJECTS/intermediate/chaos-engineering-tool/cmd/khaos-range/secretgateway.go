@@ -14,10 +14,6 @@ import (
 )
 
 const (
-	// SecretValidated is the correct handling research 07 part 8 prescribes:
-	// explicit length validation after every read. An empty secret is not "no
-	// secret", it is "a secret equal to the empty string", and HMAC will
-	// happily compute with it.
 	SecretValidated = rangelab.SecretValidated
 
 	// SecretUnchecked is the CVE-2019-20933 shape: the secret is read, no

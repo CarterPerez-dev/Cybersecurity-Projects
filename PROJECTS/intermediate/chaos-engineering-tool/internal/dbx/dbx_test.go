@@ -68,7 +68,7 @@ func TestQuoteLiteralDoublesSingleQuotes(t *testing.T) {
 		"it's":        "'it''s'",
 		"''":          "''''''",
 		"a'b'c":       "'a''b''c'",
-		"back\\slash": "'back\\slash'",
+		"back\\slash": " E'back\\\\slash'",
 	}
 
 	for in, want := range cases {

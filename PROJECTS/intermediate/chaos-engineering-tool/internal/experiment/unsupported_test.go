@@ -9,8 +9,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/probe"
 )
 
-// The UNSUPPORTED verdict, which M7's exit gate turns on.
-//
 // Go's crypto/x509 performs no revocation checking of any kind and has no
 // option to turn it on, so a Go target handed a certificate revoked in a valid,
 // in-date, correctly signed CRL from its own issuer accepts it with a nil

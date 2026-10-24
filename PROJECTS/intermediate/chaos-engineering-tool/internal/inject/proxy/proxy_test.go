@@ -554,8 +554,6 @@ func TestSeveringAndForwardingFaultsAreSeparated(t *testing.T) {
 	}
 }
 
-// Audit findings, reproduced as controls before being fixed.
-
 func TestSlowCloseHoldsTheConnectionOpenAfterTheAnswer(t *testing.T) {
 	const delay = 600 * time.Millisecond
 

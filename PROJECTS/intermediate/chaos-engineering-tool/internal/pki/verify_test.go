@@ -67,9 +67,6 @@ func classify(err error) (outcome, x509.InvalidReason) {
 	return -1, 0
 }
 
-// expectation is one row of research 04's fault table, restated as something
-// executable. detail is a substring of CertificateInvalidError.Detail, needed
-// only where two traps share a reason code and nothing else separates them.
 type expectation struct {
 	kind   Kind
 	want   outcome
@@ -123,17 +120,6 @@ func faultTable() []expectation {
 		// itself the finding: a caller that does not unwrap blames the CA.
 		{SHA1Signature, authority, 0, "", ""},
 
-		// BOTH EKU faults are Reason 4, and research 04's F15 row saying the
-		// CA-level one is Reason 9 is wrong for go1.26.5. Measured four ways
-		// (CA clientAuth or codeSigning, leaf serverAuth or empty) and all four
-		// returned 4. Traced to the source: CANotAuthorizedForExtKeyUsage
-		// appears in crypto/x509 ONLY in its own declaration and in the Error()
-		// string switch, and is never constructed anywhere, so Go cannot return
-		// it. The constant is formattable dead code.
-		//
-		// This makes the two EKU faults a SECOND pair of byte-identical
-		// outcomes, alongside the three authority ones, and the family treats
-		// them the same way: distinguished by what khaos knows it served.
 		{EKUClientAuthOnly, invalid, x509.IncompatibleUsage, "", ""},
 		{EKUConstrainedIntermediate, invalid, x509.IncompatibleUsage, "", ""},
 

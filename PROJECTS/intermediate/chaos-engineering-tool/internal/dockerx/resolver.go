@@ -16,6 +16,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/moby/moby/api/types/container"
@@ -67,6 +68,8 @@ const (
 var ErrDynamicSelf = errors.New(
 	"this khaos binary is dynamically linked and cannot be its own container image",
 )
+
+var ErrResolverNotFound = errors.New("no chaos resolver exists on that network")
 
 var ErrResolverExists = errors.New(
 	"a khaos resolver is already serving that network",
@@ -234,6 +237,8 @@ func (c *Client) RunResolver(
 			existing.Name,
 			spec.Network,
 		)
+	} else if !errors.Is(err, ErrResolverNotFound) {
+		return Resolver{}, err
 	}
 
 	image, err := c.ImportResolverImage(ctx)
@@ -275,16 +280,14 @@ func (c *Client) RunResolver(
 		created.ID,
 		client.ContainerStartOptions{},
 	); err != nil {
-		// The daemon accepts a DNS entry it later refuses at start time, so an
-		// operator mistake reaches here and must not leave a container behind.
-		_ = c.RemoveResolver(ctx, created.ID)
-		return Resolver{}, fmt.Errorf(errStartResolve, ShortID(created.ID), err)
+		return Resolver{}, c.DiscardResolver(ctx, created.ID,
+			fmt.Errorf(errStartResolve, ShortID(created.ID), err))
 	}
 
 	address, err := c.NetworkAddress(ctx, created.ID, spec.Network)
 	if err != nil {
-		_ = c.RemoveResolver(ctx, created.ID)
-		return Resolver{}, fmt.Errorf(errResolverAddr, spec.Network, err)
+		return Resolver{}, c.DiscardResolver(ctx, created.ID,
+			fmt.Errorf(errResolverAddr, spec.Network, err))
 	}
 
 	return Resolver{
@@ -294,6 +297,18 @@ func (c *Client) RunResolver(
 		Address: address,
 		Nonce:   spec.Nonce,
 	}, nil
+}
+
+func (c *Client) DiscardResolver(
+	ctx context.Context,
+	id string,
+	cause error,
+) error {
+	cleanup, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx), 30*time.Second,
+	)
+	defer cancel()
+	return errors.Join(cause, c.RemoveResolver(cleanup, id))
 }
 
 // FindResolver matches by LABEL and not by name, because reclaim works from a
@@ -313,7 +328,7 @@ func (c *Client) FindResolver(
 		}
 	}
 
-	return Resolver{}, fmt.Errorf(errNoMatch, networkName)
+	return Resolver{}, fmt.Errorf("%w: %s", ErrResolverNotFound, networkName)
 }
 
 // Resolvers lists every chaos resolver on this daemon.

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -21,6 +22,9 @@ const restartImage = "alpine:3.22"
 
 func dockerOrSkip(t *testing.T) *dockerx.Client {
 	t.Helper()
+	if os.Getenv("KHAOS_DOCKER_TESTS") != "1" {
+		t.Skip("set KHAOS_DOCKER_TESTS=1 to run Docker integration tests")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -158,20 +162,18 @@ func freeHighPort(t *testing.T) int {
 func seedPublished(t *testing.T, name string, port int) string {
 	t.Helper()
 
-	_ = exec.Command("docker", "rm", "-f", name).Run()
-
 	out, err := exec.Command(
 		"docker", "run", "-d", "--name", name,
 		"-p", fmt.Sprintf("127.0.0.1:%d:7", port),
 		restartImage, "sleep", "600",
 	).Output()
 	if err != nil {
-		t.Skipf("could not create the fixture: %v", err)
+		t.Fatalf("could not create the fixture: %v", err)
 	}
 
-	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
-
-	return strings.TrimSpace(string(out))
+	id := strings.TrimSpace(string(out))
+	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", id).Run() })
+	return id
 }
 
 func running(name string) bool {

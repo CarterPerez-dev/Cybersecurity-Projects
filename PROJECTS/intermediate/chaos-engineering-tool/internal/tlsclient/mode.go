@@ -153,7 +153,7 @@ func (m Mode) reads() bool {
 }
 
 func (m Mode) resumes() bool {
-	return m == PolicyInPeerCallback
+	return m == PolicyInPeerCallback || m == Correct
 }
 
 func (m Mode) rechecksPerConnection() bool {

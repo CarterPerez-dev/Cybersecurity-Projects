@@ -152,6 +152,41 @@ func TestDiscoverFindsAllThreeTiers(t *testing.T) {
 	}
 }
 
+func TestDiscoveryDoesNotDependOnEarlierOptionalTiers(t *testing.T) {
+	for _, missing := range []string{ProxiedGatewayName, VerifierGatewayName} {
+		t.Run(missing, func(t *testing.T) {
+			reader := fullRange()
+			var targets []dockerx.Target
+			for _, target := range reader.targets {
+				if target.Name != missing {
+					targets = append(targets, target)
+				}
+			}
+			targets = append(targets,
+				container("secret-id", SecretGatewayName),
+				container("control-id", ControlGatewayName))
+			reader.targets = targets
+			reader.ports["secret-id"] = 42001
+			reader.ports["control-id"] = 42002
+			reader.environ["control-id"] = map[string]string{
+				EnvLimitStore: "redis:6379",
+			}
+			lab, err := Discover(context.Background(), reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if lab.SecretPort != 42001 || lab.ControlPort != 42002 ||
+				lab.ControlStoreAddr != "redis:6379" {
+				t.Fatalf("independent tiers missing: %+v", lab)
+			}
+			if missing == ProxiedGatewayName &&
+				lab.VerifierPort != verifierPort {
+				t.Fatal("verifier hidden by missing proxy")
+			}
+		})
+	}
+}
+
 // Each tier is probed at its own URL, and they must all differ. Pointing an
 // experiment at the wrong one measures a service with no causal connection to
 // its fault and reports a clean survival over an armed fault.

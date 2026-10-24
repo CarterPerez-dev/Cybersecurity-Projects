@@ -75,10 +75,6 @@ func shifted(revoked, validUnderOutage probe.Disposition) Observation {
 	}
 }
 
-// The matrix research 07 section 6.2 prescribes. Each phase measures an
-// INDEPENDENT branch of the caller's error handling, so all four cells exist
-// and only one of them is a caller with three outcomes. A tool that ran one
-// window could not tell the second row from the fourth.
 func TestTheTwoPhasesReadFourDifferentCallers(t *testing.T) {
 	for _, row := range []struct {
 		name          string
@@ -118,7 +114,7 @@ func TestTheTwoPhasesReadFourDifferentCallers(t *testing.T) {
 			validUnderOut: probe.Accepted,
 			wantDirection: Permitted,
 			wantDefect:    true,
-			wantReason:    "served in BOTH phases",
+			wantReason:    "permitted access during both",
 		},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -232,13 +228,6 @@ func TestServingAfterTheLastRefusalIsAFinding(t *testing.T) {
 	}
 }
 
-// THE DEFECT AN AUDIT FOUND IN GREEN CODE. A caller that answers 503 when it
-// cannot reach its authorization dependency is failing CLOSED -- this
-// experiment declares exactly that with ClosedWhen -- and the trailing-run
-// guard only ever reset on Rejected, so one acceptance from a one-second
-// decision cache followed by 39 correct refusals was reported as
-// deviated / PERMITTED with "this target's fallback is to allow". The shipped
-// fixture answers 403, so neither the gate nor the matrix above could see it.
 func TestA503RefusalEndsTheRunOfAcceptances(t *testing.T) {
 	observation := shifted(probe.Rejected, probe.Rejected)
 	observation.ClosedWhen = []probe.Disposition{probe.Unavailable}
@@ -610,7 +599,7 @@ func TestEveryAuthorizationExperimentMeasuresBothWindows(t *testing.T) {
 
 			if spec.Refusals == nil {
 				t.Fatal(
-					"this experiment has no refusal counter, so the retry storm research 07 section 6.2 names is unmeasurable here",
+					"this experiment has no refusal counter, so repeated attempts with a refused credential cannot be measured",
 				)
 			}
 

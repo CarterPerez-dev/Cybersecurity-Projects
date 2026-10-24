@@ -5,6 +5,7 @@ package run
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
@@ -17,36 +18,20 @@ import (
 // settleSuffix mirrors statedir.Paths.Settle.
 const settleSuffix = ".settle"
 
-const (
-	// Contention on the settle lock is two short critical sections
-	// colliding, so it is worth waiting out rather than walking past.
-	settleAttempts = 25
-	settleBackoff  = 20 * time.Millisecond
-)
+const CleanupTimeout = 30 * time.Second
 
-// holdSettle serialises read-then-append between a run and the reaper. The
-// returned release is always safe to call.
-//
-// A filesystem that cannot flock is a different answer from a lock somebody
-// holds: retrying it would stall every recovery there forever, so it
-// proceeds unlocked.
-func holdSettle(path string) func() {
-	for attempt := range settleAttempts {
-		settle, err := lock.Acquire(path + settleSuffix)
-		if err == nil {
-			return func() { _ = settle.Release() }
-		}
-
-		if !errors.Is(err, lock.ErrHeld) {
-			return func() {}
-		}
-
-		if attempt < settleAttempts-1 {
-			time.Sleep(settleBackoff)
-		}
+func holdSettle(ctx context.Context, path string) (func(), error) {
+	bounded, cancel := context.WithTimeout(ctx, CleanupTimeout)
+	defer cancel()
+	held, err := lock.AcquireContext(bounded, path+settleSuffix)
+	if err != nil {
+		return nil, err
 	}
+	return func() { _ = held.Release() }, nil
+}
 
-	return func() {}
+func mutationPath(path, id string) string {
+	return fmt.Sprintf("%s.%x.active", path, sha256.Sum256([]byte(id)))
 }
 
 type Reclaimed struct {
@@ -74,10 +59,16 @@ func (s Sweep) Failed() bool {
 	return false
 }
 
-// Reclaim settles outstanding mutations, holding the settle lock for the whole
-// pass so a renewal and a sweep cannot undo each other's work. The lock is
-// best-effort: a dead man's switch that will not fire is worse than one that
-// races.
+func (s Sweep) Succeeded() int {
+	succeeded := 0
+	for _, result := range s.Results {
+		if result.Err == nil {
+			succeeded++
+		}
+	}
+	return succeeded
+}
+
 func Reclaim(
 	ctx context.Context,
 	env inject.Env,
@@ -85,7 +76,11 @@ func Reclaim(
 	now time.Time,
 	expiredOnly bool,
 ) Sweep {
-	defer holdSettle(log.Path())()
+	release, err := holdSettle(ctx, log.Path())
+	if err != nil {
+		return Sweep{Damage: err}
+	}
+	defer release()
 
 	return reclaimWith(ctx, env, log, now, expiredOnly, inject.Lookup)
 }
@@ -112,6 +107,18 @@ func reclaimWith(
 			continue
 		}
 
+		active, err := lock.Acquire(mutationPath(log.Path(), record.MutationID))
+		if errors.Is(err, lock.ErrHeld) {
+			continue
+		}
+		if err != nil {
+			sweep.Results = append(
+				sweep.Results, Reclaimed{Record: record, Err: err},
+			)
+			continue
+		}
+		_ = active.Release()
+
 		// A fault on another daemon is left outstanding. Reverting it here
 		// would not fail cleanly: the ID is NotFound on this daemon, which
 		// khaos would read as the target being gone and write REVERTED.
@@ -126,9 +133,12 @@ func reclaimWith(
 			continue
 		}
 
+		cleanup, cancel := context.WithTimeout(ctx, CleanupTimeout)
+		err = revertWith(cleanup, env, log, record, lookup)
+		cancel()
 		sweep.Results = append(sweep.Results, Reclaimed{
 			Record: record,
-			Err:    revertWith(ctx, env, log, record, lookup),
+			Err:    err,
 		})
 	}
 

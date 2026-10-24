@@ -11,9 +11,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-// A rotation moves the ZONE, which is a different act from arming a fault: a
-// fault is a wrong answer given while the zone stays put. Research 05 section
-// 6.5 is the polarity this serves.
 func TestARotationChangesWhatTheNameAnswersWith(t *testing.T) {
 	resolver, _ := startResolver(t)
 

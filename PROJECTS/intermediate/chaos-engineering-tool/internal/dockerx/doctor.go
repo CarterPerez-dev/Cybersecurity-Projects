@@ -42,7 +42,7 @@ const (
 	// one-layer image with no base, so a dynamically linked build cannot CREATE
 	// a resolver. It does not lose the family, because arming a resolver that
 	// already exists is independent of importing one.
-	checkDNSTier = "dns tier"
+	checkDNSTier = "helper binary"
 
 	fixNoEndpoint   = "install Docker, or set DOCKER_HOST to a reachable daemon"
 	fixDaemonLocal  = "start the Docker daemon: systemctl --user start docker, or sudo systemctl start docker"
@@ -63,11 +63,11 @@ const (
 		"Rootless Docker avoids this entirely and khaos prefers it, since access to %s is equivalent to root on this machine"
 	fallbackUser = "your user"
 
-	detailDNSStatic  = "khaos is statically linked, so `khaos resolver up` can build its own resolver image"
-	detailDNSDynamic = "khaos is dynamically linked, so `khaos resolver up` cannot build a resolver image; %d chaos resolver(s) already running are still usable"
+	detailDNSStatic  = "khaos is statically linked and can build resolver and secret-file helper images"
+	detailDNSDynamic = "khaos is dynamically linked: resolver creation and secret-file faults cannot run; %d existing resolver(s) remain usable for DNS experiments"
 	detailResolvers  = "%s, and %d chaos resolver(s) are running"
 
-	fixDNSDynamic = "rebuild with CGO_ENABLED=0 (the justfile and the release builds both do), or install the released binary. `khaos resolver up` imports khaos's own binary as a one-layer container image with no base, because an unprivileged process cannot bind port 53 and Docker's --dns carries an address with no port; a dynamically linked binary in a base-less image cannot exec. Running `dns.` experiments against a resolver that already exists, including the range's, does not need this"
+	fixDNSDynamic = "rebuild with CGO_ENABLED=0, as the justfile does. Resolver creation and credential.secret_file_* run this binary inside a container with no base image. DNS experiments using an existing resolver do not require importing a helper"
 
 	checkCapacity = 5
 )
@@ -96,6 +96,7 @@ func DiagnoseWith(
 			skipped(checkSocket),
 			skipped(checkDaemon),
 			skipped(checkTargets),
+			skipped(checkDNSTier),
 		)
 	}
 
@@ -128,7 +129,7 @@ func DiagnoseWith(
 			Detail: connectErr.Error(),
 			Fix:    daemonFix(connectErr, endpoint),
 		})
-		return append(checks, skipped(checkTargets))
+		return append(checks, skipped(checkTargets), skipped(checkDNSTier))
 	}
 	defer func() { _ = cli.Close() }()
 
@@ -145,7 +146,7 @@ func DiagnoseWith(
 			Status: StatusFail,
 			Detail: err.Error(),
 			Fix:    fixRetry,
-		})
+		}, dnsTierCheck(ctx, cli))
 	}
 
 	return append(checks, targetsCheck(targets), dnsTierCheck(ctx, cli))

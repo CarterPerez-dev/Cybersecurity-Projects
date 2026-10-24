@@ -216,6 +216,33 @@ else
 fi
 assert_no_outstanding "disconnect the journal is clean after kill -9"
 
+pid="$(inject_bg network-disconnect 120s)"
+if await "! attached $TARGET"; then
+    kill -9 "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    docker network connect --alias changed-by-operator "$NET" "$TARGET"
+    set +e
+    mismatch="$("$BIN" reclaim --no-color 2>&1)"
+    mismatch_code=$?
+    set -e
+    if [[ "$mismatch_code" != 0 ]] && grep -q 'different aliases' <<<"$mismatch"; then
+        pass "disconnect a changed alias keeps recovery outstanding"
+    else
+        fail "disconnect altered endpoint was treated as restored: $mismatch"
+    fi
+    if aliases_of "$TARGET" | grep -q changed-by-operator; then
+        pass "disconnect recovery did not overwrite an altered endpoint"
+    else
+        fail "disconnect recovery overwrote an altered endpoint"
+    fi
+    docker network disconnect "$NET" "$TARGET"
+    docker network connect --alias "$ALIAS" "$NET" "$TARGET"
+    "$BIN" reclaim --no-color >/dev/null 2>&1 || fail "disconnect corrected endpoint did not settle"
+    assert_no_outstanding "disconnect restored configuration settles on replay"
+else
+    fail "disconnect alias drift control never detached the target"
+fi
+
 docker rm -f "$DECOY" >/dev/null 2>&1 || true
 pid="$(inject_bg container-pause 3s)"
 if await "paused $TARGET"; then

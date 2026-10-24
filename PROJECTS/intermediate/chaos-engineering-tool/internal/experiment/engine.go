@@ -6,6 +6,7 @@ package experiment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"time"
 
@@ -91,7 +92,28 @@ type Engine struct {
 	// SettleFor bounds how long a cold-started target gets to answer again.
 	// Injectable for the same reason Now is: the default is longer than a
 	// test can wait for.
-	SettleFor time.Duration
+	SettleFor       time.Duration
+	RollbackTimeout time.Duration
+}
+
+func (e Engine) rollback(ctx context.Context) error {
+	timeout := e.RollbackTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+	defer cancel()
+	return e.Injector.Revert(cleanup)
+}
+
+func (e Engine) recoverFault(ctx context.Context) {
+	if failure := recover(); failure != nil {
+		err := e.rollback(ctx)
+		if err != nil {
+			panic(fmt.Errorf("%v; emergency rollback failed: %w", failure, err))
+		}
+		panic(failure)
+	}
 }
 
 // abandon reverts the fault and then concludes. The cause is joined with the
@@ -104,8 +126,11 @@ func (e Engine) abandon(
 	observation Observation,
 	cause error,
 ) (Result, error) {
-	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	revertErr := e.rollback(ctx)
 	observation.RollbackFailed = revertErr != nil
+	if ctx.Err() != nil {
+		observation = markInterrupted(observation)
+	}
 
 	return e.conclude(
 		result,
@@ -159,7 +184,7 @@ func (e Engine) injectionFailed(
 	observation Observation,
 	cause error,
 ) (Result, error) {
-	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	revertErr := e.rollback(ctx)
 	observation.RollbackFailed = revertErr != nil
 
 	result.Observation = observation
@@ -208,13 +233,17 @@ func (e Engine) restore(
 ) (Observation, error) {
 	e.emit(StageRevert, detailRevert)
 
-	revertErr := e.Injector.Revert(context.WithoutCancel(ctx))
+	revertErr := e.rollback(ctx)
 	observation.RollbackFailed = revertErr != nil
 
 	e.emit(StageRecover, detailRecover)
 
+	recovery, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx), timing.RecoveryFor+30*time.Second,
+	)
+	defer cancel()
 	observation.Recovery = e.sample(
-		context.WithoutCancel(ctx),
+		recovery,
 		spec.Probes,
 		timing.RecoveryFor,
 		timing.SampleInterval,
@@ -229,18 +258,11 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	}
 
 	timing := spec.Timing.withDefaults()
-	result := Result{
-		Experiment: spec.Name,
-		Family:     spec.Family,
-		Hypothesis: spec.Hypothesis.String(),
-		Fault:      spec.Fault,
-		StartedAt:  e.now(),
-	}
+	result := e.begin(spec)
 
 	observation := Observation{
 		ForgedBaseline: spec.Probes.ForgedBaseline,
 		MintedByKhaos:  spec.IdP != nil,
-		FaultFor:       timing.FaultFor,
 		Defect:         spec.Defect,
 		HeldCaveat:     spec.HeldCaveat,
 		ClosedWhen:     spec.ClosedWhen,
@@ -270,6 +292,7 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 		StageInject,
 		sprintf(detailInjecting, spec.Fault.Kind, spec.Fault.Target),
 	)
+	defer e.recoverFault(ctx)
 
 	if err := e.Injector.Inject(
 		ctx,
@@ -312,6 +335,14 @@ func (e Engine) Run(ctx context.Context, spec Experiment) (Result, error) {
 	}
 
 	return e.conclude(result, observation, spec.Polarity, revertErr)
+}
+
+func (e Engine) begin(spec Experiment) Result {
+	return Result{
+		Experiment: spec.Name, Family: spec.Family,
+		Hypothesis: spec.Hypothesis.String(), Fault: spec.Fault,
+		StartedAt: e.now(), Configuration: spec.Configuration,
+	}
 }
 
 // coldStart restarts the target with the fault already applied, so it
@@ -389,15 +420,16 @@ func (e Engine) measureFault(
 	before, beforeErr := e.consulted(spec)
 	refusedBefore, refusedBeforeErr := e.refusals(spec)
 
-	observation.Fault = e.sample(
-		ctx,
-		spec.Probes,
-		timing.FaultFor,
-		timing.SampleInterval,
+	observation.Fault, observation.FaultFor = e.sampleFault(
+		ctx, spec, timing, &observation,
 	)
 
 	after, afterErr := e.consulted(spec)
 	refusedAfter, refusedAfterErr := e.refusals(spec)
+	if spec.Delivered != nil {
+		before, beforeErr = 0, nil
+		after, afterErr = spec.Delivered()
+	}
 
 	observation.Delivered = after - before
 	observation.DeliveredWhat = spec.DeliveredWhat
@@ -425,22 +457,13 @@ func (e Engine) measureFault(
 	return observation
 }
 
-// shift is the SECOND fault phase. One experiment needs it and research 07
-// section 6.2 is why: an authorization dependency's deny and its silence are
-// different answers, a correct caller treats them differently, and a caller
-// that behaves IDENTICALLY has collapsed three outcomes into two branches.
-// One window cannot show that; two can.
-//
-// A failed shift is recorded rather than fatal. The first window is already
-// measured and its finding stands on its own; what is lost is the discriminator,
-// and the verdict says so instead of pretending it ran.
 func (e Engine) shift(
 	ctx context.Context,
 	spec Experiment,
 	timing Timing,
 	observation Observation,
 ) Observation {
-	if spec.Shift == nil || ctx.Err() != nil {
+	if spec.Shift == nil || ctx.Err() != nil || observation.HaltReason != "" {
 		return observation
 	}
 
@@ -457,12 +480,7 @@ func (e Engine) shift(
 
 	before, beforeErr := e.consulted(spec)
 
-	observation.Shift = e.sample(
-		ctx,
-		spec.Probes,
-		timing.FaultFor,
-		timing.SampleInterval,
-	)
+	observation.Shift, _ = e.sampleFault(ctx, spec, timing, &observation)
 
 	after, afterErr := e.consulted(spec)
 
@@ -489,7 +507,7 @@ func (e Engine) discriminate(
 	observation Observation,
 	timing Timing,
 ) Observation {
-	if spec.IdleFor <= 0 || ctx.Err() != nil {
+	if spec.IdleFor <= 0 || ctx.Err() != nil || observation.HaltReason != "" {
 		return observation
 	}
 
@@ -511,12 +529,7 @@ func (e Engine) discriminate(
 	e.emit(StageResume, detailResume)
 
 	observation.IdleFor = spec.IdleFor
-	observation.Resumed = e.sample(
-		ctx,
-		spec.Probes,
-		timing.FaultFor,
-		timing.SampleInterval,
-	)
+	observation.Resumed, _ = e.sampleFault(ctx, spec, timing, &observation)
 
 	return observation
 }
@@ -529,6 +542,11 @@ func (e Engine) conclude(
 ) (Result, error) {
 	result.Observation = observation
 	result.Verdict = Judge(observation, polarity)
+	if observation.HaltReason != "" {
+		result.Verdict.Reasons = append(
+			result.Verdict.Reasons, observation.HaltReason,
+		)
+	}
 	result.Duration = e.now().Sub(result.StartedAt)
 
 	e.emit(
@@ -573,18 +591,30 @@ func (e Engine) sample(
 	ctx context.Context,
 	pair probe.Pair,
 	duration, interval time.Duration,
+	stops ...*healthStop,
 ) probe.Window {
 	window := probe.Window{}
 	deadline := e.now().Add(duration)
+	stop := &healthStop{}
+	if len(stops) > 0 {
+		stop = stops[0]
+	}
 
 	for {
 		started := e.now()
+		unhealthy := false
 
 		for _, p := range pair.All() {
-			window.Record(p.Run(ctx))
+			outcome := p.Run(ctx)
+			window.Record(outcome)
+			if (outcome.Credential == probe.Valid && outcome.Disposition != probe.Accepted) ||
+				(outcome.Credential == probe.Invalid && outcome.Disposition == probe.Accepted) {
+				unhealthy = true
+			}
 		}
 
-		if !e.now().Before(deadline) || ctx.Err() != nil {
+		if stop.reached(unhealthy) || !e.now().Before(deadline) ||
+			ctx.Err() != nil {
 			return window
 		}
 

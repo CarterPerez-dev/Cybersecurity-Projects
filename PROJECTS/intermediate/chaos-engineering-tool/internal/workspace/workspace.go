@@ -5,6 +5,7 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -83,6 +84,33 @@ func open(ctx context.Context, exclusive bool) (*Workspace, error) {
 
 func (w *Workspace) Env() inject.Env {
 	return inject.Env{Docker: w.Docker}
+}
+
+func (w *Workspace) RequireClean() error {
+	failures := []error{w.Reconciled.Damage}
+	for _, result := range w.Reconciled.Results {
+		if result.Err != nil {
+			failures = append(failures, result.Err)
+		}
+	}
+	if err := errors.Join(failures...); err != nil {
+		return errors.Join(run.ErrRevertFailed, err)
+	}
+	live, err := journal.Outstanding(w.Journal.Path())
+	if err != nil {
+		return errors.Join(run.ErrRevertFailed, err)
+	}
+	for _, record := range live {
+		if w.Docker != nil && record.Daemon != "" &&
+			record.Daemon != w.Docker.Daemon() {
+			continue
+		}
+		return fmt.Errorf(
+			"%w: %s on %s remains outstanding",
+			run.ErrRevertFailed, record.Kind, record.TargetName,
+		)
+	}
+	return nil
 }
 
 func (w *Workspace) Close() {

@@ -6,6 +6,7 @@ package record
 import (
 	"encoding/xml"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -220,7 +221,14 @@ func validityCase(rec Record) (testcase, bool) {
 			Body:    strings.Join(rec.Verdict.Reasons, "\n"),
 		}
 
-	case !concluded(rec) && !rec.Verdict.Defect:
+	case rec.Verdict.Recovery == "degraded":
+		out.Error = &detail{
+			Message: "the target did not recover after rollback",
+			Type:    "recovery-degraded",
+			Body:    strings.Join(rec.Verdict.Reasons, "\n"),
+		}
+
+	case runInvalid(rec):
 		out.Error = &detail{
 			Message: fmt.Sprintf(messageVoid, rec.Verdict.Epistemic),
 			Type:    typeVoid,
@@ -232,6 +240,17 @@ func validityCase(rec Record) (testcase, bool) {
 	}
 
 	return out, true
+}
+
+func runInvalid(rec Record) bool {
+	switch rec.Verdict.Epistemic {
+	case "aborted", "interrupted", "baseline-not-met", "error":
+		return true
+	case "probe-error":
+		return !slices.Contains(rec.Verdict.Warnings, "thin-evidence")
+	default:
+		return false
+	}
 }
 
 // concluded reads the record rather than the exit code, because the exit code

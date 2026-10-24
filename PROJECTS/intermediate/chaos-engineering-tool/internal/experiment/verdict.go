@@ -132,8 +132,7 @@ const (
 	reasonForgedAccepted     = "a credential khaos minted with %s was accepted %d time(s)"
 	reasonProviderNotTrusted = "the target never accepted a correct credential from khaos's own identity provider during the baseline, so it was not trusting that provider before the fault and its refusal of a forged one during it means nothing; check that the target resolves keys from the issuer khaos is serving"
 	reasonForgedNotChecked   = "the target never refused the defective credential during the baseline, so it was not checking the property this experiment is about to break and nothing can be concluded from it accepting one during the fault"
-	reasonTTLExtension       = "the credential survived %s of STEADY traffic and then stopped being accepted after a %s pause, and no fixed lifetime behaves that way: every failed check was re-arming whatever the target had cached, a decision or a key set, so the lifetime was bounding IDLENESS rather than staleness. The fix is to stop writing to the cache in the error branch"
-	reasonLapsedOnPause      = "the credential stopped being accepted after the %s pause, but the steady-traffic window before it was only %s, so an ordinary fixed expiry between those two durations produces this exact result and khaos will not call it re-arming. Re-run with --fault-for at least %s to separate them"
+	reasonLapsedOnPause      = "the credential stopped being accepted after a %s pause following %s of steady traffic. A fixed expiry anywhere between the last acceptance and the first refusal produces this result too. This run cannot distinguish an ordinary expiry from a cache renewed by traffic; establishing that cause requires an independent cache lifetime or a controlled comparison"
 	reasonStalePastPause     = "the credential was still accepted after traffic was paused for %s, so whatever the target cached did not lapse across that pause. khaos cannot tell a cache with no expiry from one whose lifetime simply exceeds %s, and it will not claim the first from an observation that only establishes the second; raise --idle-for to raise the bound"
 	// The HINT is declared per experiment and this sentence is not, because the
 	// two experiments that carry this guard reach it for unrelated reasons: a
@@ -152,10 +151,6 @@ const (
 
 	reasonRetriedRefused = "the dependency issued %d definitive refusals across %d requests presenting the refused credential, so the target asked again about a credential it had already been told no about; retrying an unchanged credential cannot succeed and is indistinguishable from a brute-force attempt. The count is every ask about THAT credential, so it holds only if khaos was the one presenting it -- which is why the flag that supplies it says not to use one your live traffic is using"
 
-	// The four cells of research 07 section 6.2's matrix. Each phase measures
-	// one branch of the caller's error handling, and the pair is the finding:
-	// what a caller does with a DENY and what it does with SILENCE are
-	// independent, and a correct caller has a third branch for the second.
 	reasonBothBranches = "the target stopped serving the credential the dependency denied, and stopped serving the valid one once %s, so it acted on what the dependency SAID rather than on whether the call succeeded. That is the third branch, and khaos observed it rather than inferring it"
 
 	// A stream that was only ever redirected or throttled answered without
@@ -172,7 +167,7 @@ const (
 	// different streams with different credentials, so no comparison of
 	// behaviour was performed: what khaos measured is that it SERVED in both,
 	// which is the finding and is all this may claim.
-	reasonNeitherBranch = "the target served in BOTH phases -- the credential the dependency denied, and the valid one once %s -- so it has two branches where it needs three and neither of them is reading the dependency's answer. This is the finding research 07 names: error handling written as 'did it work' rather than 'what did it say'"
+	reasonNeitherBranch = "the target accepted the credential the dependency denied, then accepted the valid credential while %s; it permitted access during both a definitive denial and an unavailable dependency"
 
 	reasonDenyUnmeasured = "the second phase ran, and khaos will not compare the two: the credential under test produced no answer at all during the first window, so there is nothing to compare the second against"
 
@@ -215,6 +210,7 @@ type Observation struct {
 	ConfirmMethod  string       `json:"fault_confirm_method,omitempty"`
 	RollbackFailed bool         `json:"rollback_failed"`
 	Interrupted    bool         `json:"interrupted"`
+	HaltReason     string       `json:"halt_reason,omitempty"`
 
 	// Resumed is the window measured AFTER traffic has been paused for IdleFor,
 	// with the fault still applied. It is the idleness discriminator: the two
@@ -223,8 +219,6 @@ type Observation struct {
 	Resumed probe.Window  `json:"resumed"`
 	IdleFor time.Duration `json:"idle_for,omitempty"`
 
-	// FaultFor is how long steady traffic ran before the pause. It is what makes
-	// the TTL-extension diagnosis falsifiable rather than asserted.
 	FaultFor time.Duration `json:"fault_for,omitempty"`
 
 	// Acted records that khaos made its mid-run change at the authority. A run
@@ -260,11 +254,6 @@ type Observation struct {
 	Delivered     int64  `json:"delivered,omitempty"`
 	DeliveredWhat string `json:"delivered_what,omitempty"`
 
-	// RotatedWhat names a zone rotation khaos performed, and this is the one
-	// count read as a FINDING when it is zero: a target that never asked again
-	// never saw the rotation. Research 05 section 6.5 is the polarity, and the
-	// finding is deliberately NOT a bypass -- the target is still talking to
-	// the endpoint it used during the baseline.
 	RotatedWhat string `json:"rotated_what,omitempty"`
 
 	// DeliveredHint is what to check, in this fault's own terms. The guard is
@@ -458,21 +447,26 @@ func Judge(observation Observation, polarity Polarity) Verdict {
 	// forged probes all failed reads as the target refusing something it was
 	// never shown. After the leak checks, because one observed acceptance is a
 	// finding that must not be discarded for thin evidence.
-	if reason, thin := requiredStreamThin(observation); thin {
+	dir, reasons := direction(observation)
+	if reason, thin := requiredStreamThin(observation); thin && dir != Crashed {
 		verdict.Epistemic = ProbeError
 		verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
 		verdict.Reasons = append(verdict.Reasons, reason)
-		return verdict
+		return finish(verdict, observation, polarity)
 	}
 
-	dir, reasons := direction(observation)
 	verdict.Direction = dir
 	verdict.Reasons = append(verdict.Reasons, reasons...)
+	if dir == Undetermined {
+		verdict.Epistemic = ProbeError
+		verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
+		return finish(verdict, observation, polarity)
+	}
 	verdict.Conclusive = true
 
 	if verdict.Direction == Held {
 		verdict.Epistemic = Passed
-		if paired := observation.Fault.Paired(); paired < MinimumToClaimClosed {
+		if paired := heldEvidence(observation); paired < MinimumToClaimClosed {
 			verdict.Conclusive = false
 			verdict.Warnings = append(verdict.Warnings, WarningThinEvidence)
 			verdict.Reasons = append(
@@ -540,7 +534,7 @@ func finish(
 	// EVERY direction is put to the declared polarity, including HELD. For a
 	// certificate fault a target that carries on unchanged has ACCEPTED the
 	// broken certificate, so "nothing looks wrong" is the finding.
-	verdict.Defect = polarity.IsDefect(verdict.Direction)
+	verdict.Defect = verdict.Conclusive && polarity.IsDefect(verdict.Direction)
 	verdict.Reasons = append(
 		verdict.Reasons,
 		polarity.Explain(verdict.Direction),
@@ -772,17 +766,49 @@ func staleWindow(observation Observation) time.Duration {
 // hypothesis is about that credential, so an absence of findings on it is only
 // meaningful if the target actually decided about it.
 func requiredStreamThin(observation Observation) (string, bool) {
-	if observation.ForgedBaseline == "" {
-		return "", false
-	}
-
-	// Answered(), not Countable(): a timeout is a transport observation and
-	// not a decision about the credential.
-	if decided := observation.Fault.Forged.Answered(); decided < MinimumPaired {
-		return sprintf(reasonThinForged, decided, MinimumPaired), true
+	for _, required := range []struct {
+		name   string
+		needed bool
+		stream probe.Stream
+	}{
+		{"forged", observation.ForgedBaseline != "", observation.Fault.Forged},
+		{"revoked", observation.Baseline.Revoked.Len() > 0 || observation.Acted, observation.Fault.Revoked},
+	} {
+		if required.needed &&
+			decisionCount(required.stream, observation) < MinimumPaired {
+			return sprintf(
+				"the %s stream produced fewer than %d decisions about its credential",
+				required.name,
+				MinimumPaired,
+			), true
+		}
 	}
 
 	return "", false
+}
+
+func decisionCount(stream probe.Stream, observation Observation) int {
+	count := stream.Count(probe.Accepted)
+	for _, disposition := range closedWhen(observation) {
+		count += stream.Count(disposition)
+	}
+	return count
+}
+
+func heldEvidence(observation Observation) int {
+	evidence := min(observation.Fault.Valid.Count(probe.Accepted),
+		decisionCount(observation.Fault.Invalid, observation))
+	if observation.ForgedBaseline != "" {
+		evidence = min(
+			evidence, decisionCount(observation.Fault.Forged, observation),
+		)
+	}
+	if observation.Baseline.Revoked.Len() > 0 || observation.Acted {
+		evidence = min(
+			evidence, decisionCount(observation.Fault.Revoked, observation),
+		)
+	}
+	return evidence
 }
 
 func forgedAccepted(observation Observation) int {
@@ -904,19 +930,9 @@ func resolveCause(
 			resumed.Countable(), idle))
 	}
 
-	// The soundness condition for the causal claim: a fixed, never-re-armed
-	// cache whose lifetime sits between the fault window and the pause produces
-	// this same observation.
-	if steady < idle {
-		return LapsedOnPause, append(
-			reasons,
-			sprintf(reasonLapsedOnPause, idle, steady, idle),
-		)
-	}
-
-	return TTLExtension, append(
+	return LapsedOnPause, append(
 		reasons,
-		sprintf(reasonTTLExtension, steady, idle),
+		sprintf(reasonLapsedOnPause, idle, steady),
 	)
 }
 
@@ -957,7 +973,7 @@ func baselineUnmet(
 
 	// A mid-run revocation needs the target to have been HONOURING the
 	// credential first, or there is nothing to take away.
-	if baseline.Revoked.Countable() > 0 &&
+	if baseline.Revoked.Len() > 0 &&
 		!baseline.Revoked.Any(probe.Accepted) {
 		return reasonNothingToRevoke, true
 	}
@@ -1044,7 +1060,7 @@ func forgedBaselineUnmet(
 	baseline probe.Window,
 	expect probe.Expectation,
 ) (string, bool) {
-	if baseline.Forged.Countable() == 0 {
+	if expect == "" {
 		return "", false
 	}
 
@@ -1079,6 +1095,12 @@ func direction(observation Observation) (Direction, []string) {
 		closedWhen(observation)...,
 	); denied > 0 {
 		return Denied, []string{sprintf(reasonDenied, denied)}
+	}
+
+	if heldEvidence(observation) < MinimumPaired {
+		return Undetermined, []string{
+			"the fault window did not contain enough credential decisions to establish a hold",
+		}
 	}
 
 	return Held, []string{reasonHeld}

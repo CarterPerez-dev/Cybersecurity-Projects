@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-// TestMaskedFaultsAreRefusedByName is the M8 exit gate in a unit test. The two
-// faults Docker's embedded resolver rewrites are catalogued rather than missing,
-// and asking for one has to produce the reason instead of a wrong measurement.
 func TestMaskedFaultsAreRefusedByName(t *testing.T) {
 	for _, kind := range []Kind{Refused, Timeout} {
 		t.Run(string(kind), func(t *testing.T) {

@@ -25,6 +25,12 @@ func TestEveryRoleBuildsItsRoutesWithoutPanicking(t *testing.T) {
 		roleGateway,
 		roleVerifier,
 		roleTLS,
+		roleRogue,
+		roleDB,
+		roleSecret,
+		roleAuthz,
+		roleControl,
+		roleControld,
 	} {
 		t.Run(role, func(t *testing.T) {
 			handler, err := roleHandler(role)

@@ -94,14 +94,16 @@ func (t Timing) withDefaults() Timing {
 }
 
 type Experiment struct {
-	Name       string
-	Family     string
-	Summary    string
-	Hypothesis Hypothesis
-	Fault      Fault
-	Polarity   Polarity
-	Probes     probe.Pair
-	Timing     Timing
+	Name          string
+	Family        string
+	Summary       string
+	Hypothesis    Hypothesis
+	Fault         Fault
+	Polarity      Polarity
+	Probes        probe.Pair
+	Timing        Timing
+	Configuration Configuration
+	AbortAfter    int
 
 	// A non-nil ProxyFault is what tells the run to stand a fault proxy up at all.
 	ProxyFault *proxy.Fault
@@ -187,6 +189,7 @@ type Experiment struct {
 	CacheRequired string
 
 	DeliveredWhat string
+	Delivered     func() (int64, error)
 	DeliveredHint string
 
 	// IdleFor must exceed the target's own decision-cache lifetime, which khaos
@@ -210,10 +213,11 @@ type Result struct {
 	// or where is not a record of the run.
 	Fault Fault `json:"fault"`
 
-	StartedAt   time.Time     `json:"started_at"`
-	Duration    time.Duration `json:"duration"`
-	Observation Observation   `json:"observation"`
-	Verdict     Verdict       `json:"verdict"`
+	StartedAt     time.Time     `json:"started_at"`
+	Duration      time.Duration `json:"duration"`
+	Observation   Observation   `json:"observation"`
+	Verdict       Verdict       `json:"verdict"`
+	Configuration Configuration `json:"configuration"`
 }
 
 func sprintf(format string, args ...any) string {

@@ -151,6 +151,10 @@ func (c *Client) namespacePeers(
 		return nil, err
 	}
 
+	return namespacePeersOf(all), nil
+}
+
+func namespacePeersOf(all []container.Summary) map[string][]string {
 	byName := make(map[string]string, len(all))
 	for _, summary := range all {
 		for _, name := range summary.Names {
@@ -160,6 +164,10 @@ func (c *Client) namespacePeers(
 
 	peers := make(map[string][]string)
 	for _, summary := range all {
+		if summary.State != container.StateRunning ||
+			summary.Labels[LabelConsent] == ConsentValue {
+			continue
+		}
 		reference, ok := strings.CutPrefix(
 			summary.HostConfig.NetworkMode,
 			NetworkModeContainerPfx,
@@ -171,12 +179,19 @@ func (c *Client) namespacePeers(
 		host := reference
 		if resolved, found := byName[reference]; found {
 			host = resolved
+		} else {
+			for _, candidate := range all {
+				if strings.HasPrefix(candidate.ID, reference) {
+					host = candidate.ID
+					break
+				}
+			}
 		}
 
 		peers[host] = append(peers[host], displayName(summary))
 	}
 
-	return peers, nil
+	return peers
 }
 
 func (c *Client) inspect(ctx context.Context, id string) (Target, error) {
@@ -204,6 +219,7 @@ func targetFrom(raw container.InspectResponse) (Target, error) {
 
 	target := Target{
 		ID:          raw.ID,
+		ImageID:     raw.Image,
 		Name:        strings.TrimPrefix(raw.Name, namePrefix),
 		Running:     raw.State != nil && raw.State.Running,
 		Labels:      map[string]string{},

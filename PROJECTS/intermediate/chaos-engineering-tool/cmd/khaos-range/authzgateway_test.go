@@ -129,8 +129,6 @@ func TestEveryModeAuthenticatesLocally(t *testing.T) {
 	}
 }
 
-// The three callers, which are three cells of research 07 section 6.2's
-// matrix. The deny is the row that separates them.
 func TestTheThreeCallersReadADenyDifferently(t *testing.T) {
 	for _, row := range []struct {
 		mode      string

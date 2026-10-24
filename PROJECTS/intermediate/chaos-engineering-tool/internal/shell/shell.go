@@ -38,7 +38,16 @@ var ErrBusy = errors.New(
 )
 
 func Run(ctx context.Context, out io.Writer) error {
+	app := newConsole(out)
+	if path, ok := historyPath(); ok {
+		app.ActiveMenu().AddHistorySourceFile(historyName, path)
+	}
+	return app.StartContext(ctx)
+}
+
+func newConsole(out io.Writer) *console.Console {
 	app := console.New(version.Name)
+	app.SetEscapeMode(console.EscapeLiteral)
 	app.NewlineBefore = true
 	app.NewlineAfter = true
 
@@ -59,11 +68,7 @@ func Run(ctx context.Context, out io.Writer) error {
 		leaveOrSayWhyNot(out)
 	})
 
-	if path, ok := historyPath(); ok {
-		menu.AddHistorySourceFile(historyName, path)
-	}
-
-	return app.StartContext(ctx)
+	return app
 }
 
 func newExitCmd(out io.Writer) *cobra.Command {

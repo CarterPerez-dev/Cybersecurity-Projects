@@ -68,11 +68,6 @@ func TestStaticELFRejectsADynamicBinary(t *testing.T) {
 		t.Errorf("error %v, want %v", err, ErrDynamicSelf)
 	}
 
-	// The refusal has to be accurate about the SCOPE of the limit as well as
-	// name the fix. An earlier wording said the DNS tier does not work, which is
-	// wrong: only CREATING a resolver needs a static binary. The scope widened
-	// in M9 - the secret mutator is a second container built from this image -
-	// so the refusal names both and this pins both.
 	for _, want := range []string{
 		"CGO_ENABLED=0",
 		"resolver up",

@@ -84,9 +84,6 @@ func runTargets(
 	defer func() { _ = client.Close() }()
 
 	filter := dockerx.Filter{Project: project}
-	if all {
-		filter = dockerx.Filter{}
-	}
 
 	guard := dockerx.Guard{Project: project, SelfID: dockerx.SelfContainerID()}
 

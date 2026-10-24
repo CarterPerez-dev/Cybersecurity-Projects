@@ -365,9 +365,6 @@ func (t *Tier) Current(ctx context.Context) Result {
 	return client.Try(ctx, cred)
 }
 
-// Wrong is the negative control, and it is the control research 07 section 6.1
-// was missing when a loopback `trust` rule made every password look accepted.
-// A fresh password per sample, so nothing can be answered from a cache.
 func (t *Tier) Wrong(ctx context.Context) Result {
 	t.mu.Lock()
 	client := t.client

@@ -13,9 +13,6 @@ import (
 // Prometheus text exposition, written to a FILE for node_exporter's textfile
 // collector. No client library, no server, no port, no lifecycle.
 //
-// Two rules from the format's own reference, both load-bearing and both
-// omitted by the research that specified this:
-//
 //	the last line must end with \n, or the file is a parse failure and a
 //	parse failure drops the WHOLE file;
 //

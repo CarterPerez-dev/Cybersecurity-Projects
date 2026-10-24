@@ -37,10 +37,11 @@ const (
 )
 
 type Client struct {
-	api      *client.Client
-	endpoint Endpoint
-	version  string
-	daemon   string
+	api           *client.Client
+	endpoint      Endpoint
+	version       string
+	daemon        string
+	serverVersion string
 }
 
 func Connect(ctx context.Context, endpoint Endpoint) (*Client, error) {
@@ -72,6 +73,7 @@ func Connect(ctx context.Context, endpoint Endpoint) (*Client, error) {
 	// and an SSH context, and all three are the same place.
 	if info, err := api.Info(ctx, client.InfoOptions{}); err == nil {
 		c.daemon = info.Info.ID
+		c.serverVersion = info.Info.ServerVersion
 	}
 
 	return c, nil
@@ -82,6 +84,10 @@ func Connect(ctx context.Context, endpoint Endpoint) (*Client, error) {
 // than as a match.
 func (c *Client) Daemon() string {
 	return c.daemon
+}
+
+func (c *Client) ServerVersion() string {
+	return c.serverVersion
 }
 
 func Open(ctx context.Context) (*Client, error) {

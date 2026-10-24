@@ -182,10 +182,6 @@ func TestTheDecisionCacheExpiresInCorrectMode(t *testing.T) {
 	}
 }
 
-// An unknown kid has to trigger a refetch, or an overlapping rotation breaks
-// every verifier rather than none of them. Research 07 established that this
-// behaviour is convention and not specification, which is exactly why it is
-// implemented inconsistently and worth measuring.
 func TestAnUnknownKidTriggersARefetch(t *testing.T) {
 	provider, v := pair(t, verifier.Correct)
 
@@ -325,11 +321,6 @@ func TestATokenOfTheWrongTypeIsRefused(t *testing.T) {
 	}
 }
 
-// The amplifier. `kid` is an attacker-controlled header field, and research 07
-// section 1.4 calls an unbounded refetch "a denial-of-service amplifier".
-//
-// Measured before the fix: 200 requests carrying 200 attacker-chosen kids
-// produced 200 upstream fetches, a ratio of 1.00.
 func TestUnknownKidsDoNotAmplifyIntoOneFetchEach(t *testing.T) {
 	provider, v := pair(t, verifier.Correct)
 
@@ -368,16 +359,6 @@ func TestUnknownKidsDoNotAmplifyIntoOneFetchEach(t *testing.T) {
 		)
 	}
 
-	// The control. Bounding the refetch must not stop a legitimate rotation being
-	// picked up, which is the availability failure research 07 section 2.2 counts
-	// as `wrongly_rejected`.
-	//
-	// BOUNDED pickup, not instant. The burst above is an attack, and the cooldown
-	// it trips is the whole point: research 07 section 1.4 lists a refetch
-	// cooldown as a mitigation precisely because the unknown-kid path is
-	// attacker-driven, and every mitigation there trades a little rotation
-	// latency for it. Demanding instant pickup immediately after two hundred
-	// forged kids would be asserting that the brake does not work.
 	if err := provider.Arm(idp.Trap{Kind: idp.KeyRotation}); err != nil {
 		t.Fatalf("rotate: %v", err)
 	}

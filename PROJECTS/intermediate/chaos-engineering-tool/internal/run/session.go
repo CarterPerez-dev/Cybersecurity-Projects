@@ -14,6 +14,7 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/lease"
+	"github.com/CarterPerez-dev/khaos/internal/lock"
 )
 
 const (
@@ -92,6 +93,10 @@ func (s *Session) Lease() *lease.Lease {
 	return s.lease
 }
 
+func (s *Session) Configure(env inject.Env) {
+	s.env = env
+}
+
 func (s *Session) Inject(
 	ctx context.Context,
 	kind string,
@@ -120,14 +125,15 @@ func (s *Session) Inject(
 		ExpiresAt:  s.lease.ExpiresAt(),
 	}
 
-	if err := s.log.Append(record); err != nil {
+	active, err := lock.Acquire(mutationPath(s.log.Path(), record.MutationID))
+	if err != nil {
 		return err
 	}
+	defer func() { _ = active.Release() }()
 
-	// Remembered BEFORE the apply: an Apply that stops, renames and creates
-	// containers is not instant, and a record outside the renewable set
-	// cannot have its expiry extended while that work is in flight.
-	s.remember(record)
+	if err := s.persist(record); err != nil {
+		return err
+	}
 
 	applyErr := mutator.Apply(ctx, s.env, target, payload)
 	record.At = time.Now().UTC()
@@ -135,25 +141,35 @@ func (s *Session) Inject(
 	if applyErr != nil {
 		record.Phase = journal.PhaseFailed
 		record.Detail = applyErr.Error()
-		s.remember(record)
-		if err := s.log.Append(record); err != nil {
+		if err := s.persist(record); err != nil {
 			return err
 		}
 		return fmt.Errorf(errApply, kind, target.Name, applyErr)
 	}
 
 	record.Phase = journal.PhaseApplied
-	s.remember(record)
+	return s.persist(record)
+}
 
+func (s *Session) persist(record journal.Record) error {
+	release, err := holdSettle(context.Background(), s.log.Path())
+	if err != nil {
+		return err
+	}
+	defer release()
+	record.ExpiresAt = s.lease.ExpiresAt()
+	s.remember(record)
 	return s.log.Append(record)
 }
 
 // Renew re-reads the journal first, so a mutation something else already
 // reverted is dropped rather than resurrected.
 func (s *Session) Renew() error {
-	// The same settle lock Reclaim takes: read-then-append is two operations
-	// and the reaper runs beside this.
-	defer holdSettle(s.log.Path())()
+	release, err := holdSettle(context.Background(), s.log.Path())
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	live, err := journal.Outstanding(s.log.Path())
 	if err != nil {
@@ -182,10 +198,30 @@ func (s *Session) Renew() error {
 }
 
 func (s *Session) RevertAll(ctx context.Context, progress Progress) error {
+	return s.revert(ctx, progress, true)
+}
+
+func (s *Session) RevertFaults(ctx context.Context, progress Progress) error {
+	return s.revert(ctx, progress, false)
+}
+
+func (s *Session) revert(
+	ctx context.Context,
+	progress Progress,
+	final bool,
+) error {
+	release, err := holdSettle(ctx, s.log.Path())
+	if err != nil {
+		return errors.Join(ErrRevertFailed, err)
+	}
+	defer release()
 	var firstErr error
 
 	for _, record := range s.outstanding() {
-		err := revertWith(ctx, s.env, s.log, record, s.lookup)
+		if !final && record.Kind == inject.KindCredentialTier {
+			continue
+		}
+		err := s.revertReady(ctx, record)
 		s.settle(record.MutationID, err)
 
 		if progress != nil {
@@ -203,6 +239,20 @@ func (s *Session) RevertAll(ctx context.Context, progress Progress) error {
 	}
 
 	return nil
+}
+
+func (s *Session) revertReady(
+	ctx context.Context,
+	record journal.Record,
+) error {
+	active, err := lock.Acquire(mutationPath(s.log.Path(), record.MutationID))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = active.Release() }()
+	cleanup, cancel := context.WithTimeout(ctx, CleanupTimeout)
+	defer cancel()
+	return revertWith(cleanup, s.env, s.log, record, s.lookup)
 }
 
 func (s *Session) settle(mutationID string, failure error) {
@@ -254,8 +304,7 @@ func (s *Session) renewable(
 
 	for i := range s.mutations {
 		// PENDING is renewable too: it is a mutation still inside its Apply.
-		if s.mutations[i].Phase != journal.PhaseApplied &&
-			s.mutations[i].Phase != journal.PhasePending {
+		if !s.mutations[i].Outstanding() {
 			continue
 		}
 
@@ -321,7 +370,7 @@ func revertWith(
 	case err == nil:
 		record.Phase = journal.PhaseReverted
 		record.Detail = ""
-	case errors.Is(err, dockerx.ErrContainerGone):
+	case errors.Is(err, dockerx.ErrContainerGone) && containerBound(record.Kind):
 		record.Phase = journal.PhaseReverted
 		record.Detail = detailTargetGone
 	default:
@@ -332,6 +381,11 @@ func revertWith(
 	}
 
 	return log.Append(record)
+}
+
+func containerBound(kind string) bool {
+	return kind == inject.KindPause || kind == inject.KindDisconnect ||
+		kind == inject.KindRestart
 }
 
 // Restart stops and starts the target in place, for the one experiment whose
@@ -378,11 +432,15 @@ func (s *Session) Restart(
 		ExpiresAt:  s.lease.ExpiresAt(),
 	}
 
-	if err := s.log.Append(record); err != nil {
+	active, err := lock.Acquire(mutationPath(s.log.Path(), record.MutationID))
+	if err != nil {
 		return err
 	}
+	defer func() { _ = active.Release() }()
 
-	s.remember(record)
+	if err := s.persist(record); err != nil {
+		return err
+	}
 
 	if err := s.settleRestart(ctx, record, target); err != nil {
 		return err
@@ -405,8 +463,7 @@ func (s *Session) settleRestart(
 		// reclaim decides by reading the container back.
 		record.Phase = journal.PhaseFailed
 		record.Detail = err.Error()
-		s.remember(record)
-		_ = s.log.Append(record)
+		_ = s.persist(record)
 
 		return err
 	}
@@ -414,16 +471,13 @@ func (s *Session) settleRestart(
 	if err := s.env.Docker.Start(ctx, target.ID); err != nil {
 		record.Phase = journal.PhaseApplied
 		record.Detail = err.Error()
-		s.remember(record)
-		_ = s.log.Append(record)
+		_ = s.persist(record)
 
 		return err
 	}
 
 	record.Phase = journal.PhaseReverted
-	s.remember(record)
-
-	return s.log.Append(record)
+	return s.persist(record)
 }
 
 func (s *Session) Confirm(

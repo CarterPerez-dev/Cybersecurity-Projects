@@ -4,8 +4,6 @@
 
 set -euo pipefail
 
-# M10's exit gate. Five things have to be true of khaos's outputs.
-#
 #   1. The EXIT CODE TAXONOMY is exercised end to end against a live range.
 #      A single non-zero code would collapse "a control failed open", "the
 #      experiment was invalid" and "khaos could not measure" into one signal,
@@ -65,6 +63,7 @@ start_range() {
     local started
     if ! started="$("$BIN" range up --fail-mode "$1" --no-color --quiet 2>&1)"; then
         fail "range up --fail-mode $1: $(tail -3 <<<"$started")"
+        printf '%s\n' "$started" >&2
         return 1
     fi
     return 0

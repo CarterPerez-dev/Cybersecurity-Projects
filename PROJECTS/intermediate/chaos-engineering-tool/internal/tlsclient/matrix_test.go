@@ -86,15 +86,6 @@ const (
 	// a hard-failing client treats as a refusal.
 	byAvailability
 
-	// byReading is the mutual TLS group, and it is the only guard that is not
-	// about a check the client performs at all.
-	//
-	// khaos's server rejects these handshakes itself, correctly, whatever the
-	// client verifies. The only question is whether the client FINDS OUT, and
-	// under TLS 1.3 that depends entirely on whether it reads: research 04
-	// measured every row of the ClientAuth matrix returning a successful
-	// tls.Dial even where the server served nothing. So every mode catches
-	// these except the one that never reads a byte.
 	byReading
 
 	// byNothing is a trap no client-side check can catch. CASwap is the only
@@ -202,9 +193,6 @@ func asks(mode tlsclient.Mode) bool {
 		mode != tlsclient.NoRevocationCheck
 }
 
-// guardFor maps each trap to the single check that catches it. A trap mapped to
-// the wrong guard makes a whole row of the matrix wrong, so these are grouped
-// to read against research 04's fault table.
 func guardFor(kind pki.Kind) guard {
 	switch kind {
 	// In the leaf, so nothing hides them.

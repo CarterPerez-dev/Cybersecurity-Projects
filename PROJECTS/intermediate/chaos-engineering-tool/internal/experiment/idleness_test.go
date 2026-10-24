@@ -22,17 +22,6 @@ const (
 	idleName    = "test.idleness"
 )
 
-// cachingService is a control in front of a dependency, with a decision cache
-// holding an allow for a credential it should not honour.
-//
-// reArm is the single line research 07 section 3.3 pins the TTL-extension bug to:
-// writing to the cache inside the ERROR branch, so every failed check extends the
-// cached decision by another full lifetime and the lifetime stops bounding
-// staleness and starts bounding IDLENESS.
-//
-// noExpiry is the other bug: a cache with no lifetime at all. Under steady
-// traffic the two are indistinguishable, which is the whole reason the
-// discriminator exists.
 type cachingService struct {
 	up       atomic.Bool
 	reArm    bool
@@ -203,9 +192,6 @@ func runIdleness(t *testing.T, svc *cachingService, idle time.Duration) Result {
 	return result
 }
 
-// THE milestone claim. Two targets that are indistinguishable under steady
-// traffic are separated by pausing traffic and resuming it, from outside, with no
-// access to either one's source.
 func TestTheIdlenessDiscriminatorSeparatesTwoCausesOfOneLeak(t *testing.T) {
 	const pause = 10 * cacheTTL
 
@@ -217,7 +203,7 @@ func TestTheIdlenessDiscriminatorSeparatesTwoCausesOfOneLeak(t *testing.T) {
 		{
 			"a cache re-armed on every failed check",
 			newCachingService(true, false),
-			TTLExtension,
+			LapsedOnPause,
 		},
 		{
 			"a cache that outlasts the pause",
@@ -416,29 +402,26 @@ func TestTTLExtensionIsRefusedWhenTheSteadyWindowIsShorterThanThePause(
 		)
 	}
 
-	// The control. The same observation with a steady window at least as long as
-	// the pause DOES support the causal claim, or this guard would simply have
-	// deleted the diagnosis.
 	sound := base
 	sound.FaultFor = 14 * time.Second
 
 	verdict := Judge(sound, idpPolarity)
 
-	if verdict.Cause != TTLExtension {
+	if verdict.Cause != LapsedOnPause {
 		t.Fatalf(
 			"a 14s steady window against a 14s pause produced %s, want %s (%s)",
 			verdict.Cause,
-			TTLExtension,
+			LapsedOnPause,
 			strings.Join(verdict.Reasons, "; "),
 		)
 	}
 
 	if !strings.Contains(
 		strings.Join(verdict.Reasons, "; "),
-		"no fixed lifetime behaves that way",
+		"cannot distinguish an ordinary expiry",
 	) {
 		t.Fatalf(
-			"the TTL-extension reason does not state why a fixed lifetime is excluded: %s",
+			"the diagnosis does not state the fixed-expiry ambiguity: %s",
 			strings.Join(verdict.Reasons, "; "),
 		)
 	}

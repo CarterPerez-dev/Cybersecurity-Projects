@@ -324,3 +324,32 @@ func TestDockerHostStillOutranksDockerContext(t *testing.T) {
 		)
 	}
 }
+
+func TestDockerConfigSelectsContextForSDKAndCompose(t *testing.T) {
+	home, custom := t.TempDir(), t.TempDir()
+	writeContext(t, home, ctxName, ctxHostValue)
+	writeCurrentContext(t, home, ctxName)
+	writeContext(t, custom, otherCtxName, otherCtxHost)
+	writeCurrentContext(t, custom, otherCtxName)
+	config := filepath.Join(custom, dockerDir)
+	for _, explicit := range []string{"", otherCtxName} {
+		env := map[string]string{
+			EnvDockerConfig: config, EnvDockerContext: explicit,
+		}
+		got, err := ResolveEndpoint(fakeEnv(env), home)
+		if err != nil || got.Host != otherCtxHost {
+			t.Fatalf("custom config endpoint: %+v, %v", got, err)
+		}
+		composed, err := ComposeEnvironment([]string{
+			EnvDockerConfig + "=" + config, EnvDockerContext + "=" + explicit,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		joined := strings.Join(composed, "\n")
+		if !strings.Contains(joined, EnvDockerHost+"="+got.Host) ||
+			strings.Contains(joined, EnvDockerContext+"=") {
+			t.Fatalf("Compose does not use SDK endpoint: %v", composed)
+		}
+	}
+}

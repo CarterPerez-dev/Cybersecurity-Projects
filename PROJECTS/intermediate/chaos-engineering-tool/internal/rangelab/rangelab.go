@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CarterPerez-dev/khaos"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 )
@@ -140,14 +141,6 @@ const (
 	EnvControlSecret = "KHAOS_RANGE_CONTROL_SECRET"
 	EnvAuthzMode     = "KHAOS_RANGE_AUTHZ_MODE"
 
-	// AuthzDistinguishes reads the dependency's three answers as three.
-	// AuthzCollapses is research 07 section 6.2's shape: anything that is not
-	// a 200 is read as an absence of an answer, and allowed. AuthzRetries
-	// reaches the right verdict the wrong way, asking again every time it does
-	// not like an answer, which is that section's retry storm.
-	// AuthzCached is correct too, and it is the input khaos's own verdict
-	// machinery was wrong about: a one-second decision cache plus a refusal
-	// expressed as 503 rather than 403.
 	AuthzDistinguishes = "distinguishes"
 	AuthzCollapses     = "collapses"
 	AuthzRetries       = "retries"
@@ -180,9 +173,6 @@ const (
 	// khaos never reads the file: it asks the fixture for a credential.
 	SecretPath = "/run/khaos-secrets/hmac"
 
-	// SecretValidated checks the secret's length after every read, which is
-	// what research 07 part 8 prescribes. SecretUnchecked is the
-	// CVE-2019-20933 shape: the empty value flows straight into the crypto.
 	SecretValidated = "validated"
 	SecretUnchecked = "unchecked"
 
@@ -232,7 +222,6 @@ const (
 	GovernedPath = "/governed"
 	FilteredPath = "/filtered"
 
-	errNoCompose  = "cannot find the range compose file; run khaos from the project directory, or set %s to the directory holding khaos's own range/compose.yml"
 	errUnreadable = "%w: %s could not be read: %v"
 	errForeign    = "%w: %s declares the compose project %s, and khaos only ever acts on %s"
 
@@ -397,12 +386,6 @@ type Ports struct {
 	// namespace, which is why that tier needs no capability.
 	DNS int
 
-	// The M9 fixtures. These have to be CHOSEN here like every other host
-	// port: leaving them unset published `127.0.0.1:0:8080`, which hands the
-	// choice to the kernel's ephemeral range. khaos then neither collision
-	// checks them nor keeps them stable - and the environment faults recreate
-	// the container, so the port moved under khaos's own probe mid-run and the
-	// valid stream reported the fixture as unreachable.
 	DBGateway int
 	Secret    int
 	Env       int
@@ -500,7 +483,7 @@ func composePath() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf(errNoCompose, EnvComposeDir)
+	return khaos.RangeDirectory()
 }
 
 // VerifyOwned refuses any compose file that is not khaos's own, or pointing
@@ -649,7 +632,11 @@ func (l Lab) Up(
 		EnvReresolve+"="+reresolve,
 	)
 
-	args := []string{"up", "--build", "--detach", "--wait"}
+	if err := l.compose(ctx, out, environ, "build", "idp"); err != nil {
+		return err
+	}
+
+	args := []string{"up", "--no-build", "--detach", "--wait"}
 	if withDB {
 		args = append([]string{profileFlag, dbProfile}, args...)
 	}
@@ -771,6 +758,10 @@ func (l Lab) compose(
 ) error {
 	// Passed explicitly as well as declared, so no edit to the file can point
 	// these commands at another project.
+	resolvedEnv, err := dockerx.ComposeEnvironment(environ)
+	if err != nil {
+		return err
+	}
 	full := append([]string{
 		"compose",
 		projectFlag, ProjectName,
@@ -782,7 +773,7 @@ func (l Lab) compose(
 	//nolint:gosec // khaos driving its own compose file as the operator
 	cmd := exec.CommandContext(ctx, dockerBinary, full...)
 	cmd.Dir = l.Dir
-	cmd.Env = environ
+	cmd.Env = resolvedEnv
 	cmd.Stdout = out
 	cmd.Stderr = io.MultiWriter(out, &stderr)
 
@@ -921,71 +912,76 @@ func Discover(ctx context.Context, reader PortReader) (Lab, error) {
 
 	lab := Lab{Port: port}
 
-	// Each further gateway is discovered separately and its absence is not
-	// fatal, because the experiments that do not need it must still work.
+	if err := lab.readProxyTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+	if err := lab.readIdentityTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+	if _, err := lab.readTLSTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+	if err := lab.readDNSTier(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+	lab.readStatefulTier(running)
+	if err := lab.readCredentialGateways(ctx, reader, running); err != nil {
+		return Lab{}, err
+	}
+	return lab, nil
+}
+
+func (l *Lab) readProxyTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
 	proxied, ok := running[ProxiedGatewayName]
 	if !ok {
-		return lab, nil
+		return nil
 	}
 
-	if lab.ProxiedPort, err = reader.PublishedPort(
+	var err error
+	if l.ProxiedPort, err = reader.PublishedPort(
 		ctx,
 		proxied.ID,
 		GatewayInternalPort,
 	); err != nil {
-		return Lab{}, err
+		return err
 	}
 
-	if lab.ProxyPort, err = proxyPortOf(ctx, reader, proxied.ID); err != nil {
-		return Lab{}, err
-	}
+	l.ProxyPort, err = proxyPortOf(ctx, reader, proxied.ID)
+	return err
+}
 
+func (l *Lab) readIdentityTier(
+	ctx context.Context,
+	reader PortReader,
+	running map[string]dockerx.Target,
+) error {
 	verifierGateway, ok := running[VerifierGatewayName]
 	if !ok {
-		return lab, nil
+		return nil
 	}
 
-	if lab.VerifierPort, err = reader.PublishedPort(
+	var err error
+	if l.VerifierPort, err = reader.PublishedPort(
 		ctx,
 		verifierGateway.ID,
 		GatewayInternalPort,
 	); err != nil {
-		return Lab{}, err
+		return err
 	}
 
-	if lab.Issuer, lab.IdPPort, err = issuerOf(
+	l.Issuer, l.IdPPort, err = issuerOf(
 		ctx,
 		reader,
 		verifierGateway.ID,
-	); err != nil {
-		return Lab{}, err
-	}
-
-	complete, err := lab.readTLSTier(ctx, reader, running)
-	if err != nil {
-		return Lab{}, err
-	}
-	if !complete {
-		return lab, nil
-	}
-
-	if err = lab.readDNSTier(ctx, reader, running); err != nil {
-		return Lab{}, err
-	}
-
-	lab.readStatefulTier(running)
-
-	if err = lab.readM9Fixtures(ctx, reader, running); err != nil {
-		return Lab{}, err
-	}
-
-	return lab, nil
+	)
+	return err
 }
 
-// readM9Fixtures reads the four gateways M9 added. Each one's absence is not
-// fatal, for the same reason as every other gateway: the experiments that do
-// not need it must still work.
-func (l *Lab) readM9Fixtures(
+func (l *Lab) readCredentialGateways(
 	ctx context.Context,
 	reader PortReader,
 	running map[string]dockerx.Target,
@@ -1012,7 +1008,7 @@ func (l *Lab) readM9Fixtures(
 
 	caller, ok := running[AuthzGatewayName]
 	if !ok {
-		return nil
+		return l.readControlTier(ctx, reader, running)
 	}
 
 	environ, err := reader.ContainerEnv(ctx, caller.ID)

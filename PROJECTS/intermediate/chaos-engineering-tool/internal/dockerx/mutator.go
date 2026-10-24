@@ -66,9 +66,6 @@ type Mount struct {
 	Name        string `json:"name,omitempty"`
 }
 
-// MutatorSpec is a short-lived container that performs one mutation inside the
-// target's own mount and exits. It holds no capabilities, joins no network, and
-// mounts nothing but the one mount it was given.
 type MutatorSpec struct {
 	RunID string
 	Mount Mount

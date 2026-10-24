@@ -77,7 +77,7 @@ func buildEnv(
 					Name:       probeValidName,
 					URL:        url,
 					Credential: probe.Valid,
-					Mint:       memoised(params.Get(ParamToken)),
+					Token:      params.Get(ParamToken),
 				}),
 				Invalid: probe.NewHTTP(probe.HTTPOptions{
 					Name:       probeEmptyKeyName,

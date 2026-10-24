@@ -8,6 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"net/netip"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -37,7 +40,7 @@ const (
 	describePause      = "freeze every process in %s so it stops answering without closing its connections"
 	describeRestart    = "stop %s and start it again, so it initialises without a dependency it already had"
 	confirmRestart     = "%s is stopped, read back off the daemon"
-	describeDisconnect = "detach %s from every network it is on, then reattach it with the same aliases, addresses and driver options"
+	describeDisconnect = "detach %s from every network, then restore its addresses, aliases, links, gateway priority and driver options; Docker may allocate a new MAC when recreating an endpoint"
 )
 
 var ErrAlreadyPaused = errors.New("that container is already paused")
@@ -318,12 +321,15 @@ func (pauseMutator) Revert(
 
 type attachment struct {
 	Network    string                      `json:"network"`
+	EndpointID string                      `json:"endpoint_id,omitempty"`
 	IPAMConfig *network.EndpointIPAMConfig `json:"ipam_config,omitempty"`
 	Aliases    []string                    `json:"aliases,omitempty"`
 	Links      []string                    `json:"links,omitempty"`
 	DriverOpts map[string]string           `json:"driver_opts,omitempty"`
 	MacAddress string                      `json:"mac_address,omitempty"`
 	GwPriority int                         `json:"gw_priority,omitempty"`
+	Address    netip.Addr                  `json:"address,omitzero"`
+	IPv6       netip.Addr                  `json:"ipv6,omitzero"`
 }
 
 type disconnectPayload struct {
@@ -338,7 +344,6 @@ func (a attachment) settings() *network.EndpointSettings {
 		DriverOpts: a.DriverOpts,
 		GwPriority: a.GwPriority,
 	}
-
 	if a.MacAddress != "" {
 		var mac network.HardwareAddr
 		if err := mac.UnmarshalText([]byte(a.MacAddress)); err == nil {
@@ -380,11 +385,18 @@ func (disconnectMutator) Plan(
 		settings := endpoints[name]
 		entry := attachment{Network: name}
 		if settings != nil {
+			entry.EndpointID = settings.EndpointID
 			entry.IPAMConfig = settings.IPAMConfig
 			entry.Aliases = settings.Aliases
 			entry.Links = settings.Links
 			entry.DriverOpts = settings.DriverOpts
 			entry.GwPriority = settings.GwPriority
+			if settings.IPAddress.IsValid() {
+				entry.Address = settings.IPAddress
+			}
+			if settings.GlobalIPv6Address.IsValid() {
+				entry.IPv6 = settings.GlobalIPv6Address
+			}
 			if mac := settings.MacAddress.String(); mac != "" {
 				entry.MacAddress = mac
 			}
@@ -435,7 +447,8 @@ func (disconnectMutator) Revert(
 	var failures []error
 
 	for _, entry := range payload.Attachments {
-		if _, attached := endpoints[entry.Network]; attached {
+		if current, attached := endpoints[entry.Network]; attached {
+			failures = append(failures, entry.verify(current))
 			continue
 		}
 		if err := env.Docker.Connect(
@@ -445,10 +458,60 @@ func (disconnectMutator) Revert(
 			entry.settings(),
 		); err != nil {
 			failures = append(failures, err)
+			continue
 		}
+		current, err := env.Docker.Endpoints(ctx, record.TargetID)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		failures = append(failures, entry.verify(current[entry.Network]))
 	}
 
 	return errors.Join(failures...)
+}
+
+func (a attachment) verify(current *network.EndpointSettings) error {
+	if current == nil {
+		return fmt.Errorf("network %s has no restored endpoint", a.Network)
+	}
+	fields := map[string]bool{
+		"aliases":          sameNames(a.Aliases, current.Aliases),
+		"links":            sameNames(a.Links, current.Links),
+		"driver options":   maps.Equal(a.DriverOpts, current.DriverOpts),
+		"gateway priority": a.GwPriority == current.GwPriority,
+		"MAC address": a.MacAddress == "" || a.recreated(current) ||
+			strings.EqualFold(a.MacAddress, current.MacAddress.String()),
+		"IPv4 address": !a.Address.IsValid() ||
+			a.Address == current.IPAddress,
+		"IPv6 address": !a.IPv6.IsValid() ||
+			a.IPv6 == current.GlobalIPv6Address,
+		"IPAM": a.IPAMConfig == nil ||
+			reflect.DeepEqual(a.IPAMConfig, current.IPAMConfig),
+	}
+	var failures []error
+	for field, matches := range fields {
+		if !matches {
+			failures = append(failures, fmt.Errorf(
+				"network %s restored with different %s; reconcile the endpoint before reclaiming",
+				a.Network,
+				field,
+			))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (a attachment) recreated(current *network.EndpointSettings) bool {
+	return a.EndpointID != "" && current.EndpointID != "" &&
+		a.EndpointID != current.EndpointID && current.MacAddress.String() != ""
+}
+
+func sameNames(a, b []string) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(slices.Compact(a), slices.Compact(b))
 }
 
 func (pauseMutator) Confirm(

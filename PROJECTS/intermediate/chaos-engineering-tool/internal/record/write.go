@@ -72,19 +72,23 @@ func Write(dir string, rec Record, events []Event) (Record, error) {
 		Count:  len(events),
 	}
 
+	return rec, WriteRecord(dir, rec)
+}
+
+func WriteRecord(dir string, rec Record) error {
 	body, err := Encode(rec)
 	if err != nil {
-		return rec, err
+		return err
 	}
 
 	if err := writeAtomic(
 		filepath.Join(dir, RecordFile),
 		body,
 	); err != nil {
-		return rec, fmt.Errorf(errWriteFile, RecordFile, err)
+		return fmt.Errorf(errWriteFile, RecordFile, err)
 	}
 
-	return rec, nil
+	return nil
 }
 
 // Encode is the one JSON form, used for the files and for stdout alike, so

@@ -56,6 +56,14 @@ func (p Paths) Journal() string {
 	return filepath.Join(p.Root, journalName)
 }
 
+func (p Paths) Runs() string {
+	return filepath.Join(p.Root, "runs")
+}
+
+func (p Paths) Run(id string) string {
+	return filepath.Join(p.Runs(), id)
+}
+
 // Settle guards a read-decide-append on the journal. It is separate from Lock
 // because the reaper runs beside a live run and cannot take that one.
 func (p Paths) Settle() string {

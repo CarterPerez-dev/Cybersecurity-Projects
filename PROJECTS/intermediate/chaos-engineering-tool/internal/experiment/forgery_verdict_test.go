@@ -311,16 +311,15 @@ func TestTheTwoForgedGuardsDoNotFireOnEachOthersExpectation(t *testing.T) {
 	}
 }
 
-// An experiment with no forged stream must be unaffected by either guard, or
-// adding the stream to the probe model would have broken the eight experiments
-// that do not use it.
-func TestAnAbsentForgedStreamIsNotGuarded(t *testing.T) {
+func TestAnAbsentForgedStreamIsAllowedOnlyWhenNotRequired(t *testing.T) {
 	bare := window(probe.Accepted, probe.Rejected, "", "", MinimumToClaimClosed)
 
 	for _, expect := range []probe.Expectation{"", probe.ExpectAccepted, probe.ExpectRejected} {
-		if _, unmet := baselineUnmet(bare, expect, true, nil); unmet {
+		if _, unmet := baselineUnmet(
+			bare, expect, true, nil,
+		); unmet != (expect != "") {
 			t.Errorf(
-				"a baseline with no forged stream was voided under expectation %q",
+				"missing forged stream handled incorrectly under expectation %q",
 				expect,
 			)
 		}
