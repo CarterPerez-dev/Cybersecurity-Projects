@@ -2,6 +2,11 @@
 
 Essential tools for security professionals, organized by category.
 
+## MY LIST
+- [MY TOOLS / INTERNAL / DAILY / MISC ](https://angelamos.com/index) - My index
+- [OSINT TOOLS](https://lisdex.sh/tools) - OSINT tools I actually use
+- [LESBIAN](https://www.debian.org/releases/trixie/installmanual) - Debian Linux (trixie), It's the best distro (by far) (not even close) (it literally mogs)
+
 ## Network Analysis & Monitoring
 
 **Packet Analysis:**
