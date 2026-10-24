@@ -1,11 +1,16 @@
 <!-- ©AngelaMos | 2026 -->
 <!-- README.md -->
 
-```text
-  _  ___   _    _    ___  ___
- | |/ / | | |  /_\  / _ \/ __|
- | ' <| |_| | / _ \| (_) \__ \
- |_|\_\\___/ /_/ \_\\___/|___/
+```json
+ ██ ▄█▀ ██░ ██  ▄▄▄       ▒█████    ██████ 
+ ██▄█▒ ▓██░ ██▒▒████▄    ▒██▒  ██▒▒██    ▒ 
+▓███▄░ ▒██▀▀██░▒██  ▀█▄  ▒██░  ██▒░ ▓██▄   
+▓██ █▄ ░▓█ ░██ ░██▄▄▄▄██ ▒██   ██░  ▒   ██▒
+▒██▒ █▄░▓█▒░██▓ ▓█   ▓██▒░ ████▓▒░▒██████▒▒
+▒ ▒▒ ▓▒ ▒ ░░▒░▒ ▒▒   ▓▒█░░ ▒░▒░▒░ ▒ ▒▓▒ ▒ ░
+░ ░▒ ▒░ ▒ ░▒░ ░  ▒   ▒▒ ░  ░ ▒ ▒░ ░ ░▒  ░ ░
+░ ░░ ░  ░  ░░ ░  ░   ▒   ░ ░ ░ ▒  ░  ░  ░  
+░  ░    ░  ░  ░      ░  ░    ░ ░        ░
 ```
 
 [![Cybersecurity Projects](https://img.shields.io/badge/Cybersecurity--Projects-Intermediate-red?style=flat&logo=github)](https://github.com/CarterPerez-dev/Cybersecurity-Projects/tree/main/PROJECTS/intermediate/chaos-engineering-tool)
