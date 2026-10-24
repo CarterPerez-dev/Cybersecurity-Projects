@@ -1,0 +1,687 @@
+# ©AngelaMos | 2026
+# compose.yml
+
+name: khaos-range
+
+services:
+  idp:
+    container_name: khaos-range-idp
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["idp"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    # EVERY address in this range is pinned, and it is load-bearing rather than
+    # tidy. Three of them have to be: the resolver's and the dependency's
+    # because the gateway's `dns:` and the resolver's zone are literals fixed at
+    # container creation, and the rogue's for the same reason. The rest are
+    # pinned because a DYNAMIC address competes with those three. Docker
+    # allocates sequentially from the bottom of the subnet, so with five
+    # dynamic gateways the fourth one reaches .5 and the resolver then fails to
+    # start with "Address already in use" - measured, when the stateful tier
+    # added four more containers and postgres took the resolver's address.
+    # Pinning removes the race by construction instead of relying on compose
+    # creating the pinned services first.
+    networks:
+      range:
+        ipv4_address: 10.244.244.10
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "healthcheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+    restart: "no"
+
+  gateway:
+    container_name: khaos-range-gateway
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_GATEWAY_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks:
+      range:
+        ipv4_address: 10.244.244.11
+    restart: "no"
+
+  # The same gateway, reaching the same identity provider, but addressing it
+  # through khaos's own in-process fault proxy on the host instead of directly.
+  # It is a SECOND service rather than a rewiring of the first so that the
+  # Docker-native tier keeps being measured on a direct path: an experiment that
+  # pauses a container is not measuring the Docker-native tier if its traffic
+  # runs through a proxy. Running the same experiment against both and comparing
+  # is what proves the proxy tier adds nothing of its own.
+  gateway-proxied:
+    container_name: khaos-range-gateway-proxied
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://host.docker.internal:${KHAOS_RANGE_PROXY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_PROXIED_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks:
+      range:
+        ipv4_address: 10.244.244.12
+    restart: "no"
+
+  # The third gateway, and the only one whose identity provider is khaos itself
+  # rather than the idp container. khaos cannot make a correct provider mint an
+  # `alg: none` token or withdraw its own signing key on command, so the whole
+  # JWT family needs a target that resolves keys from khaos's in-process
+  # provider. It is a THIRD service for the same reason the proxied one is a
+  # second: repointing an existing gateway would change what the suites that
+  # already measure it are asserting.
+  #
+  # It verifies JWTs locally AND introspects opaque credentials, because the two
+  # strategies have different outage shapes and the family spans both.
+  gateway-verifier:
+    container_name: khaos-range-gateway-verifier
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["verifier"]
+    environment:
+      KHAOS_RANGE_ISSUER: "http://host.docker.internal:${KHAOS_RANGE_IDP_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+      KHAOS_RANGE_KEY_TTL: "${KHAOS_RANGE_KEY_TTL:-1s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_VERIFIER_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.13
+    restart: "no"
+
+  # The fourth gateway, and the only one that reaches a dependency over TLS from
+  # a certificate authority khaos controls. No correct CA will mint an expired,
+  # revoked or wrongly-named certificate at any price, so the whole `tls.`
+  # family needs a target whose dependency is khaos itself.
+  #
+  # It is a FOURTH service for the same reason the others are separate: a
+  # certificate fault lands on a path no other gateway uses, and repointing an
+  # existing gateway would change what the suites already measuring it assert.
+  #
+  # Authorization is the ordinary introspection decision against the idp
+  # container, unchanged. The only thing this gateway adds is a PRECONDITION:
+  # the TLS dependency has to be usable before any authorization happens. That
+  # is what makes the three outcomes distinguishable -- accepting a bad
+  # certificate looks like nothing is wrong, refusing it and declining to serve
+  # is correct, and refusing it and serving anyway is the defect.
+  gateway-tls:
+    container_name: khaos-range-gateway-tls
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["tls"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      # The dependency khaos plays, and where this gateway fetches its trust
+      # anchor and revocation data. Both are host.docker.internal because khaos
+      # runs them in its own process on the host, not in a container.
+      KHAOS_RANGE_DEPENDENCY: "https://host.docker.internal:${KHAOS_RANGE_TLS_DEPENDENCY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_AUTHORITY_BASE: "http://host.docker.internal:${KHAOS_RANGE_AUTHORITY_PORT:?khaos chooses this port; run `khaos range up`}"
+      # The name this gateway asks for. khaos mints for exactly this, or every
+      # certificate is refused on the hostname for a reason unrelated to the
+      # trap.
+      KHAOS_RANGE_CERT_HOST: "${KHAOS_RANGE_CERT_HOST:-dependency.khaos.invalid}"
+      # Which reference client it runs. `closed` is the correct one; the broken
+      # modes are what the exit gate drives it through.
+      KHAOS_RANGE_TLS_MODE: "${KHAOS_RANGE_TLS_MODE:-closed}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_TLS_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+    networks:
+      range:
+        ipv4_address: 10.244.244.14
+    restart: "no"
+
+
+  rogue:
+    container_name: khaos-range-rogue
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["rogue"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    networks:
+      range:
+        ipv4_address: 10.244.244.20
+    restart: "no"
+
+  # khaos's chaos resolver, as a range service rather than a container khaos
+  # creates.
+  #
+  # Outside the range khaos imports its own binary as a one-layer image and
+  # starts it, because an operator's khaos has no source tree. Here the image
+  # already exists and the resolver is the same `internal/dnsrv` package behind
+  # a different entry point, so there is nothing to import and the compose file
+  # is the honest place for it. The labels are what `khaos.FindResolver` matches
+  # on, so khaos finds this one exactly as it finds one it started itself.
+  resolver:
+    container_name: khaos-range-resolver
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command:
+      - "resolver"
+      - "--control"
+      - "control.khaos.invalid."
+      - "--zone"
+      - "dependency.khaos.test.=10.244.244.10"
+      - "--zone"
+      - "control.khaos.invalid.=10.244.244.10"
+    # The nonce is an ENVIRONMENT variable and not an argument. A container's
+    # command line appears in the HOST process table: measured,
+    # /proc/<pid>/cmdline is mode 444 and world-readable while
+    # /proc/<pid>/environ is 400. The nonce is the only authorisation for
+    # arming and disarming khaos's DNS faults, so a local user reading it could
+    # disarm a fault mid-run and khaos would measure an unfaulted window.
+    #
+    # The matching LABEL is not the same exposure: labels come from the daemon
+    # API, which already needs socket access that is root-equivalent, and khaos
+    # has to read the nonce back from somewhere on a cold start.
+    environment:
+      KHAOS_RESOLVER_NONCE: "${KHAOS_RANGE_RESOLVER_NONCE:?khaos chooses this nonce; run `khaos range up`}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+      khaos.resolver: "true"
+      khaos.resolver.network: "khaos-range"
+      khaos.resolver.nonce: "${KHAOS_RANGE_RESOLVER_NONCE:?khaos chooses this nonce; run `khaos range up`}"
+    networks:
+      range:
+        ipv4_address: 10.244.244.5
+    restart: "no"
+
+  # The FIFTH gateway. Each one exists so a single injection tier is measured on
+  # a path nothing else contaminates, and this one is the only gateway that
+  # reaches its dependency BY NAME through khaos's resolver.
+  #
+  # It runs the same `gateway` role as the first two, with no new code, and that
+  # is the point: a failed name lookup reaches the same fail-open or fail-closed
+  # branch a failed request does, so the fixture under test is the one khaos
+  # already ships rather than one written to be caught.
+  #
+  # `dns:` is a literal because it has to be. It is fixed at container creation
+  # and there is no API to change it afterwards, so the resolver's address
+  # cannot be discovered first and filled in here.
+  gateway-dns:
+    container_name: khaos-range-gateway-dns
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["gateway"]
+    dns: ["10.244.244.5"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://dependency.khaos.test:8080"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      KHAOS_RANGE_CACHE_TTL: "${KHAOS_RANGE_CACHE_TTL:-2s}"
+      # Re-resolve the dependency's name on EVERY request, which only this
+      # gateway does. Go's http.Transport keeps connections alive, so a pooled
+      # client resolves once and never again: measured on this fixture, 46
+      # probes produced TWO queries to khaos's resolver, both at the first
+      # request, and every DNS fault armed afterwards was inert. That is a real
+      # property of the fault class rather than a fixture defect, and khaos
+      # reports it when it measures it -- but a fixture that can never
+      # experience the fault cannot be what an exit gate asserts against.
+      KHAOS_RANGE_RERESOLVE: "${KHAOS_RANGE_RERESOLVE:-true}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_DNS_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    depends_on:
+      - idp
+      - resolver
+    networks:
+      range:
+        ipv4_address: 10.244.244.15
+    restart: "no"
+
+  # THE STATEFUL TIER, opt-in behind `khaos range up --with-db`.
+  #
+  # These four are the only services in the range khaos does not implement
+  # itself, and that is the point of the credential family: the finding is what
+  # three CORRECT engines do with an authenticated session when its credential
+  # changes, so a khaos-written fake would prove nothing. Every other tier
+  # exists because no correct dependency will emit the defect.
+  #
+  # Nothing is published to the host. khaos dials the container's own address on
+  # this network, which the host routes to, so a database never appears on a
+  # host port. The administrative password is minted per `khaos range up` rather
+  # than written here, and khaos reads it back out of the container's own
+  # environment.
+  #
+  # The tags are the ones the research measured. The VERSION is read from the
+  # server at run time and recorded in the run, because a tag is not a version:
+  # `postgres:18` resolved to two different patch releases on this host hours
+  # apart.
+  postgres:
+    container_name: khaos-range-postgres
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/postgresql
+    image: postgres:18
+    profiles: ["db"]
+    command: ["-c", "log_connections=all"]
+    environment:
+      POSTGRES_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      POSTGRES_DB: "appdb"
+      POSTGRES_USER: "postgres"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      range:
+        ipv4_address: 10.244.244.30
+    restart: "no"
+
+  mysql:
+    container_name: khaos-range-mysql
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/mysql
+    image: mysql:8.4
+    profiles: ["db"]
+    environment:
+      MYSQL_ROOT_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      MYSQL_DATABASE: "appdb"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+    networks:
+      range:
+        ipv4_address: 10.244.244.31
+    restart: "no"
+
+  mariadb:
+    container_name: khaos-range-mariadb
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /var/lib/mysql
+    image: mariadb:11.4
+    profiles: ["db"]
+    environment:
+      MARIADB_ROOT_PASSWORD: "${KHAOS_RANGE_DB_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      MARIADB_DATABASE: "appdb"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      range:
+        ipv4_address: 10.244.244.32
+    restart: "no"
+
+  # The rate limiter's datastore. Kong's `fault_tolerant = true` is the only
+  # genuine fail-open default in the whole fail-open taxonomy, and it is a
+  # limiter that disables itself when THIS is unreachable. The limiter fixture
+  # speaks RESP directly rather than taking a client dependency: a fixed-window
+  # counter needs INCR and EXPIRE and nothing else.
+  redis:
+    container_name: khaos-range-redis
+    # The data directory is a TMPFS, which is not a performance choice. These
+    # images apply the administrative password only when they INITIALISE an
+    # empty data directory, and compose carries an anonymous volume over to the
+    # recreated container, so a second `range up` produced a container whose
+    # environment held the password khaos had just minted and whose database
+    # still held the previous one - measured, as an authentication failure
+    # against khaos's own range. A tmpfs makes "empty every time" structural,
+    # leaves nothing on disk after `range down`, and removes the anonymous
+    # volume the image would otherwise declare.
+    tmpfs:
+      - /data
+    image: redis:7.4-alpine
+    profiles: ["db"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    networks:
+      range:
+        ipv4_address: 10.244.244.33
+    restart: "no"
+  # The pooled-credential fixture, and the only range service that holds a
+  # database credential of its own. It is in the stateful profile because it
+  # cannot start without the engine.
+  #
+  # The credential is passed as separate variables rather than as one DSN, so
+  # khaos can read the PASSWORD on its own out of this container's environment,
+  # rotate that role at the engine, and put the same value back afterwards
+  # without ever journaling it.
+  gateway-db:
+    container_name: khaos-range-gateway-db
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["db"]
+    profiles: ["db"]
+    environment:
+      KHAOS_RANGE_UPSTREAM: "http://idp:8080"
+      KHAOS_RANGE_DB_HOST: "postgres:5432"
+      KHAOS_RANGE_DB_USER: "appuser"
+      KHAOS_RANGE_DB_PASSWORD: "${KHAOS_RANGE_DB_APP_PASSWORD:?khaos mints this; run `khaos range up --with-db`}"
+      KHAOS_RANGE_DB_NAME: "appdb"
+      KHAOS_RANGE_POOL_MODE: "${KHAOS_RANGE_POOL_MODE:-unbounded}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_DB_GATEWAY_PORT:?khaos chooses this port; run `khaos range up --with-db`}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      idp:
+        condition: service_started
+    networks:
+      range:
+        ipv4_address: 10.244.244.34
+    # PROCESS liveness, not database liveness: /health is the endpoint these
+    # experiments measure, and a healthcheck pointed at it would make the
+    # fixture unstartable until its credential exists.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # The secret-delivery fixture. It re-reads its secret on EVERY request, which
+  # is what makes the fault observable: a service that read it once at startup
+  # holds the original for the life of the process.
+  #
+  # The volume is mounted READ-ONLY, which is how secrets are conventionally
+  # delivered and the whole reason khaos breaks them through a helper container:
+  # the archive API refuses a `:ro` mount with HTTP 400, while read-only-ness is
+  # a property of THIS mount rather than of the volume, so a helper mounting the
+  # same volume read-write writes straight through it.
+  gateway-secret:
+    container_name: khaos-range-gateway-secret
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["secret"]
+    environment:
+      KHAOS_RANGE_SECRET_MODE: "${KHAOS_RANGE_SECRET_MODE:-unchecked}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_SECRET_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    volumes:
+      - secrets:/run/khaos-secrets:ro
+    networks:
+      range:
+        ipv4_address: 10.244.244.16
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+
+  # The same verifier with its secret in the ENVIRONMENT rather than on a
+  # volume, which is the fixture the two `credential.env_*` faults target. It
+  # is a second service rather than a mode of the first because those faults
+  # REPLACE the container: khaos renames the original aside and creates a
+  # replacement under its name, and doing that to the file fixture would take
+  # the volume's experiments down with it.
+  #
+  # The value is minted per `range up` for the same reason as every other
+  # range secret, and khaos never reads it: it asks this service for a
+  # credential, and holds the original inside the replacement it creates.
+  gateway-env:
+    container_name: khaos-range-gateway-env
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["secret"]
+    environment:
+      KHAOS_RANGE_SECRET_VAR: "KHAOS_RANGE_SECRET_VALUE"
+      KHAOS_RANGE_SECRET_VALUE: "${KHAOS_RANGE_SECRET_VALUE:?khaos mints this; run `khaos range up`}"
+      KHAOS_RANGE_SECRET_MODE: "${KHAOS_RANGE_SECRET_MODE:-unchecked}"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_ENV_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.17
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # The service-to-service caller, and the only fixture whose dependency is not
+  # in this file at all: khaos answers its authorization calls from the host.
+  # That is the whole tier. No correct authorization service will answer a
+  # definitive 403 on request, and a definitive 403 with full reachability is
+  # exactly what no network fault can produce.
+  #
+  # It authenticates every credential itself, locally and correctly, in all
+  # three modes. Without that a collapsing caller refuses nothing at all and
+  # khaos's own baseline guard would void the run instead of measuring it.
+  gateway-authz:
+    container_name: khaos-range-gateway-authz
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["authz"]
+    environment:
+      KHAOS_RANGE_AUTHZ_BASE: "http://host.docker.internal:${KHAOS_RANGE_AUTHZ_DEP_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_AUTHZ_MODE: "${KHAOS_RANGE_AUTHZ_MODE:-collapses}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this network's
+    # gateway: a listener on this network's own gateway address is unreachable.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_AUTHZ_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.18
+    # PROCESS liveness, not dependency liveness: /health would make the fixture
+    # unstartable until khaos is listening, and khaos only listens during a run.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # One gateway carrying three security controls, the way a real API gateway
+  # does. Each control dials its OWN address, so khaos's proxy severs exactly
+  # one and the other two keep answering.
+  #
+  # In the default range: only the limiter needs the stateful tier, so only
+  # control.ratelimit_store_down is refused without --with-db.
+  gateway-control:
+    container_name: khaos-range-gateway-control
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["control"]
+    environment:
+      KHAOS_RANGE_LIMIT_STORE: "host.docker.internal:${KHAOS_RANGE_CONTROL_STORE_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_POLICY_STORE: "http://host.docker.internal:${KHAOS_RANGE_CONTROL_POLICY_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_RULES_STORE: "http://host.docker.internal:${KHAOS_RANGE_CONTROL_RULES_PORT:?khaos chooses this port; run `khaos range up`}"
+      KHAOS_RANGE_FAIL_MODE: "${KHAOS_RANGE_FAIL_MODE:-closed}"
+      # Authentication is by SIGNATURE, not from a remembered set: the
+      # cold-start experiment restarts this container and a remembered set is
+      # empty afterwards.
+      KHAOS_RANGE_CONTROL_SECRET: "${KHAOS_RANGE_CONTROL_SECRET:?khaos mints this; run `khaos range up`}"
+    # host-gateway is the DEFAULT bridge's gateway, measured, not this
+    # network's gateway: a listener on this network's own gateway address is
+    # unreachable from a container on it.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    ports:
+      - "127.0.0.1:${KHAOS_RANGE_CONTROL_PORT:?khaos chooses this port; run `khaos range up`}:8080"
+    networks:
+      range:
+        ipv4_address: 10.244.244.19
+    # PROCESS liveness: a healthcheck on a measured endpoint would make the
+    # fixture unstartable the moment khaos severed a dependency.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+  # The policy document and the rule set. It publishes nothing, like the
+  # resolver: khaos's proxy forwards to it by its address on this network.
+  controld:
+    container_name: khaos-range-controld
+    build:
+      context: ..
+      dockerfile: range/Dockerfile
+    image: khaos-range:latest
+    command: ["controld"]
+    labels:
+      khaos.target: "true"
+      khaos.range: "true"
+    networks:
+      range:
+        ipv4_address: 10.244.244.21
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/khaos-range", "alivecheck"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    restart: "no"
+
+networks:
+  range:
+    name: khaos-range
+    # An EXPLICIT subnet, and it is load-bearing rather than tidy. Docker refuses
+    # a static container address on a network whose subnet it chose ("user
+    # specified IP address is supported only when connecting to networks with
+    # user configured subnets"), and the DNS tier needs two: the resolver's,
+    # because the gateway's `dns:` is fixed at creation and cannot be filled in
+    # from a discovered value, and the dependency's, because the resolver's zone
+    # is passed as a literal at the same moment.
+    #
+    # The range is namespace-isolated by construction, so this is a structural
+    # literal like the project name rather than a variable to remember to
+    # change. If it ever collides with another network on the host, `range up`
+    # fails with the daemon's own message and the fix is to edit this one line.
+    ipam:
+      config:
+        - subnet: 10.244.244.0/24
+
+volumes:
+  # Seeded from the range image, which is what makes the read-only mount above
+  # possible: Docker copies the image's content at that path into a fresh named
+  # volume the first time it is mounted.
+  secrets:
+    name: khaos-range-secrets

@@ -1,0 +1,10 @@
+# ©AngelaMos | 2026
+# .dockerignore
+
+*
+!go.mod
+!go.sum
+!bundle.go
+!cmd/
+!internal/
+!range/

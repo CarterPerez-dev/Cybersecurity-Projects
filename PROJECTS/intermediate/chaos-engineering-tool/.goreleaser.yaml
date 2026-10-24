@@ -1,0 +1,41 @@
+# ©AngelaMos | 2026
+# .goreleaser.yaml
+
+version: 2
+
+project_name: khaos
+
+snapshot:
+  version_template: "0.0.0-dev-{{ .ShortCommit }}"
+
+builds:
+  - id: khaos
+    main: ./cmd/khaos
+    binary: khaos
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/CarterPerez-dev/khaos/internal/version.ldflagsVersion={{ .Version }}
+
+archives:
+  - id: khaos
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+release:
+  github:
+    owner: CarterPerez-dev
+    name: khaos

@@ -1,0 +1,54 @@
+# ©AngelaMos | 2026
+# ci.yml
+
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
+
+      - name: installer syntax and shell checks
+        run: bash -n install.sh && shellcheck install.sh
+
+      - name: module tidiness
+        run: go mod tidy -diff
+
+      - name: test
+        run: go test -race ./...
+
+      - name: build
+        run: CGO_ENABLED=0 go build -trimpath -o khaos ./cmd/khaos
+
+      - name: color degradation gate
+        run: ./scripts/colors.sh
+
+      - name: refusal gate against a real daemon
+        run: ./scripts/smoke.sh
+
+      - name: rollback survives kill -9
+        run: ./scripts/survive.sh
+
+      - name: the range produces the right verdict both ways
+        run: ./scripts/range.sh
+
+      - name: non-tty guard
+        run: timeout 15s ./khaos < /dev/null > /dev/null

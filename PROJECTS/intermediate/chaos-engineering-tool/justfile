@@ -1,0 +1,106 @@
+# ©AngelaMos | 2026
+# justfile
+
+set shell := ["bash", "-cu"]
+
+binary := "khaos"
+
+default:
+    @just --list
+
+build:
+    CGO_ENABLED=0 go build -trimpath -o {{binary}} ./cmd/{{binary}}
+
+run *args:
+    CGO_ENABLED=0 go run ./cmd/{{binary}} {{args}}
+
+banner: build
+    ./{{binary}} banner
+
+test:
+    go test ./...
+
+race:
+    go test -race ./...
+
+linter := "golangci-lint"
+
+linter-version := "v2.10.1"
+
+vet:
+    go vet ./...
+
+fmt:
+    {{linter}} fmt ./...
+
+fmt-check:
+    {{linter}} fmt --diff ./...
+
+lint:
+    {{linter}} run ./...
+
+lint-version:
+    @{{linter}} --version
+    @echo "CI pins {{linter-version}}"
+
+tidy:
+    go mod tidy
+
+tidy-check:
+    go mod tidy -diff
+
+fix:
+    {{linter}} fmt ./...
+    {{linter}} run --fix ./... || true
+    go mod tidy
+
+installer-check:
+    bash -n install.sh
+    shellcheck install.sh
+
+release-check:
+    goreleaser check
+    goreleaser release --snapshot --clean
+
+check: lint tidy-check installer-check test colors
+
+gate: check race smoke survive range-gate proxy-gate identity-gate family-gate tls-gate dns-gate credential-gate control-gate report-gate
+
+colors: build
+    ./scripts/colors.sh
+
+smoke: build
+    ./scripts/smoke.sh
+
+survive: build
+    ./scripts/survive.sh
+
+range-gate: build
+    ./scripts/range.sh
+
+proxy-gate: build
+    ./scripts/proxy.sh
+
+identity-gate: build
+    ./scripts/identity.sh
+
+family-gate: build
+    ./scripts/family.sh
+
+tls-gate: build
+    ./scripts/tls.sh
+
+dns-gate: build
+    ./scripts/dns.sh
+
+credential-gate: build
+    ./scripts/credential.sh
+
+control-gate: build
+    ./scripts/control.sh
+
+report-gate: build
+    ./scripts/report.sh
+
+clean:
+    rm -f {{binary}}
