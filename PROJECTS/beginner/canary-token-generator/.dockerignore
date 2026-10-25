@@ -1,0 +1,24 @@
+# ©AngelaMos | 2026
+# .dockerignore
+.git
+.gitignore
+.github
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/dist
+**/build
+.env*
+!.env.example
+.cache
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.playwright
+*.log
+.vscode
+.idea
+docs
+learn
+README.md

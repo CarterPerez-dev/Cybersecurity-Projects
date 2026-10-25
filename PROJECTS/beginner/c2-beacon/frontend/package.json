@@ -1,5 +1,6 @@
 {
   "name": "c2-beacon-dashboard",
+  "packageManager": "pnpm@10.29.1",
   "private": true,
   "version": "1.0.0",
   "type": "module",
