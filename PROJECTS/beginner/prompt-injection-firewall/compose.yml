@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
     container_name: not-sandboxed-arena-api
     image: not-sandboxed-arena-api:latest
-    restart: unless-stopped
+    restart: always
     environment:
       - NS_AUDIT_PATH=${NS_AUDIT_PATH:-}
       - NS_BYPASS_PATH=${NS_BYPASS_PATH:-}
@@ -51,7 +51,7 @@ services:
         - VITE_SITE_URL=${VITE_SITE_URL:-}
     container_name: not-sandboxed-arena-nginx
     image: not-sandboxed-arena-nginx:latest
-    restart: unless-stopped
+    restart: always
     ports:
       - "127.0.0.1:${NS_UI_PORT:-33572}:80"
     depends_on:

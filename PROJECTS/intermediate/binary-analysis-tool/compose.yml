@@ -29,7 +29,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 64M
-    restart: unless-stopped
+    restart: always
 
   backend:
     build:
@@ -56,10 +56,10 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
-    restart: unless-stopped
+    restart: always
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     container_name: ${APP_NAME:-axumortem}-postgres
     environment:
       - POSTGRES_USER=axumortem
@@ -82,7 +82,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    restart: unless-stopped
+    restart: always
 
 networks:
   app:

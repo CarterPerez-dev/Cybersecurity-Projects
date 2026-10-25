@@ -11,9 +11,6 @@ services:
     container_name: ${APP_NAME:-siem}-nginx
     ports:
       - "${NGINX_HOST_PORT:-8431}:80"
-    volumes:
-      - ./conf/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - ./conf/nginx/prod.nginx:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -28,7 +25,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 64M
-    restart: unless-stopped
+    restart: always
 
   backend:
     build:
@@ -64,10 +61,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
+    restart: always
 
   mongo:
-    image: mongo:8.0
+    image: mongo:7.0
     container_name: ${APP_NAME:-siem}-mongo
     volumes:
       - mongo_data:/data/db
@@ -87,7 +84,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: always
 
   redis:
     image: redis:7-alpine
@@ -110,7 +107,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
 
 networks:
   frontend:

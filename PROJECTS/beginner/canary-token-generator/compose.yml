@@ -34,7 +34,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 64M
-    restart: unless-stopped
+    restart: always
 
   canary:
     build:
@@ -79,10 +79,10 @@ services:
         reservations:
           cpus: '0.25'
           memory: 64M
-    restart: unless-stopped
+    restart: always
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     container_name: ${APP_NAME:-canary-token-generator}-postgres
     environment:
       POSTGRES_USER: canary
@@ -101,7 +101,7 @@ services:
       resources:
         limits:
           memory: 512M
-    restart: unless-stopped
+    restart: always
 
   redis:
     image: redis:7-alpine
@@ -120,7 +120,7 @@ services:
       resources:
         limits:
           memory: 128M
-    restart: unless-stopped
+    restart: always
 
 networks:
   app:

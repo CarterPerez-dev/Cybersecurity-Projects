@@ -1,5 +1,6 @@
 {
   "name": "api-security-scanner",
+  "packageManager": "pnpm@10.29.1",
   "version": "1.0.1",
   "private": true,
   "type": "module",
