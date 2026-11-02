@@ -3,7 +3,7 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: chat-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-chat_auth}
@@ -22,7 +22,7 @@ services:
     restart: always
 
   surrealdb:
-    image: surrealdb/surrealdb:v3.0.5
+    image: surrealdb/surrealdb:v3.3.4
     container_name: chat-surrealdb
     command: start --log trace --user root --pass ${SURREAL_PASSWORD:?SURREAL_PASSWORD required} rocksdb:/data/database.db
     environment:
