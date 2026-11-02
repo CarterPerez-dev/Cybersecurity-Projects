@@ -30,11 +30,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
+
 	"github.com/CarterPerez-dev/docksec/internal/benchmark"
 	"github.com/CarterPerez-dev/docksec/internal/config"
 	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/CarterPerez-dev/docksec/internal/rules"
-	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
 type DockerfileAnalyzer struct {

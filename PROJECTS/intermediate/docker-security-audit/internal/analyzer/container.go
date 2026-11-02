@@ -29,11 +29,12 @@ import (
 	"context"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+
 	"github.com/CarterPerez-dev/docksec/internal/benchmark"
 	"github.com/CarterPerez-dev/docksec/internal/docker"
 	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/CarterPerez-dev/docksec/internal/rules"
-	"github.com/docker/docker/api/types/container"
 )
 
 type ContainerAnalyzer struct {

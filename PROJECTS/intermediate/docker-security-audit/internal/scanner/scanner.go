@@ -35,13 +35,14 @@ import (
 	"os"
 	"runtime"
 
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
+
 	"github.com/CarterPerez-dev/docksec/internal/analyzer"
 	"github.com/CarterPerez-dev/docksec/internal/config"
 	"github.com/CarterPerez-dev/docksec/internal/docker"
 	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/CarterPerez-dev/docksec/internal/report"
-	"golang.org/x/sync/errgroup"
-	"golang.org/x/time/rate"
 )
 
 type Scanner struct {

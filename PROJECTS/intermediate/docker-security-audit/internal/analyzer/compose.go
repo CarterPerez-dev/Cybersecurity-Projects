@@ -31,9 +31,10 @@ import (
 	"strconv"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/CarterPerez-dev/docksec/internal/rules"
-	"gopkg.in/yaml.v3"
 )
 
 type ComposeAnalyzer struct {
@@ -213,11 +214,18 @@ func (a *ComposeAnalyzer) checkVolumes(
 
 		if rules.IsDockerSocket(hostPath) {
 			loc := &finding.Location{Path: a.path, Line: volNode.Line}
-			f := finding.New("CIS-5.31", "Service '"+serviceName+"' mounts Docker socket", finding.SeverityCritical, target).
-				WithDescription("Mounting Docker socket gives the container full control over the Docker daemon.").
+			description := "Mounting a container runtime socket gives the container full control over the runtime."
+			if pathInfo, ok := rules.GetPathInfo(
+				hostPath,
+			); ok &&
+				pathInfo.Description != "" {
+				description = pathInfo.Description
+			}
+			f := finding.New("CIS-5.31", "Service '"+serviceName+"' mounts container runtime socket: "+hostPath, finding.SeverityCritical, target).
+				WithDescription(description).
 				WithCategory(string(CategoryCompose)).
 				WithLocation(loc).
-				WithRemediation("Do not mount /var/run/docker.sock inside containers.")
+				WithRemediation("Do not mount container runtime sockets (" + hostPath + ") inside containers.")
 			findings = append(findings, f)
 			continue
 		}

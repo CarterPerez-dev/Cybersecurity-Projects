@@ -32,10 +32,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CarterPerez-dev/docksec/internal/analyzer"
-	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CarterPerez-dev/docksec/internal/analyzer"
+	"github.com/CarterPerez-dev/docksec/internal/finding"
 )
 
 func TestE2E_DockerfileAnalysis(t *testing.T) {

@@ -25,10 +25,11 @@ import (
 	"sort"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/docksec/internal/benchmark"
 	"github.com/CarterPerez-dev/docksec/internal/config"
 	"github.com/CarterPerez-dev/docksec/internal/scanner"
-	"github.com/spf13/cobra"
 )
 
 var (

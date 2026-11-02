@@ -1,4 +1,6 @@
-# ⒸAngelaMos | 2026 | CarterPerez-dev
+# ©AngelaMos | 2026
+# .golangci.yml
+
 version: "2"
 
 run:
@@ -17,7 +19,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/carterperez-dev)
+        - localmodule
       custom-order: true
     gofumpt:
       extra-rules: true
@@ -36,6 +38,5 @@ linters:
         - name: indent-error-flow
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
