@@ -50,13 +50,13 @@ func New(
 	return &MySQLService{
 		cfg:     cfg,
 		bus:     bus,
-		logger:  logger.With().Str("service", "mysql").Logger(),
+		logger:  logger.With().Str("service", serviceName).Logger(),
 		tracker: tracker,
 		limiter: limiter,
 	}
 }
 
-func (s *MySQLService) Name() string { return "mysql" }
+func (s *MySQLService) Name() string { return serviceName }
 
 func (s *MySQLService) Start(
 	ctx context.Context,

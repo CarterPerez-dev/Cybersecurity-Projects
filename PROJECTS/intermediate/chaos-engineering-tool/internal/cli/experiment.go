@@ -891,7 +891,7 @@ func underLease(
 	}()
 	defer func() {
 		stopKeeping()
-		<-renewals
+		_ = <-renewals
 	}()
 
 	result, runErr := engine.Run(ctx, spec)

@@ -137,7 +137,8 @@ func (c *NVDClient) Fetch(
 		}
 		combined.Vulnerabilities = append(
 			combined.Vulnerabilities,
-			pageResp.Vulnerabilities...)
+			pageResp.Vulnerabilities...,
+		)
 		combined.TotalResults = pageResp.TotalResults
 
 		fetched := len(pageResp.Vulnerabilities)

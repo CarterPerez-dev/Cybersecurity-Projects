@@ -237,7 +237,8 @@ func (r *repository) List(
 
 	if params.Search != "" {
 		conditions = append(conditions, fmt.Sprintf(
-			"(email ILIKE $%d OR name ILIKE $%d)", argIdx, argIdx))
+			"(email ILIKE $%d OR name ILIKE $%d)", argIdx, argIdx,
+		))
 		args = append(args, "%"+escapeLike(params.Search)+"%")
 		argIdx++
 	}

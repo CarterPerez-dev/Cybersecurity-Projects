@@ -102,10 +102,16 @@ func setupIntgStack(t *testing.T) *intgStack {
 	)
 	notifySvc.Register(sender)
 
-	eventSvc := event.NewService(eventRepo, tokenRepo, rdb, notifySvc, event.ServiceConfig{
-		DedupTTL: 15 * time.Minute,
-		Logger:   logger,
-	})
+	eventSvc := event.NewService(
+		eventRepo,
+		tokenRepo,
+		rdb,
+		notifySvc,
+		event.ServiceConfig{
+			DedupTTL: 15 * time.Minute,
+			Logger:   logger,
+		},
+	)
 
 	genRegistry := registry.Build(registry.Config{
 		BaseURL:         intgBaseURL,
@@ -201,7 +207,11 @@ func TestIntegration_FullCreateAndTriggerFlow(t *testing.T) {
 	require.True(t, resp.Success)
 	require.NotEmpty(t, resp.Data.Token.ID)
 	require.Contains(t, resp.Data.Token.TriggerURL, "/c/"+resp.Data.Token.ID)
-	require.Contains(t, resp.Data.Token.ManageURL, "/m/"+resp.Data.Token.ManageID)
+	require.Contains(
+		t,
+		resp.Data.Token.ManageURL,
+		"/m/"+resp.Data.Token.ManageID,
+	)
 
 	tokenID := resp.Data.Token.ID
 
@@ -226,11 +236,18 @@ func TestIntegration_FullCreateAndTriggerFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), count, "both events recorded")
 
-	list, err := st.eventRepo.ListByToken(context.Background(), tokenID, event.ListOptions{Limit: 10})
+	list, err := st.eventRepo.ListByToken(
+		context.Background(),
+		tokenID,
+		event.ListOptions{Limit: 10},
+	)
 	require.NoError(t, err)
 	require.Len(t, list.Events, 2)
 
-	statuses := []event.NotifyStatus{list.Events[0].NotifyStatus, list.Events[1].NotifyStatus}
+	statuses := []event.NotifyStatus{
+		list.Events[0].NotifyStatus,
+		list.Events[1].NotifyStatus,
+	}
 	var sent, deduped int
 	for _, s := range statuses {
 		switch s {
@@ -250,7 +267,12 @@ func TestIntegration_FullCreateAndTriggerFlow(t *testing.T) {
 
 	tok, err := st.tokenRepo.GetByID(context.Background(), tokenID)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), tok.TriggerCount, "trigger count incremented twice")
+	require.Equal(
+		t,
+		int64(2),
+		tok.TriggerCount,
+		"trigger count incremented twice",
+	)
 	require.NotNil(t, tok.LastTriggered)
 }
 
@@ -318,10 +340,16 @@ func TestIntegration_DedupTTLExpiry(t *testing.T) {
 	)
 	notifySvc.Register(sender)
 
-	eventSvc := event.NewService(eventRepo, tokenRepo, rdb, notifySvc, event.ServiceConfig{
-		DedupTTL: 50 * time.Millisecond,
-		Logger:   logger,
-	})
+	eventSvc := event.NewService(
+		eventRepo,
+		tokenRepo,
+		rdb,
+		notifySvc,
+		event.ServiceConfig{
+			DedupTTL: 50 * time.Millisecond,
+			Logger:   logger,
+		},
+	)
 
 	tok := &token.Token{
 		ID:           "intgttl00001",
@@ -340,7 +368,10 @@ func TestIntegration_DedupTTLExpiry(t *testing.T) {
 
 	rec := func(ip string) {
 		evt := &event.Event{TokenID: tok.ID, SourceIP: ip}
-		require.NoError(t, eventSvc.Record(context.Background(), tok.NotifyInfo(), evt))
+		require.NoError(
+			t,
+			eventSvc.Record(context.Background(), tok.NotifyInfo(), evt),
+		)
 	}
 
 	rec("203.0.113.1")
@@ -352,10 +383,17 @@ func TestIntegration_DedupTTLExpiry(t *testing.T) {
 
 	rec("203.0.113.1")
 	notifySvc.Wait()
-	require.Equal(t, 2, sender.callCount(), "after TTL expiry next trigger notifies again")
+	require.Equal(
+		t,
+		2,
+		sender.callCount(),
+		"after TTL expiry next trigger notifies again",
+	)
 }
 
-func TestIntegration_ManagePageReturnsTokenAndEventsAndSilencedCount(t *testing.T) {
+func TestIntegration_ManagePageReturnsTokenAndEventsAndSilencedCount(
+	t *testing.T,
+) {
 	t.Parallel()
 	st := setupIntgStack(t)
 
@@ -476,7 +514,11 @@ func TestIntegration_ManageDeleteCascadesEvents(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&createResp))
 
 	for i := range 2 {
-		trigReq := httptest.NewRequest(http.MethodGet, "/c/"+createResp.Data.Token.ID, nil)
+		trigReq := httptest.NewRequest(
+			http.MethodGet,
+			"/c/"+createResp.Data.Token.ID,
+			nil,
+		)
 		ip := "203.0.113." + string(rune('1'+i))
 		trigReq.Header.Set("CF-Connecting-IP", ip)
 		tw := httptest.NewRecorder()
@@ -485,7 +527,10 @@ func TestIntegration_ManageDeleteCascadesEvents(t *testing.T) {
 	}
 	st.notifySvc.Wait()
 
-	count, err := st.eventRepo.CountByToken(context.Background(), createResp.Data.Token.ID)
+	count, err := st.eventRepo.CountByToken(
+		context.Background(),
+		createResp.Data.Token.ID,
+	)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), count)
 
@@ -494,11 +539,17 @@ func TestIntegration_ManageDeleteCascadesEvents(t *testing.T) {
 		"/api/m/"+createResp.Data.Token.ManageID, nil))
 	require.Equal(t, http.StatusNoContent, dw.Code)
 
-	count, err = st.eventRepo.CountByToken(context.Background(), createResp.Data.Token.ID)
+	count, err = st.eventRepo.CountByToken(
+		context.Background(),
+		createResp.Data.Token.ID,
+	)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), count, "FK cascade removes events")
 
-	tok, err := st.tokenRepo.GetByID(context.Background(), createResp.Data.Token.ID)
+	tok, err := st.tokenRepo.GetByID(
+		context.Background(),
+		createResp.Data.Token.ID,
+	)
 	require.Nil(t, tok)
 	require.ErrorIs(t, err, token.ErrNotFound)
 }
@@ -516,10 +567,16 @@ func TestIntegration_RetentionLoopPrunes(t *testing.T) {
 	t.Cleanup(func() { _ = rdb.Close() })
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	eventSvc := event.NewService(eventRepo, tokenRepo, rdb, nil, event.ServiceConfig{
-		DedupTTL: 15 * time.Minute,
-		Logger:   logger,
-	})
+	eventSvc := event.NewService(
+		eventRepo,
+		tokenRepo,
+		rdb,
+		nil,
+		event.ServiceConfig{
+			DedupTTL: 15 * time.Minute,
+			Logger:   logger,
+		},
+	)
 
 	tok := &token.Token{
 		ID:           "intgret00001",
@@ -583,11 +640,17 @@ func TestIntegration_GeoEnrichmentPopulatesColumns(t *testing.T) {
 		ASNOrg:  "Google LLC",
 	}}
 
-	eventSvc := event.NewService(eventRepo, tokenRepo, rdb, nil, event.ServiceConfig{
-		DedupTTL: 15 * time.Minute,
-		Logger:   logger,
-		GeoIP:    geo,
-	})
+	eventSvc := event.NewService(
+		eventRepo,
+		tokenRepo,
+		rdb,
+		nil,
+		event.ServiceConfig{
+			DedupTTL: 15 * time.Minute,
+			Logger:   logger,
+			GeoIP:    geo,
+		},
+	)
 
 	tok := &token.Token{
 		ID:           "intggeo00001",
@@ -605,7 +668,10 @@ func TestIntegration_GeoEnrichmentPopulatesColumns(t *testing.T) {
 	require.NoError(t, tokenRepo.Insert(context.Background(), tok))
 
 	evt := &event.Event{TokenID: tok.ID, SourceIP: "203.0.113.99"}
-	require.NoError(t, eventSvc.Record(context.Background(), tok.NotifyInfo(), evt))
+	require.NoError(
+		t,
+		eventSvc.Record(context.Background(), tok.NotifyInfo(), evt),
+	)
 
 	list, err := eventRepo.ListByToken(context.Background(), tok.ID,
 		event.ListOptions{Limit: 1})
@@ -625,7 +691,9 @@ func TestIntegration_GeoEnrichmentPopulatesColumns(t *testing.T) {
 	require.Equal(t, "Google LLC", *row.GeoASNOrg)
 }
 
-func TestIntegration_GeoEnrichmentLeavesColumnsNullWhenLookupEmpty(t *testing.T) {
+func TestIntegration_GeoEnrichmentLeavesColumnsNullWhenLookupEmpty(
+	t *testing.T,
+) {
 	t.Parallel()
 	db := sqlx.NewDb(testutil.NewTestDB(t), "pgx")
 	mr, err := miniredis.Run()
@@ -638,11 +706,17 @@ func TestIntegration_GeoEnrichmentLeavesColumnsNullWhenLookupEmpty(t *testing.T)
 	tokenRepo := token.NewRepository(db)
 	eventRepo := event.NewRepository(db)
 
-	eventSvc := event.NewService(eventRepo, tokenRepo, rdb, nil, event.ServiceConfig{
-		DedupTTL: 15 * time.Minute,
-		Logger:   logger,
-		GeoIP:    geoip.NopService(),
-	})
+	eventSvc := event.NewService(
+		eventRepo,
+		tokenRepo,
+		rdb,
+		nil,
+		event.ServiceConfig{
+			DedupTTL: 15 * time.Minute,
+			Logger:   logger,
+			GeoIP:    geoip.NopService(),
+		},
+	)
 
 	tok := &token.Token{
 		ID:           "intggeo00002",
@@ -660,7 +734,10 @@ func TestIntegration_GeoEnrichmentLeavesColumnsNullWhenLookupEmpty(t *testing.T)
 	require.NoError(t, tokenRepo.Insert(context.Background(), tok))
 
 	evt := &event.Event{TokenID: tok.ID, SourceIP: "203.0.113.42"}
-	require.NoError(t, eventSvc.Record(context.Background(), tok.NotifyInfo(), evt))
+	require.NoError(
+		t,
+		eventSvc.Record(context.Background(), tok.NotifyInfo(), evt),
+	)
 
 	list, err := eventRepo.ListByToken(context.Background(), tok.ID,
 		event.ListOptions{Limit: 1})

@@ -25,7 +25,7 @@ race:
 
 linter := "golangci-lint"
 
-linter-version := "v2.10.1"
+linter-version := "v2.15.0"
 
 vet:
     go vet ./...

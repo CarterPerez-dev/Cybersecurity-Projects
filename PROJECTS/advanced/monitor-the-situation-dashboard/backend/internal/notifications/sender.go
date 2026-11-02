@@ -16,6 +16,7 @@ const (
 	telegramAPIBase = "https://api.telegram.org"
 	senderTimeout   = 10 * time.Second
 	testMessage     = "Monitor the Situation — test notification. Channel configured successfully."
+	fieldText       = "text"
 )
 
 type Sender struct {
@@ -48,7 +49,7 @@ func (s *Sender) SendTelegram(
 
 // SendSlack posts a plain-text message to a Slack incoming-webhook URL.
 func (s *Sender) SendSlack(ctx context.Context, webhookURL, text string) error {
-	payload, err := json.Marshal(map[string]string{"text": text})
+	payload, err := json.Marshal(map[string]string{fieldText: text})
 	if err != nil {
 		return fmt.Errorf("marshal slack payload: %w", err)
 	}
@@ -77,7 +78,7 @@ func (s *Sender) sendTelegram(
 
 	payload, err := json.Marshal(map[string]any{
 		"chat_id": chatID,
-		"text":    text,
+		fieldText: text,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal telegram payload: %w", err)
@@ -174,7 +175,7 @@ func (s *Sender) DeleteTelegramWebhook(
 
 func (s *Sender) TestSlack(ctx context.Context, webhookURL string) error {
 	payload, err := json.Marshal(map[string]string{
-		"text": testMessage,
+		fieldText: testMessage,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal slack payload: %w", err)

@@ -24,7 +24,8 @@ func limiterBaseline() probe.Window {
 		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Throttled, MinimumPaired)...),
+			repeat(probe.Throttled, MinimumPaired)...,
+		),
 	}
 }
 
@@ -79,10 +80,12 @@ func leakObservation(closed []probe.Disposition) Observation {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 	}
 }
@@ -162,7 +165,8 @@ func deadNegativeControl() probe.Window {
 		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Unavailable, MinimumPaired)...),
+			repeat(probe.Unavailable, MinimumPaired)...,
+		),
 	}
 }
 
@@ -189,10 +193,12 @@ func TestA503InTheBaselineCannotSeedTheLeakLatch(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 	})
 

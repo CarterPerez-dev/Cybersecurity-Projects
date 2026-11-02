@@ -16,25 +16,28 @@ const (
 )
 
 func acceptable() (Target, Guard) {
-	return Target{
-			ID:      acceptableID,
-			Name:    "shop-api-1",
-			Image:   "shop/api:latest",
-			Project: project,
-			Service: "api",
-			Labels: map[string]string{
-				LabelConsent:        ConsentValue,
-				LabelComposeProject: project,
-			},
-			Running:     true,
-			NetworkMode: "shop_default",
-			BindSources: []string{"/srv/shop/config"},
-			Inspected:   true,
-		}, Guard{
-			Project:    project,
-			SelfID:     khaosOwnID,
-			ExpectedID: acceptableID,
-		}
+	target := Target{
+		ID:      acceptableID,
+		Name:    "shop-api-1",
+		Image:   "shop/api:latest",
+		Project: project,
+		Service: "api",
+		Labels: map[string]string{
+			LabelConsent:        ConsentValue,
+			LabelComposeProject: project,
+		},
+		Running:     true,
+		NetworkMode: "shop_default",
+		BindSources: []string{"/srv/shop/config"},
+		Inspected:   true,
+	}
+	guard := Guard{
+		Project:    project,
+		SelfID:     khaosOwnID,
+		ExpectedID: acceptableID,
+	}
+
+	return target, guard
 }
 
 type control struct {

@@ -14,6 +14,24 @@ package intel
 
 import "strings"
 
+const (
+	familyNmap         = "nmap"
+	familyHydra        = "hydra"
+	familyMedusa       = "medusa"
+	familyNcrack       = "ncrack"
+	familyMetasploit   = "metasploit"
+	familyCobaltStrike = "cobalt-strike"
+	familyBruteSSH     = "brutessh"
+	familyNuclei       = "nuclei"
+	familySQLMap       = "sqlmap"
+	familyNikto        = "nikto"
+	familyBurpSuite    = "burpsuite"
+	familyAcunetix     = "acunetix"
+	familyNessus       = "nessus"
+	familyOpenVAS      = "openvas"
+	familyWPScan       = "wpscan"
+)
+
 var sshToolPatterns = []struct {
 	pattern string
 	family  string
@@ -22,7 +40,7 @@ var sshToolPatterns = []struct {
 	{"paramiko", "paramiko"},
 	{"putty", "putty"},
 	{"dropbear", "dropbear"},
-	{"nmap", "nmap"},
+	{familyNmap, familyNmap},
 	{"go", "go-ssh"},
 	{"asyncssh", "asyncssh"},
 	{"trilead", "trilead"},
@@ -37,12 +55,12 @@ var sshExploitPatterns = []struct {
 	pattern string
 	family  string
 }{
-	{"hydra", "hydra"},
-	{"medusa", "medusa"},
-	{"ncrack", "ncrack"},
-	{"metasploit", "metasploit"},
-	{"cobalt", "cobalt-strike"},
-	{"brutessh", "brutessh"},
+	{familyHydra, familyHydra},
+	{familyMedusa, familyMedusa},
+	{familyNcrack, familyNcrack},
+	{familyMetasploit, familyMetasploit},
+	{"cobalt", familyCobaltStrike},
+	{familyBruteSSH, familyBruteSSH},
 }
 
 func ClassifySSHClient(
@@ -73,21 +91,21 @@ var httpToolPatterns = []struct {
 	pattern string
 	family  string
 }{
-	{"nuclei", "nuclei"},
-	{"sqlmap", "sqlmap"},
-	{"nmap", "nmap"},
-	{"nikto", "nikto"},
+	{familyNuclei, familyNuclei},
+	{familySQLMap, familySQLMap},
+	{familyNmap, familyNmap},
+	{familyNikto, familyNikto},
 	{"gobuster", "gobuster"},
 	{"dirbuster", "dirbuster"},
 	{"wfuzz", "wfuzz"},
 	{"ffuf", "ffuf"},
-	{"burp", "burpsuite"},
-	{"acunetix", "acunetix"},
-	{"nessus", "nessus"},
-	{"openvas", "openvas"},
-	{"wpscan", "wpscan"},
-	{"metasploit", "metasploit"},
-	{"hydra", "hydra"},
+	{"burp", familyBurpSuite},
+	{familyAcunetix, familyAcunetix},
+	{familyNessus, familyNessus},
+	{familyOpenVAS, familyOpenVAS},
+	{familyWPScan, familyWPScan},
+	{familyMetasploit, familyMetasploit},
+	{familyHydra, familyHydra},
 	{"zgrab", "zgrab"},
 	{"masscan", "masscan"},
 	{"censys", "censys"},
@@ -111,20 +129,20 @@ func ClassifyHTTPClient(
 
 func IsKnownAttackTool(family string) bool {
 	exploitTools := map[string]bool{
-		"hydra":         true,
-		"medusa":        true,
-		"ncrack":        true,
-		"metasploit":    true,
-		"cobalt-strike": true,
-		"brutessh":      true,
-		"sqlmap":        true,
-		"burpsuite":     true,
-		"nikto":         true,
-		"nuclei":        true,
-		"wpscan":        true,
-		"acunetix":      true,
-		"nessus":        true,
-		"openvas":       true,
+		familyHydra:        true,
+		familyMedusa:       true,
+		familyNcrack:       true,
+		familyMetasploit:   true,
+		familyCobaltStrike: true,
+		familyBruteSSH:     true,
+		familySQLMap:       true,
+		familyBurpSuite:    true,
+		familyNikto:        true,
+		familyNuclei:       true,
+		familyWPScan:       true,
+		familyAcunetix:     true,
+		familyNessus:       true,
+		familyOpenVAS:      true,
 	}
 	return exploitTools[family]
 }

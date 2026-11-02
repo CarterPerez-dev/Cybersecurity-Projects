@@ -37,6 +37,11 @@ const (
 
 const statusAutocommit uint16 = 0x0002
 
+const (
+	serviceName    = "mysql"
+	systemDatabase = "mysql"
+)
+
 func writePacket(
 	conn net.Conn, seq byte, data []byte,
 ) error {
@@ -248,7 +253,7 @@ func handleQuery(query string) *queryResult {
 	case strings.HasPrefix(upper, "SELECT DATABASE"):
 		return &queryResult{
 			columns: []string{"database()"},
-			rows:    [][]string{{"mysql"}},
+			rows:    [][]string{{systemDatabase}},
 		}
 
 	case strings.HasPrefix(upper, "SELECT USER"):
@@ -262,7 +267,7 @@ func handleQuery(query string) *queryResult {
 			columns: []string{"Database"},
 			rows: [][]string{
 				{"information_schema"},
-				{"mysql"},
+				{systemDatabase},
 				{"performance_schema"},
 				{"sys"},
 			},

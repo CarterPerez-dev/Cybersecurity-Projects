@@ -14,6 +14,12 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
+const (
+	defaultAccessTokenTTL     = "15m"
+	defaultRansomwareInterval = "15m"
+	defaultGDELTInterval      = "15m"
+)
+
 type Config struct {
 	App           AppConfig           `koanf:"app"`
 	Server        ServerConfig        `koanf:"server"`
@@ -250,7 +256,7 @@ func loadDefaults(k *koanf.Koanf) error {
 		"redis.pool_size":      10,
 		"redis.min_idle_conns": 5,
 
-		"jwt.access_token_expire":  "15m",
+		"jwt.access_token_expire":  defaultAccessTokenTTL,
 		"jwt.refresh_token_expire": "168h",
 		"jwt.issuer":               "go-backend",
 		"jwt.audience":             "go-backend-api",
@@ -298,7 +304,7 @@ func loadDefaults(k *koanf.Koanf) error {
 		"collectors.kev.enabled":            true,
 		"collectors.kev.interval":           "1h",
 		"collectors.ransomware.enabled":     true,
-		"collectors.ransomware.interval":    "15m",
+		"collectors.ransomware.interval":    defaultRansomwareInterval,
 		"collectors.greynoise.enabled":      true,
 		"collectors.abuseipdb.enabled":      true,
 		"collectors.coinbase.enabled":       true,
@@ -313,7 +319,7 @@ func loadDefaults(k *koanf.Koanf) error {
 		"collectors.wikipedia.enabled":      true,
 		"collectors.wikipedia.interval":     "5m",
 		"collectors.gdelt.enabled":          true,
-		"collectors.gdelt.interval":         "15m",
+		"collectors.gdelt.interval":         defaultGDELTInterval,
 		"collectors.iss.enabled":            true,
 		"collectors.iss.position_interval":  "10s",
 		"collectors.iss.tle_interval":       "24h",

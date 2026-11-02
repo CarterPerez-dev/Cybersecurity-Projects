@@ -114,7 +114,9 @@ func TestFingerprintHandler_AttachesToRecentEvent(t *testing.T) {
 		"https://news.example.com")
 	evt := seedSlowredirectEvent(t, evtRepo, tok.ID)
 
-	router := mountFingerprintRouter(slowredirect.NewFingerprintHandler(evtRepo))
+	router := mountFingerprintRouter(
+		slowredirect.NewFingerprintHandler(evtRepo),
+	)
 
 	fpBody := []byte(
 		`{"screen":{"w":1920,"h":1080},"timezone":"America/Los_Angeles"}`,
@@ -142,7 +144,9 @@ func TestFingerprintHandler_NoMatchingEvent_Returns204(t *testing.T) {
 	tok := seedSlowredirectToken(t, tokRepo, "fpnomatch001",
 		"https://news.example.com")
 
-	router := mountFingerprintRouter(slowredirect.NewFingerprintHandler(evtRepo))
+	router := mountFingerprintRouter(
+		slowredirect.NewFingerprintHandler(evtRepo),
+	)
 
 	rr := postFingerprint(
 		router, tok.ID, jsonContentType,
@@ -167,7 +171,9 @@ func TestFingerprintHandler_InvalidJSON_Returns204AndDoesNotTouchEvent(
 		"https://news.example.com")
 	evt := seedSlowredirectEvent(t, evtRepo, tok.ID)
 
-	router := mountFingerprintRouter(slowredirect.NewFingerprintHandler(evtRepo))
+	router := mountFingerprintRouter(
+		slowredirect.NewFingerprintHandler(evtRepo),
+	)
 
 	rr := postFingerprint(
 		router, tok.ID, jsonContentType,
@@ -199,7 +205,9 @@ func TestFingerprintHandler_WrongContentType_Returns204AndDoesNotTouchEvent(
 		"https://news.example.com")
 	evt := seedSlowredirectEvent(t, evtRepo, tok.ID)
 
-	router := mountFingerprintRouter(slowredirect.NewFingerprintHandler(evtRepo))
+	router := mountFingerprintRouter(
+		slowredirect.NewFingerprintHandler(evtRepo),
+	)
 
 	rr := postFingerprint(
 		router, tok.ID,
@@ -238,7 +246,9 @@ func TestFingerprintHandler_OversizeBody_Returns204AndDoesNotTouchEvent(
 		"https://news.example.com")
 	evt := seedSlowredirectEvent(t, evtRepo, tok.ID)
 
-	router := mountFingerprintRouter(slowredirect.NewFingerprintHandler(evtRepo))
+	router := mountFingerprintRouter(
+		slowredirect.NewFingerprintHandler(evtRepo),
+	)
 
 	const oversizeBytes = 128 * 1024
 	junk := strings.Repeat("A", oversizeBytes)
@@ -286,7 +296,11 @@ func TestFingerprintHandler_EmptyTokenID_Returns204(t *testing.T) {
 
 	require.Contains(
 		t,
-		[]int{http.StatusNoContent, http.StatusNotFound, http.StatusMovedPermanently},
+		[]int{
+			http.StatusNoContent,
+			http.StatusNotFound,
+			http.StatusMovedPermanently,
+		},
 		rr.Code,
 		"empty token id must not produce a 5xx — handler's guard returns 204, chi may also redirect or 404 at the routing layer",
 	)

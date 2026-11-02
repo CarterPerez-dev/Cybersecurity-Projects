@@ -254,7 +254,7 @@ func hold_(
 
 	defer func() {
 		stop()
-		<-renewals
+		_ = <-renewals
 	}()
 
 	var timer <-chan time.Time

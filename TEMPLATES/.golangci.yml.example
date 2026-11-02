@@ -9,9 +9,11 @@
 #   golangci-lint fmt ./...       format (gofumpt + gci + golines)
 #   golangci-lint run --fix ./... lint with autofixes
 #
-# Validated on v2.10.1 (the version this repo's CI installs) and v2.15.0
-# (current). Pin ONE exact version per project, in CI and locally, so lint
-# results never change underneath you.
+# Requires golangci-lint >= v2.14.0 (the gofumpt `extra` block below).
+# Validated on v2.15.0, the version this repo's CI installs. Pin ONE exact
+# version, in CI and on every developer machine, so lint results never
+# change underneath you: older releases do not fail on `extra`, they
+# silently ignore it, so local formatting would drift from CI.
 #
 # Docs:      https://golangci-lint.run/docs/configuration/file/
 # Reference: https://github.com/golangci/golangci-lint/blob/main/.golangci.reference.yml
@@ -173,14 +175,12 @@ formatters:
     - golines
   settings:
     gofumpt:
-      # Extra rules: `a, b int` instead of `a int, b int`, and no naked
-      # returns in functions with named results.
-      #
-      # v2.14+ spells this as an `extra:` block (group-params,
-      # clothe-returns) and warns that `extra-rules` is deprecated, but
-      # v2.13 and older REJECT `extra:` as an unknown key and fail. This
-      # spelling runs on both; switch once CI is on v2.14 or newer.
-      extra-rules: true
+      # group-params: `a, b int` instead of `a int, b int`.
+      # clothe-returns: no naked returns in functions with named results.
+      # (The deprecated `extra-rules: true` turned on both.)
+      extra:
+        group-params: true
+        clothe-returns: true
     gci:
       sections:
         - standard

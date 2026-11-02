@@ -107,7 +107,8 @@ func setRateLimitHeaders(
 	h.Set("X-RateLimit-Limit", strconv.Itoa(limit.Rate))
 	h.Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
 	h.Set("X-RateLimit-Reset", strconv.FormatInt(
-		time.Now().Add(res.ResetAfter).Unix(), 10))
+		time.Now().Add(res.ResetAfter).Unix(), 10,
+	))
 
 	windowSecs := int(limit.Period.Seconds())
 	h.Set("RateLimit-Policy", fmt.Sprintf(`%d;w=%d`, limit.Rate, windowSecs))

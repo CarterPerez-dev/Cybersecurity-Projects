@@ -22,7 +22,9 @@ formatters:
         - localmodule
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
 
 linters:
   default: none

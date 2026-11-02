@@ -83,7 +83,8 @@ func (a *ComposeAnalyzer) Analyze(
 
 		findings = append(
 			findings,
-			a.analyzeService(target, serviceName, serviceNode)...)
+			a.analyzeService(target, serviceName, serviceNode)...,
+		)
 	}
 
 	return findings, nil
@@ -98,25 +99,31 @@ func (a *ComposeAnalyzer) analyzeService(
 
 	findings = append(
 		findings,
-		a.checkPrivileged(target, serviceName, node)...)
+		a.checkPrivileged(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkCapabilities(target, serviceName, node)...)
+		a.checkCapabilities(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkVolumes(target, serviceName, node)...)
 	findings = append(
 		findings,
-		a.checkNetworkMode(target, serviceName, node)...)
+		a.checkNetworkMode(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkPidMode(target, serviceName, node)...)
 	findings = append(findings, a.checkIpcMode(target, serviceName, node)...)
 	findings = append(
 		findings,
-		a.checkSecurityOpt(target, serviceName, node)...)
+		a.checkSecurityOpt(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkResourceLimits(target, serviceName, node)...)
+		a.checkResourceLimits(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkEnvironment(target, serviceName, node)...)
+		a.checkEnvironment(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkPorts(target, serviceName, node)...)
 	findings = append(findings, a.checkUser(target, serviceName, node)...)
 	findings = append(findings, a.checkReadOnly(target, serviceName, node)...)

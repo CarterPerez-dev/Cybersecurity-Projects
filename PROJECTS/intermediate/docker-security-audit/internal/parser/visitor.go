@@ -144,13 +144,15 @@ func (r *MultiRule) Check(ctx *RuleContext) []*finding.Finding {
 	if ctx.Dockerfile != nil && r.DockerfileCheck != nil {
 		findings = append(
 			findings,
-			r.DockerfileCheck(ctx.Dockerfile, ctx.Target)...)
+			r.DockerfileCheck(ctx.Dockerfile, ctx.Target)...,
+		)
 	}
 
 	if ctx.ComposeFile != nil && r.ComposeCheck != nil {
 		findings = append(
 			findings,
-			r.ComposeCheck(ctx.ComposeFile, ctx.Target)...)
+			r.ComposeCheck(ctx.ComposeFile, ctx.Target)...,
+		)
 	}
 
 	return findings

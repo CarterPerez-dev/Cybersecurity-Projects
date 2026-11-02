@@ -35,10 +35,12 @@ func revocationObservation(consulted int64) Observation {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 

@@ -17,6 +17,16 @@ import (
 
 const defaultCanaryBaseURL = "http://localhost:8080"
 
+const defaultTimeout = "30s"
+
+const (
+	keyTrustedProxyCIDRs  = "server.trusted_proxy_cidrs"
+	keyCanaryBaseURL      = "canary.base_url"
+	keyTurnstileSecretKey = "turnstile.secret_key"
+	keyMySQLEnabled       = "mysql.enabled"
+	keyMySQLAddr          = "mysql.addr"
+)
+
 type Config struct {
 	App       AppConfig       `koanf:"app"`
 	Server    ServerConfig    `koanf:"server"`
@@ -206,11 +216,11 @@ func loadDefaults(k *koanf.Koanf) error {
 
 		"server.host":             "0.0.0.0",
 		"server.port":             8080,
-		"server.read_timeout":     "30s",
-		"server.write_timeout":    "30s",
+		"server.read_timeout":     defaultTimeout,
+		"server.write_timeout":    defaultTimeout,
 		"server.idle_timeout":     "120s",
 		"server.shutdown_timeout": "15s",
-		"server.trusted_proxy_cidrs": []string{
+		keyTrustedProxyCIDRs: []string{
 			"127.0.0.1/32",
 			"::1/128",
 			"10.0.0.0/8",
@@ -260,27 +270,27 @@ func loadDefaults(k *koanf.Koanf) error {
 		"otel.sample_rate":  0.1,
 		"otel.service_name": "canary-token-generator",
 
-		"canary.base_url":   defaultCanaryBaseURL,
+		keyCanaryBaseURL:    defaultCanaryBaseURL,
 		"canary.manage_url": defaultCanaryBaseURL,
 
-		"turnstile.secret_key": "",
-		"turnstile.site_key":   "",
+		keyTurnstileSecretKey: "",
+		"turnstile.site_key":  "",
 
-		"mysql.enabled":     false,
-		"mysql.addr":        "0.0.0.0:3306",
+		keyMySQLEnabled:     false,
+		keyMySQLAddr:        "0.0.0.0:3306",
 		"mysql.public_host": "localhost",
 		"mysql.public_port": 3306,
 
 		"notify.dedup_ttl":           "15m",
-		"notify.send_timeout":        "30s",
+		"notify.send_timeout":        defaultTimeout,
 		"notify.max_tries":           3,
-		"notify.max_elapsed":         "30s",
+		"notify.max_elapsed":         defaultTimeout,
 		"notify.initial_interval":    "500ms",
 		"notify.retention_interval":  "1h",
 		"notify.retention_limit":     100,
 		"notify.webhook_hmac_secret": "",
 		"notify.telegram_api_base":   "https://api.telegram.org",
-		"notify.fingerprint_window":  "30s",
+		"notify.fingerprint_window":  defaultTimeout,
 
 		"operator.token": "",
 
@@ -313,17 +323,17 @@ var envKeyMap = map[string]string{
 	"OTEL_ENABLED":                 "otel.enabled",
 	"OTEL_INSECURE":                "otel.insecure",
 	"OTEL_SAMPLE_RATE":             "otel.sample_rate",
-	"CANARY_BASE_URL":              "canary.base_url",
-	"PUBLIC_BASE_URL":              "canary.base_url",
+	"CANARY_BASE_URL":              keyCanaryBaseURL,
+	"PUBLIC_BASE_URL":              keyCanaryBaseURL,
 	"CANARY_MANAGE_URL":            "canary.manage_url",
-	"TRUSTED_PROXY_CIDRS":          "server.trusted_proxy_cidrs",
-	"TURNSTILE_SECRET_KEY":         "turnstile.secret_key",
-	"TURNSTILE_SECRET":             "turnstile.secret_key",
+	"TRUSTED_PROXY_CIDRS":          keyTrustedProxyCIDRs,
+	"TURNSTILE_SECRET_KEY":         keyTurnstileSecretKey,
+	"TURNSTILE_SECRET":             keyTurnstileSecretKey,
 	"TURNSTILE_SITE_KEY":           "turnstile.site_key",
-	"MYSQL_ENABLED":                "mysql.enabled",
-	"MYSQL_FAKE_ENABLED":           "mysql.enabled",
-	"MYSQL_ADDR":                   "mysql.addr",
-	"MYSQL_FAKE_ADDR":              "mysql.addr",
+	"MYSQL_ENABLED":                keyMySQLEnabled,
+	"MYSQL_FAKE_ENABLED":           keyMySQLEnabled,
+	"MYSQL_ADDR":                   keyMySQLAddr,
+	"MYSQL_FAKE_ADDR":              keyMySQLAddr,
 	"MYSQL_PUBLIC_HOST":            "mysql.public_host",
 	"MYSQL_PUBLIC_PORT":            "mysql.public_port",
 	"RATE_LIMIT_CREATE_MIN_RATE":   "rate_limit.create_min_rate",
@@ -345,7 +355,7 @@ var envKeyMap = map[string]string{
 }
 
 var envSliceKeys = map[string]struct{}{
-	"server.trusted_proxy_cidrs": {},
+	keyTrustedProxyCIDRs: {},
 }
 
 func envKeyReplacer(s string) string {
