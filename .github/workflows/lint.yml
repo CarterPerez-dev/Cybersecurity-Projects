@@ -213,7 +213,7 @@ jobs:
 
     - name: Install uv
       if: matrix.type == 'ruff' || matrix.type == 'cpp'
-      uses: astral-sh/setup-uv@v10
+      uses: astral-sh/setup-uv@v10.3.3
 
     - name: Install ruff
       if: matrix.type == 'ruff'

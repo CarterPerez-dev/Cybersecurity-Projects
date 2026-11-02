@@ -51,7 +51,7 @@ jobs:
 
       - name: Install uv
         if: steps.version_check.outputs.exists != 'true'
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.3.3
 
       - name: Build package
         if: steps.version_check.outputs.exists != 'true'
