@@ -82,7 +82,7 @@ services:
     restart: always
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: ${APP_NAME:-canary-token-generator}-postgres
     environment:
       POSTGRES_USER: canary

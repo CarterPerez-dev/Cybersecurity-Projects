@@ -14,7 +14,7 @@ name: ${APP_NAME:-tlsfp}-dev
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: ${APP_NAME:-tlsfp}-nginx-dev
     ports:
       - "${NGINX_HOST_PORT:-48418}:80"

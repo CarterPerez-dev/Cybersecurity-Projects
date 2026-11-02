@@ -9,7 +9,7 @@ name: ${APP_NAME:-c2-beacon}-dev
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: ${APP_NAME:-c2-beacon}-nginx-dev
     ports:
       - "${NGINX_HOST_PORT:-47430}:80"

@@ -6,7 +6,7 @@ name: apisec
 services:
   # PostgreSQL Database
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: apisec_db_prod
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-apiuser}

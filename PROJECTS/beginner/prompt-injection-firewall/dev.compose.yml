@@ -59,7 +59,7 @@ services:
       - arena
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: not-sandboxed-arena-dev-nginx
     ports:
       - "127.0.0.1:${NS_UI_DEV_PORT:-61878}:80"

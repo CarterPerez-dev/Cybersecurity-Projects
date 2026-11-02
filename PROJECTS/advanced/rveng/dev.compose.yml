@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: rveng-nginx-dev
     ports:
       - "${NGINX_HOST_PORT:-8791}:80"

@@ -10,7 +10,7 @@ name: ${APP_NAME:-canary-token-generator}-dev
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: ${APP_NAME:-canary-token-generator}-nginx-dev
     ports:
       - "${NGINX_HOST_PORT:-22784}:80"
@@ -123,7 +123,7 @@ services:
     restart: unless-stopped
 
   jaeger:
-    image: jaegertracing/all-in-one:1.54
+    image: jaegertracing/all-in-one:1.60
     container_name: ${APP_NAME:-canary-token-generator}-jaeger-dev
     ports:
       - "${JAEGER_UI_PORT:-16686}:16686"

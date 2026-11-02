@@ -6,7 +6,7 @@ name: ${APP_NAME:-template}-dev
 services:
   # Nginx
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.29-alpine
     container_name: ${APP_NAME:-template}-nginx-dev
     ports:
       - "${NGINX_HOST_PORT:-8420}:80"
@@ -75,7 +75,7 @@ services:
 
   # PostgreSQL DB
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: ${APP_NAME:-template}-db-dev
     ports:
       - "${POSTGRES_HOST_PORT:-3420}:5432"
