@@ -1,4 +1,7 @@
-# ⒸAngelaMos | 2025
+# ©AngelaMos | 2026
+# dev.compose.yml
+
+name: apisec-dev
 
 services:
   # PostgreSQL Database
@@ -10,7 +13,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apipass}
       POSTGRES_DB: ${POSTGRES_DB:-apisecurity}
     ports:
-      - "${HOST_DB_PORT:-5432}:5432"
+      - "127.0.0.1:${HOST_DB_PORT:-44432}:5432"
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
     healthcheck:
@@ -33,9 +36,9 @@ services:
       DEBUG: "true"
       BACKEND_HOST: ${BACKEND_HOST:-0.0.0.0}
       BACKEND_PORT: ${BACKEND_PORT:-8000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:44173,http://localhost:44380}
     ports:
-      - "${HOST_BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${HOST_BACKEND_PORT:-44800}:8000"
     volumes:
       - ./backend:/app
     depends_on:
@@ -46,15 +49,20 @@ services:
     restart: unless-stopped
 
   # React Frontend - Vite HMR
+  # node_modules lives in a volume so the bind mount cannot hide it, and
+  # every start installs the CURRENT package.json into it: a package added
+  # on the host appears after a restart, no volume deletion needed.
   frontend:
     build:
       context: .
       dockerfile: conf/docker/dev/vite.dockerfile
     container_name: apisec_frontend_dev
+    command: sh -c "pnpm install && exec pnpm dev --host 0.0.0.0"
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      CI: "true"
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:44800}
     ports:
-      - "${HOST_FRONTEND_PORT:-5173}:5173"
+      - "127.0.0.1:${HOST_FRONTEND_PORT:-44173}:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -67,7 +75,7 @@ services:
     image: nginx:alpine
     container_name: apisec_nginx_dev
     ports:
-      - "${HOST_NGINX_PORT:-80}:80"
+      - "127.0.0.1:${HOST_NGINX_PORT:-44380}:80"
     volumes:
       - ./conf/nginx/dev.nginx:/etc/nginx/nginx.conf:ro
       - ./conf/nginx/http.conf:/etc/nginx/http.conf:ro

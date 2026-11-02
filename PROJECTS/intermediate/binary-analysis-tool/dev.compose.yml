@@ -68,7 +68,7 @@ services:
     image: postgres:18-alpine
     container_name: ${APP_NAME:-axumortem}-postgres-dev
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-46321}:5432"
     environment:
       - POSTGRES_USER=axumortem
       - POSTGRES_PASSWORD=axumortem

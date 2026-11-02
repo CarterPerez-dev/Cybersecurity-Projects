@@ -95,7 +95,7 @@ services:
       dockerfile: infra/docker/vite.prod.dockerfile
     container_name: vigil-frontend
     ports:
-      - "${FRONTEND_HOST_PORT:-80}:80"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-46969}:80"
     depends_on:
       backend:
         condition: service_healthy

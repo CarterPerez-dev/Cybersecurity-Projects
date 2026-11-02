@@ -40,7 +40,7 @@ If you work on a blue team, this project shows you exactly how the primitives wo
 ### Required Tools
 
 - **just** as a command runner. Install: `curl -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin`
-- **pnpm** for Node package management (never npm). Install: `corepack enable && corepack prepare pnpm@latest --activate`
+- **pnpm** for Node package management (never npm). Install: `corepack enable && corepack prepare pnpm@10.29.1 --activate`
 - **Docker Compose** (bundled with Docker Desktop or installed as a plugin)
 
 ### Optional But Useful

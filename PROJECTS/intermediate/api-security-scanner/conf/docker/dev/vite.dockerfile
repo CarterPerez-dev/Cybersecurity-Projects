@@ -1,24 +1,20 @@
-# ⒸAngelaMos | 2025
-# Development Vite Dockerfile
-# Runs Vite dev server with HMR (Hot Module Replacement)
-# Uses volume mounts for code (defined in docker-compose.dev.yml)
+# ©AngelaMos | 2026
+# vite.dockerfile
+# syntax=docker/dockerfile:1
 
-FROM node:20-alpine
+FROM node:24-slim
 
-# Set working directory
+RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
+
 WORKDIR /app
 
-# Copy package files first (for layer caching)
-COPY frontend/package*.json ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
-# Install dependencies
-RUN npm ci
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Copy application code (in dev this is overridden by volume mount)
 COPY frontend/ .
 
-# Expose port
 EXPOSE 5173
 
-# Run Vite dev server with --host to allow external connections
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

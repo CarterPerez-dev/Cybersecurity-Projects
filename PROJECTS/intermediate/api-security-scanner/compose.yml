@@ -1,4 +1,7 @@
-# ⒸAngelaMos | 2026
+# ©AngelaMos | 2026
+# compose.yml
+
+name: apisec
 
 services:
   # PostgreSQL Database
@@ -11,7 +14,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-apisecurity}
     # Uncomment to expose DB port (not recommended for production)
     # ports:
-    #   - "${HOST_DB_PORT:-5432}:5432"
+    #   - "127.0.0.1:${HOST_DB_PORT:-44432}:5432"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
@@ -58,9 +61,9 @@ services:
       dockerfile: conf/docker/prod/vite.dockerfile
     container_name: apisec_frontend_prod
     ports:
-      - "${HOST_NGINX_PORT:-80}:80"
+      - "127.0.0.1:${HOST_NGINX_PORT:-44380}:80"
       # Uncomment for HTTPS - or dns proxy with Cloudfare:
-      # - "${HOST_NGINX_HTTPS_PORT:-443}:443"
+      # - "127.0.0.1:${HOST_NGINX_HTTPS_PORT:-44443}:443"
     depends_on:
       - backend
     networks:

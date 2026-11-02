@@ -36,7 +36,7 @@ If you work on a blue team, in incident response, or in threat intelligence, und
 ### Required Tools
 
 - **uv** for Python package management (never pip). Install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **pnpm** for Node package management (never npm). Install: `corepack enable && corepack prepare pnpm@latest --activate`
+- **pnpm** for Node package management (never npm). Install: `corepack enable && corepack prepare pnpm@10.29.1 --activate`
 - **just** as a command runner. Install: `cargo install just` or `brew install just`
 - **Docker Compose** (comes with Docker Desktop, or install the plugin separately)
 

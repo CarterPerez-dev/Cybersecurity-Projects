@@ -28,7 +28,7 @@ services:
       dockerfile: conf/docker/dev/go.dockerfile
     container_name: monitor-dev-backend
     ports:
-      - "${BACKEND_HOST_PORT:-5432}:8080"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-45280}:8080"
     volumes:
       - ./backend:/app
       - go-mod-cache:/go/pkg/mod

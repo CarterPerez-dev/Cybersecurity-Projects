@@ -66,9 +66,11 @@ http {
         add_header X-XSS-Protection "1; mode=block" always;
         add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
-        # Backend API routes
-        location /api {
-            proxy_pass http://backend;
+        # Backend API routes. The trailing slashes strip the /api prefix:
+        # the backend serves /auth and /scans, the frontend calls
+        # /api/auth and /api/scans (same rule as dev.nginx).
+        location /api/ {
+            proxy_pass http://backend/;
 
             # Apply common proxy settings
             proxy_http_version 1.1;
