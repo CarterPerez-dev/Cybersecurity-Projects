@@ -2,114 +2,186 @@
 # dependabot.yml.example
 #
 # Annotated Dependabot configuration for Cybersecurity-Projects.
-# Copy to `.github/dependabot.yml` in your repository.
+# Copy to `.github/dependabot.yml`. Delete the ecosystems you do not use.
+# Validate before pushing (also wired into .pre-commit-config.yaml.example):
+#   uvx check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
 #
-# Dependabot automatically opens PRs to update outdated dependencies.
-# It's GitHub-native, free, and requires zero infrastructure.
+# Two independent mechanisms share this file:
+#   version updates    the schedule below: "a newer version exists"
+#   security updates   immediate PRs for a known CVE, enabled in the repo's
+#                      Settings > Code security. NOT delayed by cooldown or
+#                      limited by open-pull-requests-limit.
 #
-# For a security-focused repo, keeping deps patched is non-negotiable.
-# Most CVEs are in transitive dependencies you never directly imported.
-#
-# Docs:   https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
-# Config: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+# Docs: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
 
 version: 2
 
 updates:
-# TODO change to uv
-  # ── Python (pip ecosystem) ────────────────────────────────────────────────
-  # Covers pyproject.toml, requirements.txt, setup.py.
-  # Use "pip" even if you use uv — Dependabot reads the manifest format,
-  # not the package manager binary.
-  #
-  # directory: path to the manifest file relative to repo root.
-  #   Root-level project:  "/"
-  #   Fullstack project:   "/backend"
 
-  - package-ecosystem: "pip"
+  # ── Python (uv) ─────────────────────────────────────────────────────────────
+  # `uv` updates pyproject.toml AND regenerates uv.lock. The old `pip`
+  # ecosystem only edits the manifest and leaves uv.lock stale, which makes
+  # every `uv sync --locked` in CI fail.
+  #
+  # cooldown: a release must be this many days old before Dependabot
+  # proposes it. Most malicious package versions are caught and yanked
+  # within days, so a short wait is cheap supply-chain insurance. Security
+  # updates ignore it.
+  #
+  # groups: one PR for all minor+patch bumps; each major stays its own PR so
+  # a breaking change is reviewed (and reverted) on its own.
+
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    # Groups batch related updates into fewer PRs.
-    # Without groups, each dep gets its own PR — noisy for active projects.
+      time: "09:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      python-deps:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
         patterns: ["*"]
-    labels:
-      - "dependencies"
-      - "python"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "python"]
     commit-message:
       prefix: "chore(deps)"
 
 
-  # ── npm / pnpm ────────────────────────────────────────────────────────────
-  # Covers package.json. Works with pnpm lockfiles.
-  # Delete this section for Python-only projects.
+  # ── JavaScript (pnpm) ───────────────────────────────────────────────────────
+  # pnpm has no ecosystem key of its own; "npm" handles pnpm-lock.yaml and
+  # regenerates it with the pnpm version pinned in package.json
+  # `packageManager`. Keep that pin exact, or the lockfile format can change
+  # under a Dependabot PR.
+  #
+  # Runtime and tooling are grouped separately, so a dev-tool bump that
+  # breaks the build never holds runtime updates hostage in the same PR.
+  # (Security updates are separate PRs regardless of groups.)
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      # Split prod and dev deps so you can prioritize runtime updates.
-      npm-prod:
+      npm-runtime:
         dependency-type: "production"
-        patterns: ["*"]
-      npm-dev:
+        update-types: ["minor", "patch"]
+      npm-tooling:
         dependency-type: "development"
-        patterns: ["*"]
-    labels:
-      - "dependencies"
-      - "javascript"
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "javascript"]
     commit-message:
       prefix: "chore(deps)"
 
 
-  # ── Docker ────────────────────────────────────────────────────────────────
-  # Updates base image tags in Dockerfiles (e.g., python:3.13-slim).
-  # Delete this section if your project has no Dockerfiles.
+  # ── Docker ──────────────────────────────────────────────────────────────────
+  # `docker` bumps FROM lines in Dockerfiles; `docker-compose` bumps
+  # `image:` tags in compose files. Neither receives security updates, so a
+  # base image only moves when these run.
+  #
+  # Dependabot only scans files whose NAME matches /dockerfile|containerfile/i
+  # (dependabot-core docker/file_fetcher.rb). `Dockerfile`, `Dockerfile.prod`
+  # and `vite.prod.Dockerfile` are found; `infra/docker/vite.prod` and
+  # `conf/docker/prod/api.docker` are silently skipped. Name build files
+  # `<service>.<env>.Dockerfile` and list every directory that holds them.
 
   - package-ecosystem: "docker"
+    directories: ["/", "/infra/docker"]
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(docker)"
+
+  - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
-      - "docker"
+      day: "monday"
+    labels: ["dependencies", "docker"]
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore(docker)"
 
 
-  # ── GitHub Actions ────────────────────────────────────────────────────────
-  # Updates action versions in .github/workflows/*.yml.
-  # Pinned actions (e.g., actions/checkout@v4) can fall behind on patches.
-  # This keeps them current.
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  # Bumps `uses:` refs in .github/workflows. Actions run with repository
+  # tokens, so stale actions are a supply-chain surface of their own.
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
-      - "ci"
+      day: "monday"
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(ci)"
 
 
-  # ── Go (uncomment for Go projects) ────────────────────────────────────────
-  # Updates go.mod dependencies.
+  # ── pre-commit ──────────────────────────────────────────────────────────────
+  # Bumps every `rev:` in .pre-commit-config.yaml, replacing the manual
+  # `pre-commit autoupdate`.
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      pre-commit-hooks:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+
+
+  # ── Go (uncomment for Go projects) ──────────────────────────────────────────
+  # Updates go.mod and go.sum.
   #
   # - package-ecosystem: "gomod"
   #   directory: "/"
   #   schedule:
   #     interval: "weekly"
+  #     day: "monday"
+  #   cooldown:
+  #     default-days: 3
+  #     semver-major-days: 14
   #   groups:
-  #     go-deps:
+  #     go-minor-patch:
+  #       update-types: ["minor", "patch"]
   #       patterns: ["*"]
-  #   labels:
-  #     - "dependencies"
-  #     - "go"
+  #   labels: ["dependencies", "go"]
+  #   commit-message:
+  #     prefix: "chore(deps)"
+
+
+  # ── Rust (uncomment for Rust projects) ──────────────────────────────────────
+  # Updates Cargo.toml and Cargo.lock.
+  #
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   cooldown:
+  #     default-days: 3
+  #     semver-major-days: 14
+  #   groups:
+  #     cargo-minor-patch:
+  #       update-types: ["minor", "patch"]
+  #       patterns: ["*"]
+  #   labels: ["dependencies", "rust"]
   #   commit-message:
   #     prefix: "chore(deps)"

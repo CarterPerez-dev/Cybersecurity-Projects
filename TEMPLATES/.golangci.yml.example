@@ -1,113 +1,191 @@
-# AngelaMos | 2026
-# .golangci.yml
+# ©AngelaMos | 2026
+# .golangci.yml.example
+#
+# Annotated golangci-lint v2 configuration for Cybersecurity-Projects.
+# Copy next to go.mod, rename to `.golangci.yml`.
+#
+#   golangci-lint config verify   validate this file against the schema
+#   golangci-lint run ./...       lint
+#   golangci-lint fmt ./...       format (gofumpt + gci + golines)
+#   golangci-lint run --fix ./... lint with autofixes
+#
+# Validated on v2.10.1 (the version this repo's CI installs) and v2.15.0
+# (current). Pin ONE exact version per project, in CI and locally, so lint
+# results never change underneath you.
+#
+# Docs:      https://golangci-lint.run/docs/configuration/file/
+# Reference: https://github.com/golangci/golangci-lint/blob/main/.golangci.reference.yml
 
 version: "2"
+
+run:
+  # Paths in reports and in exclusion rules are relative to go.mod, so a
+  # config copied between projects behaves identically.
+  relative-path-mode: gomod
+
+
+# ── Linters ───────────────────────────────────────────────────────────────────
+# `default: none` + an explicit list: a golangci-lint upgrade can never
+# silently add a linter and turn CI red. A linter's `settings` block does
+# NOTHING unless the linter is also in `enable`.
 
 linters:
   default: none
   enable:
-    - errcheck
-    - govet
-    - gosec
-    - bodyclose
-    - nilerr
-    - errorlint
-    - exhaustive
-    - gocritic
-    - funlen
-    - gocognit
-    - dupl
-    - goconst
-    - ineffassign
-    - unused
-    - unconvert
-    - unparam
-    - testifylint
-    - fatcontext
+    # Correctness: the standard set
+    - errcheck            # unchecked errors
+    - govet               # go vet, all analyzers below
+    - staticcheck         # SA/S/ST/QF; gosimple + stylecheck merged in v2
+    - ineffassign         # assignments never read
+    - unused              # dead code
+
+    # Errors
+    - errorlint           # %w wrapping, errors.Is/As instead of ==
+    - nilerr              # returns nil after checking err != nil
+    - nilnil              # `return nil, nil` hides the not-found case
+    - errname             # ErrFoo sentinels, FooError types
+
+    # Security
+    - gosec               # G-series security checks
+    - bodyclose           # http.Response.Body never closed
+    - noctx               # HTTP/SQL/exec calls without a context
+    - sqlclosecheck       # sql.Rows / Stmt never closed
+    - rowserrcheck        # rows.Err() never checked
+    - forcetypeassert     # x.(T) without ok panics on bad input
+
+    # Context
+    - contextcheck        # non-inherited context passed down
+    - fatcontext          # context growing inside a loop
+
+    # Design and complexity
+    - exhaustive          # switch over an enum misses a case
+    - gocritic            # broad bug and style diagnostics
+    - gocognit            # cognitive complexity
+    - funlen              # function length
+    - dupl                # copy-pasted blocks
+    - goconst             # repeated string literals that want a constant
+    - unparam             # parameters that always receive the same value
+    - unconvert           # redundant conversions
+    - recvcheck           # mixed value/pointer receivers on one type
+    - gochecknoinits      # init() with hidden side effects
+
+    # Modern Go
+    - modernize           # rewrites to current stdlib idioms
+    - copyloopvar         # `x := x` copies redundant since Go 1.22
+    - intrange            # for i := range n
+    - usestdlibvars       # http.MethodGet instead of "GET"
+    - perfsprint          # fmt.Sprintf where strconv is enough
+    - exptostd            # x/exp packages that moved into std
+    - predeclared         # shadowing len, new, error, ...
+    - misspell
+
+    # Tests
+    - testifylint         # testify misuse
+    - thelper             # t.Helper() in test helpers
+    - tparallel           # inconsistent t.Parallel()
+    - usetesting          # t.TempDir / t.Context over os.* in tests
+
+    # Hygiene
+    - nolintlint          # every //nolint names a linter and a reason
 
   settings:
     errcheck:
       check-type-assertions: true
-      check-blank: true
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # struct reordering for padding: noise, not bugs
+        - shadow          # flags the idiomatic `err :=` in nested scopes
+
+    staticcheck:
+      checks:
+        - all
+        - -ST1000         # package comment on every package
+        - -ST1003         # initialisms (Id vs ID) in identifiers
+
+    exhaustive:
+      # A `default:` branch is a deliberate catch-all, not a missed case.
+      default-signifies-exhaustive: true
 
     funlen:
-      lines: 100
+      lines: 88
       statements: 50
 
     gocognit:
       min-complexity: 20
 
-    govet:
-      enable-all: true
-      disable:
-        - fieldalignment
-
-    revive:
-      rules:
-        - name: blank-imports
-        - name: context-as-argument
-        - name: context-keys-type
-        - name: error-return
-        - name: error-strings
-        - name: error-naming
-        - name: exported
-        - name: increment-decrement
-        - name: var-declaration
-        - name: package-comments
-          disabled: true
-        - name: range
-        - name: receiver-naming
-        - name: time-naming
-        - name: unexported-return
-        - name: indent-error-flow
-        - name: errorf
-        - name: empty-block
-        - name: superfluous-else
-        - name: unreachable-code
-
-    staticcheck:
-      checks:
-        - all
-
     gosec:
       excludes:
-        - G104
+        - G104            # duplicate of errcheck
 
-    sloglint:
-      no-mixed-args: true
-      kv-only: true
-      context: all
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+  exclusions:
+    # Generated files (with a "Code generated ... DO NOT EDIT." header) are
+    # never linted.
+    generated: strict
+    paths:
+      - vendor
+      - testdata
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - dupl
+          - goconst
+          - gocognit
+          - errcheck
+          - forcetypeassert
+
+
+# ── Issues ────────────────────────────────────────────────────────────────────
+# 0 = unlimited. The defaults (50 per linter, 3 per identical message) hide
+# real findings behind the first few.
+#
+# uniq-by-line: false. The default reports ONE issue per line, so a gosec
+# hit on `http.Get(u)` silently swallows the noctx hit on the same call.
 
 issues:
-  max-same-issues: 50
-  exclude-dirs:
-    - vendor
-    - testdata
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - dupl
-        - goconst
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
 
+
+# ── Formatters ────────────────────────────────────────────────────────────────
+# `golangci-lint fmt` runs these in a fixed order: gofumpt (stricter gofmt),
+# then gci (import grouping), then golines (wraps long lines).
+#
+# gci sections: standard library, third party, then this module. The
+# `localmodule` section reads the module path from go.mod, so there is no
+# import prefix to hard-code (or to get the capitalization wrong in).
 
 formatters:
   enable:
-    - gci        # Groups imports
-    - gofumpt    # Whitespace
-    - golines    # Vertical wrap
+    - gofumpt
+    - gci
+    - golines
   settings:
-    golines:
-      max-len: 80
-      reformat-tags: true
-    goimports:
-      local-prefixes:
-        - github.com/GITHUB-USERNAME-HERE/LOCAL-IMPORT-NAME-HERE
+    gofumpt:
+      # Extra rules: `a, b int` instead of `a int, b int`, and no naked
+      # returns in functions with named results.
+      #
+      # v2.14+ spells this as an `extra:` block (group-params,
+      # clothe-returns) and warns that `extra-rules` is deprecated, but
+      # v2.13 and older REJECT `extra:` as an unknown key and fail. This
+      # spelling runs on both; switch once CI is on v2.14 or newer.
+      extra-rules: true
     gci:
       sections:
         - standard
         - default
-        - prefix(github.com/GITHUB-USERNAME-HERE)
-      custom-order: true
-    gofumpt:
-      extra-rules: true
+        - localmodule
+    golines:
+      max-len: 80
+      reformat-tags: true

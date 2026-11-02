@@ -1,0 +1,161 @@
+# ©AngelaMos | 2026
+# .gitattributes.example
+#
+# Annotated .gitattributes template for Cybersecurity-Projects.
+# Copy into your project ROOT, rename to `.gitattributes`.
+#
+# .editorconfig controls what your editor WRITES. This file controls what
+# git STORES and how it diffs, merges and archives. A contributor with
+# core.autocrlf=true on Windows cannot push CRLF past this file.
+#
+# Later lines win over earlier ones for the same attribute, so the order is:
+# global default, then text overrides, then binary, then linguist hints.
+#
+# After adding this to an existing repo, renormalize once:
+#   git add --renormalize .
+#   git commit -m "chore: normalize line endings"
+#
+# Docs:     https://git-scm.com/docs/gitattributes
+# Linguist: https://github.com/github-linguist/linguist/blob/main/docs/overrides.md
+
+
+# ── Default ───────────────────────────────────────────────────────────────────
+# Git decides text vs binary by content sniffing, and every file it treats as
+# text is stored AND checked out with LF.
+
+* text=auto eol=lf
+
+
+# ── Text That Must Stay LF ────────────────────────────────────────────────────
+# Explicit, so content sniffing can never misclassify them. A CRLF shebang
+# line gives "bad interpreter: /bin/bash^M".
+
+*.sh            text eol=lf diff=bash
+*.bash          text eol=lf diff=bash
+*.zsh           text eol=lf diff=bash
+Makefile        text eol=lf
+*.mk            text eol=lf
+justfile        text eol=lf
+Dockerfile*     text eol=lf
+*.Dockerfile    text eol=lf
+*.dockerfile    text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+
+# ── Text That Must Be CRLF ────────────────────────────────────────────────────
+# cmd.exe misparses LF-only batch files. (PowerShell reads LF fine, so *.ps1
+# stays on the LF default.)
+
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+
+# ── Language-Aware Diffs ──────────────────────────────────────────────────────
+# Git ships hunk-header drivers for these. `git diff` then shows the enclosing
+# function or class in each @@ header instead of a random previous line.
+
+*.py            text diff=python
+*.go            text diff=golang
+*.rs            text diff=rust
+*.c             text diff=cpp
+*.h             text diff=cpp
+*.cc            text diff=cpp
+*.cpp           text diff=cpp
+*.hpp           text diff=cpp
+*.css           text diff=css
+*.scss          text diff=css
+*.html          text diff=html
+*.md            text diff=markdown
+*.mdx           text diff=markdown
+
+
+# ── Binary ────────────────────────────────────────────────────────────────────
+# `binary` = -text -diff -merge. No line-ending conversion, no textual diff,
+# no merge attempt. Listing them prevents a sniffing misfire from corrupting
+# an image or archive with an EOL rewrite.
+
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.avif          binary
+*.ico           binary
+*.bmp           binary
+*.pdf           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.otf           binary
+*.eot           binary
+*.mp3           binary
+*.mp4           binary
+*.webm          binary
+*.zip           binary
+*.gz            binary
+*.tgz           binary
+*.xz            binary
+*.zst           binary
+*.7z            binary
+*.tar           binary
+*.pcap          binary
+*.pcapng        binary
+*.der           binary
+*.p12           binary
+*.pfx           binary
+*.db            binary
+*.sqlite        binary
+*.sqlite3       binary
+*.so            binary
+*.dylib         binary
+*.dll           binary
+*.exe           binary
+*.wasm          binary
+
+
+# ── Lockfiles ─────────────────────────────────────────────────────────────────
+# linguist-generated collapses them in GitHub PR diffs and drops them from
+# the language bar. -diff hides them from local `git diff` too; the hash
+# change is still recorded, you just stop scrolling past 4,000 lines of it.
+# Never hand-merge a lockfile: resolve the manifest, then regenerate.
+
+pnpm-lock.yaml      linguist-generated=true -diff
+package-lock.json   linguist-generated=true -diff
+bun.lock            linguist-generated=true -diff
+uv.lock             linguist-generated=true -diff
+poetry.lock         linguist-generated=true -diff
+Cargo.lock          linguist-generated=true -diff
+go.sum              linguist-generated=true -diff
+flake.lock          linguist-generated=true -diff
+
+
+# ── Vendored / Generated Source ───────────────────────────────────────────────
+# Excluded from GitHub language statistics. Uncomment what applies.
+
+# vendor/**           linguist-vendored
+# third_party/**      linguist-vendored
+# **/*.pb.go          linguist-generated
+# **/*_gen.go         linguist-generated
+# **/*.min.js         linguist-generated -diff
+
+
+# ── Documentation Code Samples ────────────────────────────────────────────────
+# Linguist never counts Markdown (prose) in the language bar, and already
+# treats docs/ as documentation. learn/ is not on its list, so the code
+# SAMPLES in a learn/ folder (snippets, example .py or .go files) would count
+# as project source. These lines exclude them.
+
+docs/**         linguist-documentation
+learn/**        linguist-documentation
+
+
+# ── Release Archives ──────────────────────────────────────────────────────────
+# Paths excluded from `git archive` and GitHub's "Download ZIP" / release
+# tarballs. Users downloading a release do not need CI or dev tooling.
+
+.github/                    export-ignore
+.gitattributes              export-ignore
+.gitignore                  export-ignore
+.editorconfig               export-ignore
+.pre-commit-config.yaml     export-ignore

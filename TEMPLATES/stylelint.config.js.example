@@ -1,0 +1,30 @@
+// ©AngelaMos | 2026
+// stylelint.config.js.example
+//
+// Annotated stylelint configuration for Cybersecurity-Projects frontends.
+// Copy into frontend/, rename to `stylelint.config.js`. package.json has
+// "type": "module", so this file is ESM (`export default`).
+//
+// Division of labour: Biome formats and lints JS/TS/JSON, stylelint owns
+// SCSS. Nothing formats SCSS, so stylelint-config-standard-scss's layout
+// rules (blank line before a $variable, no space before its colon) are the
+// SCSS style and stay ON. stylelint-config-prettier-scss exists only to
+// switch those rules off when Prettier formats SCSS; with no Prettier here
+// it would just delete enforcement.
+//
+// Docs:  https://stylelint.io/user-guide/configure
+// Rules: https://github.com/stylelint-scss/stylelint-config-standard-scss
+
+export default {
+  extends: ['stylelint-config-standard-scss'],
+  ignoreFiles: ['dist/**', 'coverage/**'],
+  rules: {
+    // CSS Modules are read as `styles.fooBar` in TSX, so class names are
+    // camelCase. The standard config expects kebab-case, which would force
+    // `styles['foo-bar']` everywhere.
+    'selector-class-pattern': [
+      '^[a-z][a-zA-Z0-9]*$',
+      { message: 'CSS Module classes are camelCase (styles.fooBar)' },
+    ],
+  },
+}

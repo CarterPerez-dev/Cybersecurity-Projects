@@ -3,117 +3,185 @@
 #
 # Annotated EditorConfig template for Cybersecurity-Projects.
 # Copy into your project ROOT, rename to `.editorconfig`.
-# No plugins needed — VS Code, JetBrains, Neovim, and Zed support it natively.
+# JetBrains IDEs, Neovim (0.9+), Zed and Helix read it natively; VS Code
+# needs the EditorConfig extension (EditorConfig.EditorConfig).
 #
-# EditorConfig enforces consistent whitespace and encoding across every editor
-# and developer machine. It is NOT a replacement for formatters (ruff, biome,
-# gofmt) — it's the baseline that ensures files are sane before formatters run.
+# EditorConfig is the floor every editor agrees on BEFORE a formatter runs:
+# encoding, line endings, final newline, indentation. It is not a formatter.
+# yapf, ruff, biome, gofumpt, rustfmt and clang-format own the real style;
+# the values below are chosen so the editor never fights them.
+#
+# Pairs with .gitattributes.example: EditorConfig controls what your editor
+# WRITES, .gitattributes controls what git STORES. Use both.
 #
 # Docs: https://editorconfig.org
 # Spec: https://spec.editorconfig.org
 
 
 # ── Root Marker ───────────────────────────────────────────────────────────────
-# `root = true` stops EditorConfig from searching parent directories.
-# Always set this in the project root so configs don't leak between repos.
+# Stops the search for parent .editorconfig files. Without it, a stray file
+# in your home directory silently changes the rules for this repo.
 
 root = true
 
 
 # ── Global Defaults ───────────────────────────────────────────────────────────
-# These apply to EVERY file unless overridden by a more specific section below.
+# Every file starts here. Sections below override only what differs.
 #
 # end_of_line = lf
-#   Use LF everywhere (even on Windows). Git handles CRLF conversion via
-#   .gitattributes — the working tree should always be LF.
+#   LF everywhere, including Windows. .gitattributes enforces the same thing
+#   at the repository level, so a misconfigured editor cannot sneak CRLF in.
 #
 # insert_final_newline = true
-#   POSIX standard. Prevents "No newline at end of file" diffs.
+#   POSIX text files end in a newline. Kills "\ No newline at end of file".
 #
 # trim_trailing_whitespace = true
-#   Removes invisible trailing spaces that cause noisy diffs.
+#   Invisible trailing spaces are pure diff noise.
+#
+# spelling_language = en-US
+#   Core spec property (spec 0.17): editors with a spell checker use it to
+#   pick the dictionary.
 
 [*]
+charset = utf-8
+end_of_line = lf
 indent_style = space
 indent_size = 2
-end_of_line = lf
-charset = utf-8
-trim_trailing_whitespace = true
 insert_final_newline = true
+trim_trailing_whitespace = true
+spelling_language = en-US
 
 
 # ── Python ────────────────────────────────────────────────────────────────────
-# PEP 8: 4-space indentation.
+# PEP 8 indentation. max_line_length is not in the core spec; JetBrains,
+# Neovim and Vim honour it (the VS Code extension ignores it). 75 matches
+# column_limit in .style.yapf.example and line-length in
+# pyproject.toml.example.
 
-[*.py]
+[*.{py,pyi}]
 indent_size = 4
+max_line_length = 75
 
 
 # ── Go ────────────────────────────────────────────────────────────────────────
-# gofmt enforces tabs. This is non-negotiable in Go.
+# gofmt mandates tabs. indent_size only controls how wide a tab RENDERS.
 
-[*.go]
+[{*.go,go.mod,go.work}]
 indent_style = tab
 indent_size = 4
+
+
+# ── Rust / C / C++ ────────────────────────────────────────────────────────────
+# rustfmt default and the IndentWidth in .clang-format are both 4.
+
+[*.{rs,c,h,cc,cpp,cxx,hh,hpp,hxx,ipp,inl}]
+indent_size = 4
+
+
+# ── Zig / Nim / Crystal / V / Haskell ─────────────────────────────────────────
+# Each matches its official formatter: zig fmt (4), nph (2),
+# crystal tool format (2), v fmt (tabs), ormolu/fourmolu (2/4 per project).
+
+[*.{zig,zon}]
+indent_size = 4
+
+[*.{nim,nims,nimble}]
+indent_size = 2
+
+[*.cr]
+indent_size = 2
+
+[*.{v,vsh}]
+indent_style = tab
+indent_size = 4
+
+[*.{hs,lhs,cabal}]
+indent_size = 2
 
 
 # ── Makefile ──────────────────────────────────────────────────────────────────
-# Make REQUIRES hard tabs. Spaces will silently break your recipes.
+# Make REQUIRES a hard tab before every recipe line. A space there is the
+# classic "missing separator" error.
 
-[Makefile]
+[{Makefile,GNUmakefile,makefile,*.mk}]
 indent_style = tab
-
-[*.mk]
-indent_style = tab
-
-
-# ── YAML ──────────────────────────────────────────────────────────────────────
-# YAML is always 2-space. Tabs are illegal in YAML.
-
-[*.{yml,yaml}]
-indent_size = 2
-
-
-# ── JavaScript / TypeScript ──────────────────────────────────────────────────
-# 2-space is the ecosystem standard (Node, React, Vite, Biome defaults).
-
-[*.{js,jsx,ts,tsx,mjs,cjs}]
-indent_size = 2
-
-
-# ── JSON / TOML / Config Files ──────────────────────────────────────────────
-
-[*.{json,jsonc,toml}]
-indent_size = 2
-
-
-# ── Markdown ──────────────────────────────────────────────────────────────────
-# Markdown uses trailing spaces for line breaks (<br>).
-# Do NOT trim them or you'll break intentional formatting.
-
-[*.md]
-trim_trailing_whitespace = false
-
-
-# ── Dockerfiles ──────────────────────────────────────────────────────────────
-
-[Dockerfile*]
 indent_size = 4
 
 
-# ── Shell Scripts ────────────────────────────────────────────────────────────
+# ── justfile ──────────────────────────────────────────────────────────────────
+# just accepts spaces or tabs; `just --fmt` emits 4 spaces.
+
+[{justfile,Justfile,.justfile,*.just}]
+indent_size = 4
+
+
+# ── Shell ─────────────────────────────────────────────────────────────────────
+# shfmt -i 4 territory.
 
 [*.{sh,bash,zsh}]
 indent_size = 4
 
 
-# ── C / C++ / Rust ──────────────────────────────────────────────────────────
+# ── Dockerfile ────────────────────────────────────────────────────────────────
 
-[*.{c,h,cpp,hpp,rs}]
+[{Dockerfile,Dockerfile.*,*.Dockerfile,*.dockerfile,*.docker,Containerfile}]
 indent_size = 4
 
 
-# ── Haskell ──────────────────────────────────────────────────────────────────
+# ── TOML ──────────────────────────────────────────────────────────────────────
+# 4 to match the array indentation used throughout pyproject.toml.example
+# and Cargo.toml files in this repo.
 
-[*.hs]
+[*.toml]
+indent_size = 4
+
+
+# ── SQL ───────────────────────────────────────────────────────────────────────
+
+[*.sql]
+indent_size = 4
+
+
+# ── Web / Config (2-space ecosystem default) ──────────────────────────────────
+# Node, React, Vite, Biome and every YAML spec agree on 2. YAML forbids tabs
+# entirely, so this is the one section where "space" is not a preference.
+
+[*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,json5,yml,yaml,css,scss,sass,html,vue,svelte,graphql}]
 indent_size = 2
+
+
+# ── Markdown / reStructuredText ───────────────────────────────────────────────
+# Two trailing spaces in Markdown are a hard line break (<br>). Trimming them
+# silently changes rendered output.
+
+[*.{md,mdx,rst}]
+trim_trailing_whitespace = false
+
+
+# ── Patches ───────────────────────────────────────────────────────────────────
+# Whitespace in a diff is CONTENT. Touching it corrupts the patch.
+
+[*.{diff,patch}]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+
+# ── Windows-only scripts ──────────────────────────────────────────────────────
+# cmd.exe misparses LF-only batch files (labels and GOTO break).
+
+[*.{bat,cmd}]
+end_of_line = crlf
+indent_size = 4
+
+[*.ps1]
+indent_size = 4
+
+
+# ── Generated / Vendored ──────────────────────────────────────────────────────
+# Lockfiles are machine-written. Never let an editor "fix" them.
+
+[{pnpm-lock.yaml,package-lock.json,uv.lock,Cargo.lock,go.sum,poetry.lock,bun.lock}]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset
+insert_final_newline = unset

@@ -1,15 +1,80 @@
 # ©AngelaMos | 2026
 # .clang-format
+#
+# Repo-wide C/C++ style. Every project without its own .clang-format
+# inherits this file (clang-format searches upward from each source file),
+# and CI enforces it with `clang-format --dry-run --Werror`.
+#
+# Floor: clang-format 19 (Debian 13, and the clang-format==19.1.7 wheel CI
+# pins). clang-format hard-errors on any key or value shape it does not
+# know, so options introduced in 20+ (BreakBinaryOperations,
+# AllowShortNamespacesOnASingleLine, WrapNamespaceBodyWithEmptyLines,
+# PackParameters) and the newer value forms (SortIncludes as a struct,
+# BinPackParameters: OnePerLine, ReflowComments: Always, Standard: c++23)
+# stay out until the floor moves.
+#
+# Code-rewriting options (InsertBraces, RemoveSemicolon, RemoveParentheses,
+# QualifierAlignment) are deliberately absent: LLVM documents that each can
+# produce incorrect code because clang-format has no semantic information.
+#
+# Docs: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+
+Language: Cpp
 BasedOnStyle: LLVM
+Standard: c++20
+
+# Layout
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 ColumnLimit: 100
+LineEnding: LF
+InsertNewlineAtEOF: true
 AccessModifierOffset: -4
+IndentCaseLabels: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+ShortNamespaceLines: 0
+
+# Braces and breaking
+BreakBeforeBraces: Attach
+BreakAfterReturnType: Automatic
+BreakTemplateDeclarations: Yes
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+PackConstructorInitializers: Never
+AlwaysBreakBeforeMultilineStrings: false
+BreakStringLiterals: true
+ReflowComments: true
+
+# Nothing hides on one line: every body gets its own lines, so a breakpoint
+# or an added statement never requires reformatting the line.
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
-SortIncludes: CaseSensitive
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortLambdasOnASingleLine: Inline
+
+# Blank lines
+MaxEmptyLinesToKeep: 1
+KeepEmptyLines:
+  AtEndOfFile: false
+  AtStartOfBlock: true
+  AtStartOfFile: false
+EmptyLineBeforeAccessModifier: LogicalBlock
+EmptyLineAfterAccessModifier: Never
+
+# Pointers, references, spacing. Derive* off: the file is the authority,
+# not whatever style the first few lines of a source file happen to use.
 PointerAlignment: Left
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
 SpaceBeforeParens: ControlStatements
-BreakBeforeBraces: Attach
+SpaceAfterTemplateKeyword: true
+Cpp11BracedListStyle: true
+
+# Includes and using-declarations
+SortIncludes: CaseSensitive
+SortUsingDeclarations: LexicographicNumeric

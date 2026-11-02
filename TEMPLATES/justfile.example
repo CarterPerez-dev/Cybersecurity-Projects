@@ -2,383 +2,351 @@
 # justfile.example
 #
 # Annotated justfile template for Cybersecurity-Projects.
-# Copy into your project root, rename to `justfile`, and replace
-# every <PLACEHOLDER> with your actual values. Delete sections
-# that don't apply to your project's stack.
+# Copy into your project root, rename to `justfile`, replace every
+# <PLACEHOLDER>, and delete the groups your stack does not use.
 #
-# Docs:  https://just.systems/man/en/
-# Cheat: https://cheatography.com/linux-china/cheat-sheets/justfile/
-#
-# Install just:
-#   cargo install just          (from source)
-#   brew install just           (macOS)
-#   apt install just            (Debian/Ubuntu 24.04+)
-#   pipx install rust-just      (via pipx)
+# Docs:    https://just.systems/man/en/
+# Install: uv tool install rust-just
+#          cargo install just
+#          apt install just            (Debian 13 / Ubuntu 24.04+)
 #
 # Usage:
-#   just              list all available recipes
-#   just <recipe>     run a recipe
-#   just -n <recipe>  dry-run (print commands without executing)
-
-
+#   just                  grouped list of every recipe
+#   just <recipe> [args]  run one
+#   just --dry-run <r>    print the commands, run nothing
+#   just --fmt --check    verify this file is canonically formatted
+#
+# Recipe descriptions use the [doc('...')] attribute, not a comment line.
+# `just --list` treats any comment DIRECTLY above a recipe as its doc, so a
+# section banner touching a recipe leaks into the menu. [doc] is explicit
+# and immune to that. Attributes are alphabetical, which is what
+# `just --fmt` emits.
+#
 # ── Settings ──────────────────────────────────────────────────────────────────
-# These apply globally to every recipe in the file.
+# Bash strict mode for every recipe line: -e stop on first failure,
+# -u unset variable is an error, -o pipefail a failing producer fails the pipe.
+#
+# Deliberately ABSENT, and never to be added:
+#
+#   set dotenv-load / set dotenv-filename / set export
+#     These export ONE env file into the shell for EVERY recipe. Compose
+#     resolves variables with precedence shell > --env-file, so the dev
+#     values silently override the `--env-file .env` a prod recipe passes:
+#     prod launches with dev ports and dev settings. Each compose recipe
+#     below names its own env file instead, and the app process loads its
+#     own config.
+#
+#   set windows-shell := ["powershell.exe", ...]
+#     Recipes here use bash syntax (rm -rf, [ -f ], &&). PowerShell cannot
+#     run them, so a Windows shell setting only produces a split-brain file
+#     that half-works. Windows users run just from Git Bash or WSL.
 
-# Load .env file into environment for all recipes.
-set dotenv-load
-
-# Export all `just` variables as environment variables to child processes.
-set export
-
-# Use bash in strict mode (-u = error on unset vars, -c = command string).
-# This gives consistent behavior across macOS/Linux regardless of login shell.
-set shell := ["bash", "-uc"]
-
-# Windows equivalent (only takes effect on Windows, ignored elsewhere).
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
-
+set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # ── Variables ─────────────────────────────────────────────────────────────────
-# Variables defined here are available in all recipes via {{name}}.
-# Backtick expressions run shell commands at parse time.
+# Backticks run at parse time, once per invocation.
 
 project := file_name(justfile_directory())
-version := `git describe --tags --always 2>/dev/null || echo "dev"`
+version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
+src_dir := "src"
+test_dir := "tests"
+package := "<package_name>"
+frontend := "frontend"
 
-# Project-specific paths — change these to match your layout.
-#   Python-only project:    src_dir := "src"
-#   Fullstack project:      src_dir := "backend/src"
-src_dir := "<src>"
-test_dir := "<tests>"
-package := "<package-name>"
+# ── Compose Entry Points ──────────────────────────────────────────────────────
+# One literal per environment, each sealed to its own env file. `--env-file X`
+# makes compose read X INSTEAD of the implicit .env, so dev and prod can never
+# bleed into each other.
+#
+# The project NAME lives in each compose file as a literal (`name: <proj>` in
+# compose.yml, `name: <proj>-dev` in dev.compose.yml), never in an env var,
+# so dev and prod are separate namespaces by construction.
 
+prod := "docker compose -f compose.yml --env-file .env"
+dev := "docker compose -f dev.compose.yml --env-file .env.development"
+tunnel := "docker compose -f compose.yml -f cloudflared.compose.yml --env-file .env"
 
-# ── Default ───────────────────────────────────────────────────────────────────
-# The first recipe is the default (runs when you type `just` with no args).
-# --unsorted preserves the order defined in this file instead of alphabetizing.
+# The first recipe runs on a bare `just`. --unsorted keeps file order.
 
+[doc('This menu')]
 default:
     @just --list --unsorted
 
+# =============================================================================
+# Python: Format, Lint, Types
+# =============================================================================
+# Every tool runs through `uv run`, so the version is the one pinned in
+# uv.lock, not whatever happens to be on PATH. yapf owns formatting
+# (.style.yapf), ruff only lints. Never run `ruff format` alongside yapf:
+# the two disagree and will rewrite each other's output forever.
+
+[doc('Format with yapf in place')]
+[group('python')]
+format:
+    uv run yapf --recursive --in-place --parallel {{ src_dir }} {{ test_dir }}
+
+[doc('Fail if yapf would change anything')]
+[group('python')]
+format-check:
+    uv run yapf --recursive --diff --parallel {{ src_dir }} {{ test_dir }}
+
+[doc('ruff lint (extra flags pass through, e.g. just ruff --statistics)')]
+[group('python')]
+ruff *args:
+    uv run ruff check {{ src_dir }} {{ test_dir }} {{ args }}
+
+[doc('ruff lint with safe autofixes, then reformat')]
+[group('python')]
+fix:
+    uv run ruff check --fix {{ src_dir }} {{ test_dir }}
+    just format
+
+[doc('mypy strict type check')]
+[group('python')]
+mypy *args:
+    uv run mypy {{ src_dir }} {{ test_dir }} {{ args }}
+
+[doc('Every Python static check')]
+[group('python')]
+lint: format-check ruff mypy
 
 # =============================================================================
-# Linting and Formatting
-# =============================================================================
-# Ruff handles both linting and formatting for Python.
-# `*ARGS` is a variadic parameter — any extra flags you pass get forwarded.
-# Example: just ruff --fix
-
-[group('lint')]
-ruff *ARGS:
-    ruff check {{src_dir}}/ {{test_dir}}/ {{ARGS}}
-
-[group('lint')]
-ruff-fix:
-    ruff check {{src_dir}}/ {{test_dir}}/ --fix
-    ruff format {{src_dir}}/ {{test_dir}}/
-
-[group('lint')]
-ruff-format:
-    ruff format {{src_dir}}/ {{test_dir}}/
-
-[group('lint')]
-pylint *ARGS:
-    pylint {{src_dir}}/{{package}} {{ARGS}}
-
-# Dependency recipes — `lint` runs `ruff` then `pylint` in order.
-[group('lint')]
-lint: ruff pylint
-
-
-# =============================================================================
-# Frontend Linting  (delete this section for Python-only projects)
-# =============================================================================
-# Biome is an all-in-one linter/formatter for JS/TS (replaces ESLint+Prettier).
-# Alternatives: eslint + prettier (shown commented below)
-
-[group('frontend')]
-biome *ARGS:
-    cd frontend && pnpm biome check . {{ARGS}}
-
-[group('frontend')]
-biome-fix:
-    cd frontend && pnpm biome check --write .
-
-[group('frontend')]
-stylelint *ARGS:
-    cd frontend && pnpm stylelint '**/*.scss' {{ARGS}}
-
-[group('frontend')]
-stylelint-fix:
-    cd frontend && pnpm stylelint '**/*.scss' --fix
-
-[group('frontend')]
-tsc *ARGS:
-    cd frontend && pnpm tsc --noEmit {{ARGS}}
-
-# Alternative: ESLint + Prettier (uncomment if not using Biome)
-# [group('frontend')]
-# eslint *ARGS:
-#     cd frontend && pnpm eslint . {{ARGS}}
-#
-# [group('frontend')]
-# eslint-fix:
-#     cd frontend && pnpm eslint . --fix
-#
-# [group('frontend')]
-# prettier *ARGS:
-#     cd frontend && pnpm prettier --check "src/**/*.{ts,tsx,css}" {{ARGS}}
-#
-# [group('frontend')]
-# prettier-fix:
-#     cd frontend && pnpm prettier --write "src/**/*.{ts,tsx,css}"
-
-
-# =============================================================================
-# Type Checking
+# Python: Tests
 # =============================================================================
 
-[group('types')]
-mypy *ARGS:
-    mypy {{src_dir}}/ {{ARGS}}
-
-# ty is Astral's experimental type checker (fast, Rust-based).
-# Uncomment if your project uses it.
-# [group('types')]
-# ty *ARGS:
-#     ty check {{ARGS}}
-
-[group('types')]
-typecheck: mypy
-
-
-# =============================================================================
-# Testing
-# =============================================================================
-
+[doc('Run the suite (extra flags pass through, e.g. just test -k parser)')]
 [group('test')]
-pytest *ARGS:
-    pytest {{test_dir}}/ {{ARGS}}
+test *args:
+    uv run pytest {{ args }}
 
-[group('test')]
-test: pytest
-
+[doc('Run the suite with branch coverage')]
 [group('test')]
 test-cov:
-    pytest {{test_dir}}/ --cov={{src_dir}}/{{package}} --cov-report=term-missing --cov-report=html
-
+    uv run pytest --cov={{ src_dir }}/{{ package }} --cov-branch \
+        --cov-report=term-missing --cov-report=html
 
 # =============================================================================
-# CI / Quality
+# Frontend  (delete for backend-only projects)
 # =============================================================================
-# Composite recipes that chain multiple checks.
-# `ci` is the full pipeline; `check` is the fast subset (no tests).
+# `pnpm --dir` instead of `cd frontend &&`: no subshell state, and the
+# recipe still works when invoked from a subdirectory.
 
+[doc('Biome lint + format check')]
+[group('frontend')]
+biome:
+    pnpm --dir {{ frontend }} exec biome check .
+
+[doc('Biome with safe fixes applied')]
+[group('frontend')]
+biome-fix:
+    pnpm --dir {{ frontend }} exec biome check --write .
+
+[doc('Stylelint every SCSS file')]
+[group('frontend')]
+stylelint:
+    pnpm --dir {{ frontend }} exec stylelint '**/*.scss'
+
+[doc('TypeScript project-references type check')]
+[group('frontend')]
+tsc:
+    pnpm --dir {{ frontend }} exec tsc -b
+
+[doc('Every frontend check plus a production build')]
+[group('frontend')]
+ui-check: biome stylelint tsc
+    pnpm --dir {{ frontend }} build
+
+# =============================================================================
+# Quality Gates
+# =============================================================================
+
+[doc('Fast pre-push gate: static checks, no tests')]
 [group('ci')]
-ci: lint typecheck test
+check: lint
 
+[doc('Exactly what CI runs')]
 [group('ci')]
-check: ruff mypy
-
+ci: lint test ui-check
 
 # =============================================================================
-# Docker Compose — Production  (delete if no Docker)
+# Docker: Production  (compose.yml + .env)
 # =============================================================================
-# These wrap `docker compose` (compose.yml).
-# Default params use `service='backend'` syntax — overridable at call site.
 
-[group('docker')]
-up *ARGS:
-    docker compose up {{ARGS}}
+[doc('Build production images (cached)')]
+[group('prod')]
+build *args:
+    {{ prod }} build {{ args }}
 
-[group('docker')]
-start *ARGS:
-    docker compose up -d {{ARGS}}
-
-[group('docker')]
-down *ARGS:
-    docker compose down {{ARGS}}
-
-[group('docker')]
-stop:
-    docker compose stop
-
-[group('docker')]
-build *ARGS:
-    docker compose build {{ARGS}}
-
-[group('docker')]
+[doc('Build production images from scratch')]
+[group('prod')]
 rebuild:
-    docker compose build --no-cache
+    {{ prod }} build --no-cache --pull
 
-[group('docker')]
-logs *SERVICE:
-    docker compose logs -f {{SERVICE}}
+[doc('Start production stack detached')]
+[group('prod')]
+up *args:
+    {{ prod }} up -d {{ args }}
 
-[group('docker')]
+[doc('Stop and remove production containers (volumes kept)')]
+[group('prod')]
+down *args:
+    {{ prod }} down {{ args }}
+
+[doc('Follow production logs (optionally for one service)')]
+[group('prod')]
+logs *service:
+    {{ prod }} logs -f --tail=200 {{ service }}
+
+[doc('Production container status')]
+[group('prod')]
 ps:
-    docker compose ps
+    {{ prod }} ps
 
-[group('docker')]
+[doc('Shell into a running production service')]
+[group('prod')]
 shell service='backend':
-    docker compose exec -it {{service}} /bin/bash
-
+    {{ prod }} exec {{ service }} sh
 
 # =============================================================================
-# Docker Compose — Dev  (delete if no Docker)
+# Docker: Dev  (dev.compose.yml + .env.development)
 # =============================================================================
-# Same commands but targeting dev.compose.yml.
+# The dev stack bind-mounts source for hot reload. Run every service here,
+# never as a bare host process.
 
+[doc('Start dev stack in the foreground (Ctrl-C stops it)')]
 [group('dev')]
-dev-up *ARGS:
-    docker compose -f dev.compose.yml up {{ARGS}}
+dev-up *args:
+    {{ dev }} up --build {{ args }}
 
+[doc('Start dev stack detached')]
 [group('dev')]
-dev-start *ARGS:
-    docker compose -f dev.compose.yml up -d {{ARGS}}
+dev-start *args:
+    {{ dev }} up -d --build {{ args }}
 
+[doc('Stop and remove dev containers (volumes kept)')]
 [group('dev')]
-dev-down *ARGS:
-    docker compose -f dev.compose.yml down {{ARGS}}
+dev-down *args:
+    {{ dev }} down {{ args }}
 
-[group('dev')]
-dev-stop:
-    docker compose -f dev.compose.yml stop
-
-[group('dev')]
-dev-build *ARGS:
-    docker compose -f dev.compose.yml build {{ARGS}}
-
+[doc('Rebuild dev images from scratch')]
 [group('dev')]
 dev-rebuild:
-    docker compose -f dev.compose.yml build --no-cache
+    {{ dev }} build --no-cache --pull
 
+[doc('Follow dev logs (optionally for one service)')]
 [group('dev')]
-dev-logs *SERVICE:
-    docker compose -f dev.compose.yml logs -f {{SERVICE}}
+dev-logs *service:
+    {{ dev }} logs -f --tail=200 {{ service }}
 
+[doc('Dev container status')]
 [group('dev')]
 dev-ps:
-    docker compose -f dev.compose.yml ps
+    {{ dev }} ps
 
+[doc('Shell into a running dev service')]
 [group('dev')]
 dev-shell service='backend':
-    docker compose -f dev.compose.yml exec -it {{service}} /bin/bash
+    {{ dev }} exec {{ service }} sh
 
+[doc('Run the test suite inside the dev backend container')]
+[group('dev')]
+dev-test *args:
+    {{ dev }} exec backend uv run pytest {{ args }}
 
 # =============================================================================
-# Database — Docker  (delete if no database)
+# Tunnel: Public Deploy  (compose.yml + cloudflared.compose.yml + .env)
 # =============================================================================
-# Alembic migrations executed inside the running backend container.
+# `redeploy` is the one command for shipping: down (data volumes kept, orphans
+# from renamed/removed services swept), cached build, up detached. It never
+# prunes anything outside this compose project: --remove-orphans only sees
+# containers carrying THIS project's label.
 
+[doc('Rebuild and restart the public stack, keeping data')]
+[group('tunnel')]
+redeploy: (tunnel-down "--remove-orphans") build (tunnel-start "--remove-orphans")
+
+[doc('Start the public stack in the foreground')]
+[group('tunnel')]
+tunnel-up *args:
+    {{ tunnel }} up {{ args }}
+
+[doc('Start the public stack detached')]
+[group('tunnel')]
+tunnel-start *args:
+    {{ tunnel }} up -d {{ args }}
+
+[doc('Stop the public stack (volumes kept)')]
+[group('tunnel')]
+tunnel-down *args:
+    {{ tunnel }} down {{ args }}
+
+[doc('Follow public stack logs')]
+[group('tunnel')]
+tunnel-logs *service:
+    {{ tunnel }} logs -f --tail=200 {{ service }}
+
+# =============================================================================
+# Database  (Alembic inside the running container; delete if no database)
+# =============================================================================
+
+[doc('Apply migrations (default: head)')]
 [group('db')]
-migrate *ARGS:
-    docker compose exec backend alembic upgrade {{ARGS}}
+migrate target='head':
+    {{ dev }} exec backend uv run alembic upgrade {{ target }}
 
+[doc('Autogenerate a migration: just migration "add users table"')]
 [group('db')]
 migration message:
-    docker compose exec backend alembic revision --autogenerate -m "{{message}}"
+    {{ dev }} exec backend uv run alembic revision --autogenerate -m "{{ message }}"
 
+[doc('Roll back one migration')]
 [group('db')]
 rollback:
-    docker compose exec backend alembic downgrade -1
+    {{ dev }} exec backend uv run alembic downgrade -1
 
+[doc('Show applied revision and history')]
 [group('db')]
-db-history:
-    docker compose exec backend alembic history --verbose
-
-[group('db')]
-db-current:
-    docker compose exec backend alembic current
-
-
-# =============================================================================
-# Database — Local (no Docker)  (delete if no database)
-# =============================================================================
-
-[group('db-local')]
-migrate-local *ARGS:
-    cd backend && uv run alembic upgrade {{ARGS}}
-
-[group('db-local')]
-migration-local message:
-    cd backend && uv run alembic revision --autogenerate -m "{{message}}"
-
-[group('db-local')]
-rollback-local:
-    cd backend && uv run alembic downgrade -1
-
-[group('db-local')]
-db-history-local:
-    cd backend && uv run alembic history --verbose
-
-[group('db-local')]
-db-current-local:
-    cd backend && uv run alembic current
-
+db-status:
+    {{ dev }} exec backend uv run alembic current --verbose
+    {{ dev }} exec backend uv run alembic history --indicate-current
 
 # =============================================================================
 # Setup
 # =============================================================================
-# First-time project bootstrap. For fullstack projects, chain sub-recipes.
 
+[doc('First-time bootstrap: deps, env files, git hooks')]
 [group('setup')]
-setup:
-    @echo "Setting up development environment..."
-    uv sync --all-extras
-    @echo "Setup complete!"
+setup: env
+    uv sync
+    pnpm --dir {{ frontend }} install
+    uv run pre-commit install
 
-# Fullstack alternative (uncomment and replace the simple setup above):
-# [group('setup')]
-# setup: setup-backend setup-frontend env
-#     @echo "Setup complete!"
-#
-# [group('setup')]
-# setup-backend:
-#     @echo "Setting up backend..."
-#     cd backend && uv sync
-#     @echo "Backend ready!"
-#
-# [group('setup')]
-# setup-frontend:
-#     @echo "Setting up frontend..."
-#     cd frontend && pnpm install
-#     @echo "Frontend ready!"
-#
-# [group('setup')]
-# env:
-#     @if [ ! -f .env ]; then cp .env.example .env; echo "Created .env from .env.example"; fi
-#     @echo ".env ready — update with your values."
-
+[doc('Create missing env files from their .example templates')]
+[group('setup')]
+env:
+    [ -f .env ] || cp .env.example .env
+    [ -f .env.development ] || cp .env.example .env.development
 
 # =============================================================================
 # Utilities
 # =============================================================================
 
+[doc('Project, version and platform')]
 [group('util')]
 info:
-    @echo "Project: {{project}}"
-    @echo "Version: {{version}}"
-    @echo "OS:      {{os()}} ({{arch()}})"
+    @echo "project  {{ project }}"
+    @echo "version  {{ version }}"
+    @echo "platform {{ os() }}/{{ arch() }}"
 
-# The `-` prefix ignores errors (e.g., dir doesn't exist). Keeps going.
+[doc('Remove caches and build output (keeps .venv and node_modules)')]
 [group('util')]
 clean:
-    -rm -rf .mypy_cache
-    -rm -rf .pytest_cache
-    -rm -rf .ruff_cache
-    -rm -rf htmlcov
-    -rm -f .coverage
-    -rm -rf dist
-    -rm -rf build
-    @echo "Cache directories cleaned"
+    rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis htmlcov \
+        .coverage .coverage.* dist build {{ frontend }}/dist
+    find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-# [confirm(...)] prompts for Y/n before running — safety net for destructive ops.
+[confirm('Delete .venv, node_modules and every cache?')]
+[doc('clean, plus every installed dependency')]
 [group('util')]
-[confirm("Remove all build artifacts, caches, and virtual environment?")]
-nuke:
-    @echo "Nuking everything..."
-    -rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov dist build
-    -rm -f .coverage
-    -rm -rf .venv
-    @echo "Nuke complete!"
+nuke: clean
+    rm -rf .venv {{ frontend }}/node_modules

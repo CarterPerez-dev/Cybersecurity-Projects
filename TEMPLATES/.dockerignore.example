@@ -2,139 +2,172 @@
 # .dockerignore.example
 #
 # Annotated .dockerignore template for Cybersecurity-Projects.
-# Copy into the same directory as your Dockerfile (usually project root
-# or backend/), rename to `.dockerignore`.
+# Copy next to the build CONTEXT root (the path compose passes as `context:`),
+# rename to `.dockerignore`.
 #
-# Every file NOT listed here gets sent to the Docker daemon as build context.
-# A bloated context means slower builds and larger images. A missing
-# .dockerignore can accidentally bake secrets (.env) or gigabytes of
-# node_modules into your image.
+# Everything not excluded here is shipped to the builder as build context.
+# Three things go wrong without it:
+#   1. Secrets (.env, keys) land in a layer, and `docker history` or a pushed
+#      image leaks them forever.
+#   2. Host node_modules/.venv (wrong libc, wrong arch) override the
+#      container's own install.
+#   3. Any edit to an unrelated file (docs, .git) busts the layer cache.
 #
-# Syntax is identical to .gitignore (globs, negation with !).
+# Syntax is .gitignore-like, matched from the context root. `**` crosses
+# directories, `!` re-includes, and the LAST matching line wins.
+#
+# Per-Dockerfile ignore files: BuildKit reads `<name>.dockerignore` next to
+# the Dockerfile before falling back to this file. Use that when one context
+# feeds several Dockerfiles (prod.Dockerfile.dockerignore, etc.).
+#
 # Docs: https://docs.docker.com/build/concepts/context/#dockerignore-files
 
 
-# ── Virtual Environments ──────────────────────────────────────────────────────
-# These are host-specific. The container installs its own deps.
-
-.venv/
-venv/
-
-
-# ── Python Caches ────────────────────────────────────────────────────────────
-
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyo
-
-
-# ── Linter / Type Checker Caches ────────────────────────────────────────────
-
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.ty_cache/
+# ── Allowlist Alternative (strongest option) ──────────────────────────────────
+# Deny everything, then re-include only what the Dockerfile COPYs. A new
+# secret file can never leak because nothing is shipped by default. Costs one
+# line per new top-level path. To use it, delete every section below and
+# uncomment this block, adjusting paths to your layout:
+#
+# *
+# !src/
+# !pyproject.toml
+# !uv.lock
+# !README.md
+# !LICENSE
+# **/__pycache__/
+# **/*.py[cod]
 
 
-# ── Test & Coverage Artifacts ────────────────────────────────────────────────
-# Tests run on the host or in a separate CI container, not in prod.
+# ── Secrets & Environment ─────────────────────────────────────────────────────
+# NEVER bake secrets into an image. Inject at runtime (env_file, secrets:).
+# `**/` catches nested copies like backend/.env.
 
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
-*.cover
-tests/
-conftest.py
-
-
-# ── Build Artifacts ──────────────────────────────────────────────────────────
-
-dist/
-build/
-*.egg-info/
-*.egg
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/.npmrc.local
+**/.netrc
+**/id_rsa*
+**/id_ed25519*
 
 
-# ── Node Modules ─────────────────────────────────────────────────────────────
-# Frontend builds in its own stage. Never copy host node_modules.
-
-node_modules/
-.pnpm-store/
-
-
-# ── Secrets & Environment ────────────────────────────────────────────────────
-# NEVER bake secrets into an image. Pass them at runtime via env vars or
-# Docker secrets. The .env.example is fine to include for documentation.
-
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-
-
-# ── Git ──────────────────────────────────────────────────────────────────────
-# Git history has no business in a container image.
+# ── Version Control ───────────────────────────────────────────────────────────
+# .git alone can be hundreds of MB, and it changes on every commit, which
+# invalidates any `COPY . .` layer.
 
 .git/
 .gitignore
 .gitattributes
+.gitmodules
 
 
-# ── Docker Files ─────────────────────────────────────────────────────────────
-# The Dockerfile itself and compose files aren't needed inside the image.
+# ── Dependencies Installed On The Host ────────────────────────────────────────
+# The image installs its own. Host copies are the wrong platform and shadow
+# the container's install.
 
-Dockerfile*
-docker-compose*
-compose*.yml
-dev.compose.yml
+**/node_modules/
+**/.pnpm-store/
+**/.venv/
+**/venv/
+/target/
+**/.zig-cache/
+**/zig-out/
+
+
+# ── Python Caches ─────────────────────────────────────────────────────────────
+
+**/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.hypothesis/
+**/.ty_cache/
+
+
+# ── Frontend Build Caches ─────────────────────────────────────────────────────
+
+**/dist/
+/build/
+**/.vite/
+**/*.tsbuildinfo
+**/coverage/
+
+
+# ── Coverage & Reports ────────────────────────────────────────────────────────
+
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+**/coverage.xml
+**/coverage.out
+
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+# Kept IN the context on purpose. Projects here run their suites inside a
+# container (a `test` stage or `docker compose run`), and multi-stage builds
+# only copy what each stage asks for, so tests never reach the runtime image
+# anyway. Uncomment only if no stage ever runs tests.
+#
+# tests/
+# **/conftest.py
+
+
+# ── Container Definitions ─────────────────────────────────────────────────────
+# Changing a compose file should not rebuild the image.
+
+**/Dockerfile*
+**/*.Dockerfile
+**/*.dockerfile
+**/*.docker
+**/compose*.yml
+**/compose*.yaml
+**/*.compose.yml
+**/docker-compose*.yml
 .dockerignore
 
 
-# ── IDE / Editor ─────────────────────────────────────────────────────────────
-
-.idea/
-.vscode/
-.zed/
-*.swp
-*.swo
-*~
-
-
-# ── Documentation ────────────────────────────────────────────────────────────
-# Docs are for humans, not containers.
+# ── Documentation ─────────────────────────────────────────────────────────────
+# README.md and LICENSE are RE-INCLUDED: pyproject.toml declares
+# `readme = "README.md"`, and the build backend aborts without it, so a
+# `uv sync` that installs the project inside the image fails.
 
 docs/
 learn/
-*.md
-*.rst
-LICENSE
-CONTRIBUTING*
+**/*.md
+!README.md
+!LICENSE
+**/*.rst
 
 
-# ── CI / Config ──────────────────────────────────────────────────────────────
+# ── Dev Tooling & CI ──────────────────────────────────────────────────────────
 
 .github/
 .pre-commit-config.yaml
 .editorconfig
+.style.yapf
 justfile
-Justfile
 Makefile
+.idea/
+.vscode/
+.zed/
+.claude/
+**/*.swp
+**/*.swo
 
 
-# ── Logs & Databases ────────────────────────────────────────────────────────
+# ── Logs, Local Databases, OS Junk ────────────────────────────────────────────
 
-*.log
-logs/
-*.db
-*.sqlite
-*.sqlite3
-
-
-# ── OS Junk ──────────────────────────────────────────────────────────────────
-
-.DS_Store
-Thumbs.db
-*.bak
+**/*.log
+**/logs/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/dump.rdb
+**/.DS_Store
+**/Thumbs.db

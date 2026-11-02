@@ -1,26 +1,32 @@
+// ©AngelaMos | 2026
+// tsconfig.json.example
+//
+// Annotated TypeScript configuration for Cybersecurity-Projects frontends.
+// Targets TypeScript 7 (the native Go compiler, shipped as `typescript`).
+// Same 3-file layout `pnpm create vite --template react-ts` generates:
+//
+//   tsconfig.json       solution file: compiles nothing, references the two
+//   tsconfig.app.json   browser code in src/ (DOM, React, vite/client)
+//   tsconfig.node.json  build tooling (vite.config.ts) running on Node
+//
+// Why split: browser and Node code have different globals (window vs
+// process) and different module semantics. One combined config lets
+// `process.env` type-check inside a React component and then crash at
+// runtime in the browser.
+//
+// `tsc -b` (build mode) walks the references, type-checks each project and
+// caches results in node_modules/.tmp/*.tsbuildinfo.
+//
+// tsconfig files are JSONC: `//` comments are legal and are the ONLY safe
+// way to annotate them. A "// key": "..." entry inside compilerOptions is an
+// unknown compiler option, and tsc fails with TS5023.
+//
+// Copy all three into frontend/ and drop the .example suffix.
+//
+// Docs: https://www.typescriptlang.org/tsconfig/
+// TS 7: https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/
 {
-  "//": [
-    "©AngelaMos | 2026",
-    "tsconfig.json.example",
-    "",
-    "Annotated TypeScript configuration for Cybersecurity-Projects frontends.",
-    "This is a 3-file setup used by Vite + React projects:",
-    "",
-    "  tsconfig.json       Root — references the other two (this file)",
-    "  tsconfig.app.json   Browser code (src/) — React, DOM APIs",
-    "  tsconfig.node.json  Node code (vite.config.ts) — Node APIs",
-    "",
-    "Why split? Browser code and Node code have different globals (window vs",
-    "process), different module systems, and different type libraries. Splitting",
-    "prevents accidental use of Node APIs in browser code and vice versa.",
-    "",
-    "Copy all three files into your frontend/ directory, remove the .example",
-    "suffix from this file, and use the other two as-is.",
-    "",
-    "Docs: https://www.typescriptlang.org/tsconfig/"
-  ],
-
-  "// files": "Empty array means this file compiles nothing directly — it only references sub-configs.",
+  // The solution file owns no source; it only points at the real projects.
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

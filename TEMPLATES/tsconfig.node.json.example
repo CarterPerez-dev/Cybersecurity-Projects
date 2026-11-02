@@ -1,43 +1,45 @@
+// ©AngelaMos | 2026
+// tsconfig.node.json.example
+//
+// TypeScript config for NODE code: vite.config.ts and any build scripts.
+// This code runs in Node during `vite build`, never in the browser, so it
+// gets Node types and no DOM.
+//
+// Docs: https://www.typescriptlang.org/tsconfig/
 {
-  "//": [
-    "©AngelaMos | 2026",
-    "tsconfig.node.json.example",
-    "",
-    "TypeScript config for NODE code (vite.config.ts and other build scripts).",
-    "This runs in Node.js during build, NOT in the browser.",
-    "",
-    "Docs: https://www.typescriptlang.org/tsconfig/"
-  ],
-
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
-    "// target": "ES2023 — Node 20+ supports everything in ES2023.",
+    // ES2023 runs natively on every Node version Vite 8 supports. No DOM.
     "target": "ES2023",
-
-    "// lib": "ES2023 only — no DOM here since this runs in Node, not a browser.",
     "lib": ["ES2023"],
 
-    "module": "ESNext",
+    // nodenext models how Node actually loads this file (ESM, because
+    // package.json has "type": "module"), including `exports` conditions.
+    // It implies moduleResolution nodenext, so relative imports need a file
+    // extension, exactly as Node requires.
+    "module": "nodenext",
 
-    "// types": "Only Node types — gives you process, __dirname, Buffer, etc.",
+    // Default is [] since TS 6. node provides process, Buffer, node:*.
     "types": ["node"],
 
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "skipLibCheck": true,
 
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-
-  "// include": "Only the Vite config. Add other Node-side files here if needed (e.g., scripts/).",
+  // Node-side files only. Add scripts/**/*.ts if the project grows them.
   "include": ["vite.config.ts"]
 }

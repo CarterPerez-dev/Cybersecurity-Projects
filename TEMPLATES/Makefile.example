@@ -2,250 +2,292 @@
 # Makefile.example
 #
 # Annotated Makefile template for Cybersecurity-Projects.
-# Copy into your project root, rename to `Makefile`, and replace
-# every <PLACEHOLDER> with your actual values. Delete sections
-# that don't apply to your project's stack.
+# Copy into your project root, rename to `Makefile`, replace every
+# <PLACEHOLDER>, and delete the sections your stack does not use.
 #
-# Make is pre installed on virtually every Unix system — no extra tooling.
-# Use this when you want zero dependencies for task running.
+# Prefer justfile.example. Reach for Make only when the zero-install
+# guarantee matters (CI images, minimal containers, contributors without
+# just). Targets here mirror the justfile one-for-one; where a just recipe
+# takes `*args`, the make target takes ARGS="...".
+#
+# Requires GNU Make 4.x. macOS ships 3.81 from 2006: `brew install make`
+# and run `gmake`.
 #
 # Docs: https://www.gnu.org/software/make/manual/make.html
 #
 # Usage:
-#   make              show available targets (self-documenting help)
-#   make <target>     run a target
-#   make -n <target>  dry-run (print commands without executing)
-#   make -j4 <target> run up to 4 jobs in parallel
+#   make                     self-documenting help
+#   make <target>            run a target
+#   make -n <target>         dry-run (print commands, run nothing)
+#   make migration MSG="add users table"
 #
-# IMPORTANT: Makefiles require TABS for indentation, not spaces.
-# If your editor converts tabs to spaces, this file will break.
+# Recipe lines MUST start with a hard TAB. Spaces give
+# "*** missing separator. Stop." (.editorconfig.example enforces tabs here.)
+
+
+# ── Strict Mode ───────────────────────────────────────────────────────────────
+# SHELL / .SHELLFLAGS
+#   bash in strict mode for every recipe: stop on the first failing command,
+#   unset variables are errors, a failing producer fails the whole pipe.
+#   Make's default is /bin/sh -c, which ignores all three.
+#
+# .ONESHELL
+#   The whole recipe runs in ONE shell, so `cd dir` and variables carry
+#   across lines. Combined with -e, the first failing line still aborts.
+#
+# .DELETE_ON_ERROR
+#   A target whose recipe fails is deleted instead of left half-written,
+#   so the next run does not mistake a corrupt file for an up-to-date one.
+#
+# MAKEFLAGS
+#   --warn-undefined-variables  a typo like $(SRC_DRI) warns instead of
+#                               silently expanding to empty
+#   --no-builtin-rules          drop the implicit C/Fortran/RCS rules: faster,
+#                               and no surprise recipes for unrelated files
+#   --no-builtin-variables      drop CC, CFLAGS, RM and friends, so every
+#                               variable a recipe uses is defined in this file
+#   --no-print-directory        quieter recursive make output
+#
+# Setting MAKEFLAGS inside the Makefile takes effect immediately only on
+# GNU Make 4.4+.
+
+SHELL := bash
+.SHELLFLAGS := -euo pipefail -c
+.ONESHELL:
+.DELETE_ON_ERROR:
+MAKEFLAGS += --warn-undefined-variables --no-builtin-rules --no-builtin-variables --no-print-directory
+.SUFFIXES:
 
 
 # ── Variables ─────────────────────────────────────────────────────────────────
-# Change these to match your project layout.
-# ?= means "set only if not already defined" — overridable from the CLI:
-#   make lint SRC_DIR=app/
+# `?=` assigns only if unset, so every value is overridable per invocation:
+#   make test TEST_DIR=tests/unit
 
-PROJECT_NAME  ?= <project-name>
-SRC_DIR       ?= <src>
-TEST_DIR      ?= <tests>
-PACKAGE       ?= <package-name>
-PYTHON        ?= python3
-DOCKER_COMP   ?= docker compose
-DEV_COMPOSE   ?= docker compose -f dev.compose.yml
+SRC_DIR   ?= src
+TEST_DIR  ?= tests
+PACKAGE   ?= <package_name>
+FRONTEND  ?= frontend
+ARGS      ?=
+SERVICE   ?=
+MSG       ?=
+TARGET    ?= head
 
 
-# ── Self-Documenting Help ─────────────────────────────────────────────────────
-# Any line with `## comment` after a target becomes part of `make help`.
-# This is the standard pattern for self-documenting Makefiles.
-# `make` with no args runs the first target, which is `help`.
+# ── Compose Entry Points ──────────────────────────────────────────────────────
+# One literal per environment, each sealed to its own env file. Never
+# `include .env` + `export` at the top of a Makefile: exported shell
+# variables beat --env-file in compose's precedence, so the dev values would
+# override every prod target. The compose project NAME is a literal inside
+# each compose file, never a variable.
+
+PROD   := docker compose -f compose.yml --env-file .env
+DEV    := docker compose -f dev.compose.yml --env-file .env.development
+TUNNEL := docker compose -f compose.yml -f cloudflared.compose.yml --env-file .env
+
+
+# ── Help ──────────────────────────────────────────────────────────────────────
+# Every `target: ## text` line becomes a help entry; `##@ Title` lines become
+# section headers. The pattern accepts digits, dots, slashes and dashes in
+# target names.
 
 .DEFAULT_GOAL := help
 
 .PHONY: help
-help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make \033[36m<target>\033[0m\n"} \
+		/^[a-zA-Z0-9_.\/-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 } \
+		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
 
-# ── Linting and Formatting ───────────────────────────────────────────────────
+##@ Python
 
-.PHONY: ruff ruff-fix ruff-format pylint lint
+.PHONY: format format-check ruff fix mypy lint
 
-ruff: ## Run ruff linter
-	ruff check $(SRC_DIR)/ $(TEST_DIR)/
+format: ## Format with yapf in place
+	uv run yapf --recursive --in-place --parallel $(SRC_DIR) $(TEST_DIR)
 
-ruff-fix: ## Run ruff with auto-fix + format
-	ruff check $(SRC_DIR)/ $(TEST_DIR)/ --fix
-	ruff format $(SRC_DIR)/ $(TEST_DIR)/
+format-check: ## Fail if yapf would change anything
+	uv run yapf --recursive --diff --parallel $(SRC_DIR) $(TEST_DIR)
 
-ruff-format: ## Format code with ruff
-	ruff format $(SRC_DIR)/ $(TEST_DIR)/
+ruff: ## ruff lint (ARGS="--statistics" passes flags through)
+	uv run ruff check $(SRC_DIR) $(TEST_DIR) $(ARGS)
 
-pylint: ## Run pylint
-	pylint $(SRC_DIR)/$(PACKAGE)
+fix: ## ruff lint with safe autofixes, then reformat
+	uv run ruff check --fix $(SRC_DIR) $(TEST_DIR)
+	$(MAKE) format
 
-lint: ruff pylint ## Run all Python linters
+mypy: ## mypy strict type check
+	uv run mypy $(SRC_DIR) $(TEST_DIR) $(ARGS)
 
-
-# ── Frontend Linting  (delete for Python-only projects) ──────────────────────
-
-.PHONY: biome biome-fix stylelint stylelint-fix tsc
-
-biome: ## Run Biome linter on frontend
-	cd frontend && pnpm biome check .
-
-biome-fix: ## Run Biome with auto-fix
-	cd frontend && pnpm biome check --write .
-
-stylelint: ## Lint SCSS files
-	cd frontend && pnpm stylelint '**/*.scss'
-
-stylelint-fix: ## Fix SCSS lint issues
-	cd frontend && pnpm stylelint '**/*.scss' --fix
-
-tsc: ## TypeScript type check (no emit)
-	cd frontend && pnpm tsc --noEmit
+lint: format-check ruff mypy ## Every Python static check
 
 
-# ── Type Checking ────────────────────────────────────────────────────────────
-
-.PHONY: mypy typecheck
-
-mypy: ## Run mypy type checker
-	mypy $(SRC_DIR)/
-
-typecheck: mypy ## Alias for mypy
-
-
-# ── Testing ──────────────────────────────────────────────────────────────────
+##@ Tests
 
 .PHONY: test test-cov
 
-test: ## Run tests
-	pytest $(TEST_DIR)/
+test: ## Run the suite (ARGS="-k parser" passes flags through)
+	uv run pytest $(ARGS)
 
-test-cov: ## Run tests with coverage report
-	pytest $(TEST_DIR)/ --cov=$(SRC_DIR)/$(PACKAGE) --cov-report=term-missing --cov-report=html
-
-
-# ── CI / Quality ─────────────────────────────────────────────────────────────
-# Composite targets that chain multiple checks.
-
-.PHONY: ci check
-
-ci: lint typecheck test ## Full CI pipeline (lint + types + tests)
-
-check: ruff mypy ## Fast check (lint + types, no tests)
+test-cov: ## Run the suite with branch coverage
+	uv run pytest --cov=$(SRC_DIR)/$(PACKAGE) --cov-branch \
+		--cov-report=term-missing --cov-report=html
 
 
-# ── Docker Compose — Production  (delete if no Docker) ───────────────────────
+##@ Frontend
 
-.PHONY: up start down stop build rebuild logs ps shell
+.PHONY: biome biome-fix stylelint tsc ui-check
 
-up: ## Start services (foreground)
-	$(DOCKER_COMP) up
+biome: ## Biome lint + format check
+	pnpm --dir $(FRONTEND) exec biome check .
 
-start: ## Start services (detached)
-	$(DOCKER_COMP) up -d
+biome-fix: ## Biome with safe fixes applied
+	pnpm --dir $(FRONTEND) exec biome check --write .
 
-down: ## Stop and remove containers
-	$(DOCKER_COMP) down
+stylelint: ## Stylelint every SCSS file
+	pnpm --dir $(FRONTEND) exec stylelint '**/*.scss'
 
-stop: ## Stop containers (keep state)
-	$(DOCKER_COMP) stop
+tsc: ## TypeScript project-references type check
+	pnpm --dir $(FRONTEND) exec tsc -b
 
-build: ## Build container images
-	$(DOCKER_COMP) build
-
-rebuild: ## Rebuild without cache
-	$(DOCKER_COMP) build --no-cache
-
-logs: ## Tail service logs
-	$(DOCKER_COMP) logs -f
-
-ps: ## List running containers
-	$(DOCKER_COMP) ps
-
-shell: ## Shell into backend container
-	$(DOCKER_COMP) exec -it backend /bin/bash
+ui-check: biome stylelint tsc ## Every frontend check plus a production build
+	pnpm --dir $(FRONTEND) build
 
 
-# ── Docker Compose — Dev  (delete if no Docker) ─────────────────────────────
+##@ Quality Gates
 
-.PHONY: dev-up dev-start dev-down dev-stop dev-build dev-rebuild dev-logs dev-ps dev-shell
+.PHONY: check ci
 
-dev-up: ## Start dev services (foreground)
-	$(DEV_COMPOSE) up
+check: lint ## Fast pre-push gate: static checks, no tests
 
-dev-start: ## Start dev services (detached)
-	$(DEV_COMPOSE) up -d
-
-dev-down: ## Stop dev containers
-	$(DEV_COMPOSE) down
-
-dev-stop: ## Stop dev containers (keep state)
-	$(DEV_COMPOSE) stop
-
-dev-build: ## Build dev images
-	$(DEV_COMPOSE) build
-
-dev-rebuild: ## Rebuild dev images without cache
-	$(DEV_COMPOSE) build --no-cache
-
-dev-logs: ## Tail dev logs
-	$(DEV_COMPOSE) logs -f
-
-dev-ps: ## List dev containers
-	$(DEV_COMPOSE) ps
-
-dev-shell: ## Shell into dev backend
-	$(DEV_COMPOSE) exec -it backend /bin/bash
+ci: lint test ui-check ## Exactly what CI runs
 
 
-# ── Database  (delete if no database) ────────────────────────────────────────
+##@ Docker: Production
 
-.PHONY: migrate migration rollback db-history db-current
+.PHONY: build rebuild up down logs ps shell
 
-migrate: ## Run database migrations (Docker)
-	$(DOCKER_COMP) exec backend alembic upgrade head
+build: ## Build production images (cached)
+	$(PROD) build $(ARGS)
 
-migration: ## Create new migration (usage: make migration MSG="add users table")
-	$(DOCKER_COMP) exec backend alembic revision --autogenerate -m "$(MSG)"
+rebuild: ## Build production images from scratch
+	$(PROD) build --no-cache --pull
 
-rollback: ## Rollback last migration
-	$(DOCKER_COMP) exec backend alembic downgrade -1
+up: ## Start production stack detached
+	$(PROD) up -d $(ARGS)
 
-db-history: ## Show migration history
-	$(DOCKER_COMP) exec backend alembic history --verbose
+down: ## Stop and remove production containers (volumes kept)
+	$(PROD) down $(ARGS)
 
-db-current: ## Show current migration
-	$(DOCKER_COMP) exec backend alembic current
+logs: ## Follow production logs (SERVICE=api for one service)
+	$(PROD) logs -f --tail=200 $(SERVICE)
 
+ps: ## Production container status
+	$(PROD) ps
 
-# ── Setup ────────────────────────────────────────────────────────────────────
-
-.PHONY: setup setup-backend setup-frontend env
-
-setup: ## First-time project setup
-	@echo "Setting up development environment..."
-	uv sync --all-extras
-	@echo "Setup complete!"
-
-# Fullstack alternative (uncomment and replace the simple setup above):
-# setup: setup-backend setup-frontend env ## First-time project setup
-# 	@echo "Setup complete!"
-#
-# setup-backend:
-# 	@echo "Setting up backend..."
-# 	cd backend && uv sync
-#
-# setup-frontend:
-# 	@echo "Setting up frontend..."
-# 	cd frontend && pnpm install
-#
-# env:
-# 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
-# 	@echo ".env ready — update with your values."
+shell: ## Shell into production backend (SERVICE=x overrides)
+	$(PROD) exec $(or $(SERVICE),backend) sh
 
 
-# ── Utilities ────────────────────────────────────────────────────────────────
+##@ Docker: Dev
+
+.PHONY: dev-up dev-start dev-down dev-rebuild dev-logs dev-ps dev-shell dev-test
+
+dev-up: ## Start dev stack in the foreground
+	$(DEV) up --build $(ARGS)
+
+dev-start: ## Start dev stack detached
+	$(DEV) up -d --build $(ARGS)
+
+dev-down: ## Stop and remove dev containers (volumes kept)
+	$(DEV) down $(ARGS)
+
+dev-rebuild: ## Rebuild dev images from scratch
+	$(DEV) build --no-cache --pull
+
+dev-logs: ## Follow dev logs (SERVICE=api for one service)
+	$(DEV) logs -f --tail=200 $(SERVICE)
+
+dev-ps: ## Dev container status
+	$(DEV) ps
+
+dev-shell: ## Shell into dev backend (SERVICE=x overrides)
+	$(DEV) exec $(or $(SERVICE),backend) sh
+
+dev-test: ## Run the test suite inside the dev backend container
+	$(DEV) exec backend uv run pytest $(ARGS)
+
+
+##@ Tunnel: Public Deploy
+
+.PHONY: redeploy tunnel-up tunnel-start tunnel-down tunnel-logs
+
+redeploy: ## Rebuild and restart the public stack, keeping data
+	$(TUNNEL) down --remove-orphans
+	$(PROD) build
+	$(TUNNEL) up -d --remove-orphans
+
+tunnel-up: ## Start the public stack in the foreground
+	$(TUNNEL) up $(ARGS)
+
+tunnel-start: ## Start the public stack detached
+	$(TUNNEL) up -d $(ARGS)
+
+tunnel-down: ## Stop the public stack (volumes kept)
+	$(TUNNEL) down $(ARGS)
+
+tunnel-logs: ## Follow public stack logs
+	$(TUNNEL) logs -f --tail=200 $(SERVICE)
+
+
+##@ Database
+
+.PHONY: migrate migration rollback db-status
+
+migrate: ## Apply migrations (TARGET=<rev> overrides head)
+	$(DEV) exec backend uv run alembic upgrade $(TARGET)
+
+migration: ## Autogenerate a migration (MSG="add users table")
+	test -n "$(MSG)" || { echo 'usage: make migration MSG="..."' >&2; exit 2; }
+	$(DEV) exec backend uv run alembic revision --autogenerate -m "$(MSG)"
+
+rollback: ## Roll back one migration
+	$(DEV) exec backend uv run alembic downgrade -1
+
+db-status: ## Show applied revision and history
+	$(DEV) exec backend uv run alembic current --verbose
+	$(DEV) exec backend uv run alembic history --indicate-current
+
+
+##@ Setup
+
+.PHONY: setup env
+
+setup: env ## First-time bootstrap: deps, env files, git hooks
+	uv sync
+	pnpm --dir $(FRONTEND) install
+	uv run pre-commit install
+
+env: ## Create missing env files from .env.example
+	[ -f .env ] || cp .env.example .env
+	[ -f .env.development ] || cp .env.example .env.development
+
+
+##@ Utilities
 
 .PHONY: info clean nuke
 
-info: ## Show project info
-	@echo "Project: $(PROJECT_NAME)"
-	@echo "Python:  $(shell $(PYTHON) --version 2>/dev/null || echo 'not found')"
-	@echo "OS:      $(shell uname -s) ($(shell uname -m))"
+info: ## Project, version and platform
+	@echo "project  $(notdir $(CURDIR))"
+	@echo "version  $$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+	@echo "platform $$(uname -s)/$$(uname -m)"
 
-clean: ## Remove caches and build artifacts
-	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov dist build
-	rm -f .coverage
-	@echo "Cache directories cleaned"
+clean: ## Remove caches and build output (keeps .venv and node_modules)
+	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis htmlcov \
+		.coverage .coverage.* dist build $(FRONTEND)/dist
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-nuke: ## Remove everything including venv (prompts for confirmation)
-	@echo "This will remove .venv, all caches, and build artifacts."
-	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
-	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov dist build .venv
-	rm -f .coverage
-	@echo "Nuke complete!"
+nuke: clean ## clean, plus every installed dependency (asks first)
+	read -r -p "Delete .venv and node_modules? [y/N] " reply
+	[ "$$reply" = "y" ] || { echo "aborted"; exit 1; }
+	rm -rf .venv $(FRONTEND)/node_modules

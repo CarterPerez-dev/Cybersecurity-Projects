@@ -3,104 +3,119 @@
     "©AngelaMos | 2026",
     "package.json.example",
     "",
-    "Annotated package.json template for Cybersecurity-Projects frontends.",
-    "Copy into your frontend/ directory, rename to package.json, and replace",
-    "every <PLACEHOLDER> with your actual values.",
+    "Annotated package.json template for Cybersecurity-Projects frontends",
+    "(Vite 8 + React 19 + TypeScript 7). Copy into frontend/, rename to",
+    "package.json, replace every <PLACEHOLDER>.",
     "",
-    "JSON has no comment syntax, so '//' keys are the standard convention",
-    "for documentation in package.json. They are ignored by pnpm/npm.",
+    "JSON has no comments. Top-level '//' keys are the npm/pnpm convention",
+    "for documentation and are ignored by every package manager. They are",
+    "ONLY safe at the top level here; never inside tsconfig compilerOptions.",
     "",
-    "Docs: https://docs.npmjs.com/cli/v10/configuring-npm/package-json",
-    "pnpm: https://pnpm.io/package_json"
+    "Docs: https://pnpm.io/package_json"
   ],
 
   "name": "<project-name>",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "<One-line description of the frontend>",
   "type": "module",
 
+  "// packageManager": [
+    "Exact pnpm pin, read by corepack, by pnpm itself, and by Dependabot when",
+    "it regenerates pnpm-lock.yaml. Pinned to the repo-wide version so",
+    "Dependabot never rewrites a lockfile with a different pnpm major. Bump it",
+    "repo-wide, in one commit, together with the Dockerfiles that install",
+    "pnpm.",
+    "",
+    "Dockerfiles: node:24 images ship corepack (`corepack enable && corepack",
+    "prepare pnpm@<version> --activate`). node:25 and newer do NOT bundle",
+    "corepack any more (node:26-alpine has no corepack binary), so on those",
+    "images install pnpm directly at the pinned version."
+  ],
+  "packageManager": "pnpm@10.29.1",
+
+  "// engines": "Floor set by the strictest dependency: react-router 8 requires Node >= 22.22. Current LTS is Node 26.",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+
   "// scripts": [
-    "Scripts run via `pnpm <script>` (no `run` needed for lifecycle scripts).",
-    "Keep names consistent across all projects so the root justfile works.",
+    "Same names in every project, so anyone (and any CI job) can run",
+    "`pnpm build`, `pnpm lint` or `pnpm typecheck` without reading the",
+    "project first.",
     "",
-    "Naming convention:",
-    "  verb            dev, build, preview, test",
-    "  verb:qualifier  lint:fix, lint:scss, format:check",
-    "",
-    "pnpm scripts docs: https://docs.npmjs.com/cli/v10/using-npm/scripts"
+    "build runs `tsc -b` FIRST: Vite (Oxc) strips types without checking",
+    "them, so without it a type error ships to production."
   ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-
+    "typecheck": "tsc -b",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-
-    "typecheck": "tsc -b",
-
     "lint:scss": "stylelint '**/*.scss'",
     "lint:scss:fix": "stylelint '**/*.scss' --fix"
   },
 
   "// dependencies": [
-    "Runtime deps — these ship in the production bundle.",
-    "Only add what you actually import. Transitive deps are pulled automatically."
+    "Runtime code that ships in the bundle. Import only what you list;",
+    "never rely on a transitive dependency being present.",
+    "",
+    "react-router (v8) replaces react-router-dom, which no longer exists.",
+    "Import everything from 'react-router', and RouterProvider from",
+    "'react-router/dom'."
   ],
   "dependencies": {
-    "@tanstack/react-query": "^5.90.12",
-    "axios": "^1.13.0",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.0",
-    "react-error-boundary": "^6.0.0",
-    "react-icons": "^5.5.0",
-    "react-router-dom": "^7.1.1",
-    "sonner": "^2.0.7",
-    "zod": "^4.1.13",
-    "zustand": "^5.0.9"
+    "@tanstack/react-query": "^5.105.1",
+    "axios": "^1.21.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-error-boundary": "^6.1.6",
+    "react-icons": "^5.7.0",
+    "react-router": "^8.5.1",
+    "sonner": "^2.0.8",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
   },
 
   "// devDependencies": [
-    "Dev deps — only used during development/build, not shipped to users.",
-    "Linters, type checkers, build tools, test frameworks go here."
+    "Build and quality tooling only; none of it reaches the browser.",
+    "",
+    "@biomejs/biome is pinned EXACTLY (no ^): a minor Biome release can",
+    "change formatter output, and a floating range makes `biome check` pass",
+    "on one machine and fail on another.",
+    "",
+    "typescript ~7.0: the native Go compiler. Tilde, because TypeScript does",
+    "not follow semver and minor releases tighten checks.",
+    "",
+    "sass-embedded runs the Dart Sass compiler natively; Vite uses it",
+    "automatically and it is several times faster than the pure-JS `sass`.",
+    "",
+    "Not needed any more: vite-tsconfig-paths (Vite 8 has",
+    "resolve.tsconfigPaths), the npm:rolldown-vite alias (Vite 8 IS",
+    "Rolldown), and stylelint-config-prettier-scss (nothing formats SCSS",
+    "with Prettier; see stylelint.config.js.example)."
   ],
   "devDependencies": {
-    "@biomejs/biome": "^2.4.2",
-    "@tanstack/react-query-devtools": "^5.91.1",
-    "@types/node": "^24.10.2",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    "sass": "^1.95.0",
-    "stylelint": "^16.26.1",
-    "stylelint-config-prettier-scss": "^1.0.0",
-    "stylelint-config-standard-scss": "^16.0.0",
-    "typescript": "~5.9.3",
-    "vite": "npm:rolldown-vite@7.2.5",
-    "vite-tsconfig-paths": "^5.1.0"
+    "@biomejs/biome": "2.6.4",
+    "@tanstack/react-query-devtools": "^5.105.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "sass-embedded": "^1.107.1",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard-scss": "^17.0.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.5"
   },
 
-  "// pnpm": [
-    "pnpm-specific configuration.",
-    "",
-    "overrides: Force a specific version of a transitive dependency.",
-    "Use this when a dep pulls in a version you don't want.",
-    "Example: pin vite to rolldown-vite for faster builds.",
-    "",
-    "peerDependencyRules.allowAny: Suppress peer dep warnings for",
-    "packages that haven't updated their peerDeps to React 19 yet."
-  ],
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:rolldown-vite@7.2.5"
-    },
-    "peerDependencyRules": {
-      "allowAny": [
-        "react",
-        "react-dom"
-      ]
-    }
-  }
+  "// pnpm settings": [
+    "There is deliberately NO `pnpm` field here. pnpm 11+ ignores it",
+    "completely, so overrides placed there silently stop applying the day",
+    "the project moves past pnpm 10. Overrides, allowed build scripts and",
+    "minimumReleaseAge belong in pnpm-workspace.yaml next to this file."
+  ]
 }

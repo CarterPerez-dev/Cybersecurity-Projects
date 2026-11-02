@@ -1,0 +1,186 @@
+// ©AngelaMos | 2026
+// biome.jsonc.example
+//
+// Annotated Biome configuration for Cybersecurity-Projects frontends.
+// Copy into frontend/, rename to `biome.jsonc` (the .jsonc extension is what
+// makes these comments legal: biome.json rejects comments, and rejects
+// "//" keys as unknown configuration).
+//
+// Biome is the linter AND formatter for JS/TS/JSON, one Rust binary in
+// place of ESLint + Prettier. SCSS stays with stylelint.
+//
+// Pin the exact version in package.json ("@biomejs/biome": "2.6.4") and
+// keep $schema below on the same version, so editor completion matches the
+// binary that actually runs.
+//
+// Docs:  https://biomejs.dev/reference/configuration/
+// Rules: https://biomejs.dev/linter/rules/
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+
+  // Respect .gitignore, so build output and generated files are skipped
+  // without a second ignore list to keep in sync.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+
+  // Patterns are evaluated in order, relative to this file. A `!!` prefix
+  // also stops the project scanner from indexing the path (faster, and
+  // keeps generated bundles out of import-cycle analysis).
+  "files": {
+    "includes": [
+      "**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc}",
+      "!!**/dist",
+      "!!**/coverage"
+    ]
+  },
+
+  // 2-space indent, LF, 82 columns: the width every frontend in the repo
+  // uses (Python is 75, Go 80, C++ 100; each set by its own formatter).
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 82,
+    "lineEnding": "lf"
+  },
+
+  // Single quotes in TS, double quotes in JSX attributes (HTML convention).
+  // No semicolons except where ASI would be ambiguous. Trailing commas
+  // wherever ES5 allows them, for one-line diffs when a list grows.
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "es5",
+      "arrowParentheses": "always"
+    }
+  },
+
+  // Import sorting is an assist action in Biome 2, applied by
+  // `biome check --write`. (The old top-level organizeImports key is gone.)
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+
+    // Domains switch on rule sets for a library. `react` covers hooks,
+    // keys and JSX; `tanstackQuery` covers query-key and options misuse.
+    // Neither is active unless declared.
+    "domains": {
+      "react": "recommended",
+      "tanstackQuery": "recommended"
+    },
+
+    "rules": {
+      // The curated default set. The groups below only ADD rules or raise
+      // severity; never use the "all" preset, which enables rules that
+      // contradict each other. (`"recommended": true` is the deprecated
+      // spelling of this line; `biome migrate` rewrites it to this.)
+      "preset": "recommended",
+
+      // forEach is fine for side effects. useLiteralKeys stays off because
+      // it fights bracket access into Record<string, T> index signatures.
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 25 }
+        },
+        "noForEach": "off",
+        "useLiteralKeys": "off",
+        "noImplicitCoercions": "error"
+      },
+
+      // Real bugs. noNestedComponentDefinitions: a component defined
+      // inside another remounts (and loses state) on every render.
+      // noReactPropAssignments: props are read-only.
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUndeclaredVariables": "error",
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error",
+        "noNestedComponentDefinitions": "error",
+        "noReactPropAssignments": "error"
+      },
+
+      // useImportType pairs with verbatimModuleSyntax in tsconfig.
+      // noNonNullAssertion bans `!` (re-allowed in main.tsx below).
+      // useComponentExportOnlyModules keeps Fast Refresh working: a module
+      // that exports a component AND a non-component reloads the page.
+      // useNamingConvention is off: API payload keys are not ours to name.
+      "style": {
+        "useImportType": "error",
+        "useConst": "error",
+        "useTemplate": "error",
+        "useSelfClosingElements": "error",
+        "useFragmentSyntax": "error",
+        "noNonNullAssertion": "error",
+        "useConsistentArrayType": {
+          "level": "error",
+          "options": { "syntax": "shorthand" }
+        },
+        "useComponentExportOnlyModules": "error",
+        "useNamingConvention": "off"
+      },
+
+      // Almost always a mistake. noExplicitAny is the reason TypeScript is
+      // here at all. noConsole warns so debug output gets noticed in review
+      // without blocking a local build. noImportCycles uses the project
+      // scanner: a cycle is an initialization-order bug waiting to happen.
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noDebugger": "error",
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn",
+        "noAssignInExpressions": "error",
+        "noDoubleEquals": "error",
+        "noRedeclare": "error",
+        "noVar": "error",
+        "noImportCycles": "error"
+      },
+
+      // XSS. noSecrets flags high-entropy string literals that look like
+      // API keys or tokens before they reach git history.
+      "security": {
+        "noDangerouslySetInnerHtml": "error",
+        "noSecrets": "warn"
+      },
+
+      // Accessibility is a correctness property of a UI, not polish.
+      "a11y": {
+        "useAltText": "error",
+        "useAnchorContent": "error",
+        "useKeyWithClickEvents": "error",
+        "noStaticElementInteractions": "error",
+        "useButtonType": "error",
+        "useValidAnchor": "error"
+      }
+    }
+  },
+
+  // main.tsx: `document.getElementById('root')!` is safe because index.html
+  // guarantees the element. This is the ONE place `!` is allowed.
+  "overrides": [
+    {
+      "includes": ["src/main.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    }
+  ]
+}
