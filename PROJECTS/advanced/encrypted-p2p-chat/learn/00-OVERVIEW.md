@@ -302,11 +302,11 @@ encrypted-p2p-chat/
 |-- conf/
 |   |-- docker/
 |   |   |-- dev/
-|   |   |   |-- fastapi.docker                # Dev Dockerfile for backend (hot reload)
-|   |   |   +-- vite.docker                   # Dev Dockerfile for frontend (HMR)
+|   |   |   |-- fastapi.dockerfile            # Dev Dockerfile for backend (hot reload)
+|   |   |   +-- vite.dockerfile               # Dev Dockerfile for frontend (HMR)
 |   |   +-- prod/
-|   |       |-- fastapi.docker                # Production Dockerfile for backend
-|   |       +-- vite.docker                   # Production Dockerfile for frontend (static build)
+|   |       |-- fastapi.dockerfile            # Production Dockerfile for backend
+|   |       +-- vite.dockerfile               # Production Dockerfile for frontend (static build)
 |   +-- nginx/
 |       |-- dev.nginx                         # Development Nginx config
 |       |-- prod.nginx                        # Production Nginx config

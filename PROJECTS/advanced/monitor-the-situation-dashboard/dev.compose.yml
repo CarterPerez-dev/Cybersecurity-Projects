@@ -25,7 +25,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: conf/docker/dev/go.docker
+      dockerfile: conf/docker/dev/go.dockerfile
     container_name: monitor-dev-backend
     ports:
       - "${BACKEND_HOST_PORT:-5432}:8080"
@@ -60,7 +60,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: conf/docker/dev/vite.docker
+      dockerfile: conf/docker/dev/vite.dockerfile
     container_name: monitor-dev-frontend
     ports:
       - "${FRONTEND_HOST_PORT:-3432}:5173"

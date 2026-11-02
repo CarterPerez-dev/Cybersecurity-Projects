@@ -25,7 +25,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: ${APP_NAME:-axumortem}-frontend-dev
     ports:
       - "${FRONTEND_HOST_PORT:-15723}:5173"
@@ -42,7 +42,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/rust.dev
+      dockerfile: ../infra/docker/rust.dev.dockerfile
     container_name: ${APP_NAME:-axumortem}-backend-dev
     ports:
       - "${BACKEND_HOST_PORT:-36968}:3000"

@@ -1,14 +1,14 @@
 <!-- ©AngelaMos | 2026 -->
 <!-- README.md -->
 
-```json                                                                                                         
+```json
 RRRRRRRRRRRRRRRRR   VVVVVVVV           VVVVVVVVEEEEEEEEEEEEEEEEEEEEEENNNNNNNN        NNNNNNNN        GGGGGGGGGGGGG
 R::::::::::::::::R  V::::::V           V::::::VE::::::::::::::::::::EN:::::::N       N::::::N     GGG::::::::::::G
 R::::::RRRRRR:::::R V::::::V           V::::::VE::::::::::::::::::::EN::::::::N      N::::::N   GG:::::::::::::::G
 RR:::::R     R:::::RV::::::V           V::::::VEE::::::EEEEEEEEE::::EN:::::::::N     N::::::N  G:::::GGGGGGGG::::G
   R::::R     R:::::R V:::::V           V:::::V   E:::::E       EEEEEEN::::::::::N    N::::::N G:::::G       GGGGGG
-  R::::R     R:::::R  V:::::V         V:::::V    E:::::E             N:::::::::::N   N::::::NG:::::G              
-  R::::RRRRRR:::::R    V:::::V       V:::::V     E::::::EEEEEEEEEE   N:::::::N::::N  N::::::NG:::::G              
+  R::::R     R:::::R  V:::::V         V:::::V    E:::::E             N:::::::::::N   N::::::NG:::::G
+  R::::RRRRRR:::::R    V:::::V       V:::::V     E::::::EEEEEEEEEE   N:::::::N::::N  N::::::NG:::::G
   R:::::::::::::RR      V:::::V     V:::::V      E:::::::::::::::E   N::::::N N::::N N::::::NG:::::G    GGGGGGGGGG
   R::::RRRRRR:::::R      V:::::V   V:::::V       E:::::::::::::::E   N::::::N  N::::N:::::::NG:::::G    G::::::::G
   R::::R     R:::::R      V:::::V V:::::V        E::::::EEEEEEEEEE   N::::::N   N:::::::::::NG:::::G    GGGGG::::G
@@ -133,7 +133,7 @@ rveng/
 ├── install.sh            # one-shot curl|bash: installs Docker, builds, runs
 ├── uninstall.sh          # tears the stacks down and removes the cache
 ├── infra/
-│   ├── docker/           # api.dockerfile, vite.dev, vite.prod (multistage -> nginx)
+│   ├── docker/           # api.dockerfile, vite.dev.dockerfile, vite.prod.dockerfile (multistage -> nginx)
 │   └── nginx/            # dev.nginx (fronts Vite HMR), prod.nginx (serves dist)
 ├── src/rveng/
 │   ├── engine/           # the pure analysis core (no HTTP, no framework)

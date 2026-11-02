@@ -469,9 +469,9 @@ dev.compose.yml
 
 **Nginx** uses the stock `nginx:1.27-alpine` image with the development config mounted in. It proxies to both the Vite dev server and the FastAPI backend.
 
-**Frontend** builds from `infra/docker/vite.dev` and runs `pnpm dev` with Vite's HMR (Hot Module Replacement) server on port 5173. The source directory `./frontend` is bind-mounted into the container, so any file change on your host triggers an instant browser refresh. The `node_modules` directory lives in a Docker named volume (`frontend_modules`) to avoid platform-specific binary conflicts between your host OS and the container's Linux.
+**Frontend** builds from `infra/docker/vite.dev.dockerfile` and runs `pnpm dev` with Vite's HMR (Hot Module Replacement) server on port 5173. The source directory `./frontend` is bind-mounted into the container, so any file change on your host triggers an instant browser refresh. The `node_modules` directory lives in a Docker named volume (`frontend_modules`) to avoid platform-specific binary conflicts between your host OS and the container's Linux.
 
-**Backend** builds from `infra/docker/fastapi.dev` and runs uvicorn with `--reload` enabled. The source directory `./backend` is bind-mounted, so Python file changes trigger an automatic server restart. The `.venv` directory lives in a named volume (`backend_cache`) for the same platform isolation reason. Environment variables set `ENVIRONMENT=development`, `DEBUG=true`, and `RELOAD=true`.
+**Backend** builds from `infra/docker/fastapi.dev.dockerfile` and runs uvicorn with `--reload` enabled. The source directory `./backend` is bind-mounted, so Python file changes trigger an automatic server restart. The `.venv` directory lives in a named volume (`backend_cache`) for the same platform isolation reason. Environment variables set `ENVIRONMENT=development`, `DEBUG=true`, and `RELOAD=true`.
 
 The development compose uses Docker's `depends_on` with health checks to ensure the backend is ready before nginx starts proxying to it. The backend health check hits `http://localhost:8000/health` every 10 seconds with a 30-second startup grace period.
 
@@ -487,9 +487,9 @@ compose.yml
     └── SQLite data in named volume (c2_data)
 ```
 
-**Nginx** uses a multi-stage build defined in `infra/docker/frontend-builder.prod`. The first stage installs pnpm, runs `pnpm build`, and produces the static frontend files. The second stage copies those files into an nginx image with the production config (`prod.nginx`). There is no separate frontend container in production. Nginx serves the built files directly, which is faster and uses fewer resources.
+**Nginx** uses a multi-stage build defined in `infra/docker/frontend-builder.prod.dockerfile`. The first stage installs pnpm, runs `pnpm build`, and produces the static frontend files. The second stage copies those files into an nginx image with the production config (`prod.nginx`). There is no separate frontend container in production. Nginx serves the built files directly, which is faster and uses fewer resources.
 
-**Backend** builds from `infra/docker/fastapi.prod` and runs with `ENVIRONMENT=production`, `DEBUG=false`, `RELOAD=false`. The SQLite database lives in a Docker named volume (`c2_data`) so it persists across container restarts. Resource limits are set: the backend gets up to 2 CPUs and 1GB RAM, nginx gets up to 1 CPU and 256MB RAM.
+**Backend** builds from `infra/docker/fastapi.prod.dockerfile` and runs with `ENVIRONMENT=production`, `DEBUG=false`, `RELOAD=false`. The SQLite database lives in a Docker named volume (`c2_data`) so it persists across container restarts. Resource limits are set: the backend gets up to 2 CPUs and 1GB RAM, nginx gets up to 1 CPU and 256MB RAM.
 
 The production nginx config (`prod.nginx`) adds security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy), aggressive caching for static assets (1 year for `/assets/` with immutable), and tighter rate limits (burst=20 vs burst=50 in dev).
 

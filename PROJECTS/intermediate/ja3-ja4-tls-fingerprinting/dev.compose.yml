@@ -31,7 +31,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: ${APP_NAME:-tlsfp}-frontend-dev
     command: sh -c "pnpm install && exec pnpm dev --host 0.0.0.0"
     ports:
@@ -51,7 +51,7 @@ services:
   tlsfp:
     build:
       context: .
-      dockerfile: infra/docker/tlsfp.dev
+      dockerfile: infra/docker/tlsfp.dev.dockerfile
     container_name: ${APP_NAME:-tlsfp}-backend-dev
     entrypoint: ["/bin/sh", "-c"]
     command:

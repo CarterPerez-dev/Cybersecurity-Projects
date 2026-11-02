@@ -7,7 +7,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: conf/docker/prod/vite.docker
+      dockerfile: conf/docker/prod/vite.dockerfile
     container_name: ${APP_NAME:-siem}-nginx
     ports:
       - "${NGINX_HOST_PORT:-8431}:80"
@@ -30,7 +30,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: conf/docker/prod/flask.docker
+      dockerfile: conf/docker/prod/flask.dockerfile
     container_name: ${APP_NAME:-siem}-backend
     expose:
       - "5000"

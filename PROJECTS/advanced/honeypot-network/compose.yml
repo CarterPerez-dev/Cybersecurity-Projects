@@ -33,7 +33,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: infra/docker/go.prod
+      dockerfile: infra/docker/go.prod.dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -63,7 +63,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: infra/docker/vite.prod
+      dockerfile: infra/docker/vite.prod.dockerfile
     restart: unless-stopped
     depends_on:
       - backend

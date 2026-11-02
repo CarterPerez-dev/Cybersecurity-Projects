@@ -25,7 +25,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: conf/docker/dev/fastapi.docker
+      dockerfile: conf/docker/dev/fastapi.dockerfile
     container_name: apisec_backend_dev
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-apiuser}:${POSTGRES_PASSWORD:-apipass}@db:5432/${POSTGRES_DB:-apisecurity}
@@ -49,7 +49,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: conf/docker/dev/vite.docker
+      dockerfile: conf/docker/dev/vite.dockerfile
     container_name: apisec_frontend_dev
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}

@@ -91,9 +91,10 @@ updates:
   #
   # Dependabot only scans files whose NAME matches /dockerfile|containerfile/i
   # (dependabot-core docker/file_fetcher.rb). `Dockerfile`, `Dockerfile.prod`
-  # and `vite.prod.Dockerfile` are found; `infra/docker/vite.prod` and
-  # `conf/docker/prod/api.docker` are silently skipped. Name build files
-  # `<service>.<env>.Dockerfile` and list every directory that holds them.
+  # and `vite.prod.dockerfile` are found; `infra/docker/vite.prod` and
+  # `conf/docker/prod/api.docker` are silently skipped. The repo convention
+  # is `infra/docker/<service>.<env>.dockerfile`; list every directory that
+  # holds build files.
 
   - package-ecosystem: "docker"
     directories: ["/", "/infra/docker"]

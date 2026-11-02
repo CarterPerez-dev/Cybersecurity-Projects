@@ -241,11 +241,11 @@ class UserRepository:
     @staticmethod
     def get_by_id(db: Session, user_id: int) -> User | None:
         return db.query(User).filter(User.id == user_id).first()
-    
+
     @staticmethod
     def get_by_email(db: Session, email: str) -> User | None:
         return db.query(User).filter(User.email == email).first()
-    
+
     @staticmethod
     def create_user(
         db: Session,
@@ -324,17 +324,17 @@ async def get_current_user(
     try:
         payload = decode_token(credentials.credentials)
         email: str | None = payload.get("sub")
-        
+
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        
+
         user = UserRepository.get_by_email(db, email)
-        
+
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        
+
         return UserResponse.model_validate(user)
-    
+
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
 ```
@@ -356,16 +356,16 @@ class BaseScanner(ABC):
         self.session = self._create_session()
         self.last_request_time = 0.0
         self.request_count = 0
-    
+
     def make_request(self, method: str, endpoint: str, **kwargs: Any) -> requests.Response:
         """Common HTTP request logic with retry and rate limiting"""
         self._wait_before_request()
         # ... retry logic, backoff, timeout handling
-    
+
     def get_baseline_timing(self, endpoint: str, samples: int | None = None) -> tuple[float, float]:
         """Statistical baseline for time-based detection"""
         # ... takes samples, calculates mean and stdev
-    
+
     @abstractmethod
     def scan(self) -> TestResultCreate:
         """Must be implemented by specific scanner classes"""
@@ -380,15 +380,15 @@ class SQLiScanner(BaseScanner):
         error_based_test = self._test_error_based_sqli()
         if error_based_test["vulnerable"]:
             return self._create_vulnerable_result(...)
-        
+
         boolean_based_test = self._test_boolean_based_sqli()
         if boolean_based_test["vulnerable"]:
             return self._create_vulnerable_result(...)
-        
+
         time_based_test = self._test_time_based_sqli()
         if time_based_test["vulnerable"]:
             return self._create_vulnerable_result(...)
-        
+
         return TestResultCreate(status=ScanStatus.SAFE, ...)
 ```
 
@@ -479,7 +479,7 @@ def run_scan(db: Session, user_id: int, scan_request: ScanRequest) -> ScanRespon
         user_id=user_id,
         target_url=str(scan_request.target_url),
     )
-    
+
     # Map test types to scanner classes
     scanner_mapping: dict[TestType, type[BaseScanner]] = {
         TestType.RATE_LIMIT: RateLimitScanner,
@@ -487,20 +487,20 @@ def run_scan(db: Session, user_id: int, scan_request: ScanRequest) -> ScanRespon
         TestType.SQLI: SQLiScanner,
         TestType.IDOR: IDORScanner,
     }
-    
+
     results: list[TestResultCreate] = []
-    
+
     # Execute each requested test
     for test_type in scan_request.tests_to_run:
         scanner_class = scanner_mapping.get(test_type)
         scanner = scanner_class(...)
         result = scanner.scan()
         results.append(result)
-    
+
     # Save all results
     for result in results:
         TestResultRepository.create_test_result(db=db, scan_id=scan.id, ...)
-    
+
     db.refresh(scan)
     return ScanResponse.model_validate(scan)
 ```
@@ -526,7 +526,7 @@ def get_by_user(
     """
     if limit is None:
         limit = settings.DEFAULT_PAGINATION_LIMIT
-    
+
     return (
         db.query(Scan)
         .options(joinedload(Scan.test_results))  # Eager load relationships
@@ -549,7 +549,7 @@ class User(BaseModel):
     Stores authentication credentials and user information
     """
     __tablename__ = "users"
-    
+
     email = Column(
         String(settings.EMAIL_MAX_LENGTH),  # 255 chars
         unique=True,
@@ -580,7 +580,7 @@ class Scan(BaseModel):
     Stores metadata about scans performed on target URLs
     """
     __tablename__ = "scans"
-    
+
     user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),  # Delete scans when user deleted
@@ -596,7 +596,7 @@ class Scan(BaseModel):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
-    
+
     user = relationship("User", backref="scans")
     test_results = relationship(
         "TestResult",
@@ -636,7 +636,7 @@ class TestResult(BaseModel):
     Stores individual test results for each security scan
     """
     __tablename__ = "test_results"
-    
+
     scan_id = Column(
         Integer,
         ForeignKey("scans.id", ondelete="CASCADE"),
@@ -825,10 +825,10 @@ def _wait_before_request(self, jitter_ms: int | None = None) -> None:
     """
     required_delay = 1.0 / (self.max_requests / settings.SCANNER_RATE_LIMIT_WINDOW_SECONDS)
     # If max_requests=100 and window=60s, delay = 1.0 / (100/60) = 0.6s between requests
-    
+
     jitter = random.uniform(0, jitter_ms / 1000.0)  # Random variation
     elapsed = time.time() - self.last_request_time
-    
+
     if elapsed < required_delay:
         time.sleep(required_delay - elapsed + jitter)
 ```
@@ -949,20 +949,20 @@ class Settings(BaseSettings):
     APP_NAME: str = "API Security Tester"
     VERSION: str = "1.0.0"
     DEBUG: bool = False
-    
+
     # Database
     DATABASE_URL: str  # Required, no default
-    
+
     # Security - JWT
     SECRET_KEY: str  # Required, MUST be random in production
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
-    
+
     # Rate limiting
     API_RATE_LIMIT_LOGIN: str = "20/minute"
     API_RATE_LIMIT_REGISTER: str = "15/minute"
     API_RATE_LIMIT_SCAN: str = "15/minute"
-    
+
     # Scanner limits
     SCANNER_MAX_CONCURRENT_REQUESTS: int = 50
     SCANNER_CONNECTION_TIMEOUT: int = 180
@@ -1027,7 +1027,7 @@ def get_by_user(
 ) -> list[Scan]:
     if limit is None:
         limit = settings.DEFAULT_PAGINATION_LIMIT
-    
+
     return (
         db.query(Scan)
         .offset(skip)
@@ -1204,13 +1204,13 @@ Internet ────────>  │  Nginx (Port 80) │
 
 **Components:**
 
-**Nginx container** - Built from `conf/docker/prod/vite.docker`:
+**Nginx container** - Built from `conf/docker/prod/vite.dockerfile`:
 - Multi-stage build: compile React, then serve with nginx
 - Serves static files from `/usr/share/nginx/html`
 - Proxies `/api` to backend
 - Gzip compression, caching headers
 
-**Backend container** - Built from `conf/docker/prod/fastapi.docker`:
+**Backend container** - Built from `conf/docker/prod/fastapi.dockerfile`:
 - Runs gunicorn with 4 uvicorn workers
 - Non-root user for security
 - No volume mounts (code baked into image)
@@ -1313,26 +1313,26 @@ Code from `base_scanner.py:92-156`:
 def make_request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
     retry_count = 0
     backoff_factor = 2.0
-    
+
     while retry_count <= settings.DEFAULT_RETRY_COUNT:
         try:
             response = self.session.request(method, url, **kwargs)
-            
+
             if response.status_code == 429:
                 retry_after = response.headers.get("Retry-After", "60")
                 wait_time = int(retry_after) if retry_after.isdigit() else 60
                 time.sleep(wait_time)
                 retry_count += 1
                 continue  # Try again
-            
+
             if response.status_code >= 500:  # Server error
                 wait_time = backoff_factor ** retry_count
                 time.sleep(wait_time)
                 retry_count += 1
                 continue
-            
+
             return response  # Success
-        
+
         except (requests.Timeout, requests.ConnectionError):
             if retry_count < settings.DEFAULT_RETRY_COUNT:
                 wait_time = backoff_factor ** retry_count
@@ -1357,7 +1357,7 @@ class XSSScanner(BaseScanner):
     def scan(self) -> TestResultCreate:
         # Test for reflected XSS
         test_result = self._test_reflected_xss()
-        
+
         if test_result["vulnerable"]:
             return TestResultCreate(
                 test_name=TestType.XSS,  # Need to add to enum
@@ -1367,7 +1367,7 @@ class XSSScanner(BaseScanner):
                 evidence_json=test_result,
                 recommendations_json=[...]
             )
-        
+
         return TestResultCreate(test_name=TestType.XSS, status=ScanStatus.SAFE, ...)
 ```
 

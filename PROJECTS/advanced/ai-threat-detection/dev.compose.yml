@@ -11,8 +11,8 @@
 # enabled, quiet gitpython, and SKIP_AUTO_TRAIN toggle),
 # and frontend (Vite dev server on host port 46969 with
 # source bind-mount for HMR and API proxy to the backend).
-# Connects to infra/docker/fastapi.dev,
-# infra/docker/vite.dev
+# Connects to infra/docker/fastapi.dev.dockerfile,
+# infra/docker/vite.dev.dockerfile
 
 services:
   postgres:
@@ -55,7 +55,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: infra/docker/fastapi.dev
+      dockerfile: infra/docker/fastapi.dev.dockerfile
     container_name: vigil-backend-dev
     environment:
       ENV: development
@@ -92,7 +92,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: infra/docker/vite.dev
+      dockerfile: infra/docker/vite.dev.dockerfile
     container_name: vigil-frontend-dev
     environment:
       VITE_API_TARGET: http://backend:8000
