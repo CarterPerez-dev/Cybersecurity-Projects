@@ -16,7 +16,7 @@ iced-x86 = { version = "1.21", features = [
     "instr_info",
 ] }
 yara-x = "0.13"
-petgraph = "0.7"
+petgraph = "0.8"
 memmap2 = "0.9"
 rangemap = "1.5"
 sha2 = { workspace = true }
