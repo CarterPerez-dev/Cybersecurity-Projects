@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/bindguard"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
@@ -34,7 +36,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -890,7 +891,7 @@ func underLease(
 	}()
 	defer func() {
 		stopKeeping()
-		<-renewals
+		_ = <-renewals
 	}()
 
 	result, runErr := engine.Run(ctx, spec)

@@ -9,9 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/record"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
-	"github.com/spf13/cobra"
 )
 
 func newRunsCmd() *cobra.Command {

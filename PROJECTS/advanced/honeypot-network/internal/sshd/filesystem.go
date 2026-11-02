@@ -46,7 +46,7 @@ func (fs *FakeFS) populate() {
 		"/etc/ssh", "/etc/cron.d", "/etc/default",
 		"/home", "/home/admin", "/lib", "/lib64",
 		"/media", "/mnt", "/opt", "/proc",
-		"/root", "/run", "/sbin", "/srv",
+		rootHome, "/run", "/sbin", "/srv",
 		"/sys", "/tmp", "/usr", "/usr/bin",
 		"/usr/lib", "/usr/local", "/usr/sbin",
 		"/var", "/var/log", "/var/lib", "/var/tmp",
@@ -62,9 +62,9 @@ func (fs *FakeFS) populate() {
 	}
 
 	fs.files["/etc/hostname"] = &fileEntry{
-		name:    "hostname",
+		name:    fileHostname,
 		content: fs.hostname + "\n",
-		mode:    "-rw-r--r--",
+		mode:    modeFileRW,
 	}
 
 	fs.files["/etc/passwd"] = &fileEntry{
@@ -85,7 +85,7 @@ func (fs *FakeFS) populate() {
 			"nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n" +
 			"sshd:x:110:65534::/run/sshd:/usr/sbin/nologin\n" +
 			"admin:x:1000:1000:admin:/home/admin:/bin/bash\n",
-		mode: "-rw-r--r--",
+		mode: modeFileRW,
 	}
 
 	fs.files["/etc/shadow"] = &fileEntry{
@@ -103,13 +103,13 @@ func (fs *FakeFS) populate() {
 			"VERSION_CODENAME=jammy\n" +
 			"ID=ubuntu\n" +
 			"ID_LIKE=debian\n",
-		mode: "-rw-r--r--",
+		mode: modeFileRW,
 	}
 
 	fs.files["/etc/issue"] = &fileEntry{
 		name:    "issue",
 		content: "Ubuntu 22.04.4 LTS \\n \\l\n\n",
-		mode:    "-rw-r--r--",
+		mode:    modeFileRW,
 	}
 
 	fs.files["/proc/version"] = &fileEntry{
@@ -119,7 +119,7 @@ func (fs *FakeFS) populate() {
 			"(gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, " +
 			"GNU ld (GNU Binutils for Ubuntu) 2.38) " +
 			"#115-Ubuntu SMP Mon Apr 15 09:52:04 UTC 2024\n",
-		mode: "-r--r--r--",
+		mode: modeFileRO,
 	}
 
 	fs.files["/proc/cpuinfo"] = &fileEntry{
@@ -139,7 +139,7 @@ func (fs *FakeFS) populate() {
 			"cpu cores\t: 2\n" +
 			"bogomips\t: 5000.00\n" +
 			"flags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx rdtscp lm constant_tsc rep_good nopl xtopology cpuid pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor\n\n",
-		mode: "-r--r--r--",
+		mode: modeFileRO,
 	}
 
 	fs.files["/proc/meminfo"] = &fileEntry{
@@ -152,7 +152,7 @@ func (fs *FakeFS) populate() {
 			"SwapCached:            0 kB\n" +
 			"SwapTotal:       2097148 kB\n" +
 			"SwapFree:        2097148 kB\n",
-		mode: "-r--r--r--",
+		mode: modeFileRO,
 	}
 
 	fs.files["/etc/ssh/sshd_config"] = &fileEntry{
@@ -166,7 +166,7 @@ func (fs *FakeFS) populate() {
 			"PrintMotd no\n" +
 			"AcceptEnv LANG LC_*\n" +
 			"Subsystem\tsftp\t/usr/lib/openssh/sftp-server\n",
-		mode: "-rw-r--r--",
+		mode: modeFileRW,
 	}
 }
 

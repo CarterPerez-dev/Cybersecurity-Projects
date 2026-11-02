@@ -15,6 +15,12 @@ http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
 
+    # Vite dev server: exists only in the dev stack, so it is declared here
+    # and not in the shared http.conf the production image also loads
+    upstream frontend {
+        server frontend:5173;
+    }
+
     # Disable access logs in dev (less noise)
     access_log off;
     error_log /var/log/nginx/error.log warn;

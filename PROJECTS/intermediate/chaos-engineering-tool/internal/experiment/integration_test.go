@@ -324,7 +324,8 @@ func TestABaselineBlipDoesNotFabricateABypass(t *testing.T) {
 		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired)...),
+			repeat(probe.Rejected, MinimumPaired)...,
+		),
 	}
 
 	verdict := Judge(Observation{
@@ -376,10 +377,12 @@ func TestACleanRunOnThinEvidenceIsNotConclusive(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)

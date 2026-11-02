@@ -1,92 +1,244 @@
+# ©AngelaMos | 2026
+# dependabot.yml
+
 version: 2
+
 updates:
-  # Python projects
-  - package-ecosystem: "pip"
-    directory: "/PROJECTS/api-rate-limiter"
+
+  - package-ecosystem: "uv"
+    directories:
+      - "/PROJECTS/foundations/hash-identifier"
+      - "/PROJECTS/foundations/http-headers-scanner"
+      - "/PROJECTS/foundations/password-manager"
+      - "/PROJECTS/beginner/base64-tool"
+      - "/PROJECTS/beginner/c2-beacon/backend"
+      - "/PROJECTS/beginner/c2-beacon/beacon"
+      - "/PROJECTS/beginner/caesar-cipher"
+      - "/PROJECTS/beginner/dns-lookup"
+      - "/PROJECTS/beginner/keylogger"
+      - "/PROJECTS/beginner/linux-ebpf-security-tracer"
+      - "/PROJECTS/beginner/network-traffic-analyzer/python"
+      - "/PROJECTS/beginner/prompt-injection-firewall"
+      - "/PROJECTS/intermediate/dlp-scanner"
+      - "/PROJECTS/intermediate/siem-dashboard/backend"
+      - "/PROJECTS/advanced/ai-threat-detection/backend"
+      - "/PROJECTS/advanced/api-rate-limiter"
+      - "/PROJECTS/advanced/bug-bounty-platform/backend"
+      - "/PROJECTS/advanced/encrypted-p2p-chat/backend"
+      - "/PROJECTS/advanced/rveng"
     schedule:
       interval: "weekly"
       day: "friday"
       time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      python-dependencies:
-        patterns:
-          - "*"
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    open-pull-requests-limit: 25
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "chore(deps)"
 
   - package-ecosystem: "pip"
-    directory: "/PROJECTS/dns-lookup"
+    directory: "/PROJECTS/intermediate/api-security-scanner/backend"
     schedule:
       interval: "weekly"
       day: "friday"
       time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "pip"
-    directory: "/PROJECTS/keylogger"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-      time: "12:00"
-    groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "pip"
-    directory: "/PROJECTS/api-security-scanner/backend"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-      time: "12:00"
-    groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "pip"
-    directory: "/PROJECTS/encrypted-p2p-chat/backend"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-      time: "12:00"
-    groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
-  # npm projects
-  - package-ecosystem: "npm"
-    directory: "/PROJECTS/api-security-scanner/frontend"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-      time: "12:00"
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "chore(deps)"
 
   - package-ecosystem: "npm"
-    directory: "/PROJECTS/encrypted-p2p-chat/frontend"
+    directories:
+      - "/PROJECTS/beginner/c2-beacon/frontend"
+      - "/PROJECTS/beginner/canary-token-generator/frontend"
+      - "/PROJECTS/beginner/prompt-injection-firewall/frontend"
+      - "/PROJECTS/intermediate/api-security-scanner/frontend"
+      - "/PROJECTS/intermediate/binary-analysis-tool/frontend"
+      - "/PROJECTS/intermediate/ja3-ja4-tls-fingerprinting/frontend"
+      - "/PROJECTS/intermediate/siem-dashboard/frontend"
+      - "/PROJECTS/advanced/ai-threat-detection/frontend"
+      - "/PROJECTS/advanced/bug-bounty-platform/frontend"
+      - "/PROJECTS/advanced/encrypted-p2p-chat/frontend"
+      - "/PROJECTS/advanced/honeypot-network/frontend"
+      - "/PROJECTS/advanced/monitor-the-situation-dashboard/frontend"
+      - "/PROJECTS/advanced/rveng/frontend"
     schedule:
       interval: "weekly"
       day: "friday"
       time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      npm-dependencies:
-        patterns:
-          - "*"
+      npm-runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      npm-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 25
+    labels: ["dependencies", "javascript"]
+    commit-message:
+      prefix: "chore(deps)"
 
-  # Go projects
   - package-ecosystem: "gomod"
-    directory: "/PROJECTS/docker-security-audit"
+    directories:
+      - "/PROJECTS/beginner/canary-token-generator/backend"
+      - "/PROJECTS/beginner/simple-vulnerability-scanner"
+      - "/PROJECTS/beginner/steganography-multi-tool"
+      - "/PROJECTS/beginner/systemd-persistence-scanner"
+      - "/PROJECTS/intermediate/chaos-engineering-tool"
+      - "/PROJECTS/intermediate/docker-security-audit"
+      - "/PROJECTS/intermediate/sbom-generator-vulnerability-matcher"
+      - "/PROJECTS/intermediate/secrets-scanner"
+      - "/PROJECTS/intermediate/security-news-scraper"
+      - "/PROJECTS/advanced/honeypot-network"
+      - "/PROJECTS/advanced/monitor-the-situation-dashboard/backend"
     schedule:
       interval: "weekly"
       day: "friday"
       time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      go-dependencies:
-        patterns:
-          - "*"
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    open-pull-requests-limit: 15
+    labels: ["dependencies", "go"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "cargo"
+    directories:
+      - "/PROJECTS/intermediate/binary-analysis-tool/backend"
+      - "/PROJECTS/intermediate/ja3-ja4-tls-fingerprinting"
+      - "/PROJECTS/advanced/zero-day-vulnerability-scanner"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    labels: ["dependencies", "rust"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/PROJECTS/beginner/c2-beacon/infra/docker"
+      - "/PROJECTS/beginner/canary-token-generator/infra/docker"
+      - "/PROJECTS/beginner/prompt-injection-firewall"
+      - "/PROJECTS/beginner/prompt-injection-firewall/infra/docker"
+      - "/PROJECTS/intermediate/api-security-scanner/conf/docker/dev"
+      - "/PROJECTS/intermediate/api-security-scanner/conf/docker/prod"
+      - "/PROJECTS/intermediate/binary-analysis-tool/infra/docker"
+      - "/PROJECTS/intermediate/docker-security-audit"
+      - "/PROJECTS/intermediate/ja3-ja4-tls-fingerprinting/infra/docker"
+      - "/PROJECTS/intermediate/siem-dashboard/conf/docker/dev"
+      - "/PROJECTS/intermediate/siem-dashboard/conf/docker/prod"
+      - "/PROJECTS/advanced/ai-threat-detection/dev-log"
+      - "/PROJECTS/advanced/ai-threat-detection/infra/docker"
+      - "/PROJECTS/advanced/bug-bounty-platform/infra/docker"
+      - "/PROJECTS/advanced/encrypted-p2p-chat/conf/docker/dev"
+      - "/PROJECTS/advanced/encrypted-p2p-chat/conf/docker/prod"
+      - "/PROJECTS/advanced/honeypot-network/infra/docker"
+      - "/PROJECTS/advanced/hsm-emulator"
+      - "/PROJECTS/advanced/monitor-the-situation-dashboard/conf/docker/dev"
+      - "/PROJECTS/advanced/monitor-the-situation-dashboard/conf/docker/prod"
+      - "/PROJECTS/advanced/rveng/infra/docker"
+      - "/PROJECTS/advanced/zero-day-vulnerability-scanner"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 7
+    groups:
+      base-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 25
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(docker)"
+
+  - package-ecosystem: "docker-compose"
+    directories:
+      - "/PROJECTS/beginner/c2-beacon"
+      - "/PROJECTS/beginner/canary-token-generator"
+      - "/PROJECTS/beginner/prompt-injection-firewall"
+      - "/PROJECTS/intermediate/api-security-scanner"
+      - "/PROJECTS/intermediate/binary-analysis-tool"
+      - "/PROJECTS/intermediate/ja3-ja4-tls-fingerprinting"
+      - "/PROJECTS/intermediate/siem-dashboard"
+      - "/PROJECTS/advanced/ai-threat-detection"
+      - "/PROJECTS/advanced/ai-threat-detection/dev-log"
+      - "/PROJECTS/advanced/bug-bounty-platform"
+      - "/PROJECTS/advanced/encrypted-p2p-chat"
+      - "/PROJECTS/advanced/honeypot-network"
+      - "/PROJECTS/advanced/monitor-the-situation-dashboard"
+      - "/PROJECTS/advanced/rveng"
+      - "/PROJECTS/advanced/zero-day-vulnerability-scanner"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "12:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 7
+    groups:
+      compose-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 20
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(docker)"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "12:00"
+      timezone: "America/New_York"
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      pre-commit-hooks:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"

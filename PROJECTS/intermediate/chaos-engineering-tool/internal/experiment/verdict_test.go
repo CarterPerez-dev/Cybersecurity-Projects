@@ -42,7 +42,8 @@ func healthyBaseline() probe.Window {
 		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired)...),
+			repeat(probe.Rejected, MinimumPaired)...,
+		),
 	}
 }
 
@@ -71,10 +72,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 			fault: probe.Window{
 				Valid: stream(
 					probe.Valid,
-					repeat(probe.Accepted, MinimumPaired)...),
+					repeat(probe.Accepted, MinimumPaired)...,
+				),
 				Invalid: stream(
 					probe.Invalid,
-					repeat(probe.Rejected, MinimumPaired)...),
+					repeat(probe.Rejected, MinimumPaired)...,
+				),
 			},
 			wantEpistemic: Passed,
 			wantDirection: Held,
@@ -84,10 +87,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 			fault: probe.Window{
 				Valid: stream(
 					probe.Valid,
-					repeat(probe.Rejected, MinimumPaired)...),
+					repeat(probe.Rejected, MinimumPaired)...,
+				),
 				Invalid: stream(
 					probe.Invalid,
-					repeat(probe.Rejected, MinimumPaired)...),
+					repeat(probe.Rejected, MinimumPaired)...,
+				),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Denied,
@@ -97,10 +102,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 			fault: probe.Window{
 				Valid: stream(
 					probe.Valid,
-					repeat(probe.Accepted, MinimumPaired)...),
+					repeat(probe.Accepted, MinimumPaired)...,
+				),
 				Invalid: stream(
 					probe.Invalid,
-					repeat(probe.Accepted, MinimumPaired)...),
+					repeat(probe.Accepted, MinimumPaired)...,
+				),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Permitted,
@@ -111,10 +118,12 @@ func TestTheVerdictTruthTable(t *testing.T) {
 			fault: probe.Window{
 				Valid: stream(
 					probe.Valid,
-					repeat(probe.Unavailable, MinimumPaired)...),
+					repeat(probe.Unavailable, MinimumPaired)...,
+				),
 				Invalid: stream(
 					probe.Invalid,
-					repeat(probe.Unavailable, MinimumPaired)...),
+					repeat(probe.Unavailable, MinimumPaired)...,
+				),
 			},
 			wantEpistemic: Deviated,
 			wantDirection: Crashed,
@@ -159,7 +168,8 @@ func TestATargetThatWasNeverEnforcingIsNotAPass(t *testing.T) {
 	baseline := healthyBaseline()
 	baseline.Invalid = stream(
 		probe.Invalid,
-		repeat(probe.Accepted, MinimumPaired)...)
+		repeat(probe.Accepted, MinimumPaired)...,
+	)
 
 	verdict := Judge(Observation{
 		FaultConfirmed: true,
@@ -167,10 +177,12 @@ func TestATargetThatWasNeverEnforcingIsNotAPass(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
@@ -206,10 +218,12 @@ func TestAServiceStillServingAValidCredentialIsNotPermitted(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
@@ -245,10 +259,12 @@ func TestAnEarlyAcceptanceFollowedByEnforcementIsNotPermitted(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
@@ -270,7 +286,8 @@ func TestPermittedRequiresAPriorRejection(t *testing.T) {
 	baseline := healthyBaseline()
 	baseline.Invalid = stream(
 		probe.Invalid,
-		repeat(probe.Unavailable, MinimumPaired)...)
+		repeat(probe.Unavailable, MinimumPaired)...,
+	)
 
 	verdict := Judge(Observation{
 		FaultConfirmed: true,
@@ -278,10 +295,12 @@ func TestPermittedRequiresAPriorRejection(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}, authPolarity)
@@ -354,10 +373,12 @@ func TestPolarityDecidesWhetherADeviationIsADefect(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}
@@ -394,10 +415,12 @@ func TestAFailureToRecoverIsRecorded(t *testing.T) {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 		},
 		Recovery: probe.Window{
 			Valid:   stream(probe.Valid, repeat(probe.Unavailable, 2)...),
@@ -422,10 +445,12 @@ func TestEveryVerdictCarriesAReason(t *testing.T) {
 			Baseline: probe.Window{
 				Valid: stream(
 					probe.Valid,
-					repeat(probe.Accepted, MinimumPaired)...),
+					repeat(probe.Accepted, MinimumPaired)...,
+				),
 				Invalid: stream(
 					probe.Invalid,
-					repeat(probe.Accepted, MinimumPaired)...),
+					repeat(probe.Accepted, MinimumPaired)...,
+				),
 			},
 			Fault: healthyBaseline(),
 		},
@@ -472,10 +497,12 @@ func TestFailingClosedIsDeclaredPerControl(t *testing.T) {
 			append(
 				repeat(probe.Accepted, 4),
 				repeat(probe.Unavailable, MinimumPaired)...,
-			)...),
+			)...,
+		),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired+4)...),
+			repeat(probe.Rejected, MinimumPaired+4)...,
+		),
 	}
 
 	cases := []struct {
@@ -529,10 +556,12 @@ func TestADeclaredClosureNeverHidesARefusal(t *testing.T) {
 				append(
 					repeat(probe.Accepted, 4),
 					repeat(probe.Rejected, MinimumPaired)...,
-				)...),
+				)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired+4)...),
+				repeat(probe.Rejected, MinimumPaired+4)...,
+			),
 		},
 		Recovery:   healthyRecovery(),
 		ClosedWhen: []probe.Disposition{probe.Unavailable},

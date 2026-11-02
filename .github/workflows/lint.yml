@@ -195,7 +195,7 @@ jobs:
 
     # Ruff is pinned to the rev in .pre-commit-config.yaml rather than
     # hardcoded here, so bumping the hook bumps CI in the same commit.
-    # An unpinned `pip install ruff` silently adopts newly-stabilized
+    # An unpinned ruff install silently adopts newly-stabilized
     # rules and fails code the local hook just passed.
     - name: Resolve pinned ruff version
       if: matrix.type == 'ruff'
@@ -211,9 +211,15 @@ jobs:
         echo "Pinned ruff version: $version"
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
+    - name: Install uv
+      if: matrix.type == 'ruff' || matrix.type == 'cpp'
+      uses: astral-sh/setup-uv@v10.3.3
+
     - name: Install ruff
       if: matrix.type == 'ruff'
-      run: pip install "ruff==${{ steps.ruff_version.outputs.version }}"
+      run: |
+        uv tool install "ruff==${{ steps.ruff_version.outputs.version }}"
+        uv tool dir --bin >> "$GITHUB_PATH"
 
     # Biome / Frontend Setup
     - name: Setup Node.js
@@ -250,16 +256,21 @@ jobs:
         go-version-file: ${{ matrix.path }}/go.mod
         cache-dependency-path: ${{ matrix.path }}/go.sum
 
+    # v2.15.0 needs Go 1.26 to build while most projects pin Go 1.24 or 1.25
+    # in go.mod. GOTOOLCHAIN fetches the exact Go release through the module
+    # proxy, verified against the checksum database, for this one install.
     - name: Install golangci-lint
       if: matrix.type == 'go'
-      run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+      env:
+        GOTOOLCHAIN: go1.26.5
+      run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
     # Nim Setup
     - name: Setup Nim
       if: matrix.type == 'nim'
       run: |
         curl https://nim-lang.org/choosenim/init.sh -sSf | bash -s -- -y
-        echo "$HOME/.nimble/bin" >> $GITHUB_PATH
+        echo "$HOME/.nimble/bin" >> "$GITHUB_PATH"
 
     - name: Install nph
       if: matrix.type == 'nim'
@@ -321,9 +332,9 @@ jobs:
       if: matrix.type == 'cpp'
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y cppcheck python3-pip
-        pip install --user --break-system-packages clang-format==19.1.7
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        sudo apt-get install -y cppcheck
+        uv tool install clang-format==19.1.7
+        uv tool dir --bin >> "$GITHUB_PATH"
 
     # Bash Setup (shellcheck pre-installed on ubuntu-latest, but ensure latest)
     - name: Install shellcheck
@@ -339,10 +350,10 @@ jobs:
       run: |
         echo "Running ruff check..."
         if ruff check . > ruff-output.txt 2>&1; then
-          echo "RUFF_PASSED=true" >> $GITHUB_ENV
+          echo "RUFF_PASSED=true" >> "$GITHUB_ENV"
           echo "No ruff errors found!"
         else
-          echo "RUFF_PASSED=false" >> $GITHUB_ENV
+          echo "RUFF_PASSED=false" >> "$GITHUB_ENV"
           echo "Ruff found issues"
         fi
         cat ruff-output.txt
@@ -355,10 +366,10 @@ jobs:
       run: |
         echo "Running Biome check..."
         if npx @biomejs/biome check . > biome-output.txt 2>&1; then
-          echo "BIOME_PASSED=true" >> $GITHUB_ENV
+          echo "BIOME_PASSED=true" >> "$GITHUB_ENV"
           echo "No Biome errors found!"
         else
-          echo "BIOME_PASSED=false" >> $GITHUB_ENV
+          echo "BIOME_PASSED=false" >> "$GITHUB_ENV"
           echo "Biome found issues!"
         fi
         cat biome-output.txt
@@ -392,9 +403,9 @@ jobs:
           echo "tsc: type errors found"
         fi
         if [[ "$FRONTEND_OK" == "true" ]]; then
-          echo "FRONTEND_PASSED=true" >> $GITHUB_ENV
+          echo "FRONTEND_PASSED=true" >> "$GITHUB_ENV"
         else
-          echo "FRONTEND_PASSED=false" >> $GITHUB_ENV
+          echo "FRONTEND_PASSED=false" >> "$GITHUB_ENV"
         fi
         cat frontend-output.txt
       continue-on-error: true
@@ -406,10 +417,10 @@ jobs:
       run: |
         echo "Running golangci-lint..."
         if golangci-lint run > golangci-output.txt 2>&1; then
-          echo "GOLANGCI_PASSED=true" >> $GITHUB_ENV
+          echo "GOLANGCI_PASSED=true" >> "$GITHUB_ENV"
           echo "No golangci-lint errors found!"
         else
-          echo "GOLANGCI_PASSED=false" >> $GITHUB_ENV
+          echo "GOLANGCI_PASSED=false" >> "$GITHUB_ENV"
           echo "golangci-lint found issues!"
         fi
         cat golangci-output.txt
@@ -437,10 +448,10 @@ jobs:
           echo "nim check: failed"
         fi
         if [[ "$NPH_OK" == "true" && "$NIM_OK" == "true" ]]; then
-          echo "NIM_PASSED=true" >> $GITHUB_ENV
+          echo "NIM_PASSED=true" >> "$GITHUB_ENV"
           echo "All Nim checks passed!"
         else
-          echo "NIM_PASSED=false" >> $GITHUB_ENV
+          echo "NIM_PASSED=false" >> "$GITHUB_ENV"
           echo "Nim checks found issues"
         fi
         cat nim-output.txt
@@ -467,9 +478,9 @@ jobs:
           echo "cargo clippy: issues found"
         fi
         if [[ "$RUST_OK" == "true" ]]; then
-          echo "RUST_PASSED=true" >> $GITHUB_ENV
+          echo "RUST_PASSED=true" >> "$GITHUB_ENV"
         else
-          echo "RUST_PASSED=false" >> $GITHUB_ENV
+          echo "RUST_PASSED=false" >> "$GITHUB_ENV"
         fi
         cat rust-output.txt
       continue-on-error: true
@@ -502,9 +513,9 @@ jobs:
           echo "crystal build: failed"
         fi
         if [[ "$CRYSTAL_OK" == "true" ]]; then
-          echo "CRYSTAL_PASSED=true" >> $GITHUB_ENV
+          echo "CRYSTAL_PASSED=true" >> "$GITHUB_ENV"
         else
-          echo "CRYSTAL_PASSED=false" >> $GITHUB_ENV
+          echo "CRYSTAL_PASSED=false" >> "$GITHUB_ENV"
         fi
         cat crystal-output.txt
       continue-on-error: true
@@ -533,9 +544,9 @@ jobs:
           echo "v vet: issues found"
         fi
         if [[ "$V_OK" == "true" ]]; then
-          echo "V_PASSED=true" >> $GITHUB_ENV
+          echo "V_PASSED=true" >> "$GITHUB_ENV"
         else
-          echo "V_PASSED=false" >> $GITHUB_ENV
+          echo "V_PASSED=false" >> "$GITHUB_ENV"
         fi
         cat v-output.txt
       continue-on-error: true
@@ -566,9 +577,9 @@ jobs:
           echo "cppcheck: issues found"
         fi
         if [[ "$CPP_OK" == "true" ]]; then
-          echo "CPP_PASSED=true" >> $GITHUB_ENV
+          echo "CPP_PASSED=true" >> "$GITHUB_ENV"
         else
-          echo "CPP_PASSED=false" >> $GITHUB_ENV
+          echo "CPP_PASSED=false" >> "$GITHUB_ENV"
         fi
         cat cpp-output.txt
       continue-on-error: true
@@ -582,12 +593,12 @@ jobs:
         FILES=$(find . -name '*.sh' -not -path '*/.venv/*' -not -path '*/node_modules/*' 2>/dev/null || true)
         if [ -z "$FILES" ]; then
           echo "shellcheck: no .sh files found" > bash-output.txt
-          echo "BASH_PASSED=true" >> $GITHUB_ENV
+          echo "BASH_PASSED=true" >> "$GITHUB_ENV"
         elif echo "$FILES" | xargs shellcheck > bash-output.txt 2>&1; then
-          echo "BASH_PASSED=true" >> $GITHUB_ENV
+          echo "BASH_PASSED=true" >> "$GITHUB_ENV"
           echo "shellcheck: no issues"
         else
-          echo "BASH_PASSED=false" >> $GITHUB_ENV
+          echo "BASH_PASSED=false" >> "$GITHUB_ENV"
           echo "shellcheck: issues found"
         fi
         cat bash-output.txt
@@ -622,7 +633,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Biome
     - name: Create Biome Lint Summary
@@ -653,7 +664,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Frontend
     - name: Create Frontend Lint Summary
@@ -682,7 +693,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Go
     - name: Create Go Lint Summary
@@ -713,7 +724,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Nim
     - name: Create Nim Lint Summary
@@ -744,7 +755,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Rust
     - name: Create Rust Lint Summary
@@ -773,7 +784,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Crystal
     - name: Create Crystal Lint Summary
@@ -802,7 +813,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for V
     - name: Create V Lint Summary
@@ -831,7 +842,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for C++
     - name: Create C++ Lint Summary
@@ -860,7 +871,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Create Summary for Bash
     - name: Create Bash Lint Summary
@@ -889,7 +900,7 @@ jobs:
             echo '---'
             echo '### Review the issues above'
           fi
-        } >> $GITHUB_STEP_SUMMARY
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Exit with proper status
     - name: Check lint status

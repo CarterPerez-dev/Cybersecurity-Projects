@@ -11,7 +11,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: infra/docker/frontend-builder.prod
+      dockerfile: infra/docker/frontend-builder.prod.dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-/api}
         - VITE_APP_TITLE=${VITE_APP_TITLE:-My App}
@@ -38,7 +38,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/fastapi.prod
+      dockerfile: ../infra/docker/fastapi.prod.dockerfile
     container_name: ${APP_NAME:-template}-backend
     expose:
       - "8000"

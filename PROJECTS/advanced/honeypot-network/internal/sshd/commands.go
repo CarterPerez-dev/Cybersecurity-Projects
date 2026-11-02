@@ -44,7 +44,7 @@ func DispatchCommand(
 		return cmdWhoami(ctx)
 	case "uname":
 		return cmdUname(args)
-	case "hostname":
+	case cmdHostname:
 		return ctx.Hostname + "\n"
 	case "pwd":
 		return ctx.CWD + "\n"
@@ -70,7 +70,7 @@ func DispatchCommand(
 		return cmdIP(args)
 	case "netstat":
 		return cmdNetstat()
-	case "wget", "curl":
+	case cmdWget, "curl":
 		return cmdDownload(cmd, args)
 	case "cd":
 		return cmdCD(args, ctx)
@@ -94,7 +94,7 @@ func DispatchCommand(
 		return time.Now().UTC().Format(
 			"Mon Jan  2 15:04:05 UTC 2006",
 		) + "\n"
-	case "exit", "logout", "quit":
+	case cmdExit, "logout", "quit":
 		return ""
 	default:
 		return fmt.Sprintf(
@@ -311,7 +311,7 @@ func cmdDownload(cmd string, args []string) string {
 		}
 	}
 
-	if cmd == "wget" {
+	if cmd == cmdWget {
 		return fmt.Sprintf(
 			"--%s--  %s\nResolving failed: Temporary failure in name resolution.\n"+
 				"wget: unable to resolve host address\n",
@@ -331,7 +331,7 @@ func cmdDownload(cmd string, args []string) string {
 
 func cmdCD(args []string, ctx *CommandContext) string {
 	if len(args) == 0 {
-		ctx.CWD = "/root"
+		ctx.CWD = rootHome
 		return ""
 	}
 
@@ -372,7 +372,7 @@ func cmdWhich(args []string) string {
 		"ls": "/usr/bin/ls", "cat": "/usr/bin/cat",
 		"grep": "/usr/bin/grep", "ps": "/usr/bin/ps",
 		"bash": "/usr/bin/bash", "ssh": "/usr/bin/ssh",
-		"wget": "/usr/bin/wget", "curl": "/usr/bin/curl",
+		cmdWget: "/usr/bin/wget", "curl": "/usr/bin/curl",
 		"python3": "/usr/bin/python3", "perl": "/usr/bin/perl",
 		"awk": "/usr/bin/awk", "sed": "/usr/bin/sed",
 	}
@@ -393,7 +393,7 @@ func cmdType(args []string) string {
 
 	builtins := map[string]bool{
 		"cd": true, "echo": true, "export": true,
-		"exit": true, "history": true, "type": true,
+		cmdExit: true, "history": true, "type": true,
 	}
 
 	if builtins[args[0]] {
@@ -419,7 +419,7 @@ func resolvePath(path, cwd string) string {
 		return cleanPath(path)
 	}
 	if path == "~" || path == "" {
-		return "/root"
+		return rootHome
 	}
 	if strings.HasPrefix(path, "~/") {
 		return cleanPath("/root/" + path[2:])

@@ -27,10 +27,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types/image"
+
 	"github.com/CarterPerez-dev/docksec/internal/benchmark"
 	"github.com/CarterPerez-dev/docksec/internal/docker"
 	"github.com/CarterPerez-dev/docksec/internal/finding"
-	"github.com/docker/docker/api/types/image"
 )
 
 type ImageAnalyzer struct {

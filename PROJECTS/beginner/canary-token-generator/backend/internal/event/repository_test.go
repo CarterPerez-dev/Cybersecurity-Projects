@@ -162,7 +162,16 @@ func TestRepository_AttachFingerprint(t *testing.T) {
 	require.NoError(t, evtRepo.Insert(ctx, e))
 
 	fp := json.RawMessage(`{"screen":"1920x1080","tz":"America/Los_Angeles"}`)
-	require.NoError(t, evtRepo.AttachFingerprint(ctx, tok.ID, "203.0.113.45", fp, 30*time.Second))
+	require.NoError(
+		t,
+		evtRepo.AttachFingerprint(
+			ctx,
+			tok.ID,
+			"203.0.113.45",
+			fp,
+			30*time.Second,
+		),
+	)
 
 	got, err := evtRepo.GetByID(ctx, e.ID)
 	require.NoError(t, err)
@@ -182,7 +191,13 @@ func TestRepository_AttachFingerprint_NoMatch(t *testing.T) {
 	tok := seedToken(t, tokRepo, "evtfpnomtch1")
 
 	fp := json.RawMessage(`{"screen":"1024x768"}`)
-	err := evtRepo.AttachFingerprint(ctx, tok.ID, "203.0.113.45", fp, 30*time.Second)
+	err := evtRepo.AttachFingerprint(
+		ctx,
+		tok.ID,
+		"203.0.113.45",
+		fp,
+		30*time.Second,
+	)
 	require.ErrorIs(t, err, event.ErrNotFound)
 }
 
@@ -198,7 +213,10 @@ func TestRepository_UpdateNotifyStatus(t *testing.T) {
 	require.Equal(t, event.NotifyPending, e.NotifyStatus)
 
 	now := time.Now()
-	require.NoError(t, evtRepo.UpdateNotifyStatus(ctx, e.ID, event.NotifySent, &now))
+	require.NoError(
+		t,
+		evtRepo.UpdateNotifyStatus(ctx, e.ID, event.NotifySent, &now),
+	)
 
 	got, err := evtRepo.GetByID(ctx, e.ID)
 	require.NoError(t, err)
@@ -215,15 +233,32 @@ func TestRepository_PruneToLimit(t *testing.T) {
 	tokB := seedToken(t, tokRepo, "evtprunebbb1")
 
 	for range 5 {
-		require.NoError(t, evtRepo.Insert(ctx, &event.Event{TokenID: tokA.ID, SourceIP: "203.0.113.10"}))
+		require.NoError(
+			t,
+			evtRepo.Insert(
+				ctx,
+				&event.Event{TokenID: tokA.ID, SourceIP: "203.0.113.10"},
+			),
+		)
 	}
 	for range 7 {
-		require.NoError(t, evtRepo.Insert(ctx, &event.Event{TokenID: tokB.ID, SourceIP: "203.0.113.20"}))
+		require.NoError(
+			t,
+			evtRepo.Insert(
+				ctx,
+				&event.Event{TokenID: tokB.ID, SourceIP: "203.0.113.20"},
+			),
+		)
 	}
 
 	deleted, err := evtRepo.PruneToLimit(ctx, 3)
 	require.NoError(t, err)
-	require.Equal(t, int64((5-3)+(7-3)), deleted, "should delete 2 from A and 4 from B")
+	require.Equal(
+		t,
+		int64((5-3)+(7-3)),
+		deleted,
+		"should delete 2 from A and 4 from B",
+	)
 
 	cntA, err := evtRepo.CountByToken(ctx, tokA.ID)
 	require.NoError(t, err)
@@ -243,7 +278,11 @@ func TestRepository_PruneToLimit_KeepsNewest(t *testing.T) {
 
 	var ids []int64
 	for i := range 5 {
-		e := &event.Event{TokenID: tok.ID, SourceIP: "203.0.113.45", UserAgent: testutil.Ptr(string(rune('A' + i)))}
+		e := &event.Event{
+			TokenID:   tok.ID,
+			SourceIP:  "203.0.113.45",
+			UserAgent: testutil.Ptr(string(rune('A' + i))),
+		}
 		require.NoError(t, evtRepo.Insert(ctx, e))
 		ids = append(ids, e.ID)
 		time.Sleep(2 * time.Millisecond)

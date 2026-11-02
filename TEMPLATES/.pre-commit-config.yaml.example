@@ -2,150 +2,217 @@
 # .pre-commit-config.yaml.example
 #
 # Annotated pre-commit configuration for Cybersecurity-Projects.
-# Copy into your project root, rename to `.pre-commit-config.yaml`.
-# Delete hooks that don't apply to your project's stack.
+# Copy into the repository root, rename to `.pre-commit-config.yaml`,
+# uncomment the stack sections you use, delete the rest.
 #
-# pre-commit runs checks automatically on `git commit`. If any hook fails,
-# the commit is blocked until you fix the issue — catching problems before
-# they hit CI saves everyone time.
+# Install: pre-commit is in the `dev` dependency group of
+#          pyproject.toml.example, so `uv sync` provides it at a locked
+#          version. `just setup` then runs `uv run pre-commit install`.
+# Run everything (CI style):   uv run pre-commit run --all-files
+# Bump every pinned rev:       uv run pre-commit autoupdate
+#                              (or let Dependabot's pre-commit ecosystem do
+#                              it; see dependabot.yml.example)
 #
-# Install:
-#   uv tool install pre-commit     (recommended — global, no venv pollution)
-#   pipx install pre-commit         (alternative)
+# Written for a STANDALONE repository, where this file and the project
+# share a root. Inside the Cybersecurity-Projects monorepo only the root
+# .pre-commit-config.yaml is read: merge hooks into it with
+# `files: ^PROJECTS/<tier>/<name>/` and `cd` into the project in each local
+# hook's entry.
 #
-# Setup (run once per clone):
-#   pre-commit install               hooks into .git/hooks/pre-commit
-#   pre-commit install --hook-type commit-msg   (optional: commit msg hooks)
+# Two kinds of hooks:
+#   remote (`repo: https://...`)  pre-commit builds an isolated env at the
+#                                 pinned rev. Reproducible, no local install.
+#   local  (`repo: local`)        runs a tool from THIS project's env through
+#                                 `uv run` / `pnpm exec`, so the version is
+#                                 the one in uv.lock / pnpm-lock.yaml, the
+#                                 same one the justfile runs. Keep remote
+#                                 `rev:` pins equal to whatever CI pins.
 #
-# Usage:
-#   git commit                       hooks run automatically on staged files
-#   pre-commit run --all-files       run all hooks on every file (CI style)
-#   pre-commit autoupdate            bump hook versions to latest tags
-#
-# Docs: https://pre-commit.com
-# Hook search: https://pre-commit.com/hooks.html
+# Docs:  https://pre-commit.com
+# Hooks: https://pre-commit.com/hooks.html
 
-
-# ── General File Hygiene ──────────────────────────────────────────────────────
-# These lightweight hooks catch common mistakes. They run in milliseconds.
+# `language: unsupported` (the 4.4+ name for the old `system`) needs 4.4.
+minimum_pre_commit_version: "4.4.0"
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
 
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      # Fails if a file has syntax-invalid TOML (catches pyproject.toml typos).
-      - id: check-toml
 
-      # Fails if any YAML file has syntax errors.
+  # ── File Hygiene ────────────────────────────────────────────────────────────
+  # Milliseconds each. These catch the mistakes no linter looks for.
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
-
-      # Fails if any JSON file has syntax errors.
+      - id: check-toml
+      # tsconfig*.json and *.jsonc are JSONC (comments allowed) and are not
+      # valid strict JSON. tsc and Biome validate them instead.
       - id: check-json
-
-      # Catches leftover `breakpoint()`, `pdb.set_trace()`, `debugger` statements.
-      - id: debug-statements
-
-      # Ensures every file ends with exactly one newline (POSIX standard).
-      - id: end-of-file-fixer
-
-      # Strips trailing whitespace from lines.
-      - id: trailing-whitespace
-        args: [--markdown-linebreak-ext=md]
-
-      # Prevents accidentally committing large files (default 500KB).
+        exclude: (^|/)tsconfig[^/]*\.json$|\.jsonc$
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-illegal-windows-names
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
       - id: check-added-large-files
         args: [--maxkb=500]
-
-      # Prevents accidentally committing private keys.
       - id: detect-private-key
-
-      # Fails if files would conflict on case-insensitive filesystems (macOS/Windows).
-      - id: check-case-conflict
-
-      # Prevents committing directly to main/master.
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: debug-statements
+      # Blocks commits made directly on main/master. It ignores files/types
+      # filters by design, so CI running on main must skip it:
+      #   SKIP=no-commit-to-branch pre-commit run --all-files
       - id: no-commit-to-branch
         args: [--branch, main, --branch, master]
 
 
-  # ── Python: Ruff (linter) ──────────────────────────────────────────────────
-  # Runs ruff check on staged Python files. Fast (Rust-based), replaces
-  # flake8 + isort + pyupgrade + dozens of plugins in a single tool.
+  # ── Secrets ─────────────────────────────────────────────────────────────────
+  # Scans only the STAGED diff, so it stays fast on large repos. A leaked
+  # key in a public security repo is the one mistake no later commit fixes.
+  # Because it only reads staged changes, `pre-commit run --all-files` in CI
+  # scans nothing: CI needs its own full-history step (`gitleaks git`).
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+
+  # ── Shell ───────────────────────────────────────────────────────────────────
+  # install.sh is the first thing a user runs. shellcheck catches unquoted
+  # expansions, missing `set -e` pitfalls and non-POSIX constructs.
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck
+
+
+  # ── GitHub Configuration ────────────────────────────────────────────────────
+  # actionlint type-checks workflow files (expressions, runner labels,
+  # shell scripts inside `run:`). check-dependabot validates dependabot.yml
+  # against the published schema.
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.39.0
+    hooks:
+      - id: check-dependabot
+
+
+  # ── Python ──────────────────────────────────────────────────────────────────
+  # ruff lints with safe fixes (remote hook, fast, version pinned here).
+  # yapf and mypy are local: they must run inside the project env, yapf for
+  # the pinned style engine, mypy so it can resolve installed dependencies.
+  # Lint-with-fix runs BEFORE the formatter, because fixes can leave code
+  # that needs reformatting.
   #
-  # Change the `args` path to match your project layout:
-  #   Python-only:  args: ["src/", "tests/"]
-  #   Fullstack:    args: ["backend/"]
+  # uv-lock fails the commit when pyproject.toml changed but uv.lock was not
+  # regenerated.
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.6
+    hooks:
+      - id: uv-lock
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.1
+    rev: v0.17.3
     hooks:
-      - id: ruff
-        args: ["<src>/"]
-        always_run: true
-
-
-  # ── Python: Local Hooks ─────────────────────────────────────────────────────
-  # `repo: local` hooks run tools installed in your project's venv.
-  # This means they use the EXACT versions pinned in pyproject.toml.
-  #
-  # `pass_filenames: false` + `always_run: true` = runs on the full project
-  # every time, not just on staged files. Slower but catches cross-file issues.
-  #
-  # Adjust `entry` paths to match your layout.
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
 
   - repo: local
     hooks:
-      - id: mypy-check
-        name: mypy type checking
-        entry: bash -c 'cd <src-root> && mypy .'
-        language: system
+      - id: yapf
+        name: yapf
+        entry: uv run --frozen yapf --in-place
+        language: unsupported
+        types: [python]
+
+      - id: mypy
+        name: mypy
+        entry: uv run --frozen mypy src tests
+        language: unsupported
         types: [python]
         pass_filenames: false
-        always_run: true
-
-      - id: pylint-check
-        name: pylint code quality
-        entry: bash -c 'cd <src-root> && pylint .'
-        language: system
-        types: [python]
-        pass_filenames: false
-        always_run: true
 
 
-  # ── Frontend: Biome (uncomment for fullstack projects) ──────────────────────
-  # Biome handles JS/TS linting + formatting in one pass.
-  # Requires Biome installed in frontend/node_modules.
+  # ── Frontend (uncomment for projects with a frontend/) ──────────────────────
+  # Local hooks so Biome, TypeScript and stylelint run at the exact versions
+  # in pnpm-lock.yaml.
+  #
+  # Every hook here is pass_filenames: false and checks the whole frontend.
+  # `pnpm --dir frontend` runs INSIDE frontend/, but pre-commit passes paths
+  # relative to the repo root (frontend/src/x.ts). Passed through, Biome
+  # finds no such file and exits 0 having checked nothing, and stylelint
+  # fails every commit with NoFilesFoundError. `files:` still limits WHEN the
+  # hook fires.
   #
   # - repo: local
   #   hooks:
-  #     - id: biome-check
-  #       name: biome lint + format check
-  #       entry: bash -c 'cd frontend && pnpm biome check .'
-  #       language: system
-  #       types_or: [javascript, jsx, ts, tsx, json]
+  #     - id: biome
+  #       name: biome check
+  #       entry: pnpm --dir frontend exec biome check .
+  #       language: unsupported
+  #       files: ^frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|json|jsonc)$
   #       pass_filenames: false
-  #       always_run: true
   #
-  #     - id: tsc-check
-  #       name: typescript type check
-  #       entry: bash -c 'cd frontend && pnpm tsc --noEmit'
-  #       language: system
-  #       types_or: [ts, tsx]
+  #     - id: tsc
+  #       name: tsc
+  #       entry: pnpm --dir frontend exec tsc -b
+  #       language: unsupported
+  #       files: ^frontend/.*\.(ts|tsx)$
   #       pass_filenames: false
-  #       always_run: true
+  #
+  #     - id: stylelint
+  #       name: stylelint
+  #       entry: pnpm --dir frontend exec stylelint '**/*.scss'
+  #       language: unsupported
+  #       files: ^frontend/.*\.scss$
+  #       pass_filenames: false
 
 
-  # ── Go (uncomment for Go projects) ─────────────────────────────────────────
-  # - repo: https://github.com/golangci/golangci-lint
-  #   rev: v2.1.0
+  # ── Go (uncomment for Go projects) ──────────────────────────────────────────
+  # Local, so it runs the golangci-lint version the project pins. The entry
+  # cds into the directory holding go.mod: hooks always start at the repo
+  # root, and golangci-lint needs the module root. Replace <go-module-dir>
+  # with `.` when go.mod sits at the repo root.
+  #
+  # - repo: local
   #   hooks:
+  #     - id: golangci-lint-config
+  #       name: golangci-lint config verify
+  #       entry: bash -c 'cd <go-module-dir> && golangci-lint config verify'
+  #       language: unsupported
+  #       files: \.golangci\.ya?ml$
+  #       pass_filenames: false
+  #
   #     - id: golangci-lint
-  #
-  # - repo: local
-  #   hooks:
-  #     - id: go-vet
-  #       name: go vet
-  #       entry: go vet ./...
-  #       language: system
+  #       name: golangci-lint
+  #       entry: bash -c 'cd <go-module-dir> && golangci-lint fmt --diff ./... && golangci-lint run ./...'
+  #       language: unsupported
   #       types: [go]
   #       pass_filenames: false
+
+
+  # ── C / C++ (uncomment for C/C++ projects) ──────────────────────────────────
+  # Pinned to the same clang-format major as CI. Formatter majors produce
+  # different output, so a floating version makes the hook and CI disagree.
+  #
+  # - repo: https://github.com/pre-commit/mirrors-clang-format
+  #   rev: v19.1.7
+  #   hooks:
+  #     - id: clang-format
+  #       types_or: [c, c++]

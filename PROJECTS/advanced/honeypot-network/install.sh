@@ -68,7 +68,7 @@ check_pnpm() {
     if ! command -v pnpm &>/dev/null; then
         info "pnpm not found. Installing via corepack..."
         corepack enable
-        corepack prepare pnpm@latest --activate
+        corepack prepare pnpm@10.29.1 --activate
     fi
     ok "pnpm $(pnpm -v 2>/dev/null)"
 }

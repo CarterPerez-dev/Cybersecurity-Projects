@@ -2,149 +2,222 @@
 # .gitignore.example
 #
 # Annotated .gitignore template for Cybersecurity-Projects.
-# Copy into your project root and rename to .gitignore.
-# Delete any sections that don't apply to your project's stack.
+# Copy into your project root, rename to `.gitignore`, and delete the
+# language sections your stack does not use.
 #
 # Pattern syntax:
-#   file.txt      exact filename anywhere in the repo
-#   *.log         glob — all .log files
-#   /build        leading slash — only match at repo root
-#   build/        trailing slash — only match directories
-#   !important    negate — re-include something a prior rule excluded
-#   **/cache      match in any subdirectory
+#   file.txt      that name, at any depth
+#   *.log         glob
+#   /build        anchored: only at the directory holding this .gitignore
+#   build/        directories only
+#   !keep.txt     re-include something an earlier line excluded
+#   **/cache      any depth
+#
+# A pattern cannot re-include a file whose PARENT directory is excluded:
+# `logs/` then `!logs/keep` does not work, `logs/*` then `!logs/keep` does.
+#
+# Check why a path is ignored:  git check-ignore -v <path>
+# Untrack a file you just ignored (keeps it on disk): git rm --cached <path>
 #
 # Docs: https://git-scm.com/docs/gitignore
-# Generator: https://www.toptal.com/developers/gitignore
+# Upstream templates: https://github.com/github/gitignore
 
 
 # ── Secrets & Environment ─────────────────────────────────────────────────────
-# MOST IMPORTANT SECTION. Leaked secrets are the #1 gitignore failure mode.
-# If you accidentally commit a secret, rotating the credential is the only
-# safe fix — removing it from history alone is not enough.
+# The section that matters most. If a secret is ever committed, ROTATE it.
+# Rewriting history does not help: forks, clones and caches already have it.
+#
+# Public certificates (*.crt, cert.pem, ca.pem) are NOT ignored, because
+# test fixtures and CA bundles are legitimately committed. Private keys are,
+# including the PEM spellings (key.pem, privkey.pem, mkcert's *-key.pem).
 
 .env
 .env.*
 !.env.example
-*.pem
 *.key
+key.pem
+*-key.pem
+*_key.pem
+privkey*.pem
 *.p12
 *.pfx
-*.crt
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+.netrc
+.npmrc.local
+secrets/*
+!secrets/.gitkeep
 
 
 # ── Python ────────────────────────────────────────────────────────────────────
 
-# Bytecode / compiled
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# Virtual environments
 .venv/
 venv/
 
-# Build & distribution (uv build / hatch build output)
 build/
 dist/
 *.egg-info/
 *.egg
+wheels/
 
-# Type checker / linter caches
 .mypy_cache/
 .ruff_cache/
+.ty_cache/
 .pytype/
+.pyre/
+.hypothesis/
 
-# Test & coverage artifacts
 .pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
+coverage.xml
 *.prof
+
+
+# ── Node / TypeScript ─────────────────────────────────────────────────────────
+
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+*.tsbuildinfo
+.vite/
+.eslintcache
+.stylelintcache
+coverage/
+playwright-report/
+test-results/
 
 
 # ── Go ────────────────────────────────────────────────────────────────────────
-
-# Compiled binary (Go produces a single binary, name varies per project)
+# Go emits one binary named after the module or -o flag. Ignore it by name
+# (anchored, so a `cmd/<name>/` source directory is not swallowed), and
+# uncomment /bin/ only if bin/ holds build output rather than scripts:
+# /<binary-name>
 # /bin/
-# /<your-binary-name>
 
-# Debug binary from dlv
 __debug_bin*
-
-# Profiling
-*.prof
 *.test
-trace.out
-coverage.out
+*.out
+go.work.sum
 
 
-# ── Node / JavaScript ────────────────────────────────────────────────────────
+# ── Rust ──────────────────────────────────────────────────────────────────────
+# Commit Cargo.lock for binaries AND libraries (Cargo's guidance since 2023).
 
-node_modules/
+target/
+**/*.rs.bk
 
-# pnpm
-.pnpm-store/
 
-# Build output (Vite, Next.js, etc.)
-.next/
-.nuxt/
-.output/
+# ── Zig ───────────────────────────────────────────────────────────────────────
+# .zig-cache/ since Zig 0.13; zig-cache/ for older toolchains.
+
+.zig-cache/
+zig-cache/
+zig-out/
+
+
+# ── C / C++ ───────────────────────────────────────────────────────────────────
+# compile_commands.json is generated per machine (absolute paths). Symlink it
+# from build/ for clangd instead of committing it.
+
+cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+.cache/clangd/
+*.o
+*.obj
+*.a
+*.lib
+
+
+# ── Nim / Haskell ─────────────────────────────────────────────────────────────
+
+nimcache/
+nimblecache/
+.stack-work/
+dist-newstyle/
+.ghc.environment.*
+
+
+# ── Crystal (uncomment in Crystal projects only) ──────────────────────────────
+# shards installs dependencies into lib/. Commented by default: in every
+# other language /lib/ is usually real source.
+#
+# /lib/
+# /.shards/
 
 
 # ── Docker ────────────────────────────────────────────────────────────────────
+# Override files are per-machine. Shared config belongs in compose.yml or
+# dev.compose.yml.
 
-# Override files are machine-specific and should not be shared
+compose.override.yml
+compose.override.yaml
 docker-compose.override.yml
 docker-compose.override.yaml
 
 
-# ── Databases (local dev only) ────────────────────────────────────────────────
+# ── Local Databases ───────────────────────────────────────────────────────────
 
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 dump.rdb
 
 
-# ── IDE / Editor ──────────────────────────────────────────────────────────────
+# ── Captures & Archives (opt-in) ──────────────────────────────────────────────
+# Security projects deliberately commit pcaps, archives and samples as test
+# fixtures, so these stay commented. Uncomment when they are only ever
+# runtime output.
+#
+# *.pcap
+# *.pcapng
+# *.zip
+# *.tar.gz
 
-# VS Code (settings.json and extensions.json are sometimes committed — your call)
-.vscode/
 
-# JetBrains (IntelliJ, GoLand, PyCharm, WebStorm)
+# ── Editors & AI Tooling ──────────────────────────────────────────────────────
+# Shared editor settings are a team decision. `.vscode/*` (not `.vscode/`)
+# so a single file can still be re-included below.
+
+.vscode/*
+# !.vscode/extensions.json
 .idea/
-
-# Vim / Neovim swap & backup
+.zed/
+.fleet/
 *.swp
 *.swo
 *~
-
-# Zed
-.zed/
+.direnv/
+.claude/
+CLAUDE.local.md
 
 
 # ── OS Junk ───────────────────────────────────────────────────────────────────
 
-# macOS
 .DS_Store
-
-# Windows
+._*
 Thumbs.db
 desktop.ini
-
-# Linux (some file managers)
 .Trash-*
+.directory
 
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# ── Logs & Release Artifacts ──────────────────────────────────────────────────
 
 *.log
 logs/
-
-
-# ── Binaries & Compiled Output ────────────────────────────────────────────────
-
 *.exe
 *.dll
 *.dylib

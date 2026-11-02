@@ -35,6 +35,10 @@ linters:
           - gosec
           - errcheck
           - gocognit
+      - path: internal/tlsclient/client\.go
+        linters:
+          - gosec
+        text: "G123"
     paths:
       - vendor
       - testdata
@@ -87,7 +91,9 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/carterperez-dev)
+        - localmodule
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true

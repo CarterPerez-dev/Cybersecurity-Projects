@@ -62,22 +62,28 @@ func (a *DaemonAnalyzer) Analyze(
 
 	findings = append(
 		findings,
-		a.checkSeccompDefault(target, info.SecurityOptions)...)
+		a.checkSeccompDefault(target, info.SecurityOptions)...,
+	)
 	findings = append(
 		findings,
-		a.checkLiveRestore(target, info.LiveRestoreEnabled)...)
+		a.checkLiveRestore(target, info.LiveRestoreEnabled)...,
+	)
 	findings = append(
 		findings,
-		a.checkExperimental(target, info.ExperimentalBuild)...)
+		a.checkExperimental(target, info.ExperimentalBuild)...,
+	)
 	findings = append(
 		findings,
-		a.checkUsernsRemap(target, info.SecurityOptions)...)
+		a.checkUsernsRemap(target, info.SecurityOptions)...,
+	)
 	findings = append(
 		findings,
-		a.checkLoggingDriver(target, info.LoggingDriver)...)
+		a.checkLoggingDriver(target, info.LoggingDriver)...,
+	)
 	findings = append(
 		findings,
-		a.checkCgroupDriver(target, info.CgroupDriver)...)
+		a.checkCgroupDriver(target, info.CgroupDriver)...,
+	)
 
 	return findings, nil
 }

@@ -1,0 +1,26 @@
+# ©AngelaMos | 2026
+# vite.dev.dockerfile
+#
+# Development Dockerfile for the Vite frontend with hot
+# reload
+#
+# Based on node:24-alpine with corepack-activated pnpm.
+# Copies package.json, runs pnpm install, copies the
+# frontend source, and starts the Vite dev server on port
+# 5173. Source code is bind-mounted from the host in
+# dev.compose.yml for HMR. Connects to dev.compose.yml
+
+FROM node:24-alpine
+
+RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/pnpm-lock.yaml* frontend/pnpm-workspace.yaml* ./
+RUN pnpm install
+
+COPY frontend/ .
+
+EXPOSE 5173
+
+CMD ["pnpm", "dev"]

@@ -24,7 +24,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: rveng-frontend-dev
     environment:
       - CI=true

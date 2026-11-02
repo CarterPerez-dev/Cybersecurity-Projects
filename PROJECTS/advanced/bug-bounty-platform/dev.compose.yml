@@ -27,7 +27,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/fastapi.dev
+      dockerfile: ../infra/docker/fastapi.dev.dockerfile
     container_name: ${APP_NAME:-template}-backend-dev
     ports:
       - "${BACKEND_HOST_PORT:-5420}:8000"
@@ -59,7 +59,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: ${APP_NAME:-template}-frontend-dev
     ports:
       - "${FRONTEND_HOST_PORT:-3420}:5173"

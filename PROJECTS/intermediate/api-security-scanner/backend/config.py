@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     BACKEND_PORT: int = 8000
 
     # CORS origins (comma-separated string)
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:44173,http://localhost:44380"
 
     # Scanner configuration - Default values
     DEFAULT_MAX_REQUESTS: int = 100
@@ -101,4 +101,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-

@@ -15,9 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
-	"github.com/spf13/cobra"
 )
 
 const (

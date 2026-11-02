@@ -11,11 +11,12 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/record"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
-	"gopkg.in/yaml.v3"
 )
 
 func TestRecordReplayAndYAMLKeepParametersWithoutSecrets(t *testing.T) {

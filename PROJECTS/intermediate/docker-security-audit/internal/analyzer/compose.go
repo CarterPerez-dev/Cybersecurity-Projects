@@ -31,9 +31,10 @@ import (
 	"strconv"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/CarterPerez-dev/docksec/internal/rules"
-	"gopkg.in/yaml.v3"
 )
 
 type ComposeAnalyzer struct {
@@ -82,7 +83,8 @@ func (a *ComposeAnalyzer) Analyze(
 
 		findings = append(
 			findings,
-			a.analyzeService(target, serviceName, serviceNode)...)
+			a.analyzeService(target, serviceName, serviceNode)...,
+		)
 	}
 
 	return findings, nil
@@ -97,25 +99,31 @@ func (a *ComposeAnalyzer) analyzeService(
 
 	findings = append(
 		findings,
-		a.checkPrivileged(target, serviceName, node)...)
+		a.checkPrivileged(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkCapabilities(target, serviceName, node)...)
+		a.checkCapabilities(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkVolumes(target, serviceName, node)...)
 	findings = append(
 		findings,
-		a.checkNetworkMode(target, serviceName, node)...)
+		a.checkNetworkMode(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkPidMode(target, serviceName, node)...)
 	findings = append(findings, a.checkIpcMode(target, serviceName, node)...)
 	findings = append(
 		findings,
-		a.checkSecurityOpt(target, serviceName, node)...)
+		a.checkSecurityOpt(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkResourceLimits(target, serviceName, node)...)
+		a.checkResourceLimits(target, serviceName, node)...,
+	)
 	findings = append(
 		findings,
-		a.checkEnvironment(target, serviceName, node)...)
+		a.checkEnvironment(target, serviceName, node)...,
+	)
 	findings = append(findings, a.checkPorts(target, serviceName, node)...)
 	findings = append(findings, a.checkUser(target, serviceName, node)...)
 	findings = append(findings, a.checkReadOnly(target, serviceName, node)...)
@@ -213,11 +221,18 @@ func (a *ComposeAnalyzer) checkVolumes(
 
 		if rules.IsDockerSocket(hostPath) {
 			loc := &finding.Location{Path: a.path, Line: volNode.Line}
-			f := finding.New("CIS-5.31", "Service '"+serviceName+"' mounts Docker socket", finding.SeverityCritical, target).
-				WithDescription("Mounting Docker socket gives the container full control over the Docker daemon.").
+			description := "Mounting a container runtime socket gives the container full control over the runtime."
+			if pathInfo, ok := rules.GetPathInfo(
+				hostPath,
+			); ok &&
+				pathInfo.Description != "" {
+				description = pathInfo.Description
+			}
+			f := finding.New("CIS-5.31", "Service '"+serviceName+"' mounts container runtime socket: "+hostPath, finding.SeverityCritical, target).
+				WithDescription(description).
 				WithCategory(string(CategoryCompose)).
 				WithLocation(loc).
-				WithRemediation("Do not mount /var/run/docker.sock inside containers.")
+				WithRemediation("Do not mount container runtime sockets (" + hostPath + ") inside containers.")
 			findings = append(findings, f)
 			continue
 		}

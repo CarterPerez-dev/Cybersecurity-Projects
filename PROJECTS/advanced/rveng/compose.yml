@@ -20,7 +20,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: infra/docker/vite.prod
+      dockerfile: infra/docker/vite.prod.dockerfile
     container_name: rveng-nginx
     ports:
       - "${NGINX_HOST_PORT:-8790}:80"

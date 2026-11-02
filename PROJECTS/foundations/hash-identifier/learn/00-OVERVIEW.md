@@ -69,7 +69,7 @@ But here's the thing: hashcat needs you to tell it the algorithm. It has [over 4
 
 **Software you need installed:**
 
-- Python 3.14 or newer.
+- Python 3.13 or newer.
 - The `uv` tool (the install script will get this for you if you don't have it).
 - The `just` tool (also handled by the install script).
 - A terminal. Any terminal. On Mac it's Terminal.app or iTerm2; on Linux it's whatever your distro shipped; on Windows it's WSL2 + Ubuntu (we strongly recommend WSL2 instead of native Windows).
@@ -155,4 +155,4 @@ You forgot the single quotes around the hash. Re-run with `just run -- '$2b$12$.
 You ran `python hash_identifier.py` directly instead of `just run`. The `just run` recipe uses the virtual environment that has `rich` installed. Either use `just run`, or activate the venv first: `source .venv/bin/activate`, *then* `python hash_identifier.py <hash>`.
 
 **Tests fail right after install**
-Tests should pass on a fresh `./install.sh`. If they don't, you probably have an older Python (run `python --version`; you need 3.14+). On Ubuntu, install it via [`deadsnakes`](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa); on Mac use [Homebrew](https://brew.sh).
+Tests should pass on a fresh `./install.sh`. If they don't, you probably have an older Python (run `python --version`; you need 3.13+). On Ubuntu, install it via [`deadsnakes`](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa); on Mac use [Homebrew](https://brew.sh).

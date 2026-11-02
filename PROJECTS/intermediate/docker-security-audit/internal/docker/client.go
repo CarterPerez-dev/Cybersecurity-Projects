@@ -30,12 +30,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/CarterPerez-dev/docksec/internal/config"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
+
+	"github.com/CarterPerez-dev/docksec/internal/config"
 )
 
 type Client struct {

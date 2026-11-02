@@ -76,7 +76,7 @@ The Signal Protocol is now the gold standard for encrypted messaging. Signal (th
 - **Python 3.13+.** The project requires Python 3.13 or higher as specified in `pyproject.toml` with `requires-python = ">=3.13"`. The type annotations and language features used throughout the codebase depend on this version.
 - **Node.js 20+.** For the SolidJS/Vite frontend build toolchain.
 - **uv (Python package manager).** This project uses `uv` for Python dependency management. Never use pip directly. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`.
-- **pnpm (Node package manager).** This project uses `pnpm` for Node dependency management. Never use npm directly. Install with `corepack enable && corepack prepare pnpm@latest --activate` or `npm install -g pnpm`.
+- **pnpm (Node package manager).** This project uses `pnpm` for Node dependency management. Never use npm directly. Install with `corepack enable && corepack prepare pnpm@10.29.1 --activate` (the version pinned in `frontend/package.json`).
 - **just (command runner).** The project uses a `justfile` for build automation, linting, testing, database migrations, and Docker orchestration. Install with `cargo install just`, `brew install just`, or your system's package manager.
 
 ### Helpful But Optional
@@ -302,11 +302,11 @@ encrypted-p2p-chat/
 |-- conf/
 |   |-- docker/
 |   |   |-- dev/
-|   |   |   |-- fastapi.docker                # Dev Dockerfile for backend (hot reload)
-|   |   |   +-- vite.docker                   # Dev Dockerfile for frontend (HMR)
+|   |   |   |-- fastapi.dockerfile            # Dev Dockerfile for backend (hot reload)
+|   |   |   +-- vite.dockerfile               # Dev Dockerfile for frontend (HMR)
 |   |   +-- prod/
-|   |       |-- fastapi.docker                # Production Dockerfile for backend
-|   |       +-- vite.docker                   # Production Dockerfile for frontend (static build)
+|   |       |-- fastapi.dockerfile            # Production Dockerfile for backend
+|   |       +-- vite.dockerfile               # Production Dockerfile for frontend (static build)
 |   +-- nginx/
 |       |-- dev.nginx                         # Development Nginx config
 |       |-- prod.nginx                        # Production Nginx config

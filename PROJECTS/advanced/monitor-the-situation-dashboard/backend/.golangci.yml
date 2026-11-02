@@ -108,6 +108,13 @@ linters:
           - errcheck
           - exhaustive
 
+      # gosec G124: Secure is cfg.IsProduction(), on in prod and off for the
+      # plain-HTTP dev stack; HttpOnly and SameSite=Strict are always set
+      - path: internal/auth/handler\.go
+        linters:
+          - gosec
+        text: "G124"
+
       # bodyclose: coder/websocket Dial returns a *http.Response whose body
       # is empty by protocol — closing it isn't part of the websocket idiom
       - path: internal/ws/
@@ -157,4 +164,6 @@ formatters:
         - prefix(github.com/carterperez-dev)
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true

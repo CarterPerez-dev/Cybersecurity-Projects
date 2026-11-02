@@ -52,16 +52,33 @@
       "/var/cache/nginx": "",
       "/var/run": ""
     },
-    "Resources": {
-      "Memory": 536870912,
-      "MemoryReservation": 268435456,
-      "MemorySwap": 536870912,
-      "CpuShares": 512,
-      "CpuQuota": 50000,
-      "CpuPeriod": 100000,
-      "PidsLimit": 100
-    }
+    "Memory": 536870912,
+    "MemoryReservation": 268435456,
+    "MemorySwap": 536870912,
+    "NanoCpus": 0,
+    "CpuShares": 512,
+    "CpuQuota": 50000,
+    "CpuPeriod": 100000,
+    "PidsLimit": 100
   },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/app/nginx.conf",
+      "Destination": "/etc/nginx/nginx.conf",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/app/html",
+      "Destination": "/usr/share/nginx/html",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    }
+  ],
   "State": {
     "Status": "running",
     "Running": true,

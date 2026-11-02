@@ -134,32 +134,26 @@ Your project README should include:
 
 **Linting & Type Checking:**
 
-All Python code must pass the following tools (with reasonable ignores as needed):
+All Python code must pass the following tools (with reasonable ignores as needed). Start from [pyproject.toml.example](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/TEMPLATES/pyproject.toml.example): its `dev` dependency group pins all of them, and ruff's `PL` rules replace running pylint separately.
 
 ```bash
+uv sync                     # installs the project plus the dev group
+
 # Linting
-ruff check .
-pylint your_module/
+uv run ruff check src tests
 
 # Type checking
-mypy your_module/
+uv run mypy src tests
 ```
 
 **Code Formatting:**
 
-Format your code using the repository's custom YAPF configuration. Copy the [.style.yapf](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/TEMPLATES/.style.yapf) file and place it in the root of your project directory.
+Format your code using the repository's custom YAPF configuration. Copy the [.style.yapf.example](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/TEMPLATES/.style.yapf.example) file into the root of your project directory and rename it to `.style.yapf`.
 ```bash
-yapf -i -r -vv your_project/
+uv run yapf --recursive --in-place src tests
 ```
 
-Don't have YAPF installed?
-```bash
-# With uv (you're using uv, right?)
-uv pip install yapf
-
-# Or if you insist on being difficult
-pip install yapf
-```
+YAPF comes with the dev group, so `uv sync` already installed it. Not using the template yet? `uv add --dev yapf`.
 
 More info: [YAPF Documentation](https://github.com/google/yapf)
 

@@ -36,18 +36,18 @@ import (
 )
 
 const (
-	e2eBaseURL       = "https://canary.example.com"
-	e2eManageURL     = "https://canary.example.com"
-	e2eTelegramBot   = "111:AAA"
-	e2eTelegramChat  = "12345"
-	e2eMySQLPubHost  = "localhost"
-	e2eMySQLPubPort  = 3306
-	e2eClientIP      = "203.0.113.10"
-	e2eClientUA      = "E2E/1.0"
-	e2eEventualWait  = 3 * time.Second
-	e2eEventualTick  = 20 * time.Millisecond
-	e2eSendTimeout   = 2 * time.Second
-	e2eDedupTTL      = 15 * time.Minute
+	e2eBaseURL      = "https://canary.example.com"
+	e2eManageURL    = "https://canary.example.com"
+	e2eTelegramBot  = "111:AAA"
+	e2eTelegramChat = "12345"
+	e2eMySQLPubHost = "localhost"
+	e2eMySQLPubPort = 3306
+	e2eClientIP     = "203.0.113.10"
+	e2eClientUA     = "E2E/1.0"
+	e2eEventualWait = 3 * time.Second
+	e2eEventualTick = 20 * time.Millisecond
+	e2eSendTimeout  = 2 * time.Second
+	e2eDedupTTL     = 15 * time.Minute
 )
 
 type e2eSender struct {

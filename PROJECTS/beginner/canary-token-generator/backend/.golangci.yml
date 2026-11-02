@@ -101,6 +101,10 @@ linters:
         linters:
           - gosec
         text: "G107|G704"
+      - path: internal/token/handler\.go
+        linters:
+          - gosec
+        text: "G705"
       - path: internal/config/config\.go
         linters:
           - gosec
@@ -129,4 +133,6 @@ formatters:
         - prefix(github.com/CarterPerez-dev)
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true

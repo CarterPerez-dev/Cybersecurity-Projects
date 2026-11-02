@@ -12,8 +12,8 @@
 # and geoip-updater (MaxMind weekly refresh). Joins the
 # external certgames_net network and mounts the external
 # certgames_nginx_logs volume for real-time log access.
-# Connects to infra/docker/fastapi.prod,
-# infra/docker/vite.prod, infra/redis/redis.conf,
+# Connects to infra/docker/fastapi.prod.dockerfile,
+# infra/docker/vite.prod.dockerfile, infra/redis/redis.conf,
 # infra/nginx/vigil.conf
 
 services:
@@ -57,7 +57,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: infra/docker/fastapi.prod
+      dockerfile: infra/docker/fastapi.prod.dockerfile
     container_name: vigil-backend
     environment:
       ENV: ${ENV:-production}
@@ -92,10 +92,10 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: infra/docker/vite.prod
+      dockerfile: infra/docker/vite.prod.dockerfile
     container_name: vigil-frontend
     ports:
-      - "${FRONTEND_HOST_PORT:-80}:80"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-46969}:80"
     depends_on:
       backend:
         condition: service_healthy

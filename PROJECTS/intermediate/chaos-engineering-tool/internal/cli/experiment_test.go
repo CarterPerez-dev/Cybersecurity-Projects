@@ -14,11 +14,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/rangelab"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 const bogusExperiment = "network.no_such_experiment"

@@ -35,6 +35,10 @@ linters:
           - funlen
           - dupl
           - goconst
+      - path: _test\.go
+        linters:
+          - gosec
+        text: "G703"
 
   settings:
     errcheck:
@@ -76,4 +80,6 @@ formatters:
         - prefix(github.com/CarterPerez-dev)
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true

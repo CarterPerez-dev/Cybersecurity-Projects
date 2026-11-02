@@ -64,7 +64,11 @@ func TestRepository_InsertAndGetByID(t *testing.T) {
 
 	tok := sampleWebhookToken("abcdef0123ko")
 	require.NoError(t, repo.Insert(ctx, tok))
-	require.False(t, tok.CreatedAt.IsZero(), "Insert should populate created_at via RETURNING")
+	require.False(
+		t,
+		tok.CreatedAt.IsZero(),
+		"Insert should populate created_at via RETURNING",
+	)
 
 	got, err := repo.GetByID(ctx, tok.ID)
 	require.NoError(t, err)

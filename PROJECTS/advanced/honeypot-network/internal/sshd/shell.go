@@ -58,7 +58,7 @@ func RunShell(
 		FS:       fs,
 		Hostname: hostname,
 		Username: username,
-		CWD:      "/root",
+		CWD:      rootHome,
 	}
 
 	prompt := fmt.Sprintf(
@@ -89,7 +89,7 @@ func RunShell(
 			sourceIP, line, hostname,
 		)
 
-		if line == "exit" || line == "logout" || line == "quit" {
+		if line == cmdExit || line == "logout" || line == "quit" {
 			writeAndRecord(
 				ch, recorder, []byte("logout\r\n"),
 			)
@@ -128,8 +128,8 @@ func publishCommand(
 	hostname string,
 ) {
 	serviceData, _ := json.Marshal(map[string]string{
-		"command":  command,
-		"hostname": hostname,
+		"command":          command,
+		eventFieldHostname: hostname,
 	})
 
 	bus.Publish(config.TopicCommand, &types.Event{

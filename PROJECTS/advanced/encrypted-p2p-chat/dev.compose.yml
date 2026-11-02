@@ -67,7 +67,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: conf/docker/dev/fastapi.docker
+      dockerfile: conf/docker/dev/fastapi.dockerfile
     container_name: chat-backend-dev
     environment:
       ENV: ${ENV:-development}
@@ -104,7 +104,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: conf/docker/dev/vite.docker
+      dockerfile: conf/docker/dev/vite.dockerfile
     container_name: chat-frontend-dev
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}

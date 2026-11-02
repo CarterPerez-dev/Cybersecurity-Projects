@@ -99,7 +99,11 @@ func seedIntgToken(
 	return tok
 }
 
-func authedGet(t *testing.T, r chi.Router, path, tok string) *httptest.ResponseRecorder {
+func authedGet(
+	t *testing.T,
+	r chi.Router,
+	path, tok string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	if tok != "" {
@@ -110,7 +114,11 @@ func authedGet(t *testing.T, r chi.Router, path, tok string) *httptest.ResponseR
 	return w
 }
 
-func authedPost(t *testing.T, r chi.Router, path, tok string) *httptest.ResponseRecorder {
+func authedPost(
+	t *testing.T,
+	r chi.Router,
+	path, tok string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, path, nil)
 	if tok != "" {
@@ -139,8 +147,20 @@ func TestIntegration_AdminStats_Authorized(t *testing.T) {
 	st := setupIntgStack(t)
 	ctx := context.Background()
 
-	tok := seedIntgToken(t, st.tokenRepo, "adminstats01", token.TypeWebbug, token.ChannelTelegram)
-	seedIntgToken(t, st.tokenRepo, "adminstats02", token.TypeDocx, token.ChannelWebhook)
+	tok := seedIntgToken(
+		t,
+		st.tokenRepo,
+		"adminstats01",
+		token.TypeWebbug,
+		token.ChannelTelegram,
+	)
+	seedIntgToken(
+		t,
+		st.tokenRepo,
+		"adminstats02",
+		token.TypeDocx,
+		token.ChannelWebhook,
+	)
 
 	require.NoError(t, st.eventRepo.Insert(ctx, &event.Event{
 		TokenID: tok.ID, SourceIP: "203.0.113.50",
@@ -190,7 +210,13 @@ func TestIntegration_AdminDisableToken_Authorized(t *testing.T) {
 	st := setupIntgStack(t)
 	ctx := context.Background()
 
-	tok := seedIntgToken(t, st.tokenRepo, "admindis001a", token.TypeWebbug, token.ChannelWebhook)
+	tok := seedIntgToken(
+		t,
+		st.tokenRepo,
+		"admindis001a",
+		token.TypeWebbug,
+		token.ChannelWebhook,
+	)
 	require.True(t, tok.Enabled)
 
 	w := authedPost(t, st.router,

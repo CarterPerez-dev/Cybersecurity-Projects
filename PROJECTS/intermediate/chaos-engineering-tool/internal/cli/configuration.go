@@ -12,12 +12,13 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/lease"
 	"github.com/CarterPerez-dev/khaos/internal/record"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 func attachConfiguration(

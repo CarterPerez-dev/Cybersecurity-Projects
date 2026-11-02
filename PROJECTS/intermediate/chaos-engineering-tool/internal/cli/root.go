@@ -6,9 +6,10 @@ package cli
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/banner"
 	"github.com/CarterPerez-dev/khaos/internal/version"
-	"github.com/spf13/cobra"
 )
 
 const (

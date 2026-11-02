@@ -36,6 +36,10 @@ linters:
           - funlen
           - dupl
           - goconst
+      - path: internal/sshd/server\.go
+        linters:
+          - gosec
+        text: "G408"
 
   settings:
     errcheck:
@@ -95,4 +99,6 @@ formatters:
         - prefix(github.com/CarterPerez-dev)
       custom-order: true
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true

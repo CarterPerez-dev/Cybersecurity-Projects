@@ -40,10 +40,12 @@ func holdingObservation() Observation {
 		Fault: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumToClaimClosed)...),
+				repeat(probe.Accepted, MinimumToClaimClosed)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumToClaimClosed)...),
+				repeat(probe.Rejected, MinimumToClaimClosed)...,
+			),
 		},
 		Recovery: healthyRecovery(),
 	}

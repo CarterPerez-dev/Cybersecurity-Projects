@@ -11,7 +11,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: infra/docker/frontend-builder.prod
+      dockerfile: infra/docker/frontend-builder.prod.dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-/api}
         - VITE_APP_TITLE=${VITE_APP_TITLE:-C2 Beacon Server}
@@ -37,7 +37,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/fastapi.prod
+      dockerfile: ../infra/docker/fastapi.prod.dockerfile
     container_name: ${APP_NAME:-c2-beacon}-backend
     ports:
       - "${BACKEND_HOST_PORT:-47431}:8000"

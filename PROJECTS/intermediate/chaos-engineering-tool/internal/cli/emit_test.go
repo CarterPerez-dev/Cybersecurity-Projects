@@ -12,9 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/pflag"
+
 	"github.com/CarterPerez-dev/khaos/internal/experiment"
 	"github.com/CarterPerez-dev/khaos/internal/record"
-	"github.com/spf13/pflag"
 )
 
 func emitted(t *testing.T) (experiment.Result, experiment.Definition) {

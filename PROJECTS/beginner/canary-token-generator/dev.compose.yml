@@ -29,7 +29,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: ${APP_NAME:-canary-token-generator}-frontend-dev
     ports:
       - "${FRONTEND_HOST_PORT:-15723}:5173"
@@ -48,7 +48,7 @@ services:
   canary:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/canary.dev
+      dockerfile: ../infra/docker/canary.dev.dockerfile
     container_name: ${APP_NAME:-canary-token-generator}-canary-dev
     volumes:
       - ./backend:/app

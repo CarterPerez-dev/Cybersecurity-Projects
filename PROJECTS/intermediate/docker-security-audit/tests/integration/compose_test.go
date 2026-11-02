@@ -38,10 +38,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CarterPerez-dev/docksec/internal/analyzer"
-	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CarterPerez-dev/docksec/internal/analyzer"
+	"github.com/CarterPerez-dev/docksec/internal/finding"
 )
 
 func TestComposeAnalyzer_BadDockerSocket(t *testing.T) {

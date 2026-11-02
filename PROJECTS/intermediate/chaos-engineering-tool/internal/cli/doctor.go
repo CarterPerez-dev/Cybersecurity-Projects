@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/render"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
-	"github.com/spf13/cobra"
 )
 
 const (

@@ -13,7 +13,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: infra/docker/vite.prod
+      dockerfile: infra/docker/vite.prod.dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-/api}
         - VITE_APP_TITLE=${VITE_APP_TITLE:-Canary Token Generator}
@@ -39,7 +39,7 @@ services:
   canary:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/canary.prod
+      dockerfile: ../infra/docker/canary.prod.dockerfile
     container_name: ${APP_NAME:-canary-token-generator}-canary
     environment:
       - APP_ENVIRONMENT=production

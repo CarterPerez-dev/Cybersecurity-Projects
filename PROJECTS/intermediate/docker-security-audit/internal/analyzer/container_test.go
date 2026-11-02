@@ -35,10 +35,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CarterPerez-dev/docksec/internal/finding"
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CarterPerez-dev/docksec/internal/finding"
 )
 
 func loadContainerJSON(

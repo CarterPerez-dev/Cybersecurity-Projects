@@ -49,16 +49,14 @@ jobs:
             echo "::notice::dnslookup-cli v${VERSION} not on PyPI — publishing"
           fi
 
-      - name: Install build dependencies
+      - name: Install uv
         if: steps.version_check.outputs.exists != 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
+        uses: astral-sh/setup-uv@v10.3.3
 
       - name: Build package
         if: steps.version_check.outputs.exists != 'true'
         working-directory: PROJECTS/beginner/dns-lookup
-        run: python -m build
+        run: uv build
 
       - name: Publish to PyPI
         if: steps.version_check.outputs.exists != 'true'

@@ -25,7 +25,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infra/docker/vite.dev
+      dockerfile: ../infra/docker/vite.dev.dockerfile
     container_name: ${APP_NAME:-axumortem}-frontend-dev
     ports:
       - "${FRONTEND_HOST_PORT:-15723}:5173"
@@ -42,7 +42,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: ../infra/docker/rust.dev
+      dockerfile: ../infra/docker/rust.dev.dockerfile
     container_name: ${APP_NAME:-axumortem}-backend-dev
     ports:
       - "${BACKEND_HOST_PORT:-36968}:3000"
@@ -68,7 +68,7 @@ services:
     image: postgres:18-alpine
     container_name: ${APP_NAME:-axumortem}-postgres-dev
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-46321}:5432"
     environment:
       - POSTGRES_USER=axumortem
       - POSTGRES_PASSWORD=axumortem

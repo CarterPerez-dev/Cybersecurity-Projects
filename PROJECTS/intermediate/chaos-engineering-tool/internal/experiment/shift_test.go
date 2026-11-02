@@ -27,7 +27,8 @@ func deniedWindow(revoked probe.Disposition) probe.Window {
 		Valid: stream(probe.Valid, repeat(probe.Accepted, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired)...),
+			repeat(probe.Rejected, MinimumPaired)...,
+		),
 		Revoked: stream(probe.Revoked, repeat(revoked, MinimumPaired)...),
 	}
 }
@@ -39,7 +40,8 @@ func unknownWindow(valid probe.Disposition) probe.Window {
 		Valid: stream(probe.Valid, repeat(valid, MinimumPaired)...),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired)...),
+			repeat(probe.Rejected, MinimumPaired)...,
+		),
 		Revoked: stream(probe.Revoked, repeat(valid, MinimumPaired)...),
 	}
 }
@@ -49,13 +51,16 @@ func shifted(revoked, validUnderOutage probe.Disposition) Observation {
 		Baseline: probe.Window{
 			Valid: stream(
 				probe.Valid,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 			Invalid: stream(
 				probe.Invalid,
-				repeat(probe.Rejected, MinimumPaired)...),
+				repeat(probe.Rejected, MinimumPaired)...,
+			),
 			Revoked: stream(
 				probe.Revoked,
-				repeat(probe.Accepted, MinimumPaired)...),
+				repeat(probe.Accepted, MinimumPaired)...,
+			),
 		},
 		Fault:          deniedWindow(revoked),
 		Shift:          unknownWindow(validUnderOutage),
@@ -291,13 +296,16 @@ func TestACrashedTargetIsNotReadAsFailingClosed(t *testing.T) {
 	observation.Fault = probe.Window{
 		Valid: stream(
 			probe.Valid,
-			repeat(probe.Unreachable, MinimumPaired*2)...),
+			repeat(probe.Unreachable, MinimumPaired*2)...,
+		),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Unreachable, MinimumPaired*2)...),
+			repeat(probe.Unreachable, MinimumPaired*2)...,
+		),
 		Revoked: stream(
 			probe.Revoked,
-			repeat(probe.Unreachable, MinimumPaired*2)...),
+			repeat(probe.Unreachable, MinimumPaired*2)...,
+		),
 	}
 
 	verdict := Judge(observation, authzPolarity)
@@ -317,13 +325,16 @@ func TestACrashedTargetIsNotReadAsFailingClosed(t *testing.T) {
 	answering.Fault = probe.Window{
 		Valid: stream(
 			probe.Valid,
-			repeat(probe.Unavailable, MinimumPaired*2)...),
+			repeat(probe.Unavailable, MinimumPaired*2)...,
+		),
 		Invalid: stream(
 			probe.Invalid,
-			repeat(probe.Rejected, MinimumPaired*2)...),
+			repeat(probe.Rejected, MinimumPaired*2)...,
+		),
 		Revoked: stream(
 			probe.Revoked,
-			repeat(probe.Unavailable, MinimumPaired*2)...),
+			repeat(probe.Unavailable, MinimumPaired*2)...,
+		),
 	}
 
 	if direction := Judge(
@@ -451,7 +462,8 @@ func TestAnUnmeasurablePhaseIsSaidRatherThanRead(t *testing.T) {
 	silent := shifted(probe.Rejected, probe.Rejected)
 	silent.Shift.Valid = stream(
 		probe.Valid,
-		repeat(probe.ProbeFailed, MinimumPaired)...)
+		repeat(probe.ProbeFailed, MinimumPaired)...,
+	)
 
 	if !hasReason(
 		Judge(silent, authzPolarity),
@@ -466,7 +478,8 @@ func TestAnUnmeasurablePhaseIsSaidRatherThanRead(t *testing.T) {
 	unanswered := shifted(probe.Rejected, probe.Rejected)
 	unanswered.Fault.Revoked = stream(
 		probe.Revoked,
-		repeat(probe.ProbeFailed, MinimumPaired)...)
+		repeat(probe.ProbeFailed, MinimumPaired)...,
+	)
 
 	if !hasReason(
 		Judge(unanswered, authzPolarity),

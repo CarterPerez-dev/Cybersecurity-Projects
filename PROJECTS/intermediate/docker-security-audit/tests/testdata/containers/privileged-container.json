@@ -43,16 +43,65 @@
       "/sys:/host-sys",
       "/:/host"
     ],
-    "Resources": {
-      "Memory": 0,
-      "MemoryReservation": 0,
-      "MemorySwap": 0,
-      "CpuShares": 0,
-      "CpuQuota": 0,
-      "CpuPeriod": 0,
-      "PidsLimit": null
-    }
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "NanoCpus": 0,
+    "CpuShares": 0,
+    "CpuQuota": 0,
+    "CpuPeriod": 0,
+    "PidsLimit": null
   },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/var/run/docker.sock",
+      "Destination": "/var/run/docker.sock",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/etc/passwd",
+      "Destination": "/host-passwd",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/root/.ssh",
+      "Destination": "/ssh-keys",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/proc",
+      "Destination": "/host-proc",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/sys",
+      "Destination": "/host-sys",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/",
+      "Destination": "/host",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
   "State": {
     "Status": "running",
     "Running": true,

@@ -1,0 +1,29 @@
+# ©AngelaMos | 2026
+# vite.dockerfile
+
+FROM node:22-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/pnpm-lock.yaml* frontend/.npmrc* ./
+
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ .
+
+RUN pnpm run build
+
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+COPY conf/nginx/prod.nginx /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

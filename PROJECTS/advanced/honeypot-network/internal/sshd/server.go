@@ -309,7 +309,7 @@ func (s *SSHService) handleExec(
 		FS:       fs,
 		Hostname: s.cfg.SSH.Hostname,
 		Username: username,
-		CWD:      "/root",
+		CWD:      rootHome,
 	}
 
 	output := DispatchCommand(cmd, cmdCtx)
