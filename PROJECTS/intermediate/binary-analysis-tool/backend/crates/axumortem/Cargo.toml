@@ -20,7 +20,7 @@ sqlx = { version = "0.8", features = [
     "migrate",
 ] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+tower-http = { version = "0.7", features = ["cors", "trace", "limit"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
