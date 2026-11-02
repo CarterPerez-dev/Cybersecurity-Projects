@@ -1,7 +1,7 @@
 # ©AngelaMos | 2026
 # vite.dockerfile
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
@@ -15,7 +15,7 @@ COPY frontend/ .
 
 RUN pnpm build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 
 COPY conf/nginx/nginx.prod.conf /etc/nginx/nginx.conf
 COPY conf/nginx/prod.nginx /etc/nginx/conf.d/default.conf

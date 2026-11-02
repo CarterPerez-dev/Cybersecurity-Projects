@@ -2,7 +2,7 @@
 # vite.dockerfile
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS builder
+FROM node:25-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
@@ -17,7 +17,7 @@ COPY frontend/ .
 
 RUN pnpm build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 

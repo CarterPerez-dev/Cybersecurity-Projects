@@ -10,7 +10,7 @@
 # 5173. Source code is bind-mounted from the host in
 # dev.compose.yml for HMR. Connects to dev.compose.yml
 
-FROM node:24-alpine
+FROM node:25-alpine
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
