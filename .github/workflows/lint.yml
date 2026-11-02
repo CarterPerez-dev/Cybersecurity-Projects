@@ -195,7 +195,7 @@ jobs:
 
     # Ruff is pinned to the rev in .pre-commit-config.yaml rather than
     # hardcoded here, so bumping the hook bumps CI in the same commit.
-    # An unpinned `pip install ruff` silently adopts newly-stabilized
+    # An unpinned ruff install silently adopts newly-stabilized
     # rules and fails code the local hook just passed.
     - name: Resolve pinned ruff version
       if: matrix.type == 'ruff'
@@ -211,9 +211,15 @@ jobs:
         echo "Pinned ruff version: $version"
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
+    - name: Install uv
+      if: matrix.type == 'ruff' || matrix.type == 'cpp'
+      uses: astral-sh/setup-uv@v10
+
     - name: Install ruff
       if: matrix.type == 'ruff'
-      run: pip install "ruff==${{ steps.ruff_version.outputs.version }}"
+      run: |
+        uv tool install "ruff==${{ steps.ruff_version.outputs.version }}"
+        uv tool dir --bin >> "$GITHUB_PATH"
 
     # Biome / Frontend Setup
     - name: Setup Node.js
@@ -326,9 +332,9 @@ jobs:
       if: matrix.type == 'cpp'
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y cppcheck python3-pip
-        pip install --user --break-system-packages clang-format==19.1.7
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        sudo apt-get install -y cppcheck
+        uv tool install clang-format==19.1.7
+        uv tool dir --bin >> "$GITHUB_PATH"
 
     # Bash Setup (shellcheck pre-installed on ubuntu-latest, but ensure latest)
     - name: Install shellcheck
