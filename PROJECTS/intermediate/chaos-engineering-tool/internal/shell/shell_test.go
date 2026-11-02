@@ -11,9 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/lock"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
-	"github.com/spf13/cobra"
 )
 
 func TestConsolePreservesCredentialBackslashes(t *testing.T) {

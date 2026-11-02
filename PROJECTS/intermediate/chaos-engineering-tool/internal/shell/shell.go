@@ -10,13 +10,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/reeflective/console"
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/banner"
 	"github.com/CarterPerez-dev/khaos/internal/cli"
 	"github.com/CarterPerez-dev/khaos/internal/lock"
 	"github.com/CarterPerez-dev/khaos/internal/statedir"
 	"github.com/CarterPerez-dev/khaos/internal/version"
-	"github.com/reeflective/console"
-	"github.com/spf13/cobra"
 )
 
 const (

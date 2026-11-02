@@ -14,13 +14,14 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/term"
+
 	"github.com/CarterPerez-dev/khaos/internal/cli"
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/shell"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/version"
-	"golang.org/x/term"
 )
 
 const (

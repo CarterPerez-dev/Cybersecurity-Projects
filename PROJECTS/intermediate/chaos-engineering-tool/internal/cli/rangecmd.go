@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/rangelab"
 	"github.com/CarterPerez-dev/khaos/internal/render"
@@ -19,7 +21,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/tlsclient"
 	"github.com/CarterPerez-dev/khaos/internal/verifier"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
-	"github.com/spf13/cobra"
 )
 
 var ErrUnknownSecretMode = errors.New(

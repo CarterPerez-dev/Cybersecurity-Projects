@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/secretfile"
-	"github.com/spf13/cobra"
 )
 
 const (

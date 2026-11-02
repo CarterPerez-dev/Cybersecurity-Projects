@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/dockerx"
 	"github.com/CarterPerez-dev/khaos/internal/inject"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
@@ -18,7 +20,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
-	"github.com/spf13/cobra"
 )
 
 const (

@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/moby/moby/api/types/network"
+
 	"github.com/CarterPerez-dev/khaos/internal/authz"
 	"github.com/CarterPerez-dev/khaos/internal/dbx"
 	"github.com/CarterPerez-dev/khaos/internal/dnsrv"
@@ -22,7 +24,6 @@ import (
 	"github.com/CarterPerez-dev/khaos/internal/inject/proxy"
 	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/pki"
-	"github.com/moby/moby/api/types/network"
 )
 
 const (

@@ -87,7 +87,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/carterperez-dev)
+        - localmodule
       custom-order: true
     gofumpt:
       extra-rules: true

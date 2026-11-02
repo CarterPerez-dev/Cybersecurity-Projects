@@ -1,4 +1,4 @@
-# AngelaMos | 2026
+# ©AngelaMos | 2026
 # .golangci.yml
 
 version: "2"
@@ -41,7 +41,6 @@ linters:
     paths:
       - vendor
       - testdata
-    max-same-issues: 50
 
   settings:
     errcheck:
@@ -60,43 +59,14 @@ linters:
       disable:
         - fieldalignment
 
-    revive:
-      rules:
-        - name: blank-imports
-        - name: context-as-argument
-        - name: context-keys-type
-        - name: error-return
-        - name: error-strings
-        - name: error-naming
-        - name: exported
-        - name: increment-decrement
-        - name: var-declaration
-        - name: package-comments
-          disabled: true
-        - name: range
-        - name: receiver-naming
-        - name: time-naming
-        - name: unexported-return
-        - name: indent-error-flow
-        - name: errorf
-        - name: empty-block
-        - name: superfluous-else
-        - name: unreachable-code
-
-    staticcheck:
-      checks:
-        - all
-
     gosec:
       excludes:
         - G104
         - G401
         - G505
 
-    sloglint:
-      no-mixed-args: true
-      kv-only: true
-      context: all
+issues:
+  max-same-issues: 50
 
 formatters:
   enable:
@@ -107,14 +77,11 @@ formatters:
     golines:
       max-len: 80
       reformat-tags: true
-    goimports:
-      local-prefixes:
-        - github.com/CarterPerez-dev/portia
     gci:
       sections:
         - standard
         - default
-        - prefix(github.com/CarterPerez-dev)
+        - localmodule
       custom-order: true
     gofumpt:
       extra-rules: true

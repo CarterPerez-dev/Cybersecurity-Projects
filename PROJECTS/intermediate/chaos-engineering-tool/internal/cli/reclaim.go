@@ -10,11 +10,12 @@ import (
 	"io"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CarterPerez-dev/khaos/internal/journal"
 	"github.com/CarterPerez-dev/khaos/internal/run"
 	"github.com/CarterPerez-dev/khaos/internal/theme"
 	"github.com/CarterPerez-dev/khaos/internal/workspace"
-	"github.com/spf13/cobra"
 )
 
 const (
