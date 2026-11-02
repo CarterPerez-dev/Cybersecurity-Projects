@@ -36,7 +36,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 flume = "0.11"
 rustix = { version = "1", features = ["std", "event"] }
 
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 csv = "1"
 
 axum = "0.8"
