@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/coder/websocket v1.8.14
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.4.0
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/google/cel-go v0.28.0
