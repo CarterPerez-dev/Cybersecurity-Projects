@@ -3,7 +3,7 @@
 # Development Dockerfile for Rust backend with cargo-watch hot reload
 # syntax=docker/dockerfile:1
 
-FROM rust:1.88-slim
+FROM rust:1.98-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

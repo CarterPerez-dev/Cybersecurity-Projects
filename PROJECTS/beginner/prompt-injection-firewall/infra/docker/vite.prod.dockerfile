@@ -9,7 +9,7 @@
 # ============================================================================
 # BUILD STAGE
 # ============================================================================
-FROM node:22-slim AS builder
+FROM node:25-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
@@ -35,7 +35,7 @@ RUN pnpm build
 # ============================================================================
 # PRODUCTION STAGE
 # ============================================================================
-FROM nginx:1.27-alpine AS production
+FROM nginx:1.29-alpine AS production
 
 RUN rm -rf /usr/share/nginx/html/* && \
     rm /etc/nginx/conf.d/default.conf

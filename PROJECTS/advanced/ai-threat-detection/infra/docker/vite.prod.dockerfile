@@ -10,7 +10,7 @@
 # to the nginx html root. Includes a HEALTHCHECK on /health.
 # Connects to compose.yml, infra/nginx/vigil.conf
 
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
