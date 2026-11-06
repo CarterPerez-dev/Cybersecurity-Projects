@@ -40,7 +40,7 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 csv = "1"
 
 axum = "0.8"
-tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-br", "compression-gzip", "set-header"] }
+tower-http = { version = "0.7", features = ["fs", "trace", "cors", "compression-br", "compression-gzip", "set-header"] }
 tower = "0.5"
 
 serde = { version = "1", features = ["derive"] }
