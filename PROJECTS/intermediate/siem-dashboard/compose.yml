@@ -64,7 +64,7 @@ services:
     restart: always
 
   mongo:
-    image: mongo:8.2
+    image: mongo:9.0
     container_name: ${APP_NAME:-siem}-mongo
     volumes:
       - mongo_data:/data/db
