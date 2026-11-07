@@ -48,6 +48,9 @@
 ### [Projects](#projects)
 Hands-on cybersecurity projects with full source code, organized in four tiers — **Foundations** (pre-beginner, first-time programmers), **Beginner**, **Intermediate**, and **Advanced**.
 
+### [Learning Paths](./LEARNING-PATHS.md)
+Sequenced projects for web application, network, cloud, and offensive security.
+
 ### [Certification Roadmaps](./ROADMAPS/README.md)
 10 structured career paths with certification guides for SOC Analyst, Pentester, Security Engineer, and more.
 
@@ -178,6 +181,8 @@ Tools, courses, certifications, communities, and frameworks for cybersecurity pr
 
 
 ## Learn More
+
+**[Learning Paths](./LEARNING-PATHS.md)** - Sequenced projects for web application, network, cloud, and offensive security
 
 **[Certification Roadmaps](./ROADMAPS/README.md)** - Career paths for SOC Analyst, Pentester, Security Engineer, GRC Analyst, and 6 more tracks
 
