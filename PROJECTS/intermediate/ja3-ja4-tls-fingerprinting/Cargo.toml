@@ -19,7 +19,7 @@ tlsfp-intel = { path = "crates/tlsfp-intel" }
 
 winnow = "0.7"
 md-5 = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 smallvec = "1"
 thiserror = "2"
