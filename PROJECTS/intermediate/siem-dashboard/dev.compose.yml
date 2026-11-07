@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
 
   mongo:
-    image: mongo:8.2
+    image: mongo:9.0
     container_name: ${APP_NAME:-siem}-mongo-dev
     ports:
       - "${MONGO_HOST_PORT:-8654}:27017"
