@@ -48,7 +48,7 @@ serde_json = "1"
 
 clap = { version = "4", features = ["derive"] }
 
-hkdf = "0.12"
+hkdf = "0.13"
 aes = "0.8"
 aes-gcm = "0.10"
 
