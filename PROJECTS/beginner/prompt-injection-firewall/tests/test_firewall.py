@@ -88,8 +88,8 @@ def test_layer_exception_blocks(
 
     assert verdict.decision is Decision.BLOCK
     assert any(
-        f.rule == config.RULE_LAYER_ERROR and f.invariant
-        and f.layer == layer_name for f in verdict.findings
+        f.rule == config.RULE_LAYER_ERROR and f.invariant and f.layer == layer_name
+        for f in verdict.findings
     )
 
 
@@ -117,9 +117,7 @@ def test_disabled_layer_is_recorded() -> None:
     ctx = Context().data(INJECTION, origin = TICKET)
 
     verdict = Firewall(policy).inspect(ctx)
-    disabled = [
-        f for f in verdict.findings if f.rule == config.RULE_LAYER_DISABLED
-    ]
+    disabled = [f for f in verdict.findings if f.rule == config.RULE_LAYER_DISABLED]
 
     assert [f.layer for f in disabled] == [config.LAYER_INGRESS]
     assert disabled[0].severity is Severity.INFO
@@ -156,8 +154,7 @@ def test_render_is_reachable_from_the_firewall() -> None:
     assert ctx.nonce in rendered
 
 
-def test_a_canary_the_matcher_cannot_use_is_refused_at_construction(
-) -> None:
+def test_a_canary_the_matcher_cannot_use_is_refused_at_construction() -> None:
     with pytest.raises(PolicyError):
         Firewall(Policy(canaries = ("sk-live",
                                     )))
@@ -186,10 +183,7 @@ def test_tool_arguments_are_part_of_the_egress_surface() -> None:
         ),
     )
 
-    assert any(
-        "VANTAGE-7731-ORION" in surface
-        for surface in egress_surfaces(reply)
-    )
+    assert any("VANTAGE-7731-ORION" in surface for surface in egress_surfaces(reply))
 
 
 def test_a_secret_nested_in_a_tool_argument_is_caught() -> None:
@@ -219,10 +213,7 @@ def test_an_oversized_reply_fails_closed() -> None:
     verdict = Firewall(policy).inspect_egress(reply, Context().user("x"))
 
     assert verdict.decision is Decision.BLOCK
-    assert config.RULE_OUTPUT_TOO_LARGE in {
-        f.rule
-        for f in verdict.findings
-    }
+    assert config.RULE_OUTPUT_TOO_LARGE in {f.rule for f in verdict.findings}
 
 
 def test_many_small_arguments_cannot_sum_past_the_budget() -> None:
@@ -246,7 +237,4 @@ def test_many_small_arguments_cannot_sum_past_the_budget() -> None:
 
     verdict = Firewall(policy).inspect_egress(reply, Context().user("x"))
 
-    assert config.RULE_OUTPUT_TOO_LARGE in {
-        f.rule
-        for f in verdict.findings
-    }
+    assert config.RULE_OUTPUT_TOO_LARGE in {f.rule for f in verdict.findings}

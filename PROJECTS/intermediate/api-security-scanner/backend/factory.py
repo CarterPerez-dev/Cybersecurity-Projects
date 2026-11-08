@@ -22,28 +22,28 @@ def create_app() -> FastAPI:
     """
     Application factory function
     """
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind = engine)
 
     app = FastAPI(
-        title=settings.APP_NAME,
-        version=settings.VERSION,
-        openapi_version="3.1.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
-        debug=settings.DEBUG,
+        title = settings.APP_NAME,
+        version = settings.VERSION,
+        openapi_version = "3.1.0",
+        docs_url = "/docs",
+        redoc_url = "/redoc",
+        openapi_url = "/openapi.json",
+        debug = settings.DEBUG,
     )
 
-    limiter = Limiter(key_func=get_remote_address)
+    limiter = Limiter(key_func = get_remote_address)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins = settings.cors_origins_list,
+        allow_credentials = True,
+        allow_methods = ["*"],
+        allow_headers = ["*"],
     )
 
     _register_routes(app)
@@ -55,7 +55,6 @@ def _register_routes(app: FastAPI) -> None:
     """
     Register all application routes
     """
-
     @app.get("/")
     def root() -> dict[str, str]:
         """
@@ -76,4 +75,3 @@ def _register_routes(app: FastAPI) -> None:
 
     app.include_router(auth_router)
     app.include_router(scans_router)
-    

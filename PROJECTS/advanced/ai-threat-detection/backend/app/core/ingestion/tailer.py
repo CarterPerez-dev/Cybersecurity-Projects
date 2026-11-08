@@ -42,6 +42,7 @@ from watchdog.events import (
 )
 from watchdog.observers.polling import PollingObserver
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +51,6 @@ class _LogHandler(FileSystemEventHandler):
     Watchdog event handler that detects modifications and log rotation
     for a single target file, pushing new lines into an asyncio.Queue.
     """
-
     def __init__(
         self,
         target: str,
@@ -74,14 +74,11 @@ class _LogHandler(FileSystemEventHandler):
         """
         try:
             self._file = open(  # noqa: SIM115
-                self._target, encoding="utf-8", errors="replace")
+                self._target, encoding = "utf-8", errors = "replace")
             self._inode = os.stat(self._target).st_ino
 
             saved = self._load_position()
-            if (
-                saved is not None
-                and saved["inode"] == self._inode
-            ):
+            if (saved is not None and saved["inode"] == self._inode):
                 self._file.seek(saved["offset"])
                 logger.info(
                     "Tailing %s (inode %s) resumed at offset %d",
@@ -112,7 +109,7 @@ class _LogHandler(FileSystemEventHandler):
             return None
         try:
             data = json.loads(
-                self._position_path.read_text(encoding="utf-8"),
+                self._position_path.read_text(encoding = "utf-8"),
             )
             return {
                 "inode": data["inode"],
@@ -125,11 +122,7 @@ class _LogHandler(FileSystemEventHandler):
         """
         Persist current inode and file offset to disk
         """
-        if (
-            self._position_path is None
-            or self._file is None
-            or self._inode is None
-        ):
+        if (self._position_path is None or self._file is None or self._inode is None):
             return
         try:
             self._position_path.write_text(
@@ -137,7 +130,7 @@ class _LogHandler(FileSystemEventHandler):
                     "inode": self._inode,
                     "offset": self._file.tell(),
                 }),
-                encoding="utf-8",
+                encoding = "utf-8",
             )
         except OSError:
             logger.debug("Failed to save tailer position")
@@ -176,10 +169,9 @@ class _LogHandler(FileSystemEventHandler):
 
         try:
             self._file = open(  # noqa: SIM115
-                self._target, encoding="utf-8", errors="replace")
+                self._target, encoding = "utf-8", errors = "replace")
             self._inode = os.stat(self._target).st_ino
-            logger.info("Rotated to new %s (inode %s)", self._target,
-                        self._inode)
+            logger.info("Rotated to new %s (inode %s)", self._target, self._inode)
         except FileNotFoundError:
             self._file = None
             self._inode = None
@@ -195,7 +187,7 @@ class _LogHandler(FileSystemEventHandler):
             return False
 
     def on_modified(
-            self, event: FileModifiedEvent) -> None:  # type: ignore[override]
+        self, event: FileModifiedEvent) -> None:  # type: ignore[override]
         """
         Handle new data appended to the log file.
         """
@@ -220,8 +212,7 @@ class _LogHandler(FileSystemEventHandler):
             return
 
         if Path(str(event.src_path)).resolve() == Path(self._target).resolve():
-            logger.info("Log rotated: %s -> %s", event.src_path,
-                        event.dest_path)
+            logger.info("Log rotated: %s -> %s", event.src_path, event.dest_path)
             self._handle_rotation()
 
     def on_created(self,
@@ -250,7 +241,6 @@ class LogTailer:
     Watchdog-based nginx log tailer that pushes raw lines
     into an asyncio.Queue for downstream processing.
     """
-
     def __init__(
         self,
         log_path: str,
@@ -260,9 +250,12 @@ class LogTailer:
     ) -> None:
         self._log_path = log_path
         self._handler = _LogHandler(
-            log_path, queue, loop, position_path,
+            log_path,
+            queue,
+            loop,
+            position_path,
         )
-        self._observer = PollingObserver(timeout=2)
+        self._observer = PollingObserver(timeout = 2)
         self._started = False
 
     def start(self) -> None:
@@ -270,7 +263,7 @@ class LogTailer:
         Begin watching the log file's parent directory for changes.
         """
         watch_dir = str(Path(self._log_path).resolve().parent)
-        self._observer.schedule(self._handler, watch_dir, recursive=False)
+        self._observer.schedule(self._handler, watch_dir, recursive = False)
         self._observer.start()
         self._started = True
         logger.info("LogTailer started — watching %s", watch_dir)
@@ -281,7 +274,7 @@ class LogTailer:
         """
         if self._started:
             self._observer.stop()
-            self._observer.join(timeout=5)
+            self._observer.join(timeout = 5)
             self._started = False
         self._handler.close()
         logger.info("LogTailer stopped")

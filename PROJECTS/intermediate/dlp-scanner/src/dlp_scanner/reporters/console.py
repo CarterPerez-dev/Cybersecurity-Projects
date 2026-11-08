@@ -3,7 +3,6 @@
 console.py
 """
 
-
 from rich.console import Console
 from rich.table import Table
 
@@ -74,10 +73,8 @@ class ConsoleReporter:
             return
 
         table = Table(
-            title = (
-                f"DLP Scan Results "
-                f"({len(result.findings)} findings)"
-            ),
+            title = (f"DLP Scan Results "
+                     f"({len(result.findings)} findings)"),
             show_lines = True,
         )
 
@@ -136,10 +133,8 @@ def _format_summary(result: ScanResult) -> str:
             parts.append(f"{sev}: {count}")
 
     summary = " | ".join(parts) if parts else "clean"
-    return (
-        f"Summary: {summary} "
-        f"({result.targets_scanned} targets scanned)"
-    )
+    return (f"Summary: {summary} "
+            f"({result.targets_scanned} targets scanned)")
 
 
 def _print_summary(console: Console, result: ScanResult) -> None:
@@ -156,7 +151,5 @@ def _print_summary(console: Console, result: ScanResult) -> None:
             parts.append(f"[{color}]{sev}: {count}[/{color}]")
 
     summary = (" | ".join(parts) if parts else "[green]clean")
-    console.print(
-        f"Summary: {summary} "
-        f"({result.targets_scanned} targets)"
-    )
+    console.print(f"Summary: {summary} "
+                  f"({result.targets_scanned} targets)")

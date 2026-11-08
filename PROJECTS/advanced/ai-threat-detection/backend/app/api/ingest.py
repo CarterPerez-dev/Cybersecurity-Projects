@@ -25,7 +25,8 @@ from pydantic import BaseModel
 
 from app.api.deps import require_api_key
 
-router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+router = APIRouter(prefix = "/ingest", tags = ["ingest"])
 
 
 class BatchIngestRequest(BaseModel):
@@ -36,11 +37,12 @@ class BatchIngestRequest(BaseModel):
     lines: list[str]
 
 
-@router.post("/batch", status_code=200, dependencies=[Depends(require_api_key)])
+@router.post("/batch", status_code = 200, dependencies = [Depends(require_api_key)])
 async def ingest_batch(
     body: BatchIngestRequest,
     request: Request,
-) -> dict[str, int]:
+) -> dict[str,
+          int]:
     """
     Push a batch of raw log lines into the pipeline queue
     """

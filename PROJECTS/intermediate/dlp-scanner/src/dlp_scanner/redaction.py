@@ -3,7 +3,6 @@
 redaction.py
 """
 
-
 from dlp_scanner.constants import RedactionStyle
 
 

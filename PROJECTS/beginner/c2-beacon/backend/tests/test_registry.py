@@ -52,12 +52,12 @@ def sample_meta() -> BeaconMeta:
     Provide sample beacon metadata
     """
     return BeaconMeta(
-        hostname="test-host",
-        os="Linux",
-        username="root",
-        pid=1234,
-        internal_ip="10.0.0.5",
-        arch="x86_64",
+        hostname = "test-host",
+        os = "Linux",
+        username = "root",
+        pid = 1234,
+        internal_ip = "10.0.0.5",
+        arch = "x86_64",
     )
 
 
@@ -65,7 +65,6 @@ class TestBeaconRegistry:
     """
     Verify beacon registration, unregistration, and queries
     """
-
     async def test_register_adds_to_active(
         self,
         registry: BeaconRegistry,

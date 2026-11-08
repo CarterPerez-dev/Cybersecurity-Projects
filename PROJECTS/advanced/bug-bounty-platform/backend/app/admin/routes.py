@@ -166,12 +166,7 @@ async def list_reports(
     """
     List all reports (admin only)
     """
-    return await admin_service.list_reports(
-        page,
-        size,
-        status_filter,
-        severity_filter
-    )
+    return await admin_service.list_reports(page, size, status_filter, severity_filter)
 
 
 @router.patch(
@@ -219,11 +214,7 @@ async def list_users(
     """
     List all users with stats (admin only)
     """
-    return await admin_service.list_users_with_stats(
-        page,
-        size,
-        role_filter
-    )
+    return await admin_service.list_users_with_stats(page, size, role_filter)
 
 
 @router.post(

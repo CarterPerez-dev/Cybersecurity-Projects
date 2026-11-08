@@ -67,9 +67,7 @@ def test_clean_request_returns_openai_shape() -> None:
     assert response.status_code == 200
     assert body["object"] == config.PROXY_OBJECT_NAME
     assert body["choices"][0]["message"]["role"] == "assistant"
-    assert body["choices"][0]["finish_reason"] == (
-        config.PROXY_FINISH_REASON_OK
-    )
+    assert body["choices"][0]["finish_reason"] == (config.PROXY_FINISH_REASON_OK)
 
 
 def test_the_response_parses_as_a_real_openai_completion() -> None:
@@ -100,9 +98,7 @@ def test_a_blocked_response_also_parses_as_a_real_completion() -> None:
 
     parsed = ChatCompletion.model_validate(response.json())
 
-    assert parsed.choices[0].finish_reason == (
-        config.PROXY_FINISH_REASON_BLOCKED
-    )
+    assert parsed.choices[0].finish_reason == (config.PROXY_FINISH_REASON_BLOCKED)
 
 
 @pytest.mark.parametrize(
@@ -124,15 +120,13 @@ def test_a_blocked_response_also_parses_as_a_real_completion() -> None:
         ),
         (
             "multimodal content parts",
-            [
-                {
-                    "role": "user",
-                    "content": [{
-                        "type": "text",
-                        "text": "hi"
-                    }],
-                }
-            ],
+            [{
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": "hi"
+                }],
+            }],
         ),
         (
             "assistant turn carrying tool calls",
@@ -157,13 +151,11 @@ def test_a_blocked_response_also_parses_as_a_real_completion() -> None:
         ),
         (
             "tool result keyed by tool_call_id",
-            [
-                {
-                    "role": "tool",
-                    "content": "x",
-                    "tool_call_id": "call_abc",
-                }
-            ],
+            [{
+                "role": "tool",
+                "content": "x",
+                "tool_call_id": "call_abc",
+            }],
         ),
     ],
 )
@@ -204,9 +196,7 @@ def test_a_multimodal_injection_is_still_inspected() -> None:
     )
     body = response.json()
 
-    assert body["choices"][0]["finish_reason"] == (
-        config.PROXY_FINISH_REASON_BLOCKED
-    )
+    assert body["choices"][0]["finish_reason"] == (config.PROXY_FINISH_REASON_BLOCKED)
 
 
 def test_blocked_request_is_not_a_500() -> None:
@@ -227,12 +217,8 @@ def test_blocked_request_is_not_a_500() -> None:
     body = response.json()
 
     assert response.status_code == 200
-    assert body["choices"][0]["finish_reason"] == (
-        config.PROXY_FINISH_REASON_BLOCKED
-    )
-    assert body["choices"][0]["message"]["content"] == (
-        config.PROXY_BLOCK_MESSAGE
-    )
+    assert body["choices"][0]["finish_reason"] == (config.PROXY_FINISH_REASON_BLOCKED)
+    assert body["choices"][0]["message"]["content"] == (config.PROXY_BLOCK_MESSAGE)
 
 
 def test_blocked_response_names_the_layer_and_rule() -> None:
@@ -247,10 +233,7 @@ def test_blocked_response_names_the_layer_and_rule() -> None:
     verdict = response.json()[config.PROXY_VERDICT_FIELD]
 
     assert verdict["decision"] == "block"
-    assert any(
-        f["rule"] == config.RULE_DATA_IMPERATIVE
-        for f in verdict["findings"]
-    )
+    assert any(f["rule"] == config.RULE_DATA_IMPERATIVE for f in verdict["findings"])
     assert all(f["layer"] for f in verdict["findings"])
 
 
@@ -280,9 +263,7 @@ def test_secret_in_model_output_is_refused_on_the_way_out() -> None:
     body = response.json()
 
     assert SECRET not in response.text
-    assert body["choices"][0]["finish_reason"] == (
-        config.PROXY_FINISH_REASON_BLOCKED
-    )
+    assert body["choices"][0]["finish_reason"] == (config.PROXY_FINISH_REASON_BLOCKED)
 
 
 def test_startup_announces_inferred_provenance_is_weak(

@@ -3,7 +3,6 @@
 network_scanner.py
 """
 
-
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -34,32 +33,34 @@ from dlp_scanner.scoring import match_to_finding
 
 log = structlog.get_logger()
 
-EXFIL_RULE_MAP: dict[str, tuple[str, str]] = {
-    "dns_long_label": (
-        "NET_DNS_EXFIL_LONG_LABEL",
-        "DNS Exfiltration: Long Label",
-    ),
-    "dns_high_entropy": (
-        "NET_DNS_EXFIL_HIGH_ENTROPY",
-        "DNS Exfiltration: High Entropy Subdomain",
-    ),
-    "dns_long_qname": (
-        "NET_DNS_EXFIL_LONG_QNAME",
-        "DNS Exfiltration: Long QNAME",
-    ),
-    "dns_txt_volume": (
-        "NET_DNS_EXFIL_TXT_VOLUME",
-        "DNS Exfiltration: High TXT Volume",
-    ),
-    "base64_payload": (
-        "NET_ENCODED_BASE64",
-        "Encoded Payload: Base64",
-    ),
-    "hex_payload": (
-        "NET_ENCODED_HEX",
-        "Encoded Payload: Hex",
-    ),
-}
+EXFIL_RULE_MAP: dict[str,
+                     tuple[str,
+                           str]] = {
+                               "dns_long_label": (
+                                   "NET_DNS_EXFIL_LONG_LABEL",
+                                   "DNS Exfiltration: Long Label",
+                               ),
+                               "dns_high_entropy": (
+                                   "NET_DNS_EXFIL_HIGH_ENTROPY",
+                                   "DNS Exfiltration: High Entropy Subdomain",
+                               ),
+                               "dns_long_qname": (
+                                   "NET_DNS_EXFIL_LONG_QNAME",
+                                   "DNS Exfiltration: Long QNAME",
+                               ),
+                               "dns_txt_volume": (
+                                   "NET_DNS_EXFIL_TXT_VOLUME",
+                                   "DNS Exfiltration: High TXT Volume",
+                               ),
+                               "base64_payload": (
+                                   "NET_ENCODED_BASE64",
+                                   "Encoded Payload: Base64",
+                               ),
+                               "hex_payload": (
+                                   "NET_ENCODED_HEX",
+                                   "Encoded Payload: Hex",
+                               ),
+                           }
 
 
 class NetworkScanner:
@@ -111,28 +112,21 @@ class NetworkScanner:
         """
         tracker = FlowTracker()
         dns_detector = DnsExfilDetector(
-            entropy_threshold = (
-                self._net_config.dns_label_entropy_threshold
-            ),
+            entropy_threshold = (self._net_config.dns_label_entropy_threshold),
         )
         packet_count = 0
 
         for packet in read_pcap(
-            path,
-            max_packets = self._net_config.max_packets,
+                path,
+                max_packets = self._net_config.max_packets,
         ):
             packet_count += 1
             tracker.add_packet(packet)
 
-            if (
-                packet.protocol == "udp"
-                and (
-                    DNS_PORT in (
-                        packet.src_port,
-                        packet.dst_port,
-                    )
-                )
-            ):
+            if (packet.protocol == "udp" and (DNS_PORT in (
+                    packet.src_port,
+                    packet.dst_port,
+            ))):
                 self._process_dns_packet(
                     packet.payload,
                     packet.src_ip,
@@ -331,7 +325,7 @@ def _indicator_to_finding(
         severity = severity,
         confidence = indicator.confidence,
         location = location,
-        redacted_snippet = indicator.evidence[:120],
+        redacted_snippet = indicator.evidence[: 120],
         compliance_frameworks = [],
         remediation = indicator.description,
     )

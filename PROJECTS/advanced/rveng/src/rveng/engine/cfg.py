@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from rveng.engine.disasm import Instruction
 
+
 RET = "ret"
 JMP = "jmp"
 
@@ -15,7 +16,7 @@ EDGE_FALLTHROUGH = "fallthrough"
 EDGE_JUMP = "jump"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class BasicBlock:
     """
     A straight run of instructions with a single entry and single exit
@@ -26,7 +27,7 @@ class BasicBlock:
     instructions: tuple[int, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Edge:
     """
     A control-flow edge between two basic blocks, keyed by their starts
@@ -37,7 +38,7 @@ class Edge:
     kind: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class ControlFlowGraph:
     """
     The basic blocks and edges of a single function
@@ -48,9 +49,7 @@ class ControlFlowGraph:
 
 
 def _is_terminator(ins: Instruction) -> bool:
-    return (ins.is_conditional_branch
-            or ins.mnemonic == JMP
-            or ins.mnemonic == RET)
+    return (ins.is_conditional_branch or ins.mnemonic == JMP or ins.mnemonic == RET)
 
 
 def _leaders(instructions: list[Instruction], within: set[int]) -> list[int]:
@@ -81,9 +80,8 @@ def build_cfg(instructions: list[Instruction]) -> ControlFlowGraph:
     blocks = []
     for pos, start in enumerate(starts):
         stop = starts[pos + 1] if pos + 1 < len(starts) else None
-        body = tuple(
-            a for a in addrs if a >= start and (stop is None or a < stop))
-        blocks.append(BasicBlock(start=start, end=body[-1], instructions=body))
+        body = tuple(a for a in addrs if a >= start and (stop is None or a < stop))
+        blocks.append(BasicBlock(start = start, end = body[-1], instructions = body))
 
     block_starts = [b.start for b in blocks]
     edges = []

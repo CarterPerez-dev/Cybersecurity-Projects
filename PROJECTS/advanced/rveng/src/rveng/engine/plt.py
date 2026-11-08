@@ -7,6 +7,7 @@ import struct
 
 from rveng.engine.elf import ElfImage
 
+
 DYNSYM = ".dynsym"
 DYNSTR = ".dynstr"
 RELA_PLT = ".rela.plt"
@@ -28,7 +29,7 @@ def _cstring(blob: bytes, offset: int) -> str:
     end = blob.find(b"\x00", offset)
     if end == -1:
         end = len(blob)
-    return blob[offset:end].decode("utf-8", "replace")
+    return blob[offset : end].decode("utf-8", "replace")
 
 
 def _dynamic_names(image: ElfImage) -> list[str]:
@@ -36,8 +37,8 @@ def _dynamic_names(image: ElfImage) -> list[str]:
     dynstr = image.section(DYNSTR)
     if dynsym is None or dynstr is None or dynsym.entsize == 0:
         return []
-    names = image.data[dynstr.offset:dynstr.offset + dynstr.size]
-    body = image.data[dynsym.offset:dynsym.offset + dynsym.size]
+    names = image.data[dynstr.offset : dynstr.offset + dynstr.size]
+    body = image.data[dynsym.offset : dynsym.offset + dynsym.size]
     en = image.header.endian
     out = []
     for base in range(0, len(body) - SYM_ENTRY + 1, SYM_ENTRY):
@@ -50,7 +51,7 @@ def _got_to_name(image: ElfImage, names: list[str]) -> dict[int, str]:
     rela = image.section(RELA_PLT)
     if rela is None or rela.entsize == 0:
         return {}
-    body = image.data[rela.offset:rela.offset + rela.size]
+    body = image.data[rela.offset : rela.offset + rela.size]
     en = image.header.endian
     mapping = {}
     for base in range(0, len(body) - RELA_ENTRY + 1, RELA_ENTRY):
@@ -80,11 +81,11 @@ def plt_map(image: ElfImage) -> dict[int, str]:
     got_names = _got_to_name(image, _dynamic_names(image))
     if not got_names:
         return {}
-    body = image.data[plt.offset:plt.offset + plt.size]
+    body = image.data[plt.offset : plt.offset + plt.size]
     en = image.header.endian
     result = {}
     for base in range(0, len(body) - PLT_ENTRY + 1, PLT_ENTRY):
-        entry = body[base:base + PLT_ENTRY]
+        entry = body[base : base + PLT_ENTRY]
         got_slot = _stub_got_slot(entry, plt.addr + base, en)
         if got_slot is None:
             continue

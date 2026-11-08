@@ -64,9 +64,7 @@ def test_template_marker_finding_is_high_severity() -> None:
     ctx = Context().data("x <|im_start|> y", origin = TICKET)
 
     findings = _inspect(ctx)
-    markers = [
-        f for f in findings if f.rule == config.RULE_TEMPLATE_MARKER
-    ]
+    markers = [f for f in findings if f.rule == config.RULE_TEMPLATE_MARKER]
 
     assert markers[0].severity is Severity.HIGH
     assert markers[0].invariant is False
@@ -109,12 +107,7 @@ def test_ordinary_ticket_text_produces_no_findings() -> None:
 
 
 def test_finding_points_at_the_offending_span() -> None:
-    ctx = (
-        Context().system("s").user("hello").data(
-            INJECTION,
-            origin = TICKET
-        )
-    )
+    ctx = (Context().system("s").user("hello").data(INJECTION, origin = TICKET))
 
     findings = _inspect(ctx)
 

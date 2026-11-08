@@ -3,7 +3,6 @@
 test_protocols.py
 """
 
-
 from dlp_scanner.network.protocols import (
     _is_http_request,
     _parse_txt_rdata,
@@ -62,11 +61,9 @@ class TestIsHttpRequest:
 
 class TestParseHttp:
     def test_parse_get_request(self) -> None:
-        raw = (
-            b"GET /index.html HTTP/1.1\r\n"
-            b"Host: example.com\r\n"
-            b"\r\n"
-        )
+        raw = (b"GET /index.html HTTP/1.1\r\n"
+               b"Host: example.com\r\n"
+               b"\r\n")
         result = parse_http(raw)
         assert result is not None
         assert result.method == "GET"
@@ -76,11 +73,9 @@ class TestParseHttp:
 
     def test_parse_post_with_body(self) -> None:
         body = b"key=value"
-        raw = (
-            b"POST /api HTTP/1.1\r\n"
-            b"Content-Length: 9\r\n"
-            b"\r\n" + body
-        )
+        raw = (b"POST /api HTTP/1.1\r\n"
+               b"Content-Length: 9\r\n"
+               b"\r\n" + body)
         result = parse_http(raw)
         assert result is not None
         assert result.method == "POST"

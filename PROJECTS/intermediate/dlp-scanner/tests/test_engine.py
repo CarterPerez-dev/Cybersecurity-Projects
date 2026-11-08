@@ -3,7 +3,6 @@
 test_engine.py
 """
 
-
 import json
 import tempfile
 from pathlib import Path
@@ -36,11 +35,9 @@ def pii_dir() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         csv_path = root / "employees.csv"
-        csv_path.write_text(
-            "name,ssn\n"
-            "Alice,456-78-9012\n"
-            "Bob,234-56-7890\n"
-        )
+        csv_path.write_text("name,ssn\n"
+                            "Alice,456-78-9012\n"
+                            "Bob,234-56-7890\n")
         yield root
 
 
@@ -83,19 +80,11 @@ def result_with_findings() -> ScanResult:
 
 
 class TestScanEngine:
-    def test_scan_files_finds_pii(
-        self,
-        engine: ScanEngine,
-        pii_dir: Path
-    ) -> None:
+    def test_scan_files_finds_pii(self, engine: ScanEngine, pii_dir: Path) -> None:
         result = engine.scan_files(str(pii_dir))
         assert len(result.findings) > 0
 
-    def test_scan_files_clean_dir(
-        self,
-        engine: ScanEngine,
-        clean_dir: Path
-    ) -> None:
+    def test_scan_files_clean_dir(self, engine: ScanEngine, clean_dir: Path) -> None:
         result = engine.scan_files(str(clean_dir))
         assert len(result.findings) == 0
 
@@ -112,8 +101,7 @@ class TestScanEngine:
         assert result.scan_completed_at is not None
 
     def test_scan_database_sqlite(self, engine: ScanEngine) -> None:
-        with tempfile.NamedTemporaryFile(suffix = ".db",
-                                         delete = False) as f:
+        with tempfile.NamedTemporaryFile(suffix = ".db", delete = False) as f:
             db_path = f.name
 
         import sqlite3
@@ -121,10 +109,8 @@ class TestScanEngine:
         conn = sqlite3.connect(db_path)
         conn.execute("CREATE TABLE users "
                      "(name TEXT, ssn TEXT)")
-        conn.execute(
-            "INSERT INTO users VALUES "
-            "('Alice', '456-78-9012')"
-        )
+        conn.execute("INSERT INTO users VALUES "
+                     "('Alice', '456-78-9012')")
         conn.commit()
         conn.close()
 

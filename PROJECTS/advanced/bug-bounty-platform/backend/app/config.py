@@ -160,14 +160,7 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["*"]
     CORS_ALLOW_CREDENTIALS: bool = True
-    CORS_ALLOW_METHODS: list[str] = [
-        "GET",
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-        "OPTIONS"
-    ]
+    CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     CORS_ALLOW_HEADERS: list[str] = ["*"]
 
     RATE_LIMIT_DEFAULT: str = "100/minute"
@@ -176,11 +169,7 @@ class Settings(BaseSettings):
     PAGINATION_DEFAULT_SIZE: int = Field(default = 20, ge = 1, le = 100)
     PAGINATION_MAX_SIZE: int = Field(default = 100, ge = 1, le = 500)
 
-    LOG_LEVEL: Literal["DEBUG",
-                       "INFO",
-                       "WARNING",
-                       "ERROR",
-                       "CRITICAL"] = "INFO"
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_JSON_FORMAT: bool = True
 
     @model_validator(mode = "after")

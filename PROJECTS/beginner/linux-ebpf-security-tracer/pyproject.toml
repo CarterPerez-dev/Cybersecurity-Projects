@@ -19,16 +19,19 @@ ebpf-tracer = "src.main:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
 [tool.ruff]
-line-length = 75
+line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "C4"]
-ignore = ["E501"]
+ignore = ["E501", "I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -55,10 +58,10 @@ dev = [
     "mypy>=1.19.0",
     "pytest>=9.0.0",
     "ruff>=0.14.0",
-    "yapf>=0.43.0",
+    "yang-fmt>=1.0.0",
 ]
 
-[tool.yapfignore]
+[tool.yangignore]
 ignore_patterns = [
     ".venv/",
     "venv/",

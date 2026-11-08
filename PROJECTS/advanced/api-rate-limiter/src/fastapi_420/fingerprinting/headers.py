@@ -91,8 +91,7 @@ class HeadersExtractor:
             components.append(f"{header_name}={value}")
 
         fingerprint_string = "\n".join(components)
-        hash_bytes = hashlib.sha256(fingerprint_string.encode()
-                                    ).hexdigest()
+        hash_bytes = hashlib.sha256(fingerprint_string.encode()).hexdigest()
 
         return hash_bytes[: self.hash_length]
 

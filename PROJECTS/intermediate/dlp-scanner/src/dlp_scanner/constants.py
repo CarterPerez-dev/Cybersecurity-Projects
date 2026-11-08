@@ -3,7 +3,6 @@
 constants.py
 """
 
-
 from typing import Literal
 
 

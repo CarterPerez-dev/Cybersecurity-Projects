@@ -59,6 +59,4 @@ class ScanResponse(BaseModel):
         """
         Number of vulnerabilities found
         """
-        return sum(
-            1 for r in self.test_results if r.status == "vulnerable"
-        )
+        return sum(1 for r in self.test_results if r.status == "vulnerable")

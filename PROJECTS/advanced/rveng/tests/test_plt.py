@@ -6,6 +6,7 @@ test_plt.py
 from rveng.engine.elf import ElfImage
 from rveng.engine.plt import _stub_got_slot, plt_map, resolve_call
 
+
 PUTS = 0x401030
 PRINTF = 0x401040
 ATOI = 0x401050

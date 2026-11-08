@@ -42,12 +42,7 @@ class RateLimitError(Exception):
     """
     Base exception for rate limiting errors
     """
-    def __init__(
-        self,
-        message: str,
-        details: dict[str,
-                      Any] | None = None
-    ) -> None:
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         self.message = message
         self.details = details or {}
         super().__init__(self.message)
@@ -124,8 +119,7 @@ class StorageError(RateLimitError):
         self.original_error = original_error
         backend_name = backend.value if backend else "unknown"
         super().__init__(
-            message =
-            f"Storage operation '{operation}' failed on {backend_name}",
+            message = f"Storage operation '{operation}' failed on {backend_name}",
             details = {
                 "operation": operation,
                 "backend": backend_name,
@@ -226,6 +220,4 @@ class InvalidRuleError(ConfigurationError):
     """
     def __init__(self, rule_string: str, reason: str) -> None:
         self.rule_string = rule_string
-        super().__init__(
-            reason = f"Invalid rule '{rule_string}': {reason}"
-        )
+        super().__init__(reason = f"Invalid rule '{rule_string}': {reason}")

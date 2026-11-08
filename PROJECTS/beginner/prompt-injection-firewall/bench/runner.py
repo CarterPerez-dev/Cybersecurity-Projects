@@ -90,8 +90,7 @@ _RLO: Final = chr(0x202E)
 
 def _tag_block(text: str) -> str:
     return "".join(
-        chr(config.TAG_BLOCK_START + ord(c)) if c.isascii() else c
-        for c in text
+        chr(config.TAG_BLOCK_START + ord(c)) if c.isascii() else c for c in text
     )
 
 
@@ -104,44 +103,29 @@ def _embed(blob: str) -> str:
     return EMBED_TEMPLATE.format(blob = blob)
 
 
-TRANSFORMS: Final[
-    dict[str,
-         Callable[[str],
-                  str]]
-] = {
-    "none":
-    lambda text: text,
-    "tag_block":
-    _tag_block,
-    "zero_width":
-    _ZWSP.join,
-    "bidi":
-    lambda text: f"{_RLO}{text}",
-    "confusable":
-    _confusable,
-    "base64":
-    lambda text: base64.b64encode(text.encode()).decode(),
-    "base32":
-    lambda text: base64.b32encode(text.encode()).decode(),
-    "hex":
-    lambda text: text.encode().hex(),
-    "percent":
-    lambda text: urllib.parse.quote(text, safe = ""),
-    "dash":
-    "-".join,
-    "space":
-    " ".join,
-    "reverse":
-    lambda text: text[::-1],
-    "rot13":
-    lambda text: codecs.encode(text, "rot13"),
-    "embed_base64":
-    lambda text: _embed(base64.b64encode(text.encode()).decode()),
-    "embed_base32":
-    lambda text: _embed(base64.b32encode(text.encode()).decode()),
-    "embed_hex":
-    lambda text: _embed(text.encode().hex()),
-}
+TRANSFORMS: Final[dict[str,
+                       Callable[[str],
+                                str]]
+                  ] = {
+                      "none": lambda text: text,
+                      "tag_block": _tag_block,
+                      "zero_width": _ZWSP.join,
+                      "bidi": lambda text: f"{_RLO}{text}",
+                      "confusable": _confusable,
+                      "base64": lambda text: base64.b64encode(text.encode()).decode(),
+                      "base32": lambda text: base64.b32encode(text.encode()).decode(),
+                      "hex": lambda text: text.encode().hex(),
+                      "percent": lambda text: urllib.parse.quote(text, safe = ""),
+                      "dash": "-".join,
+                      "space": " ".join,
+                      "reverse": lambda text: text[::-1],
+                      "rot13": lambda text: codecs.encode(text, "rot13"),
+                      "embed_base64":
+                      lambda text: _embed(base64.b64encode(text.encode()).decode()),
+                      "embed_base32":
+                      lambda text: _embed(base64.b32encode(text.encode()).decode()),
+                      "embed_hex": lambda text: _embed(text.encode().hex()),
+                  }
 
 
 class Case(BaseModel):
@@ -230,8 +214,8 @@ def _load_file(path: Path, hostile: bool) -> list[Case]:
                     label = label,
                     stage = stage,
                     span = span,
-                    text = TRANSFORMS[name](body) if "{fence}" not in body
-                    and "{nonce}" not in body else body,
+                    text = TRANSFORMS[name](body)
+                    if "{fence}" not in body and "{nonce}" not in body else body,
                     hostile = hostile,
                     tool_call = request,
                     replay_nonce = replay,
@@ -272,8 +256,7 @@ def base_policy(**overrides: object) -> Policy:
 def _build_context(case: Case, nonce: str | None) -> Context:
     ctx = Context().system("You are a support agent for Vantage.")
     if nonce is not None:
-        ctx = Context(nonce = nonce
-                      ).system("You are a support agent for Vantage.")
+        ctx = Context(nonce = nonce).system("You are a support agent for Vantage.")
 
     text = case.text
     if case.replay_nonce and nonce is not None:
@@ -459,10 +442,8 @@ def format_report(
             mark = "  INERT - DELETE"
         elif ablation.alibied:
             mark = "  alibied"
-        lines.append(
-            f"  {layer:24} {ablation.solo:5} "
-            f"{ablation.marginal:9}{mark}"
-        )
+        lines.append(f"  {layer:24} {ablation.solo:5} "
+                     f"{ablation.marginal:9}{mark}")
 
     p50, p99 = _percentiles(report.elapsed_ms)
     hard = report.class_false_positive_rate("benign_adversarial_data")

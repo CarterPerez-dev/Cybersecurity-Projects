@@ -24,14 +24,14 @@ from schemas.user_schemas import (
 from services.auth_service import AuthService
 
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
-limiter = Limiter(key_func=get_remote_address)
+router = APIRouter(prefix = "/auth", tags = ["authentication"])
+limiter = Limiter(key_func = get_remote_address)
 
 
 @router.post(
     "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
+    response_model = UserResponse,
+    status_code = status.HTTP_201_CREATED,
 )
 @limiter.limit(settings.API_RATE_LIMIT_REGISTER)
 async def register(
@@ -47,8 +47,8 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=TokenResponse,
-    status_code=status.HTTP_200_OK,
+    response_model = TokenResponse,
+    status_code = status.HTTP_200_OK,
 )
 @limiter.limit(settings.API_RATE_LIMIT_LOGIN)
 async def login(

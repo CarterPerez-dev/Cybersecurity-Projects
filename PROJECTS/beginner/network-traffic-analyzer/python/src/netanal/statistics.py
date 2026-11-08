@@ -40,8 +40,7 @@ class StatisticsCollector:
     """
     def __init__(
         self,
-        bandwidth_interval: float = CaptureDefaults.
-        BANDWIDTH_SAMPLE_INTERVAL_SECONDS,
+        bandwidth_interval: float = CaptureDefaults.BANDWIDTH_SAMPLE_INTERVAL_SECONDS,
     ) -> None:
         """
         Initialize statistics collector with bandwidth sampling interval
@@ -83,17 +82,10 @@ class StatisticsCollector:
             self._protocol_counts[packet.protocol] += 1
             self._protocol_bytes[packet.protocol] += packet.size
 
-            self._update_endpoint(packet.src_ip, sent_bytes=packet.size)
-            self._update_endpoint(
-                packet.dst_ip,
-                received_bytes=packet.size
-            )
+            self._update_endpoint(packet.src_ip, sent_bytes = packet.size)
+            self._update_endpoint(packet.dst_ip, received_bytes = packet.size)
 
-            self._update_conversation(
-                packet.src_ip,
-                packet.dst_ip,
-                packet.size
-            )
+            self._update_conversation(packet.src_ip, packet.dst_ip, packet.size)
 
             self._check_bandwidth_sample(packet.timestamp)
 
@@ -107,9 +99,7 @@ class StatisticsCollector:
         Update statistics for a network endpoint
         """
         if ip_address not in self._endpoints:
-            self._endpoints[ip_address] = EndpointStats(
-                ip_address=ip_address
-            )
+            self._endpoints[ip_address] = EndpointStats(ip_address = ip_address)
 
         endpoint = self._endpoints[ip_address]
         if sent_bytes > 0:
@@ -133,8 +123,8 @@ class StatisticsCollector:
 
         if conv_key not in self._conversations:
             self._conversations[conv_key] = ConversationStats(
-                endpoint_a=conv_key[0],
-                endpoint_b=conv_key[1],
+                endpoint_a = conv_key[0],
+                endpoint_b = conv_key[1],
             )
 
         conv = self._conversations[conv_key]
@@ -152,9 +142,9 @@ class StatisticsCollector:
                 pps = self._interval_packets / elapsed
                 self._bandwidth_samples.append(
                     BandwidthSample(
-                        timestamp=timestamp,
-                        bytes_per_second=bps,
-                        packets_per_second=pps,
+                        timestamp = timestamp,
+                        bytes_per_second = bps,
+                        packets_per_second = pps,
                     )
                 )
             self._interval_bytes = 0
@@ -167,15 +157,15 @@ class StatisticsCollector:
         """
         with self._lock:
             return CaptureStatistics(
-                start_time=self._start_time,
-                end_time=time.time(),
-                total_packets=self._total_packets,
-                total_bytes=self._total_bytes,
-                protocol_distribution=dict(self._protocol_counts),
-                protocol_bytes=dict(self._protocol_bytes),
-                endpoints=dict(self._endpoints),
-                conversations=dict(self._conversations),
-                bandwidth_samples=list(self._bandwidth_samples),
+                start_time = self._start_time,
+                end_time = time.time(),
+                total_packets = self._total_packets,
+                total_bytes = self._total_bytes,
+                protocol_distribution = dict(self._protocol_counts),
+                protocol_bytes = dict(self._protocol_bytes),
+                endpoints = dict(self._endpoints),
+                conversations = dict(self._conversations),
+                bandwidth_samples = list(self._bandwidth_samples),
             )
 
     def reset(self) -> None:

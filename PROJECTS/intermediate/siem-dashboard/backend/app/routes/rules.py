@@ -26,6 +26,7 @@ from app.schemas.rule import (
     RuleTestRequest,
 )
 
+
 rules_bp = Blueprint("rules", __name__)
 
 
@@ -42,7 +43,7 @@ def list_rules() -> Any:
 @rules_bp.post("")
 @endpoint()
 @S(RuleCreateRequest)
-@R(status=201)
+@R(status = 201)
 def create_rule() -> Any:
     """
     Create a new correlation rule

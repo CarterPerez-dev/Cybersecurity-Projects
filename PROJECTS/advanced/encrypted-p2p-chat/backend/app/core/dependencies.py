@@ -60,7 +60,8 @@ async def revoke_session(response: Response, token: str | None) -> None:
 
 
 async def current_user(
-    chat_session: str | None = Cookie(default = None, alias = SESSION_COOKIE_NAME),
+    chat_session: str | None = Cookie(default = None,
+                                      alias = SESSION_COOKIE_NAME),
     session: AsyncSession = Depends(get_session),
 ) -> User:
     """
@@ -99,7 +100,8 @@ async def current_user(
 
 
 async def session_token_from_cookie(
-    chat_session: str | None = Cookie(default = None, alias = SESSION_COOKIE_NAME),
+    chat_session: str | None = Cookie(default = None,
+                                      alias = SESSION_COOKIE_NAME),
 ) -> str | None:
     """
     Pass-through dependency to read the session cookie value

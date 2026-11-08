@@ -17,11 +17,7 @@ engine = create_engine(
 )
 
 # Session factory
-SessionLocal = sessionmaker(
-    autocommit = False,
-    autoflush = False,
-    bind = engine
-)
+SessionLocal = sessionmaker(autocommit = False, autoflush = False, bind = engine)
 
 # Base class
 Base = declarative_base()

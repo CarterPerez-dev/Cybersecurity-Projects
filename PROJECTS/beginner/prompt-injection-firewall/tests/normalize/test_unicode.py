@@ -138,6 +138,5 @@ def test_normalized_text_never_retains_a_hiding_place(
     assert not any(c in config.BIDI_CONTROLS for c in text)
     assert not any(c in config.CONFUSABLES for c in text)
     assert not any(
-        config.TAG_BLOCK_START <= ord(c) <= config.TAG_BLOCK_END
-        for c in text
+        config.TAG_BLOCK_START <= ord(c) <= config.TAG_BLOCK_END for c in text
     )

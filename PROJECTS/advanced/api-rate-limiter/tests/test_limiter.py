@@ -95,11 +95,7 @@ class TestRateLimiterCheck:
         await limiter.init()
 
         request = RequestFactory.create()
-        result = await limiter.check(
-            request,
-            "100/minute",
-            raise_on_limit = False
-        )
+        result = await limiter.check(request, "100/minute", raise_on_limit = False)
 
         assert result.allowed is True
         assert result.remaining == 99
@@ -125,9 +121,7 @@ class TestRateLimiterCheck:
         await limiter.close()
 
     @pytest.mark.asyncio
-    async def test_check_uses_default_rules_when_none_provided(
-        self
-    ) -> None:
+    async def test_check_uses_default_rules_when_none_provided(self) -> None:
         settings = RateLimiterSettings(
             DEFAULT_LIMITS = ["50/minute"],
         )
@@ -152,11 +146,7 @@ class TestRateLimiterCheck:
         request = RequestFactory.create()
 
         for _ in range(5):
-            await limiter.check(
-                request,
-                "5/minute",
-                raise_on_limit = False
-            )
+            await limiter.check(request, "5/minute", raise_on_limit = False)
 
         with pytest.raises(EnhanceYourCalm) as exc_info:
             await limiter.check(request, "5/minute", raise_on_limit = True)
@@ -174,17 +164,9 @@ class TestRateLimiterCheck:
         request = RequestFactory.create()
 
         for _ in range(5):
-            await limiter.check(
-                request,
-                "5/minute",
-                raise_on_limit = False
-            )
+            await limiter.check(request, "5/minute", raise_on_limit = False)
 
-        result = await limiter.check(
-            request,
-            "5/minute",
-            raise_on_limit = False
-        )
+        result = await limiter.check(request, "5/minute", raise_on_limit = False)
 
         assert result.allowed is False
         assert result.remaining == 0
@@ -201,22 +183,10 @@ class TestRateLimiterCheck:
         request2 = RequestFactory.create(path = "/api/endpoint2")
 
         for _ in range(5):
-            await limiter.check(
-                request1,
-                "5/minute",
-                raise_on_limit = False
-            )
+            await limiter.check(request1, "5/minute", raise_on_limit = False)
 
-        result1 = await limiter.check(
-            request1,
-            "5/minute",
-            raise_on_limit = False
-        )
-        result2 = await limiter.check(
-            request2,
-            "5/minute",
-            raise_on_limit = False
-        )
+        result1 = await limiter.check(request1, "5/minute", raise_on_limit = False)
+        result2 = await limiter.check(request2, "5/minute", raise_on_limit = False)
 
         assert result1.allowed is False
         assert result2.allowed is True
@@ -233,22 +203,10 @@ class TestRateLimiterCheck:
         request2 = RequestFactory.create(client_ip = "192.168.1.2")
 
         for _ in range(5):
-            await limiter.check(
-                request1,
-                "5/minute",
-                raise_on_limit = False
-            )
+            await limiter.check(request1, "5/minute", raise_on_limit = False)
 
-        result1 = await limiter.check(
-            request1,
-            "5/minute",
-            raise_on_limit = False
-        )
-        result2 = await limiter.check(
-            request2,
-            "5/minute",
-            raise_on_limit = False
-        )
+        result1 = await limiter.check(request1, "5/minute", raise_on_limit = False)
+        result2 = await limiter.check(request2, "5/minute", raise_on_limit = False)
 
         assert result1.allowed is False
         assert result2.allowed is True
@@ -294,11 +252,7 @@ class TestRateLimiterCheck:
         assert limiter.is_initialized is False
 
         request = RequestFactory.create()
-        result = await limiter.check(
-            request,
-            "100/minute",
-            raise_on_limit = False
-        )
+        result = await limiter.check(request, "100/minute", raise_on_limit = False)
 
         assert limiter.is_initialized is True
         assert result.allowed is True
@@ -402,9 +356,7 @@ class TestRateLimiterFailOpen:
     Tests for fail-open behavior
     """
     @pytest.mark.asyncio
-    async def test_fail_open_allows_requests_on_storage_failure(
-        self
-    ) -> None:
+    async def test_fail_open_allows_requests_on_storage_failure(self) -> None:
         settings = RateLimiterSettings(FAIL_OPEN = True)
         storage = MemoryStorage()
         await storage.close()
@@ -415,11 +367,7 @@ class TestRateLimiterFailOpen:
         limiter._fallback_storage = None
 
         request = RequestFactory.create()
-        result = await limiter.check(
-            request,
-            "100/minute",
-            raise_on_limit = False
-        )
+        result = await limiter.check(request, "100/minute", raise_on_limit = False)
 
         assert result.allowed is True
 

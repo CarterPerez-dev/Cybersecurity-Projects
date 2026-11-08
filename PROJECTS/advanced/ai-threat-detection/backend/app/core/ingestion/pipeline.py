@@ -63,16 +63,18 @@ except ImportError:
 if TYPE_CHECKING:
     from app.core.detection.inference import InferenceEngine
 
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_ENSEMBLE_WEIGHTS: dict[str, float] = {
-    "ae": 0.40,
-    "rf": 0.40,
-    "if": 0.20,
-}
+DEFAULT_ENSEMBLE_WEIGHTS: dict[str,
+                               float] = {
+                                   "ae": 0.40,
+                                   "rf": 0.40,
+                                   "if": 0.20,
+                               }
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class EnrichedRequest:
     """
     A parsed log entry enriched with extracted features and GeoIP data
@@ -84,7 +86,7 @@ class EnrichedRequest:
     geo: GeoResult | None
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class ScoredRequest:
     """
     A fully scored request ready for dispatch
@@ -109,30 +111,34 @@ class Pipeline:
         raw_queue -> [parse] -> parsed_queue -> [enrich+features]
         -> feature_queue -> [detect] -> alert_queue -> [dispatch]
     """
-
     def __init__(
         self,
         redis_client: aioredis.Redis[str],
         rule_engine: RuleEngine,
         geoip: GeoIPService | None = None,
-        on_result: (Callable[[ScoredRequest], Awaitable[None]] | None) = None,
+        on_result: (Callable[[ScoredRequest],
+                             Awaitable[None]] | None) = None,
         inference_engine: InferenceEngine | None = None,
-        ensemble_weights: dict[str, float] | None = None,
+        ensemble_weights: dict[str,
+                               float] | None = None,
         raw_queue_size: int = 1000,
         parsed_queue_size: int = 500,
         feature_queue_size: int = 200,
         alert_queue_size: int = 100,
     ) -> None:
-        self.raw_queue: asyncio.Queue[str | None] = asyncio.Queue(
-            maxsize=raw_queue_size)
+        self.raw_queue: asyncio.Queue[str
+                                      | None] = asyncio.Queue(maxsize = raw_queue_size)
         self._parsed_queue: asyncio.Queue[ParsedLogEntry
                                           | None] = asyncio.Queue(
-                                              maxsize=parsed_queue_size)
+                                              maxsize = parsed_queue_size
+                                          )
         self._feature_queue: asyncio.Queue[EnrichedRequest
                                            | None] = asyncio.Queue(
-                                               maxsize=feature_queue_size)
+                                               maxsize = feature_queue_size
+                                           )
         self._alert_queue: asyncio.Queue[ScoredRequest | None] = asyncio.Queue(
-            maxsize=alert_queue_size)
+            maxsize = alert_queue_size
+        )
 
         self._aggregator = WindowAggregator(redis_client)
         self._rule_engine = rule_engine
@@ -141,16 +147,17 @@ class Pipeline:
         self._inference_engine = inference_engine
         self._ensemble_weights = ensemble_weights or DEFAULT_ENSEMBLE_WEIGHTS
         self._tasks: list[asyncio.Task[None]] = []
-        self._stats: dict[str, int] = {
-            "parsed": 0,
-            "parse_errors": 0,
-            "enriched": 0,
-            "enrich_errors": 0,
-            "scored": 0,
-            "score_errors": 0,
-            "dispatched": 0,
-            "dispatch_errors": 0,
-        }
+        self._stats: dict[str,
+                          int] = {
+                              "parsed": 0,
+                              "parse_errors": 0,
+                              "enriched": 0,
+                              "enrich_errors": 0,
+                              "scored": 0,
+                              "score_errors": 0,
+                              "dispatched": 0,
+                              "dispatch_errors": 0,
+                          }
 
     @property
     def stats(self) -> dict[str, int]:
@@ -164,10 +171,14 @@ class Pipeline:
         Spawn worker tasks for each pipeline stage
         """
         self._tasks = [
-            asyncio.create_task(self._parse_worker(), name="parse"),
-            asyncio.create_task(self._feature_worker(), name="feature"),
-            asyncio.create_task(self._detection_worker(), name="detection"),
-            asyncio.create_task(self._dispatch_worker(), name="dispatch"),
+            asyncio.create_task(self._parse_worker(),
+                                name = "parse"),
+            asyncio.create_task(self._feature_worker(),
+                                name = "feature"),
+            asyncio.create_task(self._detection_worker(),
+                                name = "detection"),
+            asyncio.create_task(self._dispatch_worker(),
+                                name = "dispatch"),
         ]
         logger.info("Pipeline started — 4 stage workers running")
 
@@ -223,15 +234,15 @@ class Pipeline:
                 per_request = extract_request_features(entry, country_code)
 
                 windowed = await self._aggregator.record_and_aggregate(
-                    ip=entry.ip,
-                    request_id=uuid.uuid4().hex,
-                    path=entry.path,
-                    path_depth=int(per_request["path_depth"]),
-                    method=entry.method,
-                    status_code=entry.status_code,
-                    user_agent=entry.user_agent,
-                    response_size=entry.response_size,
-                    timestamp=entry.timestamp.timestamp(),
+                    ip = entry.ip,
+                    request_id = uuid.uuid4().hex,
+                    path = entry.path,
+                    path_depth = int(per_request["path_depth"]),
+                    method = entry.method,
+                    status_code = entry.status_code,
+                    user_agent = entry.user_agent,
+                    response_size = entry.response_size,
+                    timestamp = entry.timestamp.timestamp(),
                 )
 
                 merged = {**per_request, **windowed}
@@ -239,11 +250,12 @@ class Pipeline:
 
                 await self._feature_queue.put(
                     EnrichedRequest(
-                        entry=entry,
-                        features=merged,
-                        feature_vector=vector,
-                        geo=geo,
-                    ))
+                        entry = entry,
+                        features = merged,
+                        feature_vector = vector,
+                        geo = geo,
+                    )
+                )
                 self._stats["enriched"] += 1
             except Exception:
                 self._stats["enrich_errors"] += 1
@@ -275,8 +287,7 @@ class Pipeline:
                 per_model_scores: dict[str, float] | None = None
 
                 if (self._inference_engine is not None
-                        and self._inference_engine.is_loaded
-                        and np is not None):
+                        and self._inference_engine.is_loaded and np is not None):
                     per_model_scores = self._score_with_ml(
                         enriched.feature_vector,
                     )
@@ -293,28 +304,28 @@ class Pipeline:
 
                 await self._alert_queue.put(
                     ScoredRequest(
-                        entry=enriched.entry,
-                        features=enriched.features,
-                        feature_vector=enriched.feature_vector,
-                        geo=enriched.geo,
-                        rule_result=rule_result,
-                        final_score=final_score,
-                        detection_mode=detection_mode,
-                        ml_scores=per_model_scores,
-                    ))
+                        entry = enriched.entry,
+                        features = enriched.features,
+                        feature_vector = enriched.feature_vector,
+                        geo = enriched.geo,
+                        rule_result = rule_result,
+                        final_score = final_score,
+                        detection_mode = detection_mode,
+                        ml_scores = per_model_scores,
+                    )
+                )
                 self._stats["scored"] += 1
             except Exception:
                 self._stats["score_errors"] += 1
                 logger.exception("Detection failed")
             self._feature_queue.task_done()
 
-    def _score_with_ml(self,
-                       feature_vector: list[float]) -> dict[str, float] | None:
+    def _score_with_ml(self, feature_vector: list[float]) -> dict[str, float] | None:
         """
         Run ML ensemble inference on a single feature vector
         and return normalized per-model scores
         """
-        batch = np.array([feature_vector], dtype=np.float32)
+        batch = np.array([feature_vector], dtype = np.float32)
         raw = self._inference_engine.predict(batch)  # type: ignore[union-attr]
         if raw is None:
             return None

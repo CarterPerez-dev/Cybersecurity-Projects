@@ -86,10 +86,7 @@ class AdminService:
         """
         Update a program (admin override)
         """
-        program = await AdminRepository.get_program_by_id(
-            self.session,
-            program_id
-        )
+        program = await AdminRepository.get_program_by_id(self.session, program_id)
         if not program:
             raise ResourceNotFound("Program", str(program_id))
 
@@ -114,8 +111,7 @@ class AdminService:
                     updated_at = program.updated_at,
                     company_id = program.company_id,
                     company_email = company.email,
-                    company_name = company.company_name
-                    or company.full_name,
+                    company_name = company.company_name or company.full_name,
                     name = program.name,
                     slug = program.slug,
                     description = program.description,
@@ -131,10 +127,7 @@ class AdminService:
         """
         Delete a program (hard delete)
         """
-        program = await AdminRepository.get_program_by_id(
-            self.session,
-            program_id
-        )
+        program = await AdminRepository.get_program_by_id(self.session, program_id)
         if not program:
             raise ResourceNotFound("Program", str(program_id))
 
@@ -203,17 +196,11 @@ class AdminService:
         """
         Update a report (admin override)
         """
-        report = await AdminRepository.get_report_by_id(
-            self.session,
-            report_id
-        )
+        report = await AdminRepository.get_report_by_id(self.session, report_id)
         if not report:
             raise ResourceNotFound("Report", str(report_id))
 
-        update_data = data.model_dump(
-            exclude_unset = True,
-            exclude = {"admin_notes"}
-        )
+        update_data = data.model_dump(exclude_unset = True, exclude = {"admin_notes"})
         for key, value in update_data.items():
             setattr(report, key, value)
 

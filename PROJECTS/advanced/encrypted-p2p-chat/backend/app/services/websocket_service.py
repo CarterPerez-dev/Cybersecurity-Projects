@@ -35,7 +35,6 @@ from app.services.presence_service import presence_service
 
 logger = logging.getLogger(__name__)
 
-
 _message_timestamps: dict[UUID, deque[float]] = defaultdict(deque)
 
 
@@ -92,11 +91,7 @@ class WebSocketService:
         elif message_type == "heartbeat":
             await self.handle_heartbeat(user_id)
         else:
-            logger.warning(
-                "Unknown message type from %s: %s",
-                user_id,
-                message_type
-            )
+            logger.warning("Unknown message type from %s: %s", user_id, message_type)
             await websocket.send_json(
                 {
                     "type": "error",
@@ -134,11 +129,10 @@ class WebSocketService:
                 logger.error("Missing room_id in message from %s", user_id)
                 return
 
-            sender_member = await surreal_db.is_room_participant(
-                room_id, str(user_id)
-            )
+            sender_member = await surreal_db.is_room_participant(room_id, str(user_id))
             recipient_member = await surreal_db.is_room_participant(
-                room_id, str(recipient_id)
+                room_id,
+                str(recipient_id)
             )
             if not sender_member or not recipient_member:
                 logger.warning(
@@ -161,7 +155,8 @@ class WebSocketService:
                 )
 
             ws_message = EncryptedMessageWS(
-                message_id = result.id if hasattr(result, 'id') else "unknown",
+                message_id = result.id if hasattr(result,
+                                                  'id') else "unknown",
                 sender_id = str(user_id),
                 recipient_id = str(recipient_id),
                 room_id = room_id,
@@ -169,7 +164,9 @@ class WebSocketService:
                 ciphertext = ciphertext,
                 nonce = nonce,
                 header = header,
-                sender_username = result.sender_username if hasattr(result, 'sender_username') else ""
+                sender_username = result.sender_username
+                if hasattr(result,
+                           'sender_username') else ""
             )
 
             is_recipient_connected = connection_manager.is_user_connected(recipient_id)
@@ -187,10 +184,13 @@ class WebSocketService:
 
             confirmation = MessageSentWS(
                 temp_id = temp_id,
-                message_id = result.id if hasattr(result, 'id') else "unknown",
+                message_id = result.id if hasattr(result,
+                                                  'id') else "unknown",
                 room_id = room_id,
                 status = "sent",
-                created_at = result.created_at if hasattr(result, 'created_at') else datetime.now(UTC)
+                created_at = result.created_at
+                if hasattr(result,
+                           'created_at') else datetime.now(UTC)
             )
 
             await connection_manager.send_message(
@@ -206,17 +206,9 @@ class WebSocketService:
             )
 
         except ValueError as e:
-            logger.error(
-                "Invalid UUID in encrypted message from %s: %s",
-                user_id,
-                e
-            )
+            logger.error("Invalid UUID in encrypted message from %s: %s", user_id, e)
         except Exception as e:
-            logger.error(
-                "Failed to handle encrypted message from %s: %s",
-                user_id,
-                e
-            )
+            logger.error("Failed to handle encrypted message from %s: %s", user_id, e)
 
     async def handle_typing_indicator(
         self,
@@ -232,15 +224,10 @@ class WebSocketService:
             is_typing = message.get("is_typing", False)
 
             if not room_id:
-                logger.error(
-                    "Missing room_id in typing indicator from %s",
-                    user_id
-                )
+                logger.error("Missing room_id in typing indicator from %s", user_id)
                 return
 
-            sender_member = await surreal_db.is_room_participant(
-                room_id, str(user_id)
-            )
+            sender_member = await surreal_db.is_room_participant(room_id, str(user_id))
             if not sender_member:
                 logger.warning(
                     "Typing indicator from non-member %s for room %s",
@@ -268,11 +255,7 @@ class WebSocketService:
             )
 
         except Exception as e:
-            logger.error(
-                "Failed to handle typing indicator from %s: %s",
-                user_id,
-                e
-            )
+            logger.error("Failed to handle typing indicator from %s: %s", user_id, e)
 
     async def handle_presence_update(
         self,
@@ -293,11 +276,7 @@ class WebSocketService:
             try:
                 presence_status = PresenceStatus(status)
             except ValueError:
-                logger.warning(
-                    "Invalid presence status from %s: %s",
-                    user_id,
-                    status
-                )
+                logger.warning("Invalid presence status from %s: %s", user_id, status)
                 return
 
             if presence_status == PresenceStatus.ONLINE:
@@ -307,25 +286,12 @@ class WebSocketService:
             elif presence_status == PresenceStatus.OFFLINE:
                 await presence_service.set_user_offline(user_id)
 
-            logger.debug(
-                "Presence updated: %s -> %s",
-                user_id,
-                presence_status.value
-            )
+            logger.debug("Presence updated: %s -> %s", user_id, presence_status.value)
 
         except Exception as e:
-            logger.error(
-                "Failed to handle presence update from %s: %s",
-                user_id,
-                e
-            )
+            logger.error("Failed to handle presence update from %s: %s", user_id, e)
 
-    async def handle_read_receipt(
-        self,
-        user_id: UUID,
-        message: dict[str,
-                      Any]
-    ) -> None:
+    async def handle_read_receipt(self, user_id: UUID, message: dict[str, Any]) -> None:
         """
         Process read receipt and notify message sender
         """

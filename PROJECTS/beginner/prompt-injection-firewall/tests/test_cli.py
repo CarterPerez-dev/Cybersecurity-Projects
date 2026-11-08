@@ -53,10 +53,8 @@ def test_ordinary_document_prose_is_allowed(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     status = main(
-        [
-            "inspect",
-            "The 8814 can act as a backup unit when the primary fails."
-        ]
+        ["inspect",
+         "The 8814 can act as a backup unit when the primary fails."]
     )
 
     assert status == 0

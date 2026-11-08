@@ -32,10 +32,11 @@ from pathlib import Path
 
 import typer
 
+
 app = typer.Typer(
-    name="vigil",
-    help="AngelusVigil — AI-powered threat detection engine",
-    no_args_is_help=True,
+    name = "vigil",
+    help = "AngelusVigil — AI-powered threat detection engine",
+    no_args_is_help = True,
 )
 
 DEFAULT_MODEL_DIR = "data/models"
@@ -50,7 +51,8 @@ DEFAULT_SERVER_URL = "http://localhost:8000"
 async def _write_metadata(
     model_dir: Path,
     training_samples: int,
-    metrics: dict[str, object],
+    metrics: dict[str,
+                  object],
     mlflow_run_id: str | None,
     threshold: float | None,
 ) -> None:
@@ -75,17 +77,17 @@ async def _write_metadata(
 
         factory = async_sessionmaker(
             engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
+            class_ = AsyncSession,
+            expire_on_commit = False,
         )
         async with factory() as session:
             await save_model_metadata(
                 session,
-                model_dir=model_dir,
-                training_samples=training_samples,
-                metrics=metrics,
-                mlflow_run_id=mlflow_run_id,
-                threshold=threshold,
+                model_dir = model_dir,
+                training_samples = training_samples,
+                metrics = metrics,
+                mlflow_run_id = mlflow_run_id,
+                threshold = threshold,
             )
     finally:
         await engine.dispose()
@@ -93,10 +95,12 @@ async def _write_metadata(
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", help="Bind address"),
-    port: int = typer.Option(8000, help="Bind port"),
+    host: str = typer.Option("0.0.0.0",
+                             help = "Bind address"),
+    port: int = typer.Option(8000,
+                             help = "Bind port"),
     reload: bool = typer.Option(False,
-                                help="Enable auto-reload for development"),
+                                help = "Enable auto-reload for development"),
 ) -> None:
     """
     Start the AngelusVigil API server
@@ -105,9 +109,9 @@ def serve(
 
     uvicorn.run(
         "app.main:app",
-        host=host,
-        port=port,
-        reload=reload,
+        host = host,
+        port = port,
+        reload = reload,
     )
 
 
@@ -115,31 +119,31 @@ def serve(
 def train(
     csic_dir: Path = typer.Option(
         None,
-        help="Path to CSIC 2010 dataset directory",
+        help = "Path to CSIC 2010 dataset directory",
     ),
     synthetic_normal: int = typer.Option(
         DEFAULT_SYNTHETIC_NORMAL,
-        help="Number of synthetic normal samples",
+        help = "Number of synthetic normal samples",
     ),
     synthetic_attack: int = typer.Option(
         DEFAULT_SYNTHETIC_ATTACK,
-        help="Number of synthetic attack samples",
+        help = "Number of synthetic attack samples",
     ),
     output_dir: Path = typer.Option(
         DEFAULT_MODEL_DIR,
-        help="Directory to save ONNX models",
+        help = "Directory to save ONNX models",
     ),
     epochs: int = typer.Option(
         DEFAULT_EPOCHS,
-        help="Autoencoder training epochs",
+        help = "Autoencoder training epochs",
     ),
     batch_size: int = typer.Option(
         DEFAULT_BATCH_SIZE,
-        help="Training batch size",
+        help = "Training batch size",
     ),
     experiment_name: str = typer.Option(
         DEFAULT_EXPERIMENT_NAME,
-        help="MLflow experiment name",
+        help = "MLflow experiment name",
     ),
 ) -> None:
     """
@@ -157,9 +161,9 @@ def train(
             typer.echo(
                 f"Error: CSIC directory not found"
                 f" at {csic_dir}",
-                err=True,
+                err = True,
             )
-            raise typer.Exit(code=1)
+            raise typer.Exit(code = 1)
 
         from ml.data_loader import load_csic_dataset, load_csic_normal
 
@@ -167,22 +171,16 @@ def train(
         normal_test_path = csic_dir / "normalTrafficTest.txt"
         attack_path = csic_dir / "anomalousTrafficTest.txt"
         typer.echo(f"Loading CSIC data from {csic_dir}")
-        X_csic, y_csic = load_csic_dataset(
-            normal_path, attack_path
-        )
+        X_csic, y_csic = load_csic_dataset(normal_path, attack_path)
         X_parts.append(X_csic)
         y_parts.append(y_csic)
-        typer.echo(
-            f"  CSIC: {len(X_csic)} samples"
-        )
+        typer.echo(f"  CSIC: {len(X_csic)} samples")
 
         if normal_test_path.exists():
             X_extra, y_extra = load_csic_normal(normal_test_path)
             X_parts.append(X_extra)
             y_parts.append(y_extra)
-            typer.echo(
-                f"  CSIC normal test: {len(X_extra)} samples"
-            )
+            typer.echo(f"  CSIC normal test: {len(X_extra)} samples")
 
     if synthetic_normal > 0 or synthetic_attack > 0:
         from ml.synthetic import generate_mixed_dataset
@@ -192,18 +190,16 @@ def train(
             f" {synthetic_normal} normal,"
             f" {synthetic_attack} attack"
         )
-        X_syn, y_syn = generate_mixed_dataset(
-            synthetic_normal, synthetic_attack
-        )
+        X_syn, y_syn = generate_mixed_dataset(synthetic_normal, synthetic_attack)
         X_parts.append(X_syn)
         y_parts.append(y_syn)
 
     if not X_parts:
         typer.echo(
             "Error: no data sources specified",
-            err=True,
+            err = True,
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code = 1)
 
     X = np.vstack(X_parts)
     y = np.concatenate(y_parts)
@@ -214,59 +210,57 @@ def train(
     )
 
     orch = TrainingOrchestrator(
-        output_dir=Path(output_dir),
-        experiment_name=experiment_name,
-        epochs=epochs,
-        batch_size=batch_size,
+        output_dir = Path(output_dir),
+        experiment_name = experiment_name,
+        epochs = epochs,
+        batch_size = batch_size,
     )
     result = orch.run(X, y)
 
     try:
-        metrics: dict[str, object] = (
-            dataclasses.asdict(result.ensemble_metrics)
-            if result.ensemble_metrics else {}
+        metrics: dict[str,
+                      object] = (
+                          dataclasses.asdict(result.ensemble_metrics)
+                          if result.ensemble_metrics else {}
+                      )
+        asyncio.run(
+            _write_metadata(
+                Path(output_dir),
+                int(len(X)),
+                metrics,
+                result.mlflow_run_id,
+                result.ae_metrics.get("ae_threshold"),
+            )
         )
-        asyncio.run(_write_metadata(
-            Path(output_dir),
-            int(len(X)),
-            metrics,
-            result.mlflow_run_id,
-            result.ae_metrics.get("ae_threshold"),
-        ))
         typer.echo("  Model metadata saved to database")
     except Exception as exc:
         typer.echo(
             f"  Warning: could not save metadata to DB: {exc}",
-            err=True,
+            err = True,
         )
 
     typer.echo(f"Models exported to {output_dir}")
     if result.ensemble_metrics is not None:
-        typer.echo(
-            f"  Ensemble F1:"
-            f" {result.ensemble_metrics.f1:.4f}"
-        )
-        typer.echo(
-            f"  Ensemble PR-AUC:"
-            f" {result.ensemble_metrics.pr_auc:.4f}"
-        )
-    typer.echo(
-        f"  Passed gates: {result.passed_gates}"
-    )
+        typer.echo(f"  Ensemble F1:"
+                   f" {result.ensemble_metrics.f1:.4f}")
+        typer.echo(f"  Ensemble PR-AUC:"
+                   f" {result.ensemble_metrics.pr_auc:.4f}")
+    typer.echo(f"  Passed gates: {result.passed_gates}")
 
     if not result.passed_gates:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code = 1)
 
 
 @app.command()
 def replay(
-        log_file: Path = typer.Option(...,
-                                      help="Path to nginx access log file"),
-        url: str = typer.Option(
-            DEFAULT_SERVER_URL,
-            help="Running server URL to send logs to",
-        ),
-        batch_size: int = typer.Option(100, help="Lines per batch"),
+    log_file: Path = typer.Option(...,
+                                  help = "Path to nginx access log file"),
+    url: str = typer.Option(
+        DEFAULT_SERVER_URL,
+        help = "Running server URL to send logs to",
+    ),
+    batch_size: int = typer.Option(100,
+                                   help = "Lines per batch"),
 ) -> None:
     """
     Replay historical log lines through the pipeline
@@ -276,27 +270,27 @@ def replay(
     if not log_file.exists():
         typer.echo(
             f"Error: log file not found at {log_file}",
-            err=True,
+            err = True,
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code = 1)
 
     lines = log_file.read_text().strip().splitlines()
     typer.echo(f"Replaying {len(lines)} lines to {url}")
 
     sent = 0
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout = 30.0) as client:
         for i in range(0, len(lines), batch_size):
-            batch = lines[i:i + batch_size]
+            batch = lines[i : i + batch_size]
             response = client.post(
                 f"{url}/ingest/batch",
-                json={"lines": batch},
+                json = {"lines": batch},
             )
             if response.status_code == 200:
                 sent += len(batch)
             else:
                 typer.echo(
                     f"  Batch {i} failed: {response.status_code}",
-                    err=True,
+                    err = True,
                 )
 
     typer.echo(f"Replayed {sent}/{len(lines)} lines")
@@ -315,8 +309,7 @@ def config() -> None:
                 "key",
                 "password",
                 "secret",
-                "token",
-        )):
+                "token",)):
             safe_fields[key] = "***REDACTED***"
         elif "url" in key and "@" in str(value):
             safe_fields[key] = _redact_url(str(value))
@@ -331,7 +324,7 @@ def config() -> None:
 def health(
     url: str = typer.Option(
         DEFAULT_SERVER_URL,
-        help="Base URL of the running server",
+        help = "Base URL of the running server",
     ),
 ) -> None:
     """
@@ -340,7 +333,7 @@ def health(
     import httpx
 
     try:
-        response = httpx.get(f"{url}/health", timeout=5.0)
+        response = httpx.get(f"{url}/health", timeout = 5.0)
         response.raise_for_status()
         data = response.json()
         typer.echo(f"  status: {data.get('status', 'unknown')}")
@@ -349,14 +342,14 @@ def health(
             f"  pipeline: {'running' if data.get('pipeline_running') else 'stopped'}"
         )
     except httpx.ConnectError:
-        typer.echo("Error: cannot connect to server", err=True)
-        raise typer.Exit(code=1) from None
+        typer.echo("Error: cannot connect to server", err = True)
+        raise typer.Exit(code = 1) from None
     except httpx.HTTPStatusError as exc:
         typer.echo(
             f"Error: server returned {exc.response.status_code}",
-            err=True,
+            err = True,
         )
-        raise typer.Exit(code=1) from None
+        raise typer.Exit(code = 1) from None
 
 
 def _redact_url(url: str) -> str:

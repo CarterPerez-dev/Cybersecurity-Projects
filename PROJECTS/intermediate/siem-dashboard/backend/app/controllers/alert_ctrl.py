@@ -40,9 +40,9 @@ def list_alerts() -> dict[str, Any]:
 
     qs = Alert.objects(**filters).order_by("-created_at")
     return Alert.paginate(
-        queryset=qs,
-        page=params.page,
-        per_page=params.per_page,
+        queryset = qs,
+        page = params.page,
+        per_page = params.per_page,
     )
 
 
@@ -64,9 +64,9 @@ def update_alert_status(alert_id: str) -> Alert:
     if g.current_user:
         username = g.current_user.username
     alert.update_status(
-        status=data.status,
-        username=username,
-        notes=data.notes,
+        status = data.status,
+        username = username,
+        notes = data.notes,
     )
     return alert
 
@@ -76,9 +76,10 @@ def stream_alerts() -> Response:
     SSE endpoint that tails the alert Redis Stream
     """
     return Response(
-        sse_generator(settings.ALERT_STREAM_KEY, event_type="alert"),
-        mimetype="text/event-stream",
-        headers={
+        sse_generator(settings.ALERT_STREAM_KEY,
+                      event_type = "alert"),
+        mimetype = "text/event-stream",
+        headers = {
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },

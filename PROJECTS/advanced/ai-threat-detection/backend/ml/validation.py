@@ -46,13 +46,15 @@ from app.core.detection.ensemble import (
 )
 from app.core.detection.inference import InferenceEngine
 
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_ENSEMBLE_WEIGHTS: dict[str, float] = {
-    "ae": 0.4,
-    "rf": 0.4,
-    "if": 0.2,
-}
+DEFAULT_ENSEMBLE_WEIGHTS: dict[str,
+                               float] = {
+                                   "ae": 0.4,
+                                   "rf": 0.4,
+                                   "if": 0.2,
+                               }
 
 BINARY_THRESHOLD = 0.5
 
@@ -70,14 +72,15 @@ class ValidationResult:
     roc_auc: float
     confusion_matrix: list[list[int]]
     passed_gates: bool
-    gate_details: dict[str, bool] = field(default_factory=dict)
+    gate_details: dict[str, bool] = field(default_factory = dict)
 
 
 def validate_ensemble(
     model_dir: Path,
     X_test: np.ndarray,
     y_test: np.ndarray,
-    ensemble_weights: dict[str, float] | None = None,
+    ensemble_weights: dict[str,
+                           float] | None = None,
     pr_auc_gate: float = 0.85,
     f1_gate: float = 0.80,
 ) -> ValidationResult:
@@ -86,11 +89,13 @@ def validate_ensemble(
     """
     weights = ensemble_weights or DEFAULT_ENSEMBLE_WEIGHTS
 
-    engine = InferenceEngine(model_dir=str(model_dir))
+    engine = InferenceEngine(model_dir = str(model_dir))
     if not engine.is_loaded:
         raise RuntimeError(f"Failed to load models from {model_dir}")
 
-    raw_scores = engine.predict(X_test.astype(np.float32), )
+    raw_scores = engine.predict(
+        X_test.astype(np.float32),
+    )
     if raw_scores is None:
         raise RuntimeError("Inference returned None")
 
@@ -98,9 +103,9 @@ def validate_ensemble(
 
     y_pred = (fused >= BINARY_THRESHOLD).astype(np.int32)
 
-    prec = float(precision_score(y_test, y_pred, zero_division=0))
-    rec = float(recall_score(y_test, y_pred, zero_division=0))
-    f1_val = float(f1_score(y_test, y_pred, zero_division=0))
+    prec = float(precision_score(y_test, y_pred, zero_division = 0))
+    rec = float(recall_score(y_test, y_pred, zero_division = 0))
+    f1_val = float(f1_score(y_test, y_pred, zero_division = 0))
     pr_auc_val = float(average_precision_score(y_test, fused))
     roc_auc_val = float(roc_auc_score(y_test, fused))
 
@@ -124,27 +129,29 @@ def validate_ensemble(
     )
 
     return ValidationResult(
-        precision=prec,
-        recall=rec,
-        f1=f1_val,
-        pr_auc=pr_auc_val,
-        roc_auc=roc_auc_val,
-        confusion_matrix=cm,
-        passed_gates=pr_auc_passed and f1_passed,
-        gate_details=gate_details,
+        precision = prec,
+        recall = rec,
+        f1 = f1_val,
+        pr_auc = pr_auc_val,
+        roc_auc = roc_auc_val,
+        confusion_matrix = cm,
+        passed_gates = pr_auc_passed and f1_passed,
+        gate_details = gate_details,
     )
 
 
 def _compute_fused_scores(
-    raw_scores: dict[str, list[float]],
+    raw_scores: dict[str,
+                     list[float]],
     threshold: float,
-    weights: dict[str, float],
+    weights: dict[str,
+                  float],
 ) -> np.ndarray:
     """
     Normalize and fuse per-model raw scores into a single score array
     """
     n_samples = len(raw_scores["ae"])
-    fused = np.zeros(n_samples, dtype=np.float64)
+    fused = np.zeros(n_samples, dtype = np.float64)
 
     for i in range(n_samples):
         per_model: dict[str, float] = {}

@@ -110,15 +110,15 @@ def extract_packet_info(packet: Packet) -> PacketInfo | None:
     protocol = identify_protocol(packet)
 
     return PacketInfo(
-        timestamp=timestamp,
-        src_ip=src_ip,
-        dst_ip=dst_ip,
-        protocol=protocol,
-        size=size,
-        src_port=src_port,
-        dst_port=dst_port,
-        src_mac=src_mac,
-        dst_mac=dst_mac,
+        timestamp = timestamp,
+        src_ip = src_ip,
+        dst_ip = dst_ip,
+        protocol = protocol,
+        size = size,
+        src_port = src_port,
+        dst_port = dst_port,
+        src_mac = src_mac,
+        dst_mac = dst_mac,
     )
 
 

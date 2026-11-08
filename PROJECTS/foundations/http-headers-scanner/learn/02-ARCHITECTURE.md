@@ -311,7 +311,7 @@ A quick map of the project:
 |------|---------------|
 | `http_headers_scanner.py` | The whole scanner. Rules, evaluation, scan, CLI. |
 | `test_http_headers_scanner.py` | All tests. Uses pytest and respx. |
-| `pyproject.toml` | Project metadata, dependencies, tool configs (ruff, mypy, pylint, yapf, pytest). |
+| `pyproject.toml` | Project metadata, dependencies, tool configs (ruff, mypy, pylint, yang, pytest). |
 | `uv.lock` | Exact versions of every transitive dependency. Reproducible builds. |
 | `justfile` | Shortcut commands: `just test`, `just lint`, `just run`. |
 | `install.sh` | One-shot installer for new clones. |

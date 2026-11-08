@@ -422,8 +422,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
                 HashCandidate(
                     algorithm = "NetNTLMv2",
                     confidence = "high",
-                    reason =
-                    "user::domain:challenge:hmac(32 hex):blob shape",
+                    reason = "user::domain:challenge:hmac(32 hex):blob shape",
                 )
             ]
         # NetNTLMv1 layout:
@@ -434,8 +433,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
                 HashCandidate(
                     algorithm = "NetNTLMv1",
                     confidence = "high",
-                    reason =
-                    "user::domain:lm(48 hex):nt(48 hex):challenge shape",
+                    reason = "user::domain:lm(48 hex):nt(48 hex):challenge shape",
                 )
             ]
 
@@ -445,8 +443,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
             HashCandidate(
                 algorithm = "MySQL5",
                 confidence = "high",
-                reason =
-                "starts with `*` followed by 40 uppercase hex chars",
+                reason = "starts with `*` followed by 40 uppercase hex chars",
             )
         ]
 
@@ -458,8 +455,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
             HashCandidate(
                 algorithm = "DES crypt",
                 confidence = "medium",
-                reason =
-                "13 chars in `./0-9A-Za-z` — legacy /etc/passwd format",
+                reason = "13 chars in `./0-9A-Za-z` — legacy /etc/passwd format",
             )
         ]
 
@@ -507,8 +503,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
             # reject anything weirder — anything containing spaces,
             # punctuation, etc. is almost certainly not a real PHC
             # string and we'd rather stay silent than make up a name
-            if algo_name and all(c.isalnum() or c in "-_"
-                                 for c in algo_name):
+            if algo_name and all(c.isalnum() or c in "-_" for c in algo_name):
                 return [
                     HashCandidate(
                         algorithm = f"PHC string ({algo_name})",
@@ -533,8 +528,7 @@ def identify(raw_input: str) -> list[HashCandidate]:
             HashCandidate(
                 algorithm = "JWT (not a hash)",
                 confidence = "low",
-                reason =
-                "leading `eyJ` is base64 of `{\"` — JWT, not a hash",
+                reason = "leading `eyJ` is base64 of `{\"` — JWT, not a hash",
             )
         ]
     if any(c in text for c in "+/=") and len(text) > 8:
@@ -580,8 +574,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "hash",
-        help =
-        "The hash string to identify (wrap in single quotes if it contains $).",
+        help = "The hash string to identify (wrap in single quotes if it contains $).",
     )
     parser.add_argument(
         "--top",

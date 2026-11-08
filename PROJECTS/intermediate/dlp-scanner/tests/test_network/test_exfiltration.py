@@ -3,7 +3,6 @@
 test_exfiltration.py
 """
 
-
 from dlp_scanner.network.exfiltration import (
     DnsExfilDetector,
     _extract_base_domain,

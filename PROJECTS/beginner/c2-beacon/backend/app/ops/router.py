@@ -35,6 +35,7 @@ from app.core.models import CommandType, TaskRecord
 from app.database import get_db
 from app.ops.manager import OpsManager
 
+
 logger = logging.getLogger(__name__)
 
 ws_router = APIRouter()
@@ -62,10 +63,12 @@ async def operator_websocket(ws: WebSocket) -> None:
             record["active"] = registry.is_active(b.id)
             beacon_list.append(record)
 
-        await ws.send_text(json.dumps({
-            "type": "beacon_list",
-            "payload": beacon_list,
-        }))
+        await ws.send_text(
+            json.dumps({
+                "type": "beacon_list",
+                "payload": beacon_list,
+            })
+        )
 
         while True:
             raw = await ws.receive_text()

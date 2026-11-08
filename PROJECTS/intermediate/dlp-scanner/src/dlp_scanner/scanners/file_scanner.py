@@ -3,7 +3,6 @@
 file_scanner.py
 """
 
-
 import fnmatch
 from datetime import datetime, UTC
 from pathlib import Path
@@ -58,9 +57,7 @@ class FileScanner:
         self._redaction_style = config.output.redaction_style
         self._registry = registry
         self._extension_map = _build_extension_map()
-        self._allowed_extensions = frozenset(
-            self._file_config.include_extensions
-        )
+        self._allowed_extensions = frozenset(self._file_config.include_extensions)
 
     def scan(self, target: str) -> ScanResult:
         """

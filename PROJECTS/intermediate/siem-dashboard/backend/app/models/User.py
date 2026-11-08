@@ -122,7 +122,8 @@ class User(BaseDocument):
         cls,
         page: int = 1,
         per_page: int = settings.DEFAULT_PAGE_SIZE,
-    ) -> dict[str, Any]:
+    ) -> dict[str,
+              Any]:
         """
         Paginated list of all users ordered by creation date
         """

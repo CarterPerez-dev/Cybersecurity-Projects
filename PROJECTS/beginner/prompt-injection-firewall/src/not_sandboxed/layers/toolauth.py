@@ -46,12 +46,10 @@ class ToolAuthLayer:
         """
         tool = self.registry.get(request.name)
         if tool is None:
-            return [
-                self._finding(
-                    config.RULE_TOOL_UNKNOWN,
-                    request.name,
-                )
-            ]
+            return [self._finding(
+                config.RULE_TOOL_UNKNOWN,
+                request.name,
+            )]
 
         return [
             *self._effect_findings(tool,
@@ -119,19 +117,16 @@ class ToolAuthLayer:
         request: ToolCallRequest,
         ctx: Context,
     ) -> Iterable[Finding]:
-        if (Guard.NO_UNTRUSTED_INFLUENCE in tool.guards
-                and ctx.tainted_by):
+        if (Guard.NO_UNTRUSTED_INFLUENCE in tool.guards and ctx.tainted_by):
             origins = ",".join(
-                f"{origin.channel}:{origin.ref}"
-                for origin in ctx.tainted_by
+                f"{origin.channel}:{origin.ref}" for origin in ctx.tainted_by
             )
             yield self._finding(
                 config.RULE_TAINTED_ACTION,
                 f"{tool.name} downstream of {origins}",
             )
 
-        if (Guard.USER_CONFIRMED in tool.guards
-                and not request.user_confirmed):
+        if (Guard.USER_CONFIRMED in tool.guards and not request.user_confirmed):
             yield self._finding(
                 config.RULE_TOOL_UNCONFIRMED,
                 f"{tool.name} requires explicit user confirmation",

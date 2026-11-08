@@ -3,17 +3,13 @@
 test_pattern.py
 """
 
-
 from dlp_scanner.detectors.pattern import PatternDetector
 from dlp_scanner.detectors.rules.pii import PII_RULES
 
 
 class TestPatternDetector:
     def test_detects_ssn_in_text(self) -> None:
-        detector = PatternDetector(
-            rules = PII_RULES,
-            allowlist_values = frozenset()
-        )
+        detector = PatternDetector(rules = PII_RULES, allowlist_values = frozenset())
         text = "Employee SSN is 234-56-7890 on file."
         matches = detector.detect(text)
         ssn_matches = [m for m in matches if m.rule_id == "PII_SSN"]
@@ -28,10 +24,7 @@ class TestPatternDetector:
         assert len(ssn_matches) == 0
 
     def test_detects_email(self) -> None:
-        detector = PatternDetector(
-            rules = PII_RULES,
-            allowlist_values = frozenset()
-        )
+        detector = PatternDetector(rules = PII_RULES, allowlist_values = frozenset())
         text = "Contact: alice@company.com for details."
         matches = detector.detect(text)
         email_matches = [m for m in matches if m.rule_id == "PII_EMAIL"]
@@ -44,10 +37,7 @@ class TestPatternDetector:
         assert len(matches) == 0
 
     def test_multiple_matches_in_one_text(self) -> None:
-        detector = PatternDetector(
-            rules = PII_RULES,
-            allowlist_values = frozenset()
-        )
+        detector = PatternDetector(rules = PII_RULES, allowlist_values = frozenset())
         text = (
             "Name: John, SSN: 234-56-7890, "
             "Email: john@test.org, Phone: (555) 234-5678"

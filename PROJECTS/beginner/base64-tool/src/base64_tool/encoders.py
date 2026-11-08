@@ -48,7 +48,7 @@ def encode_base64(data: bytes) -> str:
 
 def decode_base64(data: str) -> bytes:
     cleaned = "".join(data.split())
-    return b64.b64decode(cleaned, validate=True)
+    return b64.b64decode(cleaned, validate = True)
 
 
 def encode_base64url(data: bytes) -> str:
@@ -84,7 +84,7 @@ def encode_url(data: bytes, *, form: bool = False) -> str:
     text = data.decode("utf-8")
     if form:
         return quote_plus(text)
-    return quote(text, safe="")
+    return quote(text, safe = "")
 
 
 def decode_url(data: str, *, form: bool = False) -> bytes:
@@ -95,12 +95,17 @@ def decode_url(data: str, *, form: bool = False) -> bytes:
 
 ENCODER_REGISTRY: dict[
     EncodingFormat,
-    tuple[EncoderFn, DecoderFn],
+    tuple[EncoderFn,
+          DecoderFn],
 ] = {
-    EncodingFormat.BASE64: (encode_base64, decode_base64),
-    EncodingFormat.BASE64URL: (encode_base64url, decode_base64url),
-    EncodingFormat.BASE32: (encode_base32, decode_base32),
-    EncodingFormat.HEX: (encode_hex, decode_hex),
+    EncodingFormat.BASE64: (encode_base64,
+                            decode_base64),
+    EncodingFormat.BASE64URL: (encode_base64url,
+                               decode_base64url),
+    EncodingFormat.BASE32: (encode_base32,
+                            decode_base32),
+    EncodingFormat.HEX: (encode_hex,
+                         decode_hex),
     EncodingFormat.URL: (
         lambda data: encode_url(data),
         lambda data: decode_url(data),
@@ -122,9 +127,9 @@ def try_decode(data: str, fmt: EncodingFormat) -> bytes | None:
     try:
         return decode(data, fmt)
     except (
-        ValueError,
-        binascii.Error,
-        UnicodeDecodeError,
-        UnicodeEncodeError,
+            ValueError,
+            binascii.Error,
+            UnicodeDecodeError,
+            UnicodeEncodeError,
     ):
         return None

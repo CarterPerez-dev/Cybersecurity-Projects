@@ -74,7 +74,7 @@ just run -- e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 just            # list available recipes
 just test       # run pytest (30+ tests, runs in under a second)
 just lint       # ruff + mypy --strict + pylint
-just format     # yapf
+just format     # yang
 just run -- <h> # identify a hash
 ```
 

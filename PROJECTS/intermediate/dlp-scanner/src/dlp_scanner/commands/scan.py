@@ -3,7 +3,6 @@
 scan.py
 """
 
-
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -12,14 +11,12 @@ import typer
 
 FORMAT_HELP: str = ("Output format (console, json, sarif, csv)")
 OUTPUT_HELP: str = "Write report to file"
-VALID_FORMATS: frozenset[str] = frozenset(
-    {
-        "console",
-        "json",
-        "sarif",
-        "csv",
-    }
-)
+VALID_FORMATS: frozenset[str] = frozenset({
+    "console",
+    "json",
+    "sarif",
+    "csv",
+})
 
 
 def scan_file(
@@ -161,12 +158,8 @@ def _run_scan(
     else:
         configure_logging(level = "WARNING")
 
-    config: ScanConfig
     cfg_path = Path(config_path) if config_path else None
-    if cfg_path and cfg_path.exists():
-        config = load_config(cfg_path)
-    else:
-        config = ScanConfig()
+    config = load_config(cfg_path) if cfg_path and cfg_path.exists() else ScanConfig()
 
     config.output.format = output_format
     if output_file:

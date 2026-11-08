@@ -47,9 +47,7 @@ class BaseRepository(Generic[ModelT]):
         """
         Get multiple records with pagination
         """
-        result = await session.execute(
-            select(cls.model).offset(skip).limit(limit)
-        )
+        result = await session.execute(select(cls.model).offset(skip).limit(limit))
         return result.scalars().all()
 
     @classmethod
@@ -57,9 +55,7 @@ class BaseRepository(Generic[ModelT]):
         """
         Count total records
         """
-        result = await session.execute(
-            select(func.count()).select_from(cls.model)
-        )
+        result = await session.execute(select(func.count()).select_from(cls.model))
         return result.scalar_one()
 
     @classmethod

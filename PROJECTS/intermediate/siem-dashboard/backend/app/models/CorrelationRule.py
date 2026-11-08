@@ -53,18 +53,18 @@ class CorrelationRule(BaseDocument):
         "indexes": ["enabled", "rule_type"],
     }
 
-    name = StringField(required=True, unique=True)
-    description = StringField(default="")
+    name = StringField(required = True, unique = True)
+    description = StringField(default = "")
     rule_type = StringField(
-        required=True,
-        choices=[t.value for t in RuleType],
+        required = True,
+        choices = [t.value for t in RuleType],
     )
-    conditions = DictField(required=True)
+    conditions = DictField(required = True)
     severity = StringField(
-        required=True,
-        choices=[s.value for s in Severity],
+        required = True,
+        choices = [s.value for s in Severity],
     )
-    enabled = BooleanField(default=True)
+    enabled = BooleanField(default = True)
     mitre_tactic = StringField()
     mitre_technique = StringField()
 
@@ -73,4 +73,4 @@ class CorrelationRule(BaseDocument):
         """
         Return all rules that are currently enabled
         """
-        return list(cls.objects(enabled=True))  # type: ignore[no-untyped-call]
+        return list(cls.objects(enabled = True))  # type: ignore[no-untyped-call]

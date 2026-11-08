@@ -45,10 +45,7 @@ async def test_create_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_email(
-    client: AsyncClient,
-    test_user: User
-):
+async def test_create_user_duplicate_email(client: AsyncClient, test_user: User):
     """
     Duplicate email returns 409 conflict
     """
@@ -101,10 +98,7 @@ async def test_get_user_by_id(
 
 
 @pytest.mark.asyncio
-async def test_get_user_unauthenticated(
-    client: AsyncClient,
-    test_user: User
-):
+async def test_get_user_unauthenticated(client: AsyncClient, test_user: User):
     """
     Get user without auth returns 401
     """

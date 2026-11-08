@@ -59,8 +59,7 @@ class AuthScanner(BaseScanner):
             jwt_test = self._test_jwt_vulnerabilities()
             if jwt_test["vulnerable"]:
                 return self._create_vulnerable_result(
-                    details =
-                    f"JWT vulnerability: {jwt_test['vulnerability_type']}",
+                    details = f"JWT vulnerability: {jwt_test['vulnerability_type']}",
                     evidence = jwt_test,
                     severity = Severity.CRITICAL,
                     recommendations = jwt_test.get(
@@ -114,8 +113,7 @@ class AuthScanner(BaseScanner):
         session_without_auth = self.session.__class__()
         session_without_auth.headers.update(
             {
-                "User-Agent":
-                f"{settings.APP_NAME}/{settings.VERSION}",
+                "User-Agent": f"{settings.APP_NAME}/{settings.VERSION}",
                 "Accept": "application/json",
             }
         )
@@ -128,24 +126,17 @@ class AuthScanner(BaseScanner):
 
             if response.status_code == 200:
                 return {
-                    "vulnerable":
-                    True,
-                    "status_code":
-                    response.status_code,
-                    "response_length":
-                    len(response.text),
-                    "description":
-                    "Endpoint accessible without authentication",
+                    "vulnerable": True,
+                    "status_code": response.status_code,
+                    "response_length": len(response.text),
+                    "description": "Endpoint accessible without authentication",
                 }
 
             if response.status_code in (401, 403):
                 return {
-                    "vulnerable":
-                    False,
-                    "status_code":
-                    response.status_code,
-                    "description":
-                    "Endpoint properly requires authentication",
+                    "vulnerable": False,
+                    "status_code": response.status_code,
+                    "description": "Endpoint properly requires authentication",
                 }
 
             return {
@@ -158,8 +149,7 @@ class AuthScanner(BaseScanner):
             return {
                 "vulnerable": False,
                 "error": str(e),
-                "description":
-                "Error testing authentication requirement",
+                "description": "Error testing authentication requirement",
             }
 
     def _test_jwt_vulnerabilities(self) -> dict[str, Any]:
@@ -190,9 +180,8 @@ class AuthScanner(BaseScanner):
 
         return {
             "vulnerable": False,
-            "tests_performed":
-            ["none_algorithm",
-             "signature_removal"],
+            "tests_performed": ["none_algorithm",
+                                "signature_removal"],
             "description": "No JWT vulnerabilities detected",
         }
 
@@ -223,9 +212,7 @@ class AuthScanner(BaseScanner):
                 response = self.make_request(
                     "GET",
                     "/",
-                    headers = {
-                        "Authorization": f"Bearer {malicious_token}"
-                    },
+                    headers = {"Authorization": f"Bearer {malicious_token}"},
                 )
 
                 if response.status_code == 200:
@@ -272,9 +259,7 @@ class AuthScanner(BaseScanner):
             response = self.make_request(
                 "GET",
                 "/",
-                headers = {
-                    "Authorization": f"Bearer {malicious_token}"
-                },
+                headers = {"Authorization": f"Bearer {malicious_token}"},
             )
 
             if response.status_code == 200:
@@ -320,9 +305,7 @@ class AuthScanner(BaseScanner):
                 response = self.make_request(
                     "GET",
                     "/",
-                    headers = {
-                        "Authorization": f"Bearer {invalid_token}"
-                    },
+                    headers = {"Authorization": f"Bearer {invalid_token}"},
                 )
 
                 if response.status_code == 200:

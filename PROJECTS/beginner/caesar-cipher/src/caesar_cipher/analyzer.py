@@ -47,9 +47,7 @@ class FrequencyAnalyzer:
             expected_count = (expected_freq / 100) * total_letters
 
             if expected_count > 0:
-                chi_squared += (
-                    (observed_count - expected_count)**2
-                ) / expected_count
+                chi_squared += ((observed_count - expected_count)**2) / expected_count
 
         return chi_squared
 
@@ -67,9 +65,5 @@ class FrequencyAnalyzer:
         """
         Rank decryption candidates by their English frequency score
         """
-        scored = [
-            (shift,
-             text,
-             self.score_text(text)) for shift, text in candidates
-        ]
+        scored = [(shift, text, self.score_text(text)) for shift, text in candidates]
         return sorted(scored, key = lambda x: x[2])

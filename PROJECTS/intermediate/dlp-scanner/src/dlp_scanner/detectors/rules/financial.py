@@ -3,15 +3,12 @@
 financial.py
 """
 
-
 import re
 
 from dlp_scanner.detectors.base import DetectionRule
 
 
-VISA_PATTERN = re.compile(
-    r"\b4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}\b"
-)
+VISA_PATTERN = re.compile(r"\b4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}\b")
 
 MASTERCARD_PATTERN = re.compile(
     r"\b(?:5[1-5][0-9]{2}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)"
@@ -24,9 +21,7 @@ DISCOVER_PATTERN = re.compile(
     r"\b6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}\b"
 )
 
-IBAN_PATTERN = re.compile(
-    r"\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}[A-Z0-9]{0,16}\b"
-)
+IBAN_PATTERN = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}[A-Z0-9]{0,16}\b")
 
 NHS_PATTERN = re.compile(r"\b\d{3}[-\s]?\d{3}[-\s]?\d{4}\b")
 
@@ -75,9 +70,7 @@ def nhs_check(value: str) -> bool:
         return False
 
     weights = range(10, 1, -1)
-    total = sum(
-        int(d) * w for d, w in zip(digits[: 9], weights, strict = False)
-    )
+    total = sum(int(d) * w for d, w in zip(digits[: 9], weights, strict = False))
     remainder = 11 - (total % 11)
     if remainder == 11:
         remainder = 0

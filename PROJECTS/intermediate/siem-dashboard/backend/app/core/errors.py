@@ -63,7 +63,8 @@ class ValidationError(AppError):
     def __init__(
         self,
         message: str | None = None,
-        errors: list[dict[str, Any]] | None = None,
+        errors: list[dict[str,
+                          Any]] | None = None,
     ) -> None:
         super().__init__(message)
         self.errors = errors or []
@@ -99,10 +100,11 @@ def register_error_handlers(app: Flask) -> None:
     """
     @app.errorhandler(AppError)
     def handle_app_error(error: AppError):  # type: ignore[no-untyped-def]
-        payload: dict[str, Any] = {
-            "error": type(error).__name__,
-            "message": error.message,
-        }
+        payload: dict[str,
+                      Any] = {
+                          "error": type(error).__name__,
+                          "message": error.message,
+                      }
         if isinstance(error, ValidationError) and error.errors:
             payload["details"] = error.errors
         return jsonify(payload), error.status_code

@@ -50,7 +50,7 @@ class TestBase64Properties:
         """
         assert decode_base64(encode_base64(data)) == data
 
-    @given(st.binary(min_size=1))
+    @given(st.binary(min_size = 1))
     def test_encoded_is_ascii(self, data: bytes) -> None:
         """
         Checks that base64 output is always valid ASCII
@@ -76,7 +76,7 @@ class TestBase64UrlProperties:
         """
         assert decode_base64url(encode_base64url(data)) == data
 
-    @given(st.binary(min_size=1))
+    @given(st.binary(min_size = 1))
     def test_no_standard_base64_chars(self, data: bytes) -> None:
         """
         Checks that base64url output never contains + or /
@@ -94,7 +94,7 @@ class TestBase32Properties:
         """
         assert decode_base32(encode_base32(data)) == data
 
-    @given(st.binary(min_size=1))
+    @given(st.binary(min_size = 1))
     def test_encoded_is_uppercase(self, data: bytes) -> None:
         """
         Checks that base32 output is always uppercase
@@ -120,7 +120,7 @@ class TestHexProperties:
         """
         assert decode_hex(encode_hex(data)) == data
 
-    @given(st.binary(min_size=1))
+    @given(st.binary(min_size = 1))
     def test_encoded_length_is_double(self, data: bytes) -> None:
         """
         Checks that hex output is exactly twice the length of the input
@@ -137,8 +137,18 @@ class TestHexProperties:
 
 
 class TestUrlProperties:
-    @given(st.text(alphabet=st.characters(codec="utf-8", categories=("L", "N", "P", "S", "Z"))))
-    @settings(max_examples=200)
+    @given(
+        st.text(
+            alphabet = st.
+            characters(codec = "utf-8",
+                       categories = ("L",
+                                     "N",
+                                     "P",
+                                     "S",
+                                     "Z"))
+        )
+    )
+    @settings(max_examples = 200)
     def test_roundtrip(self, text: str) -> None:
         """
         Checks that arbitrary UTF-8 text survives a URL encode-decode cycle unchanged
@@ -146,26 +156,36 @@ class TestUrlProperties:
         data = text.encode("utf-8")
         assert decode_url(encode_url(data)) == data
 
-    @given(st.text(alphabet=st.characters(codec="utf-8", categories=("L", "N", "P", "S", "Z"))))
-    @settings(max_examples=200)
+    @given(
+        st.text(
+            alphabet = st.
+            characters(codec = "utf-8",
+                       categories = ("L",
+                                     "N",
+                                     "P",
+                                     "S",
+                                     "Z"))
+        )
+    )
+    @settings(max_examples = 200)
     def test_form_roundtrip(self, text: str) -> None:
         """
         Checks that arbitrary UTF-8 text survives a form-encoded URL roundtrip unchanged
         """
         data = text.encode("utf-8")
-        assert decode_url(encode_url(data, form=True), form=True) == data
+        assert decode_url(encode_url(data, form = True), form = True) == data
 
 
 class TestCrossFormatProperties:
-    @given(st.binary(min_size=1, max_size=256))
+    @given(st.binary(min_size = 1, max_size = 256))
     def test_all_formats_roundtrip(self, data: bytes) -> None:
         """
         Checks that arbitrary binary data roundtrips losslessly through all non-URL formats
         """
         for fmt in (
-            EncodingFormat.BASE64,
-            EncodingFormat.BASE64URL,
-            EncodingFormat.BASE32,
-            EncodingFormat.HEX,
+                EncodingFormat.BASE64,
+                EncodingFormat.BASE64URL,
+                EncodingFormat.BASE32,
+                EncodingFormat.HEX,
         ):
             assert decode(encode(data, fmt), fmt) == data

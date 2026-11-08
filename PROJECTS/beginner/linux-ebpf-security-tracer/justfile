@@ -9,10 +9,10 @@ lint:
     uv run mypy src/
 
 format:
-    uv run yapf -r -i src/ tests/
+    uv run yang -r -i src/ tests/
 
 check-format:
-    uv run yapf -r -d src/ tests/
+    uv run yang -r -d src/ tests/
 
 test:
     uv run pytest tests/ -m "not integration"

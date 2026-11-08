@@ -65,10 +65,7 @@ class Scan(BaseModel):
         Returns:
             bool: True if any test result is vulnerable
         """
-        return any(
-            result.status == "vulnerable"
-            for result in self.test_results
-        )
+        return any(result.status == "vulnerable" for result in self.test_results)
 
     @property
     def vulnerability_count(self) -> int:
@@ -78,7 +75,4 @@ class Scan(BaseModel):
         Returns:
             int: Number of vulnerable test results
         """
-        return sum(
-            1 for result in self.test_results
-            if result.status == "vulnerable"
-        )
+        return sum(1 for result in self.test_results if result.status == "vulnerable")

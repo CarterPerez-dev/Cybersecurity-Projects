@@ -3,7 +3,6 @@
 office.py
 """
 
-
 import structlog
 
 from dlp_scanner.models import Location, TextChunk
@@ -14,9 +13,7 @@ log = structlog.get_logger()
 DOCX_EXTENSIONS: frozenset[str] = frozenset({".docx"})
 XLSX_EXTENSIONS: frozenset[str] = frozenset({".xlsx"})
 XLS_EXTENSIONS: frozenset[str] = frozenset({".xls"})
-OFFICE_EXTENSIONS: frozenset[str] = (
-    DOCX_EXTENSIONS | XLSX_EXTENSIONS | XLS_EXTENSIONS
-)
+OFFICE_EXTENSIONS: frozenset[str] = (DOCX_EXTENSIONS | XLSX_EXTENSIONS | XLS_EXTENSIONS)
 
 
 class DocxExtractor:
@@ -48,11 +45,7 @@ class DocxExtractor:
 
             for table in doc.tables:
                 for row in table.rows:
-                    cells = [
-                        cell.text
-                        for cell in row.cells
-                        if cell.text.strip()
-                    ]
+                    cells = [cell.text for cell in row.cells if cell.text.strip()]
                     if cells:
                         paragraphs.append(" | ".join(cells))
 

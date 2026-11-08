@@ -260,9 +260,7 @@ class TestLogManager:
             )
             manager.write_event(event)
 
-        log_files = list(
-            small_rotation_config.log_dir.glob("keylog_*.txt")
-        )
+        log_files = list(small_rotation_config.log_dir.glob("keylog_*.txt"))
         assert len(log_files) > 1
         assert (manager.current_log_path != first_path)
         manager.close()

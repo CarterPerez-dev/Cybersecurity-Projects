@@ -7,13 +7,14 @@ from dataclasses import dataclass
 
 from rveng.engine.disasm import Instruction
 
+
 CALL = "call"
 KIND_CALL = "call"
 KIND_BRANCH = "branch"
 KIND_DATA = "data"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Reference:
     """
     One cross reference from an instruction to a target address

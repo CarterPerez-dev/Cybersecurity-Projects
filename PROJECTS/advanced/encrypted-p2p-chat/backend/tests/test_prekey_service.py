@@ -42,7 +42,6 @@ class TestPrekeyService:
     """
     Tests for prekey bundle storage and retrieval
     """
-
     @pytest.mark.asyncio
     async def test_get_prekey_bundle_returns_unused_opk(
         self,
@@ -66,9 +65,7 @@ class TestPrekeyService:
             )
         await db_session.commit()
 
-        bundle = await prekey_service.get_prekey_bundle(
-            db_session, test_user.id
-        )
+        bundle = await prekey_service.get_prekey_bundle(db_session, test_user.id)
         assert bundle.one_time_prekey is not None
         assert bundle.one_time_prekey.startswith("opk")
 
@@ -93,9 +90,7 @@ class TestPrekeyService:
         )
         await db_session.commit()
 
-        bundle = await prekey_service.get_prekey_bundle(
-            db_session, test_user.id
-        )
+        bundle = await prekey_service.get_prekey_bundle(db_session, test_user.id)
         assert bundle.one_time_prekey is None
 
     @pytest.mark.asyncio
@@ -108,9 +103,7 @@ class TestPrekeyService:
         Bundle lookup fails cleanly when keys were never uploaded
         """
         with pytest.raises(InvalidDataError):
-            await prekey_service.get_prekey_bundle(
-                db_session, test_user.id
-            )
+            await prekey_service.get_prekey_bundle(db_session, test_user.id)
 
     @pytest.mark.asyncio
     async def test_store_client_keys_replaces_active_spk(
@@ -128,7 +121,8 @@ class TestPrekeyService:
             identity_key_ed25519 = "ik1ed",
             signed_prekey = "spk1",
             signed_prekey_signature = "sig1",
-            one_time_prekeys = ["opk1", "opk2"],
+            one_time_prekeys = ["opk1",
+                                "opk2"],
         )
 
         await prekey_service.store_client_keys(

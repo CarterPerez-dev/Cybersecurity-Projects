@@ -555,7 +555,7 @@ The `stack` in the assertion message is not decoration. When it fails you need t
 ## Build and run
 
 ```bash
-just check       # ruff, mypy strict, yapf, 314 pytest
+just check       # ruff, mypy strict, yang, 314 pytest
 just ui-check    # biome, stylelint, tsc, vite build
 just bench       # detection, false positives, ablation
 just arena       # full stack, http://127.0.0.1:33572

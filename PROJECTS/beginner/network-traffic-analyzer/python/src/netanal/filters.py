@@ -70,12 +70,12 @@ def _validate_network(network: str) -> None:
     Validate network CIDR notation
     """
     try:
-        ipaddress.ip_network(network, strict=False)
+        ipaddress.ip_network(network, strict = False)
     except ValueError as e:
         raise ValidationError(f"Invalid network: {network}") from e
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class FilterBuilder:
     """
     Builds BPF filter expressions for efficient kernel-level packet filtering
@@ -101,9 +101,7 @@ class FilterBuilder:
         """
         Filter by multiple protocols (OR logic)
         """
-        bpf_exprs = [
-            BPF_PROTOCOL_MAP[p] for p in protos if p in BPF_PROTOCOL_MAP
-        ]
+        bpf_exprs = [BPF_PROTOCOL_MAP[p] for p in protos if p in BPF_PROTOCOL_MAP]
         if bpf_exprs:
             combined = " or ".join(f"({expr})" for expr in bpf_exprs)
             self._expressions.append(f"({combined})")

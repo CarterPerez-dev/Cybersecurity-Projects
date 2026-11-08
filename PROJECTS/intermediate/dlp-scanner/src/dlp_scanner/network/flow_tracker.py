@@ -3,7 +3,6 @@
 flow_tracker.py
 """
 
-
 from dataclasses import dataclass, field
 
 import structlog

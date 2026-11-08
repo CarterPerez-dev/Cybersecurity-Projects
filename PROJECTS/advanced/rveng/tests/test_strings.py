@@ -8,13 +8,13 @@ from rveng.engine import elf, strings
 
 def test_extract_basic_runs():
     data = b"\x00\x01hello\x00\xffworld!!\x00"
-    got = strings.extract(data, min_length=4)
+    got = strings.extract(data, min_length = 4)
     assert [s.text for s in got] == ["hello", "world!!"]
 
 
 def test_min_length_filters_short_runs():
     data = b"ab\x00abcd\x00"
-    got = strings.extract(data, min_length=4)
+    got = strings.extract(data, min_length = 4)
     assert [s.text for s in got] == ["abcd"]
 
 

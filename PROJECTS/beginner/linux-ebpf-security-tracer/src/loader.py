@@ -17,13 +17,15 @@ from .config import (
     TracerType,
 )
 
-TRACER_FILES: dict[str, str] = {
-    "process": "process_tracer.c",
-    "file": "file_tracer.c",
-    "network": "network_tracer.c",
-    "privilege": "privilege_tracer.c",
-    "system": "system_tracer.c",
-}
+
+TRACER_FILES: dict[str,
+                   str] = {
+                       "process": "process_tracer.c",
+                       "file": "file_tracer.c",
+                       "network": "network_tracer.c",
+                       "privilege": "privilege_tracer.c",
+                       "system": "system_tracer.c",
+                   }
 
 
 def check_privileges() -> None:
@@ -31,8 +33,10 @@ def check_privileges() -> None:
     Verify the process has root privileges
     """
     if os.geteuid() != 0:
-        sys.stderr.write("Error: eBPF tracing requires root privileges.\n"
-                         "Run with: sudo uv run ebpf-tracer\n")
+        sys.stderr.write(
+            "Error: eBPF tracing requires root privileges.\n"
+            "Run with: sudo uv run ebpf-tracer\n"
+        )
         sys.exit(1)
 
 
@@ -45,15 +49,19 @@ def check_kernel_version() -> None:
     major = int(parts[0])
     minor = int(parts[1].split("-")[0])
 
-    if (major < MIN_KERNEL_MAJOR
-            or (major == MIN_KERNEL_MAJOR and minor < MIN_KERNEL_MINOR)):
-        sys.stderr.write(f"Error: Kernel {release} detected. "
-                         f"Requires {MIN_KERNEL_MAJOR}."
-                         f"{MIN_KERNEL_MINOR}+ for ring buffer.\n")
+    if (major < MIN_KERNEL_MAJOR or
+        (major == MIN_KERNEL_MAJOR and minor < MIN_KERNEL_MINOR)):
+        sys.stderr.write(
+            f"Error: Kernel {release} detected. "
+            f"Requires {MIN_KERNEL_MAJOR}."
+            f"{MIN_KERNEL_MINOR}+ for ring buffer.\n"
+        )
         sys.exit(1)
 
 
-def _resolve_tracers(tracer_type: TracerType, ) -> list[str]:
+def _resolve_tracers(
+    tracer_type: TracerType,
+) -> list[str]:
     """
     Determine which tracer files to load
     """
@@ -66,11 +74,11 @@ class TracerLoader:
     """
     Loads and manages eBPF programs via BCC
     """
-
     def __init__(
         self,
         tracer_type: TracerType,
-        callback: Callable[..., None],
+        callback: Callable[...,
+                           None],
     ) -> None:
         """
         Initialize the loader with tracer selection
@@ -93,7 +101,7 @@ class TracerLoader:
             src_path = EBPF_DIR / filename
             c_text = src_path.read_text()
 
-            bpf = BPF(text=c_text)
+            bpf = BPF(text = c_text)
             bpf["events"].open_ring_buffer(self._callback)
             self._bpf_objects.append(bpf)
 
@@ -114,7 +122,7 @@ class TracerLoader:
         try:
             while self._running:
                 for bpf in self._bpf_objects:
-                    bpf.ring_buffer_poll(timeout=100)
+                    bpf.ring_buffer_poll(timeout = 100)
         finally:
             signal.signal(signal.SIGINT, original_sigint)
             signal.signal(signal.SIGTERM, original_sigterm)

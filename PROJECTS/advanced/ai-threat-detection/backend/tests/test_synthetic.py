@@ -38,79 +38,98 @@ from ml.synthetic import (
     generate_xss_requests,
 )
 
+
 class TestGenerators:
     """
     Test individual attack and normal traffic generators
     """
-
-    def test_sqli_returns_correct_count(self, ) -> None:
+    def test_sqli_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_sqli_requests returns the requested count
         """
         results = generate_sqli_requests(10)
         assert len(results) == 10
 
-    def test_xss_returns_correct_count(self, ) -> None:
+    def test_xss_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_xss_requests returns the requested count
         """
         results = generate_xss_requests(10)
         assert len(results) == 10
 
-    def test_traversal_returns_correct_count(self, ) -> None:
+    def test_traversal_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_traversal_requests returns the requested count
         """
         results = generate_traversal_requests(10)
         assert len(results) == 10
 
-    def test_log4shell_returns_correct_count(self, ) -> None:
+    def test_log4shell_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_log4shell_requests returns the requested count
         """
         results = generate_log4shell_requests(10)
         assert len(results) == 10
 
-    def test_ssrf_returns_correct_count(self, ) -> None:
+    def test_ssrf_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_ssrf_requests returns the requested count
         """
         results = generate_ssrf_requests(10)
         assert len(results) == 10
 
-    def test_scanner_returns_correct_count(self, ) -> None:
+    def test_scanner_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_scanner_requests returns the requested count
         """
         results = generate_scanner_requests(10)
         assert len(results) == 10
 
-    def test_normal_returns_correct_count(self, ) -> None:
+    def test_normal_returns_correct_count(
+        self,
+    ) -> None:
         """
         generate_normal_requests returns the requested count
         """
         results = generate_normal_requests(20)
         assert len(results) == 20
 
-    def test_sqli_has_attack_payloads(self, ) -> None:
+    def test_sqli_has_attack_payloads(
+        self,
+    ) -> None:
         """
         SQLi entries contain injection patterns in query string
         """
         results = generate_sqli_requests(20)
-        has_sqli = any("OR" in e.query_string or "UNION" in e.query_string
-                       or "DROP" in e.query_string or "SLEEP" in e.query_string
-                       for e in results)
+        has_sqli = any(
+            "OR" in e.query_string or "UNION" in e.query_string
+            or "DROP" in e.query_string or "SLEEP" in e.query_string for e in results
+        )
         assert has_sqli
 
-    def test_xss_has_script_patterns(self, ) -> None:
+    def test_xss_has_script_patterns(
+        self,
+    ) -> None:
         """
         XSS entries contain script-related patterns
         """
         results = generate_xss_requests(20)
         has_xss = any(
-            "script" in e.query_string.lower() or "alert" in
-            e.query_string.lower() or "onerror" in e.query_string.lower()
-            for e in results)
+            "script" in e.query_string.lower() or "alert" in e.query_string.lower()
+            or "onerror" in e.query_string.lower() for e in results
+        )
         assert has_xss
 
     def test_traversal_has_dotdot(self) -> None:
@@ -118,11 +137,12 @@ class TestGenerators:
         Traversal entries contain ../ in path
         """
         results = generate_traversal_requests(20)
-        has_traversal = any(".." in e.path or "%2e" in e.path.lower()
-                            for e in results)
+        has_traversal = any(".." in e.path or "%2e" in e.path.lower() for e in results)
         assert has_traversal
 
-    def test_all_entries_are_parsed_log_entry(self, ) -> None:
+    def test_all_entries_are_parsed_log_entry(
+        self,
+    ) -> None:
         """
         All generators return ParsedLogEntry instances
         """
@@ -139,7 +159,9 @@ class TestGenerators:
             results = gen(5)
             assert all(isinstance(e, ParsedLogEntry) for e in results)
 
-    def test_entries_pass_feature_extraction(self, ) -> None:
+    def test_entries_pass_feature_extraction(
+        self,
+    ) -> None:
         """
         All generated entries extract and encode without error
         """
@@ -165,7 +187,6 @@ class TestMixedDataset:
     """
     Test end-to-end mixed dataset generation
     """
-
     def test_returns_correct_shape(self) -> None:
         """
         generate_mixed_dataset returns X with 35 columns

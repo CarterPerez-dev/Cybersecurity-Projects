@@ -47,10 +47,7 @@ def flatten(content: str | list[dict[str, JsonValue]] | None) -> str:
 
 
 def _ref(message: ChatMessage) -> str:
-    return (
-        message.tool_call_id or message.name
-        or config.PROXY_UNKNOWN_TOOL_REF
-    )
+    return (message.tool_call_id or message.name or config.PROXY_UNKNOWN_TOOL_REF)
 
 
 def infer_context(messages: Sequence[ChatMessage]) -> Context:

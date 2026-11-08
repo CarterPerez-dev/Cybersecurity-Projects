@@ -57,23 +57,17 @@ class BaseScanner(ABC):
 
         session.headers.update(
             {
-                "User-Agent":
-                f"{settings.APP_NAME}/{settings.VERSION}",
+                "User-Agent": f"{settings.APP_NAME}/{settings.VERSION}",
                 "Accept": "application/json",
             }
         )
 
         if self.auth_token:
-            session.headers.update(
-                {"Authorization": f"Bearer {self.auth_token}"}
-            )
+            session.headers.update({"Authorization": f"Bearer {self.auth_token}"})
 
         return session
 
-    def _wait_before_request(
-        self,
-        jitter_ms: int | None = None
-    ) -> None:
+    def _wait_before_request(self, jitter_ms: int | None = None) -> None:
         """
         Implement request spacing to avoid overwhelming target
 
@@ -87,8 +81,7 @@ class BaseScanner(ABC):
             jitter_ms = settings.DEFAULT_JITTER_MS
 
         required_delay = 1.0 / (
-            self.max_requests /
-            settings.SCANNER_RATE_LIMIT_WINDOW_SECONDS
+            self.max_requests / settings.SCANNER_RATE_LIMIT_WINDOW_SECONDS
         )
         jitter = random.uniform(0, jitter_ms / 1000.0)
 
@@ -130,20 +123,13 @@ class BaseScanner(ABC):
         retry_count = 0
         backoff_factor = 2.0
 
-        kwargs.setdefault(
-            "timeout",
-            settings.SCANNER_CONNECTION_TIMEOUT
-        )
+        kwargs.setdefault("timeout", settings.SCANNER_CONNECTION_TIMEOUT)
 
         while retry_count <= settings.DEFAULT_RETRY_COUNT:
             try:
                 start_time = time.time()
                 response = self.session.request(method, url, **kwargs)
-                setattr(
-                    response,
-                    "request_time",
-                    time.time() - start_time
-                )
+                setattr(response, "request_time", time.time() - start_time)
 
                 self.request_count += 1
 
@@ -178,12 +164,10 @@ class BaseScanner(ABC):
 
         return response
 
-    def get_baseline_timing(
-        self,
-        endpoint: str,
-        samples: int | None = None
-    ) -> tuple[float,
-               float]:
+    def get_baseline_timing(self,
+                            endpoint: str,
+                            samples: int | None = None) -> tuple[float,
+                                                                 float]:
         """
         Establish baseline response time for an endpoint
 
@@ -228,17 +212,13 @@ class BaseScanner(ABC):
             dict[str, Any]: Evidence dictionary
         """
         evidence = {
-            "status_code":
-            response.status_code,
-            "response_time_ms":
-            round(getattr(response,
-                          "request_time",
-                          0.0) * 1000,
-                  2),
-            "response_length":
-            len(response.text),
-            "headers":
-            self._redact_sensitive_headers(dict(response.headers)),
+            "status_code": response.status_code,
+            "response_time_ms": round(getattr(response,
+                                              "request_time",
+                                              0.0) * 1000,
+                                      2),
+            "response_length": len(response.text),
+            "headers": self._redact_sensitive_headers(dict(response.headers)),
         }
 
         if payload is not None:
@@ -248,10 +228,7 @@ class BaseScanner(ABC):
 
         return evidence
 
-    def _redact_sensitive_headers(self,
-                                  headers: dict[str,
-                                                str]) -> dict[str,
-                                                              str]:
+    def _redact_sensitive_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """
         Redact sensitive header values for evidence collection
 

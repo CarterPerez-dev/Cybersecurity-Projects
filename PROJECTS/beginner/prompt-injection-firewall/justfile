@@ -11,10 +11,10 @@ lint:
     uv run mypy src/ tests/ bench/
 
 format:
-    uv run yapf -r -i src/ tests/ bench/
+    uv run yang -r -i src/ tests/ bench/
 
 check-format:
-    uv run yapf -r -d src/ tests/ bench/
+    uv run yang -r -d src/ tests/ bench/
 
 test:
     uv run pytest tests/ -v

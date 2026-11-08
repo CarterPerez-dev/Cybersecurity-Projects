@@ -3,7 +3,6 @@
 test_sarif.py
 """
 
-
 import json
 
 import pytest
@@ -62,29 +61,20 @@ def result_with_findings() -> ScanResult:
 
 
 class TestSarifReporter:
-    def test_generates_valid_json(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_generates_valid_json(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
         assert isinstance(data, dict)
 
-    def test_has_sarif_version(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_has_sarif_version(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
         assert data["version"] == "2.1.0"
         assert "$schema" in data
 
-    def test_has_tool_driver(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_has_tool_driver(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
@@ -92,10 +82,7 @@ class TestSarifReporter:
         assert driver["name"] == "dlp-scanner"
         assert driver["version"] == "0.1.0"
 
-    def test_rules_collected(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_rules_collected(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
@@ -105,20 +92,14 @@ class TestSarifReporter:
         assert "PII_SSN" in rule_ids
         assert "CRED_AWS_ACCESS_KEY" in rule_ids
 
-    def test_results_match_findings(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_results_match_findings(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
         results = data["runs"][0]["results"]
         assert len(results) == 2
 
-    def test_severity_mapped_to_level(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_severity_mapped_to_level(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
@@ -126,18 +107,13 @@ class TestSarifReporter:
         assert results[0]["level"] == "error"
         assert results[1]["level"] == "error"
 
-    def test_location_has_artifact(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_location_has_artifact(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)
         loc = data["runs"][0]["results"][0]["locations"][0]
         physical = loc["physicalLocation"]
-        assert (
-            physical["artifactLocation"]["uri"] == "data/employees.csv"
-        )
+        assert (physical["artifactLocation"]["uri"] == "data/employees.csv")
         assert physical["region"]["startLine"] == 10
         assert (physical["region"]["startColumn"] == 5)
 
@@ -153,10 +129,7 @@ class TestSarifReporter:
         assert logical[0]["name"] == "config"
         assert logical[0]["kind"] == "table"
 
-    def test_properties_has_confidence(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_properties_has_confidence(self, result_with_findings: ScanResult) -> None:
         reporter = SarifReporter()
         output = reporter.generate(result_with_findings)
         data = json.loads(output)

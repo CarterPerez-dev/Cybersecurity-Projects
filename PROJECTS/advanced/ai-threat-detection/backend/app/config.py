@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
+        env_file = ".env",
+        env_file_encoding = "utf-8",
+        case_sensitive = False,
     )
 
     app_name: str = "AngelusVigil"
@@ -74,20 +74,16 @@ class Settings(BaseSettings):
     ae_threshold_percentile: float = 99.5
     mlflow_tracking_uri: str = "file:./mlruns"
 
-    @model_validator(mode="after")
+    @model_validator(mode = "after")
     def _check_ensemble_weights(self) -> Self:
         """
         Validate that ensemble weights sum to 1.0
         """
         total = (
-            self.ensemble_weight_ae
-            + self.ensemble_weight_rf
-            + self.ensemble_weight_if
+            self.ensemble_weight_ae + self.ensemble_weight_rf + self.ensemble_weight_if
         )
         if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                f"Ensemble weights must sum to 1.0, got {total:.6f}"
-            )
+            raise ValueError(f"Ensemble weights must sum to 1.0, got {total:.6f}")
         return self
 
 

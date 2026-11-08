@@ -51,12 +51,10 @@ REGISTRY = {
         name = "send_email",
         effects = frozenset({Effect.WRITE,
                              Effect.NETWORK_EGRESS}),
-        guards = frozenset(
-            {
-                Guard.NO_UNTRUSTED_INFLUENCE,
-                Guard.ARGS_ALLOWLISTED,
-            }
-        ),
+        guards = frozenset({
+            Guard.NO_UNTRUSTED_INFLUENCE,
+            Guard.ARGS_ALLOWLISTED,
+        }),
         required_args = frozenset({"to",
                                    "body"}),
         allowlists = {
@@ -115,11 +113,7 @@ def test_tainted_context_refuses_untrusted_influence_tool() -> None:
     findings = _check(SEND, ctx)
 
     assert config.RULE_TAINTED_ACTION in _rules(findings)
-    assert all(
-        f.invariant
-        for f in findings
-        if f.rule == config.RULE_TAINTED_ACTION
-    )
+    assert all(f.invariant for f in findings if f.rule == config.RULE_TAINTED_ACTION)
 
 
 def test_untainted_context_allows_the_same_tool() -> None:
@@ -195,9 +189,7 @@ def test_an_undeclared_argument_is_refused() -> None:
 
     assert config.RULE_TOOL_ARGS_UNEXPECTED in _rules(findings)
     assert all(
-        f.invariant
-        for f in findings
-        if f.rule == config.RULE_TOOL_ARGS_UNEXPECTED
+        f.invariant for f in findings if f.rule == config.RULE_TOOL_ARGS_UNEXPECTED
     )
 
 
@@ -221,8 +213,7 @@ def test_an_out_of_schema_argument_blocks_rather_than_raising() -> None:
     assert config.RULE_TOOL_ARGS_INVALID in _rules(_check(request, ctx))
 
 
-def test_a_nested_argument_value_is_accepted_by_the_request_model(
-) -> None:
+def test_a_nested_argument_value_is_accepted_by_the_request_model() -> None:
     request = ToolCallRequest(
         name = "send_email",
         args = {

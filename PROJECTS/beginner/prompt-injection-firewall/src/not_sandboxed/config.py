@@ -76,9 +76,7 @@ SEPARATOR_CODEPOINTS: Final = (
     0x0022,
     0x0060,
 )
-SEPARATOR_CHARS: Final = frozenset(
-    chr(point) for point in SEPARATOR_CODEPOINTS
-)
+SEPARATOR_CHARS: Final = frozenset(chr(point) for point in SEPARATOR_CODEPOINTS)
 
 MAX_VARIANT_ROUNDS: Final = 4
 MAX_VARIANTS: Final = 96
@@ -93,9 +91,7 @@ CANARY_REJECTED: Final = (
     "egress would protect nothing while reporting success"
 )
 
-URL_PATTERN: Final = (
-    r"(?:https?:)?//[^\s\)\]\>\"'\\/]*\.[^\s\)\]\>\"'\\]+"
-)
+URL_PATTERN: Final = (r"(?:https?:)?//[^\s\)\]\>\"'\\/]*\.[^\s\)\]\>\"'\\]+")
 URL_SCHEME_PREFIX: Final = "https:"
 PROTOCOL_RELATIVE_PREFIX: Final = "//"
 HOST_SUFFIX_MARKER: Final = "."
@@ -290,18 +286,15 @@ _INSTRUCTION_VERBS: Final = (
 
 DATA_IMPERATIVE_PATTERNS: Final = (
     r"\b(?:ignore|disregard|forget|override)\b" + _NOT_OWN_MESSAGE +
-    r"\b(?:previous|prior|earlier|above|preceding|all)\b" +
-    _NOT_OWN_MESSAGE +
+    r"\b(?:previous|prior|earlier|above|preceding|all)\b" + _NOT_OWN_MESSAGE +
     r"\b(?:instruction|instructions|prompt|prompts|rule|rules|"
     r"direction|directions)\b",
-    r"\byou\s+are\s+now\s+(?:an?\s+)?(?:\w+\s+){0,2}" + _ROLE_NOUNS +
+    r"\byou\s+are\s+now\s+(?:an?\s+)?(?:\w+\s+){0,2}" + _ROLE_NOUNS + r"\b",
+    r"\bfrom\s+now\s+on\b[^.\n]{0,40}" + _SECOND_PERSON + _INSTRUCTION_VERBS + r"\b",
+    _SENTENCE_START + _DISCLOSE_VERBS + r"\b[^.\n]{0,40}\b" + _DISCLOSURE_TARGETS +
     r"\b",
-    r"\bfrom\s+now\s+on\b[^.\n]{0,40}" + _SECOND_PERSON +
-    _INSTRUCTION_VERBS + r"\b",
-    _SENTENCE_START + _DISCLOSE_VERBS + r"\b[^.\n]{0,40}\b" +
-    _DISCLOSURE_TARGETS + r"\b",
-    _SECOND_PERSON + _DISCLOSE_VERBS + r"\b[^.\n]{0,40}\b" +
-    _DISCLOSURE_TARGETS + r"\b",
+    _SECOND_PERSON + _DISCLOSE_VERBS + r"\b[^.\n]{0,40}\b" + _DISCLOSURE_TARGETS +
+    r"\b",
     _SENTENCE_START + r"(?:act|behave)\s+as\s+(?:if\s+you\s+are\s+)?an?\b",
     r"\byou\s+(?:should\s+|must\s+|will\s+|can\s+|are\s+to\s+)?"
     r"(?:act|behave)\s+as\s+(?:if\s+you\s+are\s+)?an?\b",
@@ -352,9 +345,7 @@ ZERO_WIDTH_CODEPOINTS: Final = (
     0x2060,
     0xFEFF,
 )
-ZERO_WIDTH_CHARS: Final = frozenset(
-    chr(point) for point in ZERO_WIDTH_CODEPOINTS
-)
+ZERO_WIDTH_CHARS: Final = frozenset(chr(point) for point in ZERO_WIDTH_CODEPOINTS)
 
 BIDI_CODEPOINTS: Final = (
     0x200E,

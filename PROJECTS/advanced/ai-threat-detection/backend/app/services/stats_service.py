@@ -32,13 +32,15 @@ from app.schemas.stats import (
     StatsResponse,
 )
 
-_RANGE_MAP: dict[str, timedelta] = {
-    "1h": timedelta(hours=1),
-    "6h": timedelta(hours=6),
-    "24h": timedelta(hours=24),
-    "7d": timedelta(days=7),
-    "30d": timedelta(days=30),
-}
+
+_RANGE_MAP: dict[str,
+                 timedelta] = {
+                     "1h": timedelta(hours = 1),
+                     "6h": timedelta(hours = 6),
+                     "24h": timedelta(hours = 24),
+                     "7d": timedelta(days = 7),
+                     "30d": timedelta(days = 30),
+                 }
 
 
 async def get_stats(
@@ -48,7 +50,7 @@ async def get_stats(
     """
     Compute aggregate threat statistics for a given time window.
     """
-    delta = _RANGE_MAP.get(time_range, timedelta(hours=24))
+    delta = _RANGE_MAP.get(time_range, timedelta(hours = 24))
     cutoff = datetime.now(UTC) - delta
 
     base = select(ThreatEvent).where(ThreatEvent.created_at
@@ -82,18 +84,23 @@ async def get_stats(
     path_rows = (await session.execute(path_q)).all()
 
     return StatsResponse(
-        time_range=time_range,
-        threats_stored=total,
-        threats_detected=threats_detected,
-        severity_breakdown=SeverityBreakdown(
-            high=sev_map.get("HIGH", 0),
-            medium=sev_map.get("MEDIUM", 0),
-            low=sev_map.get("LOW", 0),
+        time_range = time_range,
+        threats_stored = total,
+        threats_detected = threats_detected,
+        severity_breakdown = SeverityBreakdown(
+            high = sev_map.get("HIGH",
+                               0),
+            medium = sev_map.get("MEDIUM",
+                                 0),
+            low = sev_map.get("LOW",
+                              0),
         ),
-        top_source_ips=[
-            IPStatEntry(source_ip=row[0], count=row[1]) for row in ip_rows
+        top_source_ips = [
+            IPStatEntry(source_ip = row[0],
+                        count = row[1]) for row in ip_rows
         ],
-        top_attacked_paths=[
-            PathStatEntry(path=row[0], count=row[1]) for row in path_rows
+        top_attacked_paths = [
+            PathStatEntry(path = row[0],
+                          count = row[1]) for row in path_rows
         ],
     )

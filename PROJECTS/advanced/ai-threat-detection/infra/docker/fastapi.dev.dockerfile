@@ -4,7 +4,7 @@
 # Development Dockerfile for the FastAPI backend
 #
 # Based on python:3.14-slim with uv from the astral-sh
-# image. Installs build-essential, libpq-dev, and curl,
+# image. Installs build-essential, libpq-dev, curl and git,
 # then installs the project with dev and ml extras via uv
 # pip install --system -e. Copies the backend source and
 # entrypoint script, creates the model data directory, and
@@ -24,7 +24,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    curl && \
+    curl \
+    git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY backend/pyproject.toml ./

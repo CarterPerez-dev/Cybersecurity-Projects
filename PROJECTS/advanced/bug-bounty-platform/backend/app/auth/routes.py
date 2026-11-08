@@ -42,11 +42,7 @@ from core.responses import AUTH_401
 router = APIRouter(prefix = "/auth", tags = ["auth"])
 
 
-@router.post(
-    "/login",
-    response_model = TokenWithUserResponse,
-    responses = {**AUTH_401}
-)
+@router.post("/login", response_model = TokenWithUserResponse, responses = {**AUTH_401})
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(
     request: Request,
@@ -68,11 +64,7 @@ async def login(
     return result
 
 
-@router.post(
-    "/refresh",
-    response_model = TokenResponse,
-    responses = {**AUTH_401}
-)
+@router.post("/refresh", response_model = TokenResponse, responses = {**AUTH_401})
 async def refresh_token(
     response: Response,
     auth_service: AuthServiceDep,

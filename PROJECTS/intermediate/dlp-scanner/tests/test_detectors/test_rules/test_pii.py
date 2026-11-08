@@ -3,7 +3,6 @@
 test_pii.py
 """
 
-
 import pytest
 
 from dlp_scanner.detectors.rules.pii import (

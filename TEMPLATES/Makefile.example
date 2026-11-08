@@ -103,11 +103,11 @@ help: ## Show this help
 
 .PHONY: format format-check ruff fix mypy lint
 
-format: ## Format with yapf in place
-	uv run yapf --recursive --in-place --parallel $(SRC_DIR) $(TEST_DIR)
+format: ## Format with yang in place
+	uv run yang --recursive --in-place --parallel $(SRC_DIR) $(TEST_DIR)
 
-format-check: ## Fail if yapf would change anything
-	uv run yapf --recursive --diff --parallel $(SRC_DIR) $(TEST_DIR)
+format-check: ## Fail if yang would change anything
+	uv run yang --recursive --diff --parallel $(SRC_DIR) $(TEST_DIR)
 
 ruff: ## ruff lint (ARGS="--statistics" passes flags through)
 	uv run ruff check $(SRC_DIR) $(TEST_DIR) $(ARGS)

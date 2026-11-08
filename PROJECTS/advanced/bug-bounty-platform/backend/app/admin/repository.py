@@ -35,10 +35,10 @@ class AdminRepository:
         Get all programs with company info and report count
         """
         report_count_subq = (
-            select(
-                Report.program_id,
-                func.count(Report.id).label("report_count")
-            ).group_by(Report.program_id).subquery()
+            select(Report.program_id,
+                   func.count(Report.id).label("report_count")).group_by(
+                       Report.program_id
+                   ).subquery()
         )
 
         query = (
@@ -58,8 +58,7 @@ class AdminRepository:
             query = query.where(Program.status == status_filter)
 
         result = await session.execute(
-            query.order_by(Program.created_at.desc()
-                           ).offset(skip).limit(limit)
+            query.order_by(Program.created_at.desc()).offset(skip).limit(limit)
         )
         return [tuple(row) for row in result.all()]
 
@@ -119,13 +118,10 @@ class AdminRepository:
             query = query.where(Report.status == status_filter)
 
         if severity_filter:
-            query = query.where(
-                Report.severity_submitted == severity_filter
-            )
+            query = query.where(Report.severity_submitted == severity_filter)
 
         result = await session.execute(
-            query.order_by(Report.created_at.desc()
-                           ).offset(skip).limit(limit)
+            query.order_by(Report.created_at.desc()).offset(skip).limit(limit)
         )
         return [tuple(row) for row in result.all()]
 
@@ -145,9 +141,7 @@ class AdminRepository:
             query = query.where(Report.status == status_filter)
 
         if severity_filter:
-            query = query.where(
-                Report.severity_submitted == severity_filter
-            )
+            query = query.where(Report.severity_submitted == severity_filter)
 
         result = await session.execute(query)
         return result.scalar_one()
@@ -177,17 +171,17 @@ class AdminRepository:
         Get all users with program and report counts
         """
         program_count_subq = (
-            select(
-                Program.company_id,
-                func.count(Program.id).label("program_count")
-            ).group_by(Program.company_id).subquery()
+            select(Program.company_id,
+                   func.count(Program.id).label("program_count")).group_by(
+                       Program.company_id
+                   ).subquery()
         )
 
         report_count_subq = (
-            select(
-                Report.researcher_id,
-                func.count(Report.id).label("report_count")
-            ).group_by(Report.researcher_id).subquery()
+            select(Report.researcher_id,
+                   func.count(Report.id).label("report_count")).group_by(
+                       Report.researcher_id
+                   ).subquery()
         )
 
         query = (
@@ -197,21 +191,18 @@ class AdminRepository:
                               0).label("program_count"),
                 func.coalesce(report_count_subq.c.report_count,
                               0).label("report_count")
-            ).outerjoin(
-                program_count_subq,
-                User.id == program_count_subq.c.company_id
-            ).outerjoin(
-                report_count_subq,
-                User.id == report_count_subq.c.researcher_id
-            )
+            ).outerjoin(program_count_subq,
+                        User.id == program_count_subq.c.company_id).outerjoin(
+                            report_count_subq,
+                            User.id == report_count_subq.c.researcher_id
+                        )
         )
 
         if role_filter:
             query = query.where(User.role == role_filter)
 
         result = await session.execute(
-            query.order_by(User.created_at.desc()
-                           ).offset(skip).limit(limit)
+            query.order_by(User.created_at.desc()).offset(skip).limit(limit)
         )
         return [tuple(row) for row in result.all()]
 
@@ -244,32 +235,24 @@ class AdminRepository:
         now = datetime.now(UTC)
         month_ago = now - timedelta(days = 30)
 
-        total_users = await session.execute(
-            select(func.count()).select_from(User)
-        )
+        total_users = await session.execute(select(func.count()).select_from(User))
 
         users_by_role = await session.execute(
             select(User.role,
                    func.count()).group_by(User.role)
         )
-        role_counts = {
-            str(role): count
-            for role, count in users_by_role.all()
-        }
+        role_counts = {str(role): count for role, count in users_by_role.all()}
 
         total_programs = await session.execute(
             select(func.count()).select_from(Program)
         )
 
         active_programs = await session.execute(
-            select(func.count()).select_from(Program).where(
-                Program.status == ProgramStatus.ACTIVE
-            )
+            select(func.count()
+                   ).select_from(Program).where(Program.status == ProgramStatus.ACTIVE)
         )
 
-        total_reports = await session.execute(
-            select(func.count()).select_from(Report)
-        )
+        total_reports = await session.execute(select(func.count()).select_from(Report))
 
         reports_by_status = await session.execute(
             select(Report.status,
@@ -282,20 +265,16 @@ class AdminRepository:
 
         total_bounties = await session.execute(
             select(func.coalesce(func.sum(Report.bounty_amount),
-                                 0)).where(
-                                     Report.bounty_amount.isnot(None)
-                                 )
+                                 0)).where(Report.bounty_amount.isnot(None))
         )
 
         reports_this_month = await session.execute(
-            select(func.count()).select_from(Report).where(
-                Report.created_at >= month_ago
-            )
+            select(func.count()
+                   ).select_from(Report).where(Report.created_at >= month_ago)
         )
 
         new_users_this_month = await session.execute(
-            select(func.count()
-                   ).select_from(User).where(User.created_at >= month_ago)
+            select(func.count()).select_from(User).where(User.created_at >= month_ago)
         )
 
         return {

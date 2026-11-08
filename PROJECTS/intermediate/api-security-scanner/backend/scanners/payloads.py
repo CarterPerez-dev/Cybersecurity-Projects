@@ -131,9 +131,8 @@ class SQLiPayloads:
             list[str]: All SQLi test payloads
         """
         return (
-            cls.BASIC_AUTHENTICATION_BYPASS + cls.UNION_BASED +
-            cls.TIME_BASED_BLIND + cls.BOOLEAN_BASED_BLIND +
-            cls.ERROR_BASED + cls.STACKED_QUERIES +
+            cls.BASIC_AUTHENTICATION_BYPASS + cls.UNION_BASED + cls.TIME_BASED_BLIND +
+            cls.BOOLEAN_BASED_BLIND + cls.ERROR_BASED + cls.STACKED_QUERIES +
             cls.COMMENT_VARIATIONS
         )
 
@@ -277,12 +276,10 @@ class RateLimitBypassPayloads:
     """
 
     HEADER_PATTERNS = {
-        "limit":
-        r"x-ratelimit-limit|x-rate-limit-limit|ratelimit-limit",
+        "limit": r"x-ratelimit-limit|x-rate-limit-limit|ratelimit-limit",
         "remaining":
         r"x-ratelimit-remaining|x-rate-limit-remaining|ratelimit-remaining",
-        "reset":
-        r"x-ratelimit-reset|x-rate-limit-reset|ratelimit-reset",
+        "reset": r"x-ratelimit-reset|x-rate-limit-reset|ratelimit-reset",
         "retry_after": r"retry-after",
     }
 
@@ -449,9 +446,8 @@ class XSSPayloads:
             list[str]: All XSS test payloads
         """
         return (
-            cls.BASIC_XSS + cls.EVENT_HANDLER_XSS + cls.SVG_XSS +
-            cls.IFRAME_XSS + cls.ENCODED_XSS +
-            cls.ATTRIBUTE_BREAKING + cls.FILTER_BYPASS +
+            cls.BASIC_XSS + cls.EVENT_HANDLER_XSS + cls.SVG_XSS + cls.IFRAME_XSS +
+            cls.ENCODED_XSS + cls.ATTRIBUTE_BREAKING + cls.FILTER_BYPASS +
             cls.POLYGLOT_XSS
         )
 

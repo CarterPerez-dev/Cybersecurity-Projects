@@ -18,7 +18,6 @@ from app.config import (
 
 logger = logging.getLogger(__name__)
 
-
 REG_CONTEXT_PREFIX = "webauthn:reg_ctx:"
 AUTH_CHALLENGE_PREFIX = "webauthn:auth_challenge:"
 SESSION_PREFIX = "session:"
@@ -96,7 +95,8 @@ class RedisManager:
     async def take_registration_context(
         self,
         username: str,
-    ) -> dict[str, bytes | str] | None:
+    ) -> dict[str,
+              bytes | str] | None:
         """
         Retrieve and delete the registration context atomically
         """

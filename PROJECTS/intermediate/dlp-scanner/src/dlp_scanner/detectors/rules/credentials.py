@@ -3,7 +3,6 @@
 credentials.py
 """
 
-
 import re
 
 from dlp_scanner.detectors.base import DetectionRule
@@ -21,13 +20,9 @@ GITHUB_OAUTH_PATTERN = re.compile(r"\bgho_[a-zA-Z0-9]{36}\b")
 
 GITHUB_APP_PATTERN = re.compile(r"\bghs_[a-zA-Z0-9]{36}\b")
 
-JWT_PATTERN = re.compile(
-    r"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"
-)
+JWT_PATTERN = re.compile(r"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b")
 
-STRIPE_KEY_PATTERN = re.compile(
-    r"\b(?:sk|pk)_(?:test|live)_[a-zA-Z0-9]{24,}\b"
-)
+STRIPE_KEY_PATTERN = re.compile(r"\b(?:sk|pk)_(?:test|live)_[a-zA-Z0-9]{24,}\b")
 
 SLACK_TOKEN_PATTERN = re.compile(r"\bxox[baprs]-[a-zA-Z0-9\-]{10,48}\b")
 

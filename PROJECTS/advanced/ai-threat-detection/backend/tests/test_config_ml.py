@@ -29,8 +29,10 @@ def test_default_ensemble_weights_sum_to_one() -> None:
     """
     AE + RF + IF ensemble weights sum to exactly 1.0.
     """
-    total = (settings.ensemble_weight_ae + settings.ensemble_weight_rf +
-             settings.ensemble_weight_if)
+    total = (
+        settings.ensemble_weight_ae + settings.ensemble_weight_rf +
+        settings.ensemble_weight_if
+    )
     assert abs(total - 1.0) < 1e-6
 
 

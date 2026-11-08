@@ -51,7 +51,8 @@ async def upload_client_keys(
     user_id: UUID,
     keys: ClientKeysUpload,
     session: AsyncSession = Depends(get_session),
-) -> dict[str, str]:
+) -> dict[str,
+          str]:
     """
     Stores client generated public keys for E2E encryption
     """

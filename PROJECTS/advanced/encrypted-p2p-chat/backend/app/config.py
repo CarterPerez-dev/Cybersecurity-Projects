@@ -163,11 +163,7 @@ class Settings(BaseSettings):
 
     @field_validator("SURREAL_URL", mode = "before")
     @classmethod
-    def assemble_surreal_connection(
-        cls,
-        v: str | None,
-        info: ValidationInfo
-    ) -> str:
+    def assemble_surreal_connection(cls, v: str | None, info: ValidationInfo) -> str:
         """
         Build SurrealDB WebSocket URL if not provided
         """
@@ -178,19 +174,14 @@ class Settings(BaseSettings):
 
     @field_validator("REDIS_URL", mode = "before")
     @classmethod
-    def assemble_redis_connection(
-        cls,
-        v: str | None,
-        info: ValidationInfo
-    ) -> str:
+    def assemble_redis_connection(cls, v: str | None, info: ValidationInfo) -> str:
         """
         Build Redis connection URL if not provided
         """
         if v:
             return v
         data = info.data
-        password_part = f":{data['REDIS_PASSWORD']}@" if data["REDIS_PASSWORD"
-                                                              ] else ""
+        password_part = f":{data['REDIS_PASSWORD']}@" if data["REDIS_PASSWORD"] else ""
         return f"redis://{password_part}{data['REDIS_HOST']}:{data['REDIS_PORT']}"
 
     @property

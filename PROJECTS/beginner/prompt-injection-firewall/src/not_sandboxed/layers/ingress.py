@@ -15,8 +15,7 @@ from not_sandboxed.verdict import Finding, Severity
 
 _IMPERATIVES: Final = tuple(
     re.compile(pattern,
-               re.IGNORECASE)
-    for pattern in config.DATA_IMPERATIVE_PATTERNS
+               re.IGNORECASE) for pattern in config.DATA_IMPERATIVE_PATTERNS
 )
 
 

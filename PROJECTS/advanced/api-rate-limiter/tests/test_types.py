@@ -143,23 +143,19 @@ class TestRateLimitRule:
         assert rule.window_seconds == 60
 
     def test_invalid_requests_zero(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "requests must be positive"):
+        with pytest.raises(ValueError, match = "requests must be positive"):
             RateLimitRule(requests = 0, window_seconds = 60)
 
     def test_invalid_requests_negative(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "requests must be positive"):
+        with pytest.raises(ValueError, match = "requests must be positive"):
             RateLimitRule(requests = -1, window_seconds = 60)
 
     def test_invalid_window_zero(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "window_seconds must be positive"):
+        with pytest.raises(ValueError, match = "window_seconds must be positive"):
             RateLimitRule(requests = 100, window_seconds = 0)
 
     def test_invalid_window_negative(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "window_seconds must be positive"):
+        with pytest.raises(ValueError, match = "window_seconds must be positive"):
             RateLimitRule(requests = 100, window_seconds = -1)
 
     def test_parse_per_second(self) -> None:
@@ -197,13 +193,11 @@ class TestRateLimitRule:
         assert rule.window_seconds == WINDOW_MINUTE
 
     def test_parse_invalid_format_no_slash(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "Invalid rate limit format"):
+        with pytest.raises(ValueError, match = "Invalid rate limit format"):
             RateLimitRule.parse("100minute")
 
     def test_parse_invalid_format_multiple_slashes(self) -> None:
-        with pytest.raises(ValueError,
-                           match = "Invalid rate limit format"):
+        with pytest.raises(ValueError, match = "Invalid rate limit format"):
             RateLimitRule.parse("100/per/minute")
 
     def test_parse_invalid_request_count(self) -> None:

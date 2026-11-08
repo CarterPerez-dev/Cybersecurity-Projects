@@ -5,6 +5,7 @@ test_hex.py
 
 from rveng.engine import hex as hexmod
 
+
 ELF_MAGIC_LINE = (
     "00000000  7f 45 4c 46 02 01 01 00  "
     "00 00 00 00 00 00 00 00  |.ELF............|"
@@ -12,17 +13,17 @@ ELF_MAGIC_LINE = (
 
 
 def test_first_line_matches_known_elf_header(gate_bytes: bytes):
-    first = hexmod.hexdump(gate_bytes[:16])
+    first = hexmod.hexdump(gate_bytes[: 16])
     assert first == ELF_MAGIC_LINE
 
 
 def test_ascii_gutter_marks_non_printable():
-    line = hexmod.HexLine(offset=0, data=b"\x7fELF\x00")
+    line = hexmod.HexLine(offset = 0, data = b"\x7fELF\x00")
     assert line.ascii_gutter() == ".ELF."
 
 
 def test_base_offset_is_applied():
-    line = next(hexmod.iter_lines(b"\x90", base=0x401060))
+    line = next(hexmod.iter_lines(b"\x90", base = 0x401060))
     assert line.render().startswith("00401060  90")
 
 

@@ -56,10 +56,10 @@ def _make_task(task_id: str, beacon_id: str = "beacon-t") -> TaskRecord:
     Create a sample TaskRecord
     """
     return TaskRecord(
-        id=task_id,
-        beacon_id=beacon_id,
-        command=CommandType.SHELL,
-        args="whoami",
+        id = task_id,
+        beacon_id = beacon_id,
+        command = CommandType.SHELL,
+        args = "whoami",
     )
 
 
@@ -67,7 +67,6 @@ class TestTaskManager:
     """
     Verify task submission, retrieval, and result storage
     """
-
     async def test_submit_and_get_next(
         self,
         task_manager: TaskManager,
@@ -80,7 +79,8 @@ class TestTaskManager:
         await task_manager.submit(task, db)
 
         retrieved = await asyncio.wait_for(
-            task_manager.get_next("beacon-t"), timeout=1.0
+            task_manager.get_next("beacon-t"),
+            timeout = 1.0
         )
         assert retrieved.id == "task-001"
         assert retrieved.command == CommandType.SHELL
@@ -96,9 +96,9 @@ class TestTaskManager:
         task = _make_task("task-002")
         await task_manager.submit(task, db)
 
-        cursor = await db.execute(
-            "SELECT * FROM tasks WHERE id = ?", ("task-002",)
-        )
+        cursor = await db.execute("SELECT * FROM tasks WHERE id = ?",
+                                  ("task-002",
+                                   ))
         row = await cursor.fetchone()
         assert row is not None
         assert dict(row)["command"] == "shell"
@@ -115,9 +115,9 @@ class TestTaskManager:
         await task_manager.submit(_make_task("second"), db)
         await task_manager.submit(_make_task("third"), db)
 
-        t1 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout=1.0)
-        t2 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout=1.0)
-        t3 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout=1.0)
+        t1 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout = 1.0)
+        t2 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout = 1.0)
+        t3 = await asyncio.wait_for(task_manager.get_next("beacon-t"), timeout = 1.0)
 
         assert [t1.id, t2.id, t3.id] == ["first", "second", "third"]
 
@@ -133,14 +133,16 @@ class TestTaskManager:
         await task_manager.submit(task, db)
 
         result = TaskResult(
-            id="result-001",
-            task_id="task-003",
-            output="root\n",
+            id = "result-001",
+            task_id = "task-003",
+            output = "root\n",
         )
         await task_manager.store_result(result, db)
 
         cursor = await db.execute(
-            "SELECT status FROM tasks WHERE id = ?", ("task-003",)
+            "SELECT status FROM tasks WHERE id = ?",
+            ("task-003",
+             )
         )
         row = await cursor.fetchone()
         assert dict(row)["status"] == "completed"
@@ -157,9 +159,9 @@ class TestTaskManager:
         await task_manager.submit(task, db)
 
         result = TaskResult(
-            id="result-002",
-            task_id="task-004",
-            output="test output",
+            id = "result-002",
+            task_id = "task-004",
+            output = "test output",
         )
         await task_manager.store_result(result, db)
 
@@ -183,7 +185,8 @@ class TestTaskManager:
 
         background_task = asyncio.create_task(delayed_submit())
         retrieved = await asyncio.wait_for(
-            task_manager.get_next("beacon-t"), timeout=2.0
+            task_manager.get_next("beacon-t"),
+            timeout = 2.0
         )
         assert retrieved.id == "delayed"
         await background_task

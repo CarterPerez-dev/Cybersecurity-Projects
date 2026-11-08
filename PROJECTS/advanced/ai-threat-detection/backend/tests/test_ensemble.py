@@ -31,26 +31,25 @@ from app.core.detection.ensemble import (
 
 
 class TestScoreNormalization:
-
     def test_ae_score_below_threshold(self) -> None:
         """
         AE error below threshold maps to a score below 0.5.
         """
-        result = normalize_ae_score(0.05, threshold=0.10)
+        result = normalize_ae_score(0.05, threshold = 0.10)
         assert abs(result - 0.25) < 1e-6
 
     def test_ae_score_above_double_threshold_caps_at_one(self) -> None:
         """
         AE error at 3x threshold is capped at 1.0.
         """
-        result = normalize_ae_score(0.30, threshold=0.10)
+        result = normalize_ae_score(0.30, threshold = 0.10)
         assert result == 1.0
 
     def test_ae_score_zero_error(self) -> None:
         """
         Zero reconstruction error maps to a score of 0.0.
         """
-        result = normalize_ae_score(0.0, threshold=0.10)
+        result = normalize_ae_score(0.0, threshold = 0.10)
         assert result == 0.0
 
     def test_if_score_negative(self) -> None:
@@ -76,7 +75,6 @@ class TestScoreNormalization:
 
 
 class TestEnsembleFusion:
-
     def test_weighted_average(self) -> None:
         """
         Fused score is the weighted average of AE, RF, and IF scores.
@@ -114,12 +112,11 @@ class TestEnsembleFusion:
 
 
 class TestBlendScores:
-
     def test_blend_with_rule_score(self) -> None:
         """
         ML and rule scores blend according to the specified ml_weight.
         """
-        result = blend_scores(ml_score=0.7, rule_score=0.9, ml_weight=0.7)
+        result = blend_scores(ml_score = 0.7, rule_score = 0.9, ml_weight = 0.7)
         expected = 0.7 * 0.7 + 0.9 * 0.3
         assert abs(result - expected) < 1e-6
 
@@ -127,26 +124,25 @@ class TestBlendScores:
         """
         ml_weight of 1.0 returns the pure ML score.
         """
-        result = blend_scores(ml_score=0.8, rule_score=0.2, ml_weight=1.0)
+        result = blend_scores(ml_score = 0.8, rule_score = 0.2, ml_weight = 1.0)
         assert abs(result - 0.8) < 1e-6
 
     def test_blend_full_rule_weight(self) -> None:
         """
         ml_weight of 0.0 returns the pure rule score.
         """
-        result = blend_scores(ml_score=0.8, rule_score=0.2, ml_weight=0.0)
+        result = blend_scores(ml_score = 0.8, rule_score = 0.2, ml_weight = 0.0)
         assert abs(result - 0.2) < 1e-6
 
     def test_blend_clamped_to_one(self) -> None:
         """
         Blended score is clamped to 1.0 even when both inputs are 1.0.
         """
-        result = blend_scores(ml_score=1.0, rule_score=1.0, ml_weight=0.5)
+        result = blend_scores(ml_score = 1.0, rule_score = 1.0, ml_weight = 0.5)
         assert result <= 1.0
 
 
 class TestClassifySeverity:
-
     def test_high(self) -> None:
         """
         Scores >= 0.7 classify as HIGH.

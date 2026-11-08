@@ -512,10 +512,8 @@ def _render_report(report: ScanReport, console: Console) -> None:
     """
     # The header table — one row per rule
     table = Table(
-        title = (
-            f"Headers for {report.final_url} "
-            f"(HTTP {report.status_code})"
-        ),
+        title = (f"Headers for {report.final_url} "
+                 f"(HTTP {report.status_code})"),
         title_style = "bold cyan",
         show_lines = False,
     )
@@ -590,8 +588,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         "--timeout",
         type = float,
         default = 10.0,
-        help =
-        "Seconds to wait before giving up on the request (default: 10).",
+        help = "Seconds to wait before giving up on the request (default: 10).",
     )
     return parser
 
@@ -619,9 +616,7 @@ def main() -> int:
     try:
         report = scan(args.url, timeout = args.timeout)
     except httpx.RequestError as exc:
-        console.print(
-            f"[red]Request failed:[/red] {type(exc).__name__}: {exc}"
-        )
+        console.print(f"[red]Request failed:[/red] {type(exc).__name__}: {exc}")
         return 2
 
     _render_report(report, console)

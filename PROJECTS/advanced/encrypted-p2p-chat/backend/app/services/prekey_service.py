@@ -106,9 +106,7 @@ class PrekeyService:
         max_key_id = max_key_id_result.scalar_one_or_none()
         new_spk_key_id = (max_key_id + 1) if max_key_id is not None else 1
 
-        expires_at = datetime.now(UTC) + timedelta(
-            hours = SIGNED_PREKEY_ROTATION_HOURS
-        )
+        expires_at = datetime.now(UTC) + timedelta(hours = SIGNED_PREKEY_ROTATION_HOURS)
 
         new_spk = SignedPrekey(
             user_id = user_id,
@@ -125,9 +123,7 @@ class PrekeyService:
         ).order_by(OneTimePrekey.key_id.desc()).limit(1)
         max_opk_key_id_result = await session.execute(max_opk_key_id_statement)
         max_opk_key_id = max_opk_key_id_result.scalar_one_or_none()
-        next_opk_key_id = (
-            max_opk_key_id + 1
-        ) if max_opk_key_id is not None else 1
+        next_opk_key_id = (max_opk_key_id + 1) if max_opk_key_id is not None else 1
 
         for i, opk_public in enumerate(one_time_prekeys):
             new_opk = OneTimePrekey(

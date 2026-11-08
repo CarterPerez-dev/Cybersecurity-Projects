@@ -77,10 +77,8 @@ def _level_payload(level: Level) -> dict[str, Any]:
 
 
 def _policy_for(level: Level, session: Session) -> Policy:
-    return level.policy.model_copy(
-        update = {"canaries": (session.secret,
-                               )}
-    )
+    return level.policy.model_copy(update = {"canaries": (session.secret,
+                                                          )})
 
 
 def escaped(session: Session, reply: AgentReply) -> bool:
@@ -125,19 +123,14 @@ def _result(
         bypasses.write(level.number, ticket)
 
     return {
-        "level":
-        _level_payload(level),
-        "request_decision":
-        str(inbound.decision),
+        "level": _level_payload(level),
+        "request_decision": str(inbound.decision),
         "egress_decision": (str(outbound.decision) if outbound else None),
         "agent_text": ("" if blocked or reply is None else reply.text),
-        "tool_calls":
-        ([] if blocked or reply is None else _call_payload(reply)),
-        "secret_escaped":
-        left,
+        "tool_calls": ([] if blocked or reply is None else _call_payload(reply)),
+        "secret_escaped": left,
         "findings": [_finding_payload(f) for f in findings],
-        "attempts":
-        session.attempts,
+        "attempts": session.attempts,
     }
 
 
@@ -161,9 +154,7 @@ def play(
 
     ctx = (
         Context().system(
-            config.ARENA_SYSTEM_PROMPT.format(
-                company = config.ARENA_COMPANY
-            )
+            config.ARENA_SYSTEM_PROMPT.format(company = config.ARENA_COMPANY)
         ).user(config.ARENA_USER_TURN).data(
             ticket,
             origin = Origin(
@@ -187,9 +178,7 @@ def play(
             bypasses = won,
         )
 
-    reply = MockAgent(secret = session.secret).respond(
-        firewall.render(ctx)
-    )
+    reply = MockAgent(secret = session.secret).respond(firewall.render(ctx))
     outbound = firewall.inspect_egress(reply, ctx)
     log.write(outbound, ctx)
 
@@ -205,10 +194,7 @@ def play(
 
 
 def _client_of(request: Request) -> str:
-    return (
-        request.client.host
-        if request.client else config.ARENA_ANONYMOUS_CLIENT
-    )
+    return (request.client.host if request.client else config.ARENA_ANONYMOUS_CLIENT)
 
 
 def build_arena(
@@ -227,9 +213,7 @@ def build_arena(
 
     @app.get("/api/levels")
     def levels() -> dict[str, Any]:
-        return {
-            "levels": [_level_payload(LEVELS[n]) for n in sorted(LEVELS)]
-        }
+        return {"levels": [_level_payload(LEVELS[n]) for n in sorted(LEVELS)]}
 
     @app.get("/api/codepoints")
     def codepoints() -> dict[str, Any]:
@@ -238,10 +222,8 @@ def build_arena(
                 config.TAG_BLOCK_START,
                 config.TAG_BLOCK_END,
             ],
-            config.CODEPOINT_FIELD_BIDI:
-            list(config.BIDI_CODEPOINTS),
-            config.CODEPOINT_FIELD_ZERO_WIDTH:
-            list(config.ZERO_WIDTH_CODEPOINTS),
+            config.CODEPOINT_FIELD_BIDI: list(config.BIDI_CODEPOINTS),
+            config.CODEPOINT_FIELD_ZERO_WIDTH: list(config.ZERO_WIDTH_CODEPOINTS),
         }
 
     @app.post("/api/session")

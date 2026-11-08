@@ -71,8 +71,7 @@ def test_record_carries_span_trust_levels_and_origin_channels() -> None:
     assert origins[2].startswith("ticket:")
 
 
-def test_the_origin_ref_is_digested_because_the_proxy_takes_it_from_the_body(
-) -> None:
+def test_the_origin_ref_is_digested_because_the_proxy_takes_it_from_the_body() -> None:
     ctx = Context().data(
         "benign",
         origin = Origin(channel = "tool",
@@ -113,9 +112,7 @@ def test_record_never_contains_finding_evidence_text() -> None:
     verdict = Firewall(Policy()).inspect(ctx)
     raw = audit_record(verdict, ctx)
 
-    assert any(
-        f.rule == config.RULE_TAG_SMUGGLING for f in verdict.findings
-    )
+    assert any(f.rule == config.RULE_TAG_SMUGGLING for f in verdict.findings)
     assert CANARY.encode() not in raw
 
 

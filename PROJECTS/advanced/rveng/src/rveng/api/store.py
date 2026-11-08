@@ -18,6 +18,7 @@ from rveng.engine.challenge import (
     PatchedBytes,
 )
 
+
 log = logging.getLogger(__name__)
 
 MANIFEST = "challenge.json"
@@ -52,7 +53,7 @@ def _build_answer(spec: dict, binary: bytes):
             offset = spec["offset"]
             replacement = bytes.fromhex(spec["patch"])
             known_good = patch.apply(binary, offset, replacement)
-            return PatchedBytes(offset=offset, known_good=known_good)
+            return PatchedBytes(offset = offset, known_good = known_good)
     except (KeyError, ValueError) as exc:
         raise ChallengeError(f"bad {category} answer spec: {exc}") from exc
     raise ChallengeError(f"unknown answer category: {category}")
@@ -70,13 +71,14 @@ def load_challenge(directory: Path) -> Challenge:
         binary = (directory / TARGET).read_bytes()
         source = (directory / SOURCE).read_text()
         return Challenge(
-            id=manifest["id"],
-            module=manifest["module"],
-            title=manifest["title"],
-            mission=manifest["mission"],
-            binary=binary,
-            source=source,
-            answer=_build_answer(manifest["answer"], binary),
+            id = manifest["id"],
+            module = manifest["module"],
+            title = manifest["title"],
+            mission = manifest["mission"],
+            binary = binary,
+            source = source,
+            answer = _build_answer(manifest["answer"],
+                                   binary),
         )
     except (json.JSONDecodeError, KeyError, OSError) as exc:
         raise ChallengeError(f"malformed challenge in {directory}: {exc}") from exc
@@ -86,12 +88,11 @@ class ChallengeStore:
     """
     An in-memory registry of loaded challenges keyed by id
     """
-
     def __init__(self, challenges: list[Challenge]):
         self._by_id = {c.id: c for c in challenges}
 
     def list(self) -> list[Challenge]:
-        return sorted(self._by_id.values(), key=lambda c: c.id)
+        return sorted(self._by_id.values(), key = lambda c: c.id)
 
     def get(self, challenge_id: str) -> Challenge | None:
         return self._by_id.get(challenge_id)
@@ -116,7 +117,6 @@ class ProgressStore(Protocol):
     """
     Persistence boundary for solved-challenge tracking
     """
-
     def mark_solved(self, session: str, challenge_id: str) -> None:
         ...
 
@@ -128,7 +128,6 @@ class InMemoryProgress:
     """
     A process-local progress store used for tests and ephemeral runs
     """
-
     def __init__(self):
         self._solved: dict[str, set[str]] = {}
 
@@ -143,18 +142,18 @@ class SqliteProgress:
     """
     A SQLite-backed progress store durable across restarts
     """
-
     def __init__(self, path: Path | str = DEFAULT_DB_PATH):
         self._path = str(path)
         if self._path != IN_MEMORY_DB:
-            Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+            Path(self._path).parent.mkdir(parents = True, exist_ok = True)
         self._lock = threading.Lock()
-        self._conn = sqlite3.connect(self._path, check_same_thread=False)
+        self._conn = sqlite3.connect(self._path, check_same_thread = False)
         self._conn.execute(
             f"CREATE TABLE IF NOT EXISTS {SOLVED_TABLE} ("
             "session TEXT NOT NULL, "
             "challenge_id TEXT NOT NULL, "
-            "PRIMARY KEY (session, challenge_id))")
+            "PRIMARY KEY (session, challenge_id))"
+        )
         self._conn.commit()
 
     def mark_solved(self, session: str, challenge_id: str) -> None:
@@ -162,7 +161,9 @@ class SqliteProgress:
             self._conn.execute(
                 f"INSERT OR IGNORE INTO {SOLVED_TABLE} "
                 "(session, challenge_id) VALUES (?, ?)",
-                (session, challenge_id))
+                (session,
+                 challenge_id)
+            )
             self._conn.commit()
 
     def solved(self, session: str) -> set[str]:
@@ -170,5 +171,7 @@ class SqliteProgress:
             rows = self._conn.execute(
                 f"SELECT challenge_id FROM {SOLVED_TABLE} "
                 "WHERE session = ?",
-                (session,)).fetchall()
+                (session,
+                 )
+            ).fetchall()
         return {row[0] for row in rows}

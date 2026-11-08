@@ -182,11 +182,7 @@ class TestLookup:
         """
         Lookup using a custom nameserver records that server on the result
         """
-        result = await lookup(
-            "example.com",
-            [RecordType.A],
-            nameserver = "8.8.8.8"
-        )
+        result = await lookup("example.com", [RecordType.A], nameserver = "8.8.8.8")
         assert result.nameserver == "8.8.8.8"
 
 

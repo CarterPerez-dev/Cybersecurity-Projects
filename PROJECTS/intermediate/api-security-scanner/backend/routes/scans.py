@@ -24,14 +24,14 @@ from schemas.user_schemas import UserResponse
 from services.scan_service import ScanService
 
 
-router = APIRouter(prefix="/scans", tags=["scans"])
-limiter = Limiter(key_func=get_remote_address)
+router = APIRouter(prefix = "/scans", tags = ["scans"])
+limiter = Limiter(key_func = get_remote_address)
 
 
 @router.post(
     "/",
-    response_model=ScanResponse,
-    status_code=status.HTTP_201_CREATED,
+    response_model = ScanResponse,
+    status_code = status.HTTP_201_CREATED,
 )
 @limiter.limit(settings.API_RATE_LIMIT_SCAN)
 async def create_scan(
@@ -48,8 +48,8 @@ async def create_scan(
 
 @router.get(
     "/",
-    response_model=list[ScanResponse],
-    status_code=status.HTTP_200_OK,
+    response_model = list[ScanResponse],
+    status_code = status.HTTP_200_OK,
 )
 @limiter.limit(settings.API_RATE_LIMIT_DEFAULT)
 async def get_user_scans(
@@ -67,8 +67,8 @@ async def get_user_scans(
 
 @router.get(
     "/{scan_id}",
-    response_model=ScanResponse,
-    status_code=status.HTTP_200_OK,
+    response_model = ScanResponse,
+    status_code = status.HTTP_200_OK,
 )
 @limiter.limit(settings.API_RATE_LIMIT_DEFAULT)
 async def get_scan(
@@ -85,7 +85,7 @@ async def get_scan(
 
 @router.delete(
     "/{scan_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code = status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit(settings.API_RATE_LIMIT_DEFAULT)
 async def delete_scan(

@@ -3,7 +3,6 @@
 test_pcap.py
 """
 
-
 from dlp_scanner.network.pcap import PacketInfo
 
 

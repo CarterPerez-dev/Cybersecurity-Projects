@@ -26,10 +26,7 @@ class IdentityKey(BaseDBModel, table = True):
     )
 
     public_key: str = Field(nullable = False, max_length = IDENTITY_KEY_LENGTH)
-    public_key_ed25519: str = Field(
-        nullable = False,
-        max_length = IDENTITY_KEY_LENGTH
-    )
+    public_key_ed25519: str = Field(nullable = False, max_length = IDENTITY_KEY_LENGTH)
 
     def __repr__(self) -> str:
         """

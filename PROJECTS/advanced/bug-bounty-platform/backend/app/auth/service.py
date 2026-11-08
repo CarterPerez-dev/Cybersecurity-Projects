@@ -63,11 +63,7 @@ class AuthService:
             raise InvalidCredentials()
 
         if new_hash:
-            await UserRepository.update_password(
-                self.session,
-                user,
-                new_hash
-            )
+            await UserRepository.update_password(self.session, user, new_hash)
 
         access_token = create_access_token(user.id, user.token_version)
 
@@ -145,17 +141,11 @@ class AuthService:
         if stored_token.is_expired:
             raise TokenError(message = "Refresh token expired")
 
-        user = await UserRepository.get_by_id(
-            self.session,
-            stored_token.user_id
-        )
+        user = await UserRepository.get_by_id(self.session, stored_token.user_id)
         if user is None or not user.is_active:
             raise TokenError(message = "User not found or inactive")
 
-        await RefreshTokenRepository.revoke_token(
-            self.session,
-            stored_token
-        )
+        await RefreshTokenRepository.revoke_token(self.session, stored_token)
 
         access_token = create_access_token(user.id, user.token_version)
 
@@ -192,10 +182,7 @@ class AuthService:
         )
 
         if stored_token and not stored_token.is_revoked:
-            await RefreshTokenRepository.revoke_token(
-                self.session,
-                stored_token
-            )
+            await RefreshTokenRepository.revoke_token(self.session, stored_token)
 
     async def logout_all(
         self,

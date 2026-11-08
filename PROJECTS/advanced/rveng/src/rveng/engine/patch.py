@@ -12,7 +12,7 @@ class PatchError(ValueError):
     """
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class ByteDiff:
     """
     A single differing byte between two equal-length buffers
@@ -32,7 +32,7 @@ def diff(original: bytes, modified: bytes) -> list[ByteDiff]:
     out = []
     for offset, (a, b) in enumerate(zip(original, modified)):
         if a != b:
-            out.append(ByteDiff(offset=offset, before=a, after=b))
+            out.append(ByteDiff(offset = offset, before = a, after = b))
     return out
 
 
@@ -42,16 +42,15 @@ def apply(original: bytes, offset: int, new_bytes: bytes) -> bytes:
     """
     if offset < 0 or offset + len(new_bytes) > len(original):
         raise PatchError("patch out of bounds")
-    return (original[:offset]
-            + new_bytes
-            + original[offset + len(new_bytes):])
+    return (original[: offset] + new_bytes + original[offset + len(new_bytes):])
 
 
 def verify_patch(
-        original: bytes,
-        offset: int,
-        submitted: bytes,
-        known_good: bytes) -> bool:
+    original: bytes,
+    offset: int,
+    submitted: bytes,
+    known_good: bytes
+) -> bool:
     """
     True when applying submitted at offset reproduces the known-good target
     """

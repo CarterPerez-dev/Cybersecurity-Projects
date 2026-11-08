@@ -55,15 +55,11 @@ class StorageSettings(BaseSettings):
 
     REDIS_URL: RedisDsn | None = None
     REDIS_MAX_CONNECTIONS: Annotated[int, Field(ge = 1, le = 1000)] = 100
-    REDIS_SOCKET_TIMEOUT: Annotated[float,
-                                    Field(ge = 0.1,
-                                          le = 60.0)] = 5.0
+    REDIS_SOCKET_TIMEOUT: Annotated[float, Field(ge = 0.1, le = 60.0)] = 5.0
     REDIS_RETRY_ON_TIMEOUT: bool = True
     REDIS_DECODE_RESPONSES: bool = True
 
-    MEMORY_MAX_KEYS: Annotated[int,
-                               Field(ge = 100,
-                                     le = 10_000_000)] = 100_000
+    MEMORY_MAX_KEYS: Annotated[int, Field(ge = 100, le = 10_000_000)] = 100_000
     MEMORY_CLEANUP_INTERVAL: Annotated[int, Field(ge = 1, le = 3600)] = 60
 
     FALLBACK_TO_MEMORY: bool = True
@@ -111,9 +107,7 @@ class DefenseSettings(BaseSettings):
     CIRCUIT_WINDOW: Annotated[int, Field(ge = 1, le = 3600)] = 60
     CIRCUIT_RECOVERY_TIME: Annotated[int, Field(ge = 1, le = 3600)] = 30
 
-    ADAPTIVE_REDUCTION_FACTOR: Annotated[float,
-                                         Field(ge = 0.1,
-                                               le = 1.0)] = 0.5
+    ADAPTIVE_REDUCTION_FACTOR: Annotated[float, Field(ge = 0.1, le = 1.0)] = 0.5
     ENDPOINT_LIMIT_MULTIPLIER: Annotated[int, Field(ge = 1, le = 100)] = 10
     LOCKDOWN_ALLOW_AUTHENTICATED: bool = True
     LOCKDOWN_ALLOW_KNOWN_GOOD: bool = True
@@ -147,9 +141,7 @@ class RateLimiterSettings(BaseSettings):
     KEY_VERSION: str = "v1"
     INCLUDE_HEADERS: bool = True
     LOG_VIOLATIONS: bool = True
-    ENVIRONMENT: Literal["development",
-                         "staging",
-                         "production"] = "development"
+    ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
     HTTP_420_MESSAGE: str = "Enhance your calm"
     HTTP_420_DETAIL: str = "Rate limit exceeded. Take a breather."
@@ -186,9 +178,7 @@ class RateLimiterSettings(BaseSettings):
         """
         Parse and return default rate limit rules
         """
-        return [
-            RateLimitRule.parse(limit) for limit in self.DEFAULT_LIMITS
-        ]
+        return [RateLimitRule.parse(limit) for limit in self.DEFAULT_LIMITS]
 
     def get_global_limit_rule(self) -> RateLimitRule:
         """

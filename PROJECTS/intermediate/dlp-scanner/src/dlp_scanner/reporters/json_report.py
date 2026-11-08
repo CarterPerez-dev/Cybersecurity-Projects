@@ -3,7 +3,6 @@
 json_report.py
 """
 
-
 from typing import Any
 
 import orjson
@@ -54,10 +53,8 @@ def _build_metadata(
         "tool_version":
         result.tool_version,
         "scan_started_at": (result.scan_started_at.isoformat()),
-        "scan_completed_at": (
-            result.scan_completed_at.isoformat()
-            if result.scan_completed_at else None
-        ),
+        "scan_completed_at":
+        (result.scan_completed_at.isoformat() if result.scan_completed_at else None),
         "targets_scanned":
         result.targets_scanned,
         "total_findings":

@@ -12,7 +12,6 @@ Tests:
   core/encoding.py - xor_bytes, encode, decode
 """
 
-
 from core.encoding import decode, encode, xor_bytes
 
 
@@ -20,7 +19,6 @@ class TestXorBytes:
     """
     Verify XOR byte transformation correctness
     """
-
     def test_roundtrip(self) -> None:
         """
         XOR applied twice with the same key returns original data
@@ -49,7 +47,6 @@ class TestEncodeDecode:
     """
     Verify the full encode/decode pipeline
     """
-
     def test_roundtrip_ascii(self) -> None:
         """
         ASCII payload survives encode -> decode

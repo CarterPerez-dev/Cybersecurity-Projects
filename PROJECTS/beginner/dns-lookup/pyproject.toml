@@ -54,11 +54,11 @@ packages = ["dnslookup"]
 
 [tool.ruff]
 target-version = "py313"
-line-length = 95
+line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "C4", "UP", "SIM", "I"]
-ignore = ["E501"]
+ignore = ["E501", "I001"]
 
 [tool.ruff.format]
 quote-style = "double"

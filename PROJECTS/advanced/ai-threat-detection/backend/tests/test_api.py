@@ -77,19 +77,19 @@ async def test_get_threat_by_id(db_session, db_client) -> None:
     """
     event_id = uuid.uuid4()
     event = ThreatEvent(
-        id=event_id,
-        created_at=datetime.now(UTC),
-        source_ip="10.0.0.1",
-        request_method="GET",
-        request_path="/admin",
-        status_code=200,
-        response_size=512,
-        user_agent="TestBot/1.0",
-        threat_score=0.85,
-        severity="HIGH",
-        component_scores={"SQL_INJECTION": 0.85},
-        feature_vector=[0.0] * 35,
-        matched_rules=["SQL_INJECTION"],
+        id = event_id,
+        created_at = datetime.now(UTC),
+        source_ip = "10.0.0.1",
+        request_method = "GET",
+        request_path = "/admin",
+        status_code = 200,
+        response_size = 512,
+        user_agent = "TestBot/1.0",
+        threat_score = 0.85,
+        severity = "HIGH",
+        component_scores = {"SQL_INJECTION": 0.85},
+        feature_vector = [0.0] * 35,
+        matched_rules = ["SQL_INJECTION"],
     )
     db_session.add(event)
     await db_session.commit()
@@ -114,23 +114,23 @@ async def test_list_threats_severity_filter(db_session, db_client) -> None:
     now = datetime.now(UTC)
     for severity, score in [("HIGH", 0.9), ("MEDIUM", 0.6), ("LOW", 0.3)]:
         event = ThreatEvent(
-            id=uuid.uuid4(),
-            created_at=now,
-            source_ip="192.168.1.1",
-            request_method="GET",
-            request_path="/test",
-            status_code=200,
-            response_size=100,
-            user_agent="Mozilla/5.0",
-            threat_score=score,
-            severity=severity,
-            component_scores={},
-            feature_vector=[0.0] * 35,
+            id = uuid.uuid4(),
+            created_at = now,
+            source_ip = "192.168.1.1",
+            request_method = "GET",
+            request_path = "/test",
+            status_code = 200,
+            response_size = 100,
+            user_agent = "Mozilla/5.0",
+            threat_score = score,
+            severity = severity,
+            component_scores = {},
+            feature_vector = [0.0] * 35,
         )
         db_session.add(event)
     await db_session.commit()
 
-    response = await db_client.get("/threats", params={"severity": "HIGH"})
+    response = await db_client.get("/threats", params = {"severity": "HIGH"})
 
     assert response.status_code == 200
     data = response.json()

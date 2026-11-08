@@ -30,12 +30,15 @@ dev = [
     "mypy==1.19.1",
     "pylint==4.0.4",
     "types-requests==2.32.4.20260107",
-    "yapf==0.43.0",
+    "yang-fmt==1.0.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["keylogger.py"]
@@ -140,7 +143,7 @@ disable = [
     # Style preferences
     "C0111",  # missing-docstring (some methods are self-explanatory)
     "C0103",  # invalid-name
-    "C0325",  # superfluous-parens (yapf formatting)
+    "C0325",  # superfluous-parens (yang formatting)
     "R1732",  # consider-using-with (LogManager owns file handles)
     "W0105",  # pointless-string-statement (ASCII art)
 ]

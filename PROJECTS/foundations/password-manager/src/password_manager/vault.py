@@ -278,9 +278,7 @@ def _validate_entry_name(name: str) -> None:
     if not name or not name.strip():
         raise ValueError("Entry name cannot be empty or whitespace")
     if name != name.strip():
-        raise ValueError(
-            "Entry name must not have leading or trailing whitespace"
-        )
+        raise ValueError("Entry name must not have leading or trailing whitespace")
 
 
 @contextlib.contextmanager
@@ -409,13 +407,9 @@ class Entry:
             username = data["username"]
             password = data["password"]
         except KeyError as exc:
-            raise VaultFormatError(
-                f"Entry missing required field: {exc}"
-            ) from exc
+            raise VaultFormatError(f"Entry missing required field: {exc}") from exc
         if not isinstance(username, str) or not isinstance(password, str):
-            raise VaultFormatError(
-                "Entry username and password must be strings"
-            )
+            raise VaultFormatError("Entry username and password must be strings")
         return cls(
             username = username,
             password = password,
@@ -521,9 +515,7 @@ class UnlockedVault:
             If `master_password` is the empty string
         """
         if path.exists():
-            raise VaultAlreadyExistsError(
-                f"Vault already exists at {path}"
-            )
+            raise VaultAlreadyExistsError(f"Vault already exists at {path}")
 
         salt = generate_salt()
         kdf_parameters = kdf_parameters or KdfParameters.defaults()
@@ -602,10 +594,7 @@ class UnlockedVault:
             ) from exc
 
         # Convert each row from raw dict to Entry dataclass instance
-        entries = {
-            name: Entry.from_dict(row)
-            for name, row in entries_data.items()
-        }
+        entries = {name: Entry.from_dict(row) for name, row in entries_data.items()}
 
         return cls(
             path = path,
@@ -977,9 +966,7 @@ def _parse_envelope(
     kdf = envelope.get(VAULT_KEY_KDF)
     cipher = envelope.get(VAULT_KEY_CIPHER)
     if not isinstance(kdf, dict) or not isinstance(cipher, dict):
-        raise VaultFormatError(
-            "Vault envelope missing kdf or cipher section"
-        )
+        raise VaultFormatError("Vault envelope missing kdf or cipher section")
 
     # KDF section
     if kdf.get(KDF_KEY_NAME) != KDF_NAME_ARGON2ID:
@@ -1010,9 +997,7 @@ def _parse_envelope(
             f"{kdf_parameters.parallelism} "
             f"(minimum {ARGON2_PARALLELISM_MIN})"
         )
-    memory_floor = (
-        ARGON2_MEMORY_KIB_PER_LANE_MIN * kdf_parameters.parallelism
-    )
+    memory_floor = (ARGON2_MEMORY_KIB_PER_LANE_MIN * kdf_parameters.parallelism)
     if kdf_parameters.memory_cost < memory_floor:
         raise VaultFormatError(
             f"Invalid Argon2 memory_cost: "
@@ -1023,15 +1008,11 @@ def _parse_envelope(
 
     # Cipher section
     if cipher.get(CIPHER_KEY_NAME) != CIPHER_NAME_AES_256_GCM:
-        raise VaultFormatError(
-            f"Unsupported cipher: {cipher.get(CIPHER_KEY_NAME)}"
-        )
+        raise VaultFormatError(f"Unsupported cipher: {cipher.get(CIPHER_KEY_NAME)}")
     try:
         nonce = _b64decode(cipher[CIPHER_KEY_NONCE])
         ciphertext = _b64decode(cipher[CIPHER_KEY_CIPHERTEXT])
     except KeyError as exc:
-        raise VaultFormatError(
-            f"Cipher section missing field: {exc}"
-        ) from exc
+        raise VaultFormatError(f"Cipher section missing field: {exc}") from exc
 
     return salt, kdf_parameters, nonce, ciphertext

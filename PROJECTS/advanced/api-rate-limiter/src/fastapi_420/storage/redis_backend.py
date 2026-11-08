@@ -74,11 +74,7 @@ class RedisStorage:
 
     _client: redis.Redis[Any] | None = field(default = None, repr = False)
     _pool: ConnectionPool[Any] | None = field(default = None, repr = False)
-    _script_shas: dict[str,
-                       str] = field(
-                           default_factory = dict,
-                           repr = False
-                       )
+    _script_shas: dict[str, str] = field(default_factory = dict, repr = False)
     _scripts_loaded: bool = field(default = False, repr = False)
 
     @classmethod
@@ -158,9 +154,7 @@ class RedisStorage:
             raise StorageError(
                 operation = "ensure_connected",
                 backend = StorageType.REDIS,
-                original_error = RuntimeError(
-                    "Failed to establish connection"
-                ),
+                original_error = RuntimeError("Failed to establish connection"),
             )
 
         return self._client
@@ -180,9 +174,7 @@ class RedisStorage:
             raise StorageError(
                 operation = "execute_script",
                 backend = StorageType.REDIS,
-                original_error = ValueError(
-                    f"Unknown script: {script_name}"
-                ),
+                original_error = ValueError(f"Unknown script: {script_name}"),
             )
 
         sha = self._script_shas[script_name]

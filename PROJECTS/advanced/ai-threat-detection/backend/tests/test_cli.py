@@ -24,6 +24,7 @@ from typer.testing import CliRunner
 
 from cli.main import app
 
+
 runner = CliRunner()
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -40,8 +41,9 @@ class TestCLICommands:
     """
     Test CLI help output and argument validation
     """
-
-    def test_train_help_shows_csic_dir(self, ) -> None:
+    def test_train_help_shows_csic_dir(
+        self,
+    ) -> None:
         """
         train --help shows csic-dir option
         """
@@ -49,7 +51,9 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert "csic-dir" in _clean(result.output)
 
-    def test_train_help_shows_synthetic_options(self, ) -> None:
+    def test_train_help_shows_synthetic_options(
+        self,
+    ) -> None:
         """
         train --help shows synthetic normal and attack options
         """
@@ -59,7 +63,9 @@ class TestCLICommands:
         assert "synthetic-normal" in output
         assert "synthetic-attack" in output
 
-    def test_train_invalid_csic_dir_fails(self, ) -> None:
+    def test_train_invalid_csic_dir_fails(
+        self,
+    ) -> None:
         """
         train with nonexistent csic-dir exits with error
         """
@@ -126,7 +132,6 @@ class TestCLITrainMetadata:
     """
     Test metadata persistence wiring in the train command
     """
-
     def test_train_warns_when_db_unavailable(self) -> None:
         """
         train exits 0 and emits a warning when DB write fails
@@ -137,9 +142,7 @@ class TestCLITrainMetadata:
         mock_result.mlflow_run_id = None
         mock_result.ae_metrics = {}
 
-        with mock.patch(
-            "ml.orchestrator.TrainingOrchestrator"
-        ) as mock_class:
+        with mock.patch("ml.orchestrator.TrainingOrchestrator") as mock_class:
             mock_class.return_value.run.return_value = mock_result
             result = runner.invoke(
                 app,

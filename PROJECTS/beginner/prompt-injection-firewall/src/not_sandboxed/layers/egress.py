@@ -86,10 +86,7 @@ class EgressLayer:
         if not self.canaries:
             return
 
-        readable = {
-            strip_noise(view).casefold()
-            for view in variants(text)
-        }
+        readable = {strip_noise(view).casefold() for view in variants(text)}
 
         for canary in self.canaries:
             needle = strip_noise(canary).casefold()

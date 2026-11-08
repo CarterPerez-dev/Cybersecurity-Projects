@@ -59,10 +59,8 @@ class AuthExtractor:
         Order: JWT -> API Key (header) -> API Key (query) -> Session -> None
         """
         identifier = (
-            self._extract_jwt_subject(request)
-            or self._extract_api_key_header(request)
-            or self._extract_api_key_query(request)
-            or self._extract_session(request)
+            self._extract_jwt_subject(request) or self._extract_api_key_header(request)
+            or self._extract_api_key_query(request) or self._extract_session(request)
         )
 
         if identifier and self.hash_identifiers:

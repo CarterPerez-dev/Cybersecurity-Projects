@@ -15,12 +15,10 @@ import lightgbm as lgb
 import numpy as np
 from pathlib import Path
 
+
 OUTPUT_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "test"
-    / "fixtures"
-    / "ml"
-    / "regen_sample_v4.txt"
+    Path(__file__).resolve().parent.parent / "test" / "fixtures" / "ml" /
+    "regen_sample_v4.txt"
 )
 NUM_FEATURES = 4
 NUM_SAMPLES = 200
@@ -44,11 +42,13 @@ def make_dataset() -> tuple[np.ndarray, np.ndarray]:
     """
     rng = np.random.default_rng(RANDOM_SEED)
     features = rng.normal(0, 1, (NUM_SAMPLES, NUM_FEATURES))
-    features[:, CAT_FEATURE_COL] = rng.choice(CAT_VALUES, size=NUM_SAMPLES)
+    features[:, CAT_FEATURE_COL] = rng.choice(CAT_VALUES, size = NUM_SAMPLES)
     signal = (
-        WEIGHT_FEAT_0 * features[:, 0]
-        + WEIGHT_FEAT_1 * features[:, 1]
-        + WEIGHT_FEAT_2 * features[:, 2]
+        WEIGHT_FEAT_0 * features[:,
+                                 0] + WEIGHT_FEAT_1 * features[:,
+                                                               1] +
+        WEIGHT_FEAT_2 * features[:,
+                                 2]
     )
     noise = rng.normal(0, NOISE_SCALE, NUM_SAMPLES)
     labels = ((signal + noise) > 0).astype(int)
@@ -61,9 +61,9 @@ def train_model(features: np.ndarray, labels: np.ndarray) -> lgb.Booster:
     """
     dataset = lgb.Dataset(
         features,
-        label=labels,
-        categorical_feature=[CAT_FEATURE_COL],
-        feature_name=[f"feat{i}" for i in range(NUM_FEATURES)],
+        label = labels,
+        categorical_feature = [CAT_FEATURE_COL],
+        feature_name = [f"feat{i}" for i in range(NUM_FEATURES)],
     )
     params = {
         "objective": "binary",
@@ -73,7 +73,7 @@ def train_model(features: np.ndarray, labels: np.ndarray) -> lgb.Booster:
         "min_data_in_leaf": MIN_DATA_IN_LEAF,
         "min_data_per_group": MIN_DATA_PER_GROUP,
     }
-    return lgb.train(params, dataset, num_boost_round=NUM_BOOST_ROUND)
+    return lgb.train(params, dataset, num_boost_round = NUM_BOOST_ROUND)
 
 
 def main() -> None:
@@ -82,7 +82,7 @@ def main() -> None:
     """
     features, labels = make_dataset()
     booster = train_model(features, labels)
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_PATH.parent.mkdir(parents = True, exist_ok = True)
     booster.save_model(str(OUTPUT_PATH))
     print(f"Wrote {OUTPUT_PATH}")
 

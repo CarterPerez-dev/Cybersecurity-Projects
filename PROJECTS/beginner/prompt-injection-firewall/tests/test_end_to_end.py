@@ -65,10 +65,9 @@ class Run:
 
 def _run(policy: Policy) -> Run:
     ctx = (
-        Context().system("You are a support agent.").user(
-            "what is happening with my order"
-        ).data(HOSTILE_TICKET,
-               origin = TICKET)
+        Context().system("You are a support agent.").
+        user("what is happening with my order").data(HOSTILE_TICKET,
+                                                     origin = TICKET)
     )
 
     firewall = Firewall(policy, registry = REGISTRY)
@@ -115,10 +114,7 @@ def test_the_secret_also_leaves_through_the_tool_call() -> None:
     )
 
     result = _run(policy)
-    leaked = [
-        value for call in result.reply.tool_calls
-        for value in call.args.values()
-    ]
+    leaked = [value for call in result.reply.tool_calls for value in call.args.values()]
 
     assert SECRET in leaked
 

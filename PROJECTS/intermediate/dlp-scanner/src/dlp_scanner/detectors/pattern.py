@@ -3,7 +3,6 @@
 pattern.py
 """
 
-
 from dlp_scanner.constants import CHECKSUM_BOOST, KNOWN_TEST_VALUES
 from dlp_scanner.detectors.base import (
     DetectionRule,

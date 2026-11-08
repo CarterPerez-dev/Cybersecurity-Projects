@@ -35,28 +35,31 @@ Connects to:
 
 import re
 
+
 ENCODED_CHARS = re.compile(r"%[0-9a-fA-F]{2}")
 DOUBLE_ENCODED = re.compile(r"%25[0-9a-fA-F]{2}")
 
-_SQLI = (r"(?:union\s+(?:all\s+)?select|"
-         r"'\s*or\s+.+=|"
-         r"'\s*and\s+.+=|"
-         r"1\s*=\s*1|"
-         r"sleep\s*\(|"
-         r"benchmark\s*\(|"
-         r"waitfor\s+delay|"
-         r"extractvalue\s*\(|"
-         r"updatexml\s*\(|"
-         r"load_file\s*\(|"
-         r"into\s+(?:out|dump)file|"
-         r"group\s+by\s+.+having|"
-         r"order\s+by\s+\d+|"
-         r"(?:drop|alter|create)\s+table|"
-         r"information_schema|"
-         r"(?:char|concat|hex|unhex)\s*\(|"
-         r"0x[0-9a-f]{6,}|"
-         r"--\s*$|"
-         r"/\*.*?\*/)")
+_SQLI = (
+    r"(?:union\s+(?:all\s+)?select|"
+    r"'\s*or\s+.+=|"
+    r"'\s*and\s+.+=|"
+    r"1\s*=\s*1|"
+    r"sleep\s*\(|"
+    r"benchmark\s*\(|"
+    r"waitfor\s+delay|"
+    r"extractvalue\s*\(|"
+    r"updatexml\s*\(|"
+    r"load_file\s*\(|"
+    r"into\s+(?:out|dump)file|"
+    r"group\s+by\s+.+having|"
+    r"order\s+by\s+\d+|"
+    r"(?:drop|alter|create)\s+table|"
+    r"information_schema|"
+    r"(?:char|concat|hex|unhex)\s*\(|"
+    r"0x[0-9a-f]{6,}|"
+    r"--\s*$|"
+    r"/\*.*?\*/)"
+)
 
 _XSS = (
     r"(?:<\s*script|"
@@ -73,20 +76,23 @@ _XSS = (
     r"prompt\s*\(|"
     r"confirm\s*\(|"
     r"expression\s*\(|"
-    r"String\s*\.\s*fromCharCode)")
+    r"String\s*\.\s*fromCharCode)"
+)
 
-_PATH_TRAVERSAL = (r"(?:\.\./|"
-                   r"\.\.\\|"
-                   r"%2e%2e[%/\\]|"
-                   r"%252e%252e|"
-                   r"(?:etc/(?:passwd|shadow|hosts)|"
-                   r"proc/self/|"
-                   r"windows/system32|"
-                   r"boot\.ini|"
-                   r"web\.config|"
-                   r"\.env|"
-                   r"\.git/config|"
-                   r"wp-config\.php))")
+_PATH_TRAVERSAL = (
+    r"(?:\.\./|"
+    r"\.\.\\|"
+    r"%2e%2e[%/\\]|"
+    r"%252e%252e|"
+    r"(?:etc/(?:passwd|shadow|hosts)|"
+    r"proc/self/|"
+    r"windows/system32|"
+    r"boot\.ini|"
+    r"web\.config|"
+    r"\.env|"
+    r"\.git/config|"
+    r"wp-config\.php))"
+)
 
 _COMMAND_INJECTION = (
     r"(?:;\s*(?:ls|cat|rm|wget|curl|chmod|chown|nc|bash|sh|python|perl|ruby|php)\b|"
@@ -95,16 +101,19 @@ _COMMAND_INJECTION = (
     r"`[^`]+`|"
     r"\$\{|"
     r">\s*/(?:etc|tmp|var)|"
-    r"&&\s*(?:cat|ls|id|whoami|wget|curl)\b)")
+    r"&&\s*(?:cat|ls|id|whoami|wget|curl)\b)"
+)
 
-_FILE_INCLUSION = (r"(?:php://|"
-                   r"file://|"
-                   r"data://|"
-                   r"expect://|"
-                   r"input://|"
-                   r"zip://|"
-                   r"phar://|"
-                   r"glob://)")
+_FILE_INCLUSION = (
+    r"(?:php://|"
+    r"file://|"
+    r"data://|"
+    r"expect://|"
+    r"input://|"
+    r"zip://|"
+    r"phar://|"
+    r"glob://)"
+)
 
 _XXE_INJECTION = (
     r"(?:<!\s*(?:ENTITY|DOCTYPE)\b|"
@@ -112,7 +121,8 @@ _XXE_INJECTION = (
     r"xmlns\s*:\s*xi\s*=|"
     r"%(?:25)?3[Cc]!(?:ENTITY|DOCTYPE)|"
     r"&(?:xxe|xml|ext|file);|"
-    r"%(?:25)?(?:53|73)%(?:25)?(?:59|79)%(?:25)?(?:53|73)%(?:25)?(?:54|74)%(?:25)?(?:45|65)%(?:25)?(?:4[Dd]))")
+    r"%(?:25)?(?:53|73)%(?:25)?(?:59|79)%(?:25)?(?:53|73)%(?:25)?(?:54|74)%(?:25)?(?:45|65)%(?:25)?(?:4[Dd]))"
+)
 
 _SSRF = (
     r"(?:169\.254\.169\.254|"
@@ -147,10 +157,19 @@ CRLF_INJECTION = re.compile(_CRLF_INJECTION, re.IGNORECASE)
 OPEN_REDIRECT = re.compile(_OPEN_REDIRECT, re.IGNORECASE)
 
 ATTACK_COMBINED = re.compile(
-    r"|".join((
-        _SQLI, _XSS, _PATH_TRAVERSAL, _COMMAND_INJECTION,
-        _FILE_INCLUSION, _XXE_INJECTION, _SSRF, _LOG4SHELL,
-        _CRLF_INJECTION, _OPEN_REDIRECT,
-    )),
+    r"|".join(
+        (
+            _SQLI,
+            _XSS,
+            _PATH_TRAVERSAL,
+            _COMMAND_INJECTION,
+            _FILE_INCLUSION,
+            _XXE_INJECTION,
+            _SSRF,
+            _LOG4SHELL,
+            _CRLF_INJECTION,
+            _OPEN_REDIRECT,
+        )
+    ),
     re.IGNORECASE,
 )

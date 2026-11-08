@@ -52,8 +52,7 @@ def escalate(
 
     return [
         finding.model_copy(update = {"invariant": True})
-        if finding.rule in config.STRICT_DATA_RULES else finding
-        for finding in findings
+        if finding.rule in config.STRICT_DATA_RULES else finding for finding in findings
     ]
 
 

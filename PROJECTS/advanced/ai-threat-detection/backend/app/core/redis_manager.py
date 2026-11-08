@@ -27,7 +27,6 @@ class RedisManager:
     """
     Async Redis connection lifecycle manager.
     """
-
     def __init__(self) -> None:
         self._client: aioredis.Redis[str] | None = None
 
@@ -37,7 +36,7 @@ class RedisManager:
         """
         self._client = aioredis.from_url(
             settings.redis_url,
-            decode_responses=True,
+            decode_responses = True,
         )
 
     async def disconnect(self) -> None:

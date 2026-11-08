@@ -109,15 +109,9 @@ class ConnectionManager:
 
                 if user_id in self.live_query_ids:
                     try:
-                        await surreal_db.kill_live_query(
-                            self.live_query_ids[user_id]
-                        )
+                        await surreal_db.kill_live_query(self.live_query_ids[user_id])
                     except Exception as e:
-                        logger.error(
-                            "Failed to kill live query for %s: %s",
-                            user_id,
-                            e
-                        )
+                        logger.error("Failed to kill live query for %s: %s", user_id, e)
                     del self.live_query_ids[user_id]
 
                 if user_id in self.heartbeat_tasks:
@@ -152,12 +146,7 @@ class ConnectionManager:
         for dead_ws in dead_connections:
             await self.disconnect(dead_ws, user_id)
 
-    async def broadcast_to_room(
-        self,
-        room_id: str,
-        message: dict[str,
-                      Any]
-    ) -> None:
+    async def broadcast_to_room(self, room_id: str, message: dict[str, Any]) -> None:
         """
         Broadcast a message to all members of a room currently connected
         """

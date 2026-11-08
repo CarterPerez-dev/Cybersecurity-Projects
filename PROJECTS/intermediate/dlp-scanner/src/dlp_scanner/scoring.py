@@ -3,7 +3,6 @@
 scoring.py
 """
 
-
 from dlp_scanner.compliance import (
     get_frameworks_for_rule,
     get_remediation_for_rule,
@@ -27,9 +26,7 @@ def match_to_finding(
     severity = score_to_severity(match.score)
     frameworks = get_frameworks_for_rule(match.rule_id)
     if match.compliance_frameworks:
-        combined = (
-            set(frameworks) | set(match.compliance_frameworks)
-        )
+        combined = (set(frameworks) | set(match.compliance_frameworks))
         frameworks = sorted(combined)
     remediation = get_remediation_for_rule(match.rule_id)
 

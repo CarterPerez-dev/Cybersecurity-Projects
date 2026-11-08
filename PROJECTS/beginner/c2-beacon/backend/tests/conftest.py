@@ -30,8 +30,8 @@ def test_settings(tmp_db_path: Path) -> Settings:
     Settings override pointing to a temporary database
     """
     return Settings(
-        DATABASE_PATH=tmp_db_path,
-        XOR_KEY="test-xor-key-12345",
-        ENVIRONMENT="development",
-        DEBUG=True,
+        DATABASE_PATH = tmp_db_path,
+        XOR_KEY = "test-xor-key-12345",
+        ENVIRONMENT = "development",
+        DEBUG = True,
     )

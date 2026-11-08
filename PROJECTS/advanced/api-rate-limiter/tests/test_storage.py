@@ -140,10 +140,7 @@ class TestMemoryStorageSlidingWindow:
     @pytest.mark.asyncio
     async def test_get_window_state_empty(self) -> None:
         storage = MemoryStorage()
-        state = await storage.get_window_state(
-            "nonexistent",
-            WINDOW_MINUTE
-        )
+        state = await storage.get_window_state("nonexistent", WINDOW_MINUTE)
         assert state.current_count == 0
         assert state.previous_count == 0
         await storage.close()
@@ -281,11 +278,7 @@ class TestMemoryStorageTokenBucket:
         storage = MemoryStorage()
         key = "bucket_state_test"
 
-        await storage.consume_token(
-            key,
-            capacity = 100,
-            refill_rate = 1.67
-        )
+        await storage.consume_token(key, capacity = 100, refill_rate = 1.67)
 
         state = await storage.get_token_bucket_state(key)
         assert state is not None

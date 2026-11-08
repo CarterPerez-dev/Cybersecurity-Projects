@@ -7,6 +7,7 @@ import pytest
 
 from rveng.engine import disasm, elf, patch
 
+
 JNE_FILE_OFFSET = 0x1154
 JNE_BYTES = b"\x75\x07"
 NOP_NOP = b"\x90\x90"
@@ -36,15 +37,13 @@ def test_apply_out_of_bounds_raises():
 
 
 def test_gate_byte_is_jne(gate_bytes: bytes):
-    assert gate_bytes[JNE_FILE_OFFSET:JNE_FILE_OFFSET + 2] == JNE_BYTES
+    assert gate_bytes[JNE_FILE_OFFSET : JNE_FILE_OFFSET + 2] == JNE_BYTES
 
 
 def test_verify_flip_the_gate(gate_bytes: bytes):
     known_good = patch.apply(gate_bytes, JNE_FILE_OFFSET, NOP_NOP)
-    assert patch.verify_patch(
-        gate_bytes, JNE_FILE_OFFSET, NOP_NOP, known_good)
-    assert not patch.verify_patch(
-        gate_bytes, JNE_FILE_OFFSET, b"\x75\x07", known_good)
+    assert patch.verify_patch(gate_bytes, JNE_FILE_OFFSET, NOP_NOP, known_good)
+    assert not patch.verify_patch(gate_bytes, JNE_FILE_OFFSET, b"\x75\x07", known_good)
 
 
 def test_patched_gate_removes_conditional_branch(gate_bytes: bytes):

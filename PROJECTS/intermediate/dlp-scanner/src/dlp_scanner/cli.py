@@ -3,7 +3,6 @@
 cli.py
 """
 
-
 from typing import Annotated
 
 import typer

@@ -169,13 +169,11 @@ class Firewall:
         try:
             findings: list[Finding] = []
             for call in reply.tool_calls:
-                findings.extend(
-                    self.toolauth.inspect_call(
-                        call,
-                        ctx,
-                        self.policy,
-                    )
-                )
+                findings.extend(self.toolauth.inspect_call(
+                    call,
+                    ctx,
+                    self.policy,
+                ))
         except Exception as error:
             return [self._layer_error(config.LAYER_TOOLAUTH, error)]
         else:

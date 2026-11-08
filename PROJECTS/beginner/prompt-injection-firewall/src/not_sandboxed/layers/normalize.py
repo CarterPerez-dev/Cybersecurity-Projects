@@ -41,8 +41,6 @@ class NormalizeLayer:
                     *unicode_result.findings,
                     *unwrap_result.findings,
             ):
-                findings.append(
-                    finding.model_copy(update = {"span_index": index})
-                )
+                findings.append(finding.model_copy(update = {"span_index": index}))
 
         return findings

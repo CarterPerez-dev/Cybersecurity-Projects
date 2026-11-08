@@ -3,7 +3,6 @@
 log.py
 """
 
-
 import logging
 import sys
 from typing import Any
@@ -41,9 +40,7 @@ def configure_logging(
 
     if json_output:
         renderer: structlog.types.Processor = (
-            structlog.processors.JSONRenderer(
-                serializer = _orjson_serializer
-            )
+            structlog.processors.JSONRenderer(serializer = _orjson_serializer)
         )
     else:
         renderer = structlog.dev.ConsoleRenderer(colors = True)

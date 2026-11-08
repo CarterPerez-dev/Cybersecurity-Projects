@@ -28,10 +28,11 @@ from .renderer import (
     create_renderer,
 )
 
+
 app = typer.Typer(
-    name="ebpf-tracer",
-    help="Real-time syscall tracing with eBPF",
-    add_completion=False,
+    name = "ebpf-tracer",
+    help = "Real-time syscall tracing with eBPF",
+    add_completion = False,
 )
 
 console = Console()
@@ -54,54 +55,54 @@ def trace(
         "live",
         "--format",
         "-f",
-        help="Output format",
+        help = "Output format",
     ),
     severity: Severity = typer.Option(
         "LOW",
         "--severity",
         "-s",
-        help="Minimum severity level",
+        help = "Minimum severity level",
     ),
     pid: int | None = typer.Option(
         None,
         "--pid",
         "-p",
-        help="Filter by PID",
+        help = "Filter by PID",
     ),
     comm: str | None = typer.Option(
         None,
         "--comm",
         "-c",
-        help="Filter by process name",
+        help = "Filter by process name",
     ),
     tracer_type: TracerType = typer.Option(
         "all",
         "--type",
         "-t",
-        help="Event category filter",
+        help = "Event category filter",
     ),
     no_enrich: bool = typer.Option(
         False,
         "--no-enrich",
-        help="Disable /proc enrichment",
+        help = "Disable /proc enrichment",
     ),
     output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
-        help="Also write events to file",
+        help = "Also write events to file",
     ),
     detections_only: bool = typer.Option(
         False,
         "--detections",
-        help="Show only detection alerts",
+        help = "Show only detection alerts",
     ),
     version: bool = typer.Option(
         False,
         "--version",
-        callback=_version_callback,
-        is_eager=True,
-        help="Show version",
+        callback = _version_callback,
+        is_eager = True,
+        help = "Show version",
     ),
 ) -> None:
     """
@@ -142,9 +143,11 @@ def trace(
 
     console.print("[bold green]eBPF Security Tracer[/] "
                   f"v{VERSION}")
-    console.print(f"Format: {format} | "
-                  f"Min severity: {severity} | "
-                  f"Type: {tracer_type}")
+    console.print(
+        f"Format: {format} | "
+        f"Min severity: {severity} | "
+        f"Type: {tracer_type}"
+    )
     console.print("Press Ctrl+C to stop\n")
 
     loader = TracerLoader(tracer_type, on_event)

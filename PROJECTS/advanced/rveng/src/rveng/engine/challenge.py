@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from rveng.engine import patch
 
+
 Category = str
 FOUND_VALUE: Category = "found_value"
 IDENTIFIED_SYMBOL: Category = "identified_symbol"
@@ -19,7 +20,7 @@ class AnswerError(ValueError):
     """
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class FoundValue:
     """
     The learner must locate a numeric value or a string
@@ -28,7 +29,7 @@ class FoundValue:
     expected: int | str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class IdentifiedSymbol:
     """
     The learner must name a function, section, or symbol
@@ -37,7 +38,7 @@ class IdentifiedSymbol:
     name: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class PatchedBytes:
     """
     The learner must edit bytes to match a known-good patched target
@@ -50,7 +51,7 @@ class PatchedBytes:
 AnswerSpec = FoundValue | IdentifiedSymbol | PatchedBytes
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Challenge:
     """
     A curated challenge: a binary, a mission, an answer, and hidden source
@@ -77,7 +78,7 @@ class Challenge:
                 raise AnswerError("unknown answer spec")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class GradeResult:
     """
     The outcome of grading, revealing source only when correct
@@ -111,17 +112,12 @@ def _grade_found_value(spec: FoundValue, submitted: str) -> bool:
     return submitted.strip().lower() == spec.expected.strip().lower()
 
 
-def _grade_identified_symbol(
-        spec: IdentifiedSymbol, submitted: str) -> bool:
+def _grade_identified_symbol(spec: IdentifiedSymbol, submitted: str) -> bool:
     return submitted.strip().lower() == spec.name.strip().lower()
 
 
-def _grade_patched_bytes(
-        spec: PatchedBytes,
-        original: bytes,
-        submitted: bytes) -> bool:
-    return patch.verify_patch(
-        original, spec.offset, submitted, spec.known_good)
+def _grade_patched_bytes(spec: PatchedBytes, original: bytes, submitted: bytes) -> bool:
+    return patch.verify_patch(original, spec.offset, submitted, spec.known_good)
 
 
 def grade(challenge: Challenge, submission: str | bytes) -> GradeResult:
@@ -139,8 +135,7 @@ def grade(challenge: Challenge, submission: str | bytes) -> GradeResult:
                 submitted = _as_bytes(submission)
             except AnswerError:
                 return GradeResult(False, "invalid patch bytes", None)
-            correct = _grade_patched_bytes(
-                spec, challenge.binary, submitted)
+            correct = _grade_patched_bytes(spec, challenge.binary, submitted)
         case _:
             raise AnswerError("unknown answer spec")
     if correct:

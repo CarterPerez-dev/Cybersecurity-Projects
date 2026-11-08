@@ -31,8 +31,8 @@ ruff-fix:
     cd backend && uv run ruff check app/ cli/ ml/ tests/ --fix
 
 [group('lint')]
-yapf *ARGS:
-    cd backend && uv run yapf -rip app/ cli/ ml/ tests/ {{ARGS}}
+yang *ARGS:
+    cd backend && uv run yang -rip app/ cli/ ml/ tests/ {{ARGS}}
 
 [group('lint')]
 pylint *ARGS:

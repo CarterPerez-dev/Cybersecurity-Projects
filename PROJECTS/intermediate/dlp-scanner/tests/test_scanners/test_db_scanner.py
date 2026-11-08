@@ -3,7 +3,6 @@
 test_db_scanner.py
 """
 
-
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -67,11 +66,9 @@ def sqlite_db_empty(temp_dir: Path) -> str:
     """
     db_path = temp_dir / "empty.db"
     conn = sqlite3.connect(str(db_path))
-    conn.execute(
-        "CREATE TABLE logs ("
-        "id INTEGER PRIMARY KEY, "
-        "message TEXT)"
-    )
+    conn.execute("CREATE TABLE logs ("
+                 "id INTEGER PRIMARY KEY, "
+                 "message TEXT)")
     conn.commit()
     conn.close()
     return f"sqlite:///{db_path}"
@@ -103,9 +100,7 @@ class TestDatabaseScanner:
         sqlite_db_with_pii: str,
     ) -> None:
         result = db_scanner.scan(sqlite_db_with_pii)
-        ssn_findings = [
-            f for f in result.findings if f.rule_id == "PII_SSN"
-        ]
+        ssn_findings = [f for f in result.findings if f.rule_id == "PII_SSN"]
         assert len(ssn_findings) > 0
 
     def test_sqlite_scan_empty_table(

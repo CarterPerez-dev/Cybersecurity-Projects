@@ -20,11 +20,7 @@ class SignedPrekey(BaseDBModel, table = True):
     __tablename__ = "signed_prekeys"
 
     id: int = Field(default = None, primary_key = True)
-    user_id: UUID = Field(
-        foreign_key = "users.id",
-        nullable = False,
-        index = True
-    )
+    user_id: UUID = Field(foreign_key = "users.id", nullable = False, index = True)
 
     key_id: int = Field(nullable = False, index = True)
 

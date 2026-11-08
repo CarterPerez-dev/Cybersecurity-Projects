@@ -41,9 +41,10 @@ from app.config import settings
 from app.models.model_metadata import ModelMetadata
 from app.models.threat_event import ThreatEvent
 
+
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/models", tags=["models"])
+router = APIRouter(prefix = "/models", tags = ["models"])
 
 SCORE_ATTACK_THRESHOLD = 0.5
 SCORE_NORMAL_CEILING = 0.3
@@ -76,19 +77,23 @@ async def model_status(request: Request) -> dict[str, object]:
     }
 
 
-@router.post("/retrain", status_code=202, response_model=None)
+@router.post("/retrain", status_code = 202, response_model = None)
 async def retrain(
     request: Request,
     background_tasks: BackgroundTasks,
-) -> dict[str, object] | Response:
+) -> dict[str,
+          object] | Response:
     """
     Dispatch a model retraining job using real stored
     threat events supplemented with synthetic data
     """
     if _retrain_lock.locked():
         return JSONResponse(
-            status_code=409,
-            content={"status": "conflict", "job_id": ""},
+            status_code = 409,
+            content = {
+                "status": "conflict",
+                "job_id": ""
+            },
         )
 
     session_factory = getattr(request.app.state, "session_factory", None)
@@ -124,9 +129,9 @@ async def _retrain_from_db(
         logger.info("Retrain job %s: loading stored events", job_id)
 
         async with session_factory() as session:
-            count = (await session.execute(
-                select(func.count()).select_from(ThreatEvent)
-            )).scalar_one()
+            count = (
+                await session.execute(select(func.count()).select_from(ThreatEvent))
+            ).scalar_one()
 
             if count == 0:
                 logger.warning(
@@ -137,9 +142,7 @@ async def _retrain_from_db(
                 _fallback_synthetic(job_id)
                 return
 
-            rows = (await session.execute(
-                select(ThreatEvent)
-            )).scalars().all()
+            rows = (await session.execute(select(ThreatEvent))).scalars().all()
 
         vectors: list[list[float]] = []
         labels: list[int] = []
@@ -149,10 +152,7 @@ async def _retrain_from_db(
                 continue
 
             if event.reviewed and event.review_label:
-                label = (
-                    1 if event.review_label == "true_positive"
-                    else 0
-                )
+                label = (1 if event.review_label == "true_positive" else 0)
             elif event.threat_score >= SCORE_ATTACK_THRESHOLD:
                 label = 1
             elif event.threat_score < SCORE_NORMAL_CEILING:
@@ -179,14 +179,20 @@ async def _retrain_from_db(
                 SYNTHETIC_SUPPLEMENT_NORMAL,
                 SYNTHETIC_SUPPLEMENT_ATTACK,
             )
-            X = np.concatenate([
-                np.array(vectors, dtype=np.float32),
-                syn_X,
-            ]) if vectors else syn_X
-            y = np.concatenate([
-                np.array(labels, dtype=np.int32),
-                syn_y,
-            ]) if labels else syn_y
+            X = np.concatenate(
+                [
+                    np.array(vectors,
+                             dtype = np.float32),
+                    syn_X,
+                ]
+            ) if vectors else syn_X
+            y = np.concatenate(
+                [
+                    np.array(labels,
+                             dtype = np.int32),
+                    syn_y,
+                ]
+            ) if labels else syn_y
             logger.info(
                 "Retrain job %s: supplemented with "
                 "%d synthetic samples",
@@ -194,16 +200,15 @@ async def _retrain_from_db(
                 len(syn_X),
             )
         else:
-            X = np.array(vectors, dtype=np.float32)
-            y = np.array(labels, dtype=np.int32)
+            X = np.array(vectors, dtype = np.float32)
+            y = np.array(labels, dtype = np.int32)
 
         output_dir = Path(settings.model_dir)
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
             lambda: TrainingOrchestrator(
-                output_dir=output_dir,
-            ).run(X, y),
+                output_dir = output_dir,).run(X, y),
         )
 
         logger.info(
@@ -215,10 +220,11 @@ async def _retrain_from_db(
         try:
             from cli.main import _write_metadata
 
-            metrics: dict[str, object] = (
-                dataclasses.asdict(result.ensemble_metrics)
-                if result.ensemble_metrics else {}
-            )
+            metrics: dict[str,
+                          object] = (
+                              dataclasses.asdict(result.ensemble_metrics)
+                              if result.ensemble_metrics else {}
+                          )
             await _write_metadata(
                 output_dir,
                 len(X),
@@ -272,13 +278,14 @@ def _fallback_synthetic(job_id: str) -> None:
             "--synthetic-attack",
             "500",
         ],
-        start_new_session=True,
+        start_new_session = True,
     )
 
 
 async def _get_active_models(
     session: AsyncSession,
-) -> list[dict[str, object]]:
+) -> list[dict[str,
+               object]]:
     """
     Query all active model metadata records
     """
@@ -286,10 +293,12 @@ async def _get_active_models(
         ModelMetadata.is_active == True  # type: ignore[arg-type]  # noqa: E712
     )
     rows = (await session.execute(query)).scalars().all()
-    return [{
-        "model_type": row.model_type,
-        "version": row.version,
-        "training_samples": row.training_samples,
-        "metrics": row.metrics,
-        "threshold": row.threshold,
-    } for row in rows]
+    return [
+        {
+            "model_type": row.model_type,
+            "version": row.version,
+            "training_samples": row.training_samples,
+            "metrics": row.metrics,
+            "threshold": row.threshold,
+        } for row in rows
+    ]

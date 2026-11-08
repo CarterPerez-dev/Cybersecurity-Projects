@@ -101,6 +101,14 @@ typecheck:
 lint:
     cd frontend && pnpm biome check .
 
+[group('verify')]
+format:
+    uv run yang --recursive --in-place --parallel src tests
+
+[group('verify')]
+format-check:
+    uv run yang --recursive --diff --parallel src tests
+
 # =============================================================================
 # Cleanup
 # =============================================================================

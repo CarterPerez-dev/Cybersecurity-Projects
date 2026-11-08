@@ -30,9 +30,7 @@ class Finding:
     """
     A fully scored and classified detection result
     """
-    finding_id: str = field(
-        default_factory = lambda: uuid.uuid4().hex[: 12]
-    )
+    finding_id: str = field(default_factory = lambda: uuid.uuid4().hex[: 12])
     rule_id: str = ""
     rule_name: str = ""
     severity: Severity = "low"
@@ -45,9 +43,7 @@ class Finding:
     redacted_snippet: str = ""
     compliance_frameworks: list[str] = field(default_factory = list)
     remediation: str = ""
-    detected_at: datetime = field(
-        default_factory = lambda: datetime.now(UTC)
-    )
+    detected_at: datetime = field(default_factory = lambda: datetime.now(UTC))
 
 
 @dataclass(slots = True)
@@ -57,9 +53,7 @@ class ScanResult:
     """
     scan_id: str = field(default_factory = lambda: uuid.uuid4().hex[: 16])
     tool_version: str = "0.1.0"
-    scan_started_at: datetime = field(
-        default_factory = lambda: datetime.now(UTC)
-    )
+    scan_started_at: datetime = field(default_factory = lambda: datetime.now(UTC))
     scan_completed_at: datetime | None = None
     targets_scanned: int = 0
     findings: list[Finding] = field(default_factory = list)

@@ -67,6 +67,7 @@ ignore = [
     "ARG001",   # unused function argument (common in FastAPI deps)
     "N818",     # exception naming convention
     "RUF005",   # list concatenation style
+    "I001",
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -27,6 +27,7 @@ from sqlalchemy import text
 
 from app.core.redis_manager import redis_manager
 
+
 router = APIRouter()
 
 
@@ -39,7 +40,8 @@ async def health(request: Request) -> dict[str, object]:
     pipeline = getattr(request.app.state, "pipeline", None)
     return {
         "status": "healthy",
-        "uptime_seconds": round(uptime, 2),
+        "uptime_seconds": round(uptime,
+                                2),
         "pipeline_running": request.app.state.pipeline_running,
         "pipeline_stats": pipeline.stats if pipeline else {},
     }
@@ -56,7 +58,9 @@ async def ready(request: Request, response: Response) -> dict[str, object]:
     checks = {
         "database": "ok" if database_ok else "error",
         "redis": "ok" if redis_ok else "error",
-        "models_loaded": getattr(request.app.state, "models_loaded", False),
+        "models_loaded": getattr(request.app.state,
+                                 "models_loaded",
+                                 False),
     }
 
     all_ok = database_ok and redis_ok

@@ -10,6 +10,7 @@ import pytest
 from rveng.engine import challenge as ch
 from rveng.engine import disasm, elf, patch
 
+
 JNE_FILE_OFFSET = 0x1154
 NOP_NOP = b"\x90\x90"
 E_SHOFF = 0x28
@@ -43,16 +44,22 @@ def test_huge_shnum_raises_notanelf(gate_bytes: bytes):
 
 def test_truncated_file_raises_notanelf(gate_bytes: bytes):
     with pytest.raises(elf.NotAnElf):
-        elf.ElfImage(gate_bytes[:0x1000])
+        elf.ElfImage(gate_bytes[: 0x1000])
 
 
 @pytest.mark.parametrize("bad_hex", ["zz", "909", "0xff", "not hex"])
-def test_bad_hex_patch_submission_does_not_crash(
-        gate_bytes: bytes, bad_hex: str):
+def test_bad_hex_patch_submission_does_not_crash(gate_bytes: bytes, bad_hex: str):
     known_good = patch.apply(gate_bytes, JNE_FILE_OFFSET, NOP_NOP)
     c = ch.Challenge(
-        id="t", module="m", title="t", mission="m", binary=gate_bytes,
-        source="src", answer=ch.PatchedBytes(JNE_FILE_OFFSET, known_good))
+        id = "t",
+        module = "m",
+        title = "t",
+        mission = "m",
+        binary = gate_bytes,
+        source = "src",
+        answer = ch.PatchedBytes(JNE_FILE_OFFSET,
+                                 known_good)
+    )
     result = ch.grade(c, bad_hex)
     assert result.correct is False
     assert result.revealed_source is None
@@ -61,8 +68,13 @@ def test_bad_hex_patch_submission_does_not_crash(
 def test_disassemble_symbol_rejects_undefined_symbol(gate_bytes: bytes):
     image = elf.ElfImage(gate_bytes)
     undefined = elf.Symbol(
-        name="imported", value=0x401146, size=30,
-        type=elf.STT_FUNC, bind=elf.STB_GLOBAL, shndx=0)
+        name = "imported",
+        value = 0x401146,
+        size = 30,
+        type = elf.STT_FUNC,
+        bind = elf.STB_GLOBAL,
+        shndx = 0
+    )
     with pytest.raises(ValueError):
         disasm.disassemble_symbol(image, undefined)
 
@@ -70,16 +82,27 @@ def test_disassemble_symbol_rejects_undefined_symbol(gate_bytes: bytes):
 def test_disassemble_symbol_rejects_out_of_range_shndx(gate_bytes: bytes):
     image = elf.ElfImage(gate_bytes)
     weird = elf.Symbol(
-        name="weird", value=0x401146, size=30,
-        type=elf.STT_FUNC, bind=elf.STB_GLOBAL, shndx=0xFFF1)
+        name = "weird",
+        value = 0x401146,
+        size = 30,
+        type = elf.STT_FUNC,
+        bind = elf.STB_GLOBAL,
+        shndx = 0xFFF1
+    )
     with pytest.raises(ValueError):
         disasm.disassemble_symbol(image, weird)
 
 
 def test_interior_space_is_not_concatenated_into_a_match():
     c = ch.Challenge(
-        id="t", module="m", title="t", mission="m", binary=b"",
-        source="src", answer=ch.FoundValue(1337))
+        id = "t",
+        module = "m",
+        title = "t",
+        mission = "m",
+        binary = b"",
+        source = "src",
+        answer = ch.FoundValue(1337)
+    )
     assert ch.grade(c, "13 37").correct is False
     assert ch.grade(c, "1337").correct is True
 

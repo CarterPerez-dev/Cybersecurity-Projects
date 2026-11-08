@@ -34,7 +34,9 @@ def overview() -> dict[str, Any]:
         {
             "$group": {
                 "_id": "$status",
-                "count": {"$sum": 1},
+                "count": {
+                    "$sum": 1
+                },
             }
         },
     ]
@@ -44,13 +46,20 @@ def overview() -> dict[str, Any]:
     }
 
     return {
-        "total_events": LogEvent.objects.count(),
-        "total_alerts": Alert.objects.count(),
-        "open_alerts": alerts_by_status.get(AlertStatus.NEW, 0)
-        + alerts_by_status.get(AlertStatus.ACKNOWLEDGED, 0)
-        + alerts_by_status.get(AlertStatus.INVESTIGATING, 0),
-        "alerts_by_status": alerts_by_status,
-        "severity_breakdown": LogEvent.severity_breakdown(),
+        "total_events":
+        LogEvent.objects.count(),
+        "total_alerts":
+        Alert.objects.count(),
+        "open_alerts":
+        alerts_by_status.get(AlertStatus.NEW,
+                             0) + alerts_by_status.get(AlertStatus.ACKNOWLEDGED,
+                                                       0) +
+        alerts_by_status.get(AlertStatus.INVESTIGATING,
+                             0),
+        "alerts_by_status":
+        alerts_by_status,
+        "severity_breakdown":
+        LogEvent.severity_breakdown(),
     }
 
 
@@ -60,8 +69,8 @@ def timeline() -> list[dict[str, Any]]:
     """
     params = g.validated
     return LogEvent.timeline_aggregation(
-        hours=params.hours,
-        bucket_minutes=params.bucket_minutes,
+        hours = params.hours,
+        bucket_minutes = params.bucket_minutes,
     )
 
 
@@ -77,4 +86,4 @@ def top_sources() -> list[dict[str, Any]]:
     Return the most frequent source IPs
     """
     params = g.validated
-    return LogEvent.top_sources(limit=params.limit)
+    return LogEvent.top_sources(limit = params.limit)

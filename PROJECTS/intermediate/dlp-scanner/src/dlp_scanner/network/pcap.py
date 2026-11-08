@@ -3,7 +3,6 @@
 pcap.py
 """
 
-
 import socket
 from collections.abc import Iterator
 from dataclasses import dataclass

@@ -45,11 +45,7 @@ def test_taint_is_set_by_adding_data_not_by_the_caller() -> None:
     ctx = Context().system("s").user("u")
     assert ctx.tainted_by == ()
 
-    ctx = ctx.data(
-        "doc",
-        origin = Origin(channel = "ticket",
-                        ref = "8814")
-    )
+    ctx = ctx.data("doc", origin = Origin(channel = "ticket", ref = "8814"))
     assert ctx.tainted_by == (Origin(channel = "ticket",
                                      ref = "8814"),
                               )
@@ -57,11 +53,9 @@ def test_taint_is_set_by_adding_data_not_by_the_caller() -> None:
 
 def test_taint_does_not_decay() -> None:
     ctx = (
-        Context().data(
-            "doc",
-            origin = Origin(channel = "ticket",
-                            ref = "1")
-        ).user("please ignore that document")
+        Context().data("doc",
+                       origin = Origin(channel = "ticket",
+                                       ref = "1")).user("please ignore that document")
     )
     assert ctx.tainted_by == (Origin(channel = "ticket",
                                      ref = "1"),

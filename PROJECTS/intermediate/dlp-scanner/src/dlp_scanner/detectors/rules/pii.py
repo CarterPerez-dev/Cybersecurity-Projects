@@ -3,7 +3,6 @@
 pii.py
 """
 
-
 import re
 
 from dlp_scanner.detectors.base import DetectionRule
@@ -17,9 +16,7 @@ SSN_PATTERN = re.compile(
     r"(?!0000)\d{4}\b"
 )
 
-EMAIL_PATTERN = re.compile(
-    r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b"
-)
+EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b")
 
 PHONE_US_PATTERN = re.compile(
     r"\b(?:\+?1[-.\s]?)?"

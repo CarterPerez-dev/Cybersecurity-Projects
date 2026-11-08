@@ -35,6 +35,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+
 console = Console()
 
 
@@ -84,28 +85,17 @@ def lookup_whois(domain: str) -> WhoisResult:
     try:
         w = whois.whois(domain)
 
-        if w is None or (hasattr(w,
-                                 "domain_name")
-                         and w.domain_name is None):
+        if w is None or (hasattr(w, "domain_name") and w.domain_name is None):
             result.error = "Domain not found or WHOIS data unavailable"
             return result
 
-        result.registrar = w.registrar if hasattr(
-            w,
-            "registrar"
-        ) else None
-        result.creation_date = w.creation_date if hasattr(
-            w,
-            "creation_date"
-        ) else None
+        result.registrar = w.registrar if hasattr(w, "registrar") else None
+        result.creation_date = w.creation_date if hasattr(w, "creation_date") else None
         result.expiration_date = w.expiration_date if hasattr(
             w,
             "expiration_date"
         ) else None
-        result.updated_date = w.updated_date if hasattr(
-            w,
-            "updated_date"
-        ) else None
+        result.updated_date = w.updated_date if hasattr(w, "updated_date") else None
 
         if hasattr(w, "status"):
             status = w.status
@@ -193,10 +183,7 @@ def print_whois_result(result: WhoisResult) -> None:
             table.add_row(label, ns)
 
         if len(result.name_servers) > 4:
-            table.add_row(
-                "",
-                f"[dim]... and {len(result.name_servers) - 4} more[/dim]"
-            )
+            table.add_row("", f"[dim]... and {len(result.name_servers) - 4} more[/dim]")
 
     if result.dnssec:
         table.add_row("DNSSEC", result.dnssec)
@@ -222,14 +209,9 @@ def whois_to_json(result: WhoisResult) -> str:
                Any] = {
                    "domain": result.domain,
                    "registrar": result.registrar,
-                   "creation_date":
-                   serialize_date(result.creation_date),
-                   "expiration_date": serialize_date(
-                       result.expiration_date
-                   ),
-                   "updated_date": serialize_date(
-                       result.updated_date
-                   ),
+                   "creation_date": serialize_date(result.creation_date),
+                   "expiration_date": serialize_date(result.expiration_date),
+                   "updated_date": serialize_date(result.updated_date),
                    "status": result.status,
                    "name_servers": result.name_servers,
                    "registrant": result.registrant,

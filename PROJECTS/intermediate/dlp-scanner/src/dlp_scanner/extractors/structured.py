@@ -3,7 +3,6 @@
 structured.py
 """
 
-
 import csv
 import json
 from typing import Any

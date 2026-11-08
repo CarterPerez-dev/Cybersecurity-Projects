@@ -41,8 +41,7 @@ def list_users() -> dict[str, Any]:
             email = u.email,
             role = u.role,
             is_active = u.is_active,
-        ).model_dump()
-        for u in result["items"]
+        ).model_dump() for u in result["items"]
     ]
     return result
 
@@ -69,7 +68,8 @@ def update_role(user_id: str) -> dict[str, Any]:
     target = User.get_by_id(user_id)
     data = g.validated
 
-    if str(target.id) == str(caller.id) and data.role != UserRole.ADMIN and User.count_admins() <= 1:
+    if str(target.id) == str(
+            caller.id) and data.role != UserRole.ADMIN and User.count_admins() <= 1:
         raise ForbiddenError("Cannot demote the last admin")
 
     target.set_role(data.role)

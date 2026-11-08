@@ -101,9 +101,8 @@ class PresenceService:
                                       str(user_id)),
                 "status": result.get("status",
                                      PresenceStatus.OFFLINE.value),
-                "last_seen":
-                result.get("last_seen",
-                           datetime.now(UTC).isoformat())
+                "last_seen": result.get("last_seen",
+                                        datetime.now(UTC).isoformat())
             }
         except Exception as e:
             logger.error("Failed to get presence for user %s: %s", user_id, e)
@@ -147,11 +146,7 @@ class PresenceService:
                     last_seen = datetime.now(UTC).isoformat()
                 )
             except Exception as e:
-                logger.error(
-                    "Failed to bulk update presence for %s: %s",
-                    user_id,
-                    e
-                )
+                logger.error("Failed to bulk update presence for %s: %s", user_id, e)
                 continue
 
         logger.info(

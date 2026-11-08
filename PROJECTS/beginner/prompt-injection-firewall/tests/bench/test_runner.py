@@ -93,9 +93,7 @@ def test_every_layer_is_load_bearing(
 ) -> None:
     inert = [layer for layer, result in ablation.items() if result.inert]
 
-    assert inert == [], (
-        f"inert layers must be deleted, not tolerated: {inert}"
-    )
+    assert inert == [], (f"inert layers must be deleted, not tolerated: {inert}")
 
 
 def test_ablation_covers_every_layer(
@@ -109,9 +107,7 @@ def test_alibied_layers_are_reported_not_hidden(
     ablation: dict[str,
                    Ablation],
 ) -> None:
-    alibied = [
-        layer for layer, result in ablation.items() if result.alibied
-    ]
+    alibied = [layer for layer, result in ablation.items() if result.alibied]
 
     for layer in alibied:
         assert ablation[layer].solo > 0

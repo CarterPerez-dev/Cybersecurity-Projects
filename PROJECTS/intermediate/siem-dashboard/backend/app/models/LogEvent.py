@@ -125,7 +125,8 @@ class LogEvent(BaseDocument):
         query: str,
         page: int = 1,
         per_page: int = settings.DEFAULT_PAGE_SIZE
-    ) -> dict[str, Any]:
+    ) -> dict[str,
+              Any]:
         """
         Full text search across key fields
         """
@@ -193,11 +194,12 @@ class LogEvent(BaseDocument):
         cls,
         hours: int = settings.TIMELINE_DEFAULT_HOURS,
         bucket_minutes: int = settings.TIMELINE_BUCKET_MINUTES,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str,
+                   Any]]:
         """
         Aggregate event counts into time buckets for charting
         """
-        cutoff = datetime.now(UTC) - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours = hours)
         pipeline = [
             {
                 "$match": {
@@ -260,7 +262,9 @@ class LogEvent(BaseDocument):
         return list(cls.objects.aggregate(pipeline))  # type: ignore[no-untyped-call]
 
     @classmethod
-    def top_sources(cls, limit: int = settings.TOP_SOURCES_LIMIT) -> list[dict[str, Any]]:
+    def top_sources(cls,
+                    limit: int = settings.TOP_SOURCES_LIMIT) -> list[dict[str,
+                                                                          Any]]:
         """
         Return the most frequent source IPs
         """

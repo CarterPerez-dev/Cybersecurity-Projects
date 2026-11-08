@@ -125,9 +125,7 @@ class PasskeyManager:
             attestation_format = verified_registration.fmt,
             credential_device_type = verified_registration.credential_device_type,
             credential_backed_up = verified_registration.credential_backed_up,
-            backup_eligible = (
-                verified_registration.credential_backup_eligible
-            ),
+            backup_eligible = (verified_registration.credential_backup_eligible),
             backup_state = verified_registration.credential_backed_up,
         )
 

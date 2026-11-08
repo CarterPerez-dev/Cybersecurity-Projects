@@ -24,6 +24,7 @@ from collections.abc import Callable
 
 from app.models.LogEvent import SourceType
 
+
 NormalizerFn = Callable[[dict[str, Any]], dict[str, Any]]
 
 NORMALIZERS: dict[str, NormalizerFn] = {}

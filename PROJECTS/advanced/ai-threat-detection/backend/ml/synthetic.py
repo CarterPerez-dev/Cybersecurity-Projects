@@ -39,6 +39,7 @@ from app.core.features.extractor import extract_request_features
 from app.core.features.mappings import WINDOWED_FEATURE_NAMES
 from app.core.ingestion.parsers import ParsedLogEntry
 
+
 logger = logging.getLogger(__name__)
 
 SQLI_PAYLOADS: list[str] = [
@@ -228,7 +229,7 @@ def _random_timestamp() -> datetime:
     Generate a random timestamp within the last 24 hours
     """
     offset = random.randint(0, 86400)
-    return datetime.now(UTC) - timedelta(seconds=offset)
+    return datetime.now(UTC) - timedelta(seconds = offset)
 
 
 def _make_entry(
@@ -244,20 +245,22 @@ def _make_entry(
     Build a ParsedLogEntry with randomized metadata
     """
     return ParsedLogEntry(
-        ip=ip or _random_ip(),
-        timestamp=_random_timestamp(),
-        method=method,
-        path=path,
-        query_string=query_string,
-        status_code=status_code,
-        response_size=response_size,
-        referer="",
-        user_agent=user_agent,
-        raw_line="",
+        ip = ip or _random_ip(),
+        timestamp = _random_timestamp(),
+        method = method,
+        path = path,
+        query_string = query_string,
+        status_code = status_code,
+        response_size = response_size,
+        referer = "",
+        user_agent = user_agent,
+        raw_line = "",
     )
 
 
-def generate_sqli_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_sqli_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests with SQL injection payloads
     """
@@ -268,27 +271,35 @@ def generate_sqli_requests(n: int, ) -> list[ParsedLogEntry]:
         if random.random() < 0.5:
             entries.append(
                 _make_entry(
-                    method="GET",
-                    path=path,
-                    query_string=f"id={payload}",
-                    status_code=random.choice([200, 500]),
-                    response_size=random.randint(0, 5000),
-                    user_agent=random.choice(NORMAL_UAS),
-                ))
+                    method = "GET",
+                    path = path,
+                    query_string = f"id={payload}",
+                    status_code = random.choice([200,
+                                                 500]),
+                    response_size = random.randint(0,
+                                                   5000),
+                    user_agent = random.choice(NORMAL_UAS),
+                )
+            )
         else:
             entries.append(
                 _make_entry(
-                    method="POST",
-                    path=path,
-                    query_string=f"username={payload}&password=x",
-                    status_code=random.choice([200, 403]),
-                    response_size=random.randint(0, 2000),
-                    user_agent=random.choice(NORMAL_UAS),
-                ))
+                    method = "POST",
+                    path = path,
+                    query_string = f"username={payload}&password=x",
+                    status_code = random.choice([200,
+                                                 403]),
+                    response_size = random.randint(0,
+                                                   2000),
+                    user_agent = random.choice(NORMAL_UAS),
+                )
+            )
     return entries
 
 
-def generate_xss_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_xss_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests with XSS payloads
     """
@@ -298,17 +309,21 @@ def generate_xss_requests(n: int, ) -> list[ParsedLogEntry]:
         path = random.choice(ATTACK_PATHS)
         entries.append(
             _make_entry(
-                method="GET",
-                path=path,
-                query_string=f"q={payload}",
-                status_code=200,
-                response_size=random.randint(500, 5000),
-                user_agent=random.choice(NORMAL_UAS),
-            ))
+                method = "GET",
+                path = path,
+                query_string = f"q={payload}",
+                status_code = 200,
+                response_size = random.randint(500,
+                                               5000),
+                user_agent = random.choice(NORMAL_UAS),
+            )
+        )
     return entries
 
 
-def generate_traversal_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_traversal_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests with path traversal payloads
     """
@@ -317,17 +332,23 @@ def generate_traversal_requests(n: int, ) -> list[ParsedLogEntry]:
         payload = random.choice(TRAVERSAL_PAYLOADS)
         entries.append(
             _make_entry(
-                method="GET",
-                path=f"/{payload}",
-                query_string="",
-                status_code=random.choice([200, 403, 404]),
-                response_size=random.randint(0, 1000),
-                user_agent=random.choice(NORMAL_UAS),
-            ))
+                method = "GET",
+                path = f"/{payload}",
+                query_string = "",
+                status_code = random.choice([200,
+                                             403,
+                                             404]),
+                response_size = random.randint(0,
+                                               1000),
+                user_agent = random.choice(NORMAL_UAS),
+            )
+        )
     return entries
 
 
-def generate_log4shell_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_log4shell_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests with Log4Shell JNDI payloads
     """
@@ -337,17 +358,21 @@ def generate_log4shell_requests(n: int, ) -> list[ParsedLogEntry]:
         path = random.choice(ATTACK_PATHS)
         entries.append(
             _make_entry(
-                method="GET",
-                path=path,
-                query_string=f"cmd={payload}",
-                status_code=200,
-                response_size=random.randint(0, 2000),
-                user_agent=payload,
-            ))
+                method = "GET",
+                path = path,
+                query_string = f"cmd={payload}",
+                status_code = 200,
+                response_size = random.randint(0,
+                                               2000),
+                user_agent = payload,
+            )
+        )
     return entries
 
 
-def generate_ssrf_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_ssrf_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests with SSRF target URLs
     """
@@ -357,17 +382,22 @@ def generate_ssrf_requests(n: int, ) -> list[ParsedLogEntry]:
         path = random.choice(ATTACK_PATHS)
         entries.append(
             _make_entry(
-                method="GET",
-                path=path,
-                query_string=f"url={target}",
-                status_code=random.choice([200, 302]),
-                response_size=random.randint(0, 3000),
-                user_agent=random.choice(NORMAL_UAS),
-            ))
+                method = "GET",
+                path = path,
+                query_string = f"url={target}",
+                status_code = random.choice([200,
+                                             302]),
+                response_size = random.randint(0,
+                                               3000),
+                user_agent = random.choice(NORMAL_UAS),
+            )
+        )
     return entries
 
 
-def generate_scanner_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_scanner_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n requests mimicking vulnerability scanners
     """
@@ -376,17 +406,26 @@ def generate_scanner_requests(n: int, ) -> list[ParsedLogEntry]:
         path = random.choice(ATTACK_PATHS)
         entries.append(
             _make_entry(
-                method=random.choice(["GET", "HEAD", "OPTIONS"]),
-                path=path,
-                query_string="",
-                status_code=random.choice([200, 301, 403, 404]),
-                response_size=random.randint(0, 500),
-                user_agent=random.choice(SCANNER_UAS),
-            ))
+                method = random.choice(["GET",
+                                        "HEAD",
+                                        "OPTIONS"]),
+                path = path,
+                query_string = "",
+                status_code = random.choice([200,
+                                             301,
+                                             403,
+                                             404]),
+                response_size = random.randint(0,
+                                               500),
+                user_agent = random.choice(SCANNER_UAS),
+            )
+        )
     return entries
 
 
-def generate_normal_requests(n: int, ) -> list[ParsedLogEntry]:
+def generate_normal_requests(
+    n: int,
+) -> list[ParsedLogEntry]:
     """
     Generate n realistic benign HTTP requests
     """
@@ -397,17 +436,28 @@ def generate_normal_requests(n: int, ) -> list[ParsedLogEntry]:
         query = (f"page={random.randint(1, 20)}" if has_query else "")
         entries.append(
             _make_entry(
-                method=random.choice(["GET", "GET", "GET", "POST"]),
-                path=path,
-                query_string=query,
-                status_code=random.choice([200, 200, 200, 301, 304]),
-                response_size=random.randint(200, 50000),
-                user_agent=random.choice(NORMAL_UAS),
-            ))
+                method = random.choice(["GET",
+                                        "GET",
+                                        "GET",
+                                        "POST"]),
+                path = path,
+                query_string = query,
+                status_code = random.choice([200,
+                                             200,
+                                             200,
+                                             301,
+                                             304]),
+                response_size = random.randint(200,
+                                               50000),
+                user_agent = random.choice(NORMAL_UAS),
+            )
+        )
     return entries
 
 
-def _entries_to_vectors(entries: list[ParsedLogEntry], ) -> list[list[float]]:
+def _entries_to_vectors(
+    entries: list[ParsedLogEntry],
+) -> list[list[float]]:
     """
     Convert ParsedLogEntry list to 35-dim feature vectors
     """
@@ -423,7 +473,8 @@ def _entries_to_vectors(entries: list[ParsedLogEntry], ) -> list[list[float]]:
 def generate_mixed_dataset(
     n_normal: int = 1000,
     n_attack: int = 500,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray,
+           np.ndarray]:
     """
     Generate a mixed normal and attack dataset with feature vectors
     """
@@ -444,11 +495,11 @@ def generate_mixed_dataset(
 
     X = np.array(
         normal_vectors + attack_vectors,
-        dtype=np.float32,
+        dtype = np.float32,
     )
     y = np.array(
         [0] * len(normal_vectors) + [1] * len(attack_vectors),
-        dtype=np.int32,
+        dtype = np.int32,
     )
 
     logger.info(

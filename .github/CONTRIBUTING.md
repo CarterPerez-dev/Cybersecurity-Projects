@@ -148,14 +148,14 @@ uv run mypy src tests
 
 **Code Formatting:**
 
-Format your code using the repository's custom YAPF configuration. Copy the [.style.yapf.example](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/TEMPLATES/.style.yapf.example) file into the root of your project directory and rename it to `.style.yapf`.
+Format your code using the repository's custom yang configuration. Copy the [.style.yang.example](https://github.com/CarterPerez-dev/Cybersecurity-Projects/blob/main/TEMPLATES/.style.yang.example) file into the root of your project directory and rename it to `.style.yang`.
 ```bash
-uv run yapf --recursive --in-place src tests
+uv run yang --recursive --in-place src tests
 ```
 
-YAPF comes with the dev group, so `uv sync` already installed it. Not using the template yet? `uv add --dev yapf`.
+yang comes with the dev group, so `uv sync` already installed it. Not using the template yet? `uv add --dev "yang-fmt @ git+https://github.com/CarterPerez-dev/yang" --tag v1.0.0`.
 
-More info: [YAPF Documentation](https://github.com/google/yapf)
+More info: [yang, a maintained fork of Google's yapf](https://github.com/CarterPerez-dev/yang)
 
 **Security Best Practices:**
 - No hardcoded secrets, API keys, or credentials

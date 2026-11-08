@@ -31,6 +31,7 @@ from ml.data_loader import (
     parse_csic_file,
 )
 
+
 NORMAL_GET_FIXTURE = """\
 GET /tienda1/publico/anadir.jsp?id=2&nombre=Jam%F3n HTTP/1.1
 Host: localhost:8080
@@ -117,15 +118,14 @@ class TestParseCSICFile:
     """
     Test CSIC 2010 file parser
     """
-
     def test_parses_normal_get_requests(self, tmp_path: Path) -> None:
         """
         Normal GET requests are parsed into CSICRequest dataclass instances
         """
         f = tmp_path / "normalTrafficTraining.txt"
-        f.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
+        f.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
 
         assert len(results) == 5
         assert all(isinstance(r, CSICRequest) for r in results)
@@ -136,9 +136,9 @@ class TestParseCSICFile:
         First GET request has correct method, path, and query string
         """
         f = tmp_path / "normal.txt"
-        f.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
+        f.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
         first = results[0]
 
         assert first.method == "GET"
@@ -151,9 +151,9 @@ class TestParseCSICFile:
         Headers are captured as a dict
         """
         f = tmp_path / "normal.txt"
-        f.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
+        f.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
         first = results[0]
 
         assert first.headers["Host"] == "localhost:8080"
@@ -164,9 +164,9 @@ class TestParseCSICFile:
         POST request body is captured
         """
         f = tmp_path / "normal.txt"
-        f.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
+        f.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
         post_req = results[3]
 
         assert post_req.method == "POST"
@@ -177,9 +177,9 @@ class TestParseCSICFile:
         Attack file entries get label=1
         """
         f = tmp_path / "anomalous.txt"
-        f.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        f.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=1)
+        results = parse_csic_file(f, label = 1)
 
         assert len(results) == 4
         assert all(r.label == 1 for r in results)
@@ -189,9 +189,9 @@ class TestParseCSICFile:
         SQLi payload appears in query string of attack GET
         """
         f = tmp_path / "anomalous.txt"
-        f.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        f.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=1)
+        results = parse_csic_file(f, label = 1)
         first = results[0]
 
         assert "OR+1=1" in first.query_string
@@ -201,9 +201,9 @@ class TestParseCSICFile:
         SQLi payload appears in POST body of attack
         """
         f = tmp_path / "anomalous.txt"
-        f.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        f.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=1)
+        results = parse_csic_file(f, label = 1)
         post_req = results[1]
 
         assert post_req.method == "POST"
@@ -214,9 +214,9 @@ class TestParseCSICFile:
         Malformed/non-HTTP lines are skipped gracefully
         """
         f = tmp_path / "malformed.txt"
-        f.write_text(MALFORMED_FIXTURE, encoding="utf-8")
+        f.write_text(MALFORMED_FIXTURE, encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
 
         assert len(results) == 1
         assert results[0].method == "GET"
@@ -227,9 +227,9 @@ class TestParseCSICFile:
         Empty file returns an empty list
         """
         f = tmp_path / "empty.txt"
-        f.write_text("", encoding="utf-8")
+        f.write_text("", encoding = "utf-8")
 
-        results = parse_csic_file(f, label=0)
+        results = parse_csic_file(f, label = 0)
 
         assert results == []
 
@@ -238,22 +238,21 @@ class TestCSICToParsedEntry:
     """
     Test conversion from CSICRequest to ParsedLogEntry
     """
-
     def test_converts_get_request(self) -> None:
         """
         GET CSICRequest converts to ParsedLogEntry with synthesized fields
         """
         req = CSICRequest(
-            method="GET",
-            path="/tienda1/publico/anadir.jsp",
-            query_string="id=2&nombre=test",
-            protocol="HTTP/1.1",
-            headers={
+            method = "GET",
+            path = "/tienda1/publico/anadir.jsp",
+            query_string = "id=2&nombre=test",
+            protocol = "HTTP/1.1",
+            headers = {
                 "Host": "localhost:8080",
                 "User-Agent": "Mozilla/5.0 (compatible; Konqueror/3.5)",
             },
-            body="",
-            label=0,
+            body = "",
+            label = 0,
         )
 
         entry = csic_to_parsed_entry(req)
@@ -272,13 +271,13 @@ class TestCSICToParsedEntry:
         POST body is appended to query_string for feature extraction
         """
         req = CSICRequest(
-            method="POST",
-            path="/login",
-            query_string="",
-            protocol="HTTP/1.1",
-            headers={"User-Agent": "TestBot"},
-            body="user=admin'+OR+1=1--&pass=x",
-            label=1,
+            method = "POST",
+            path = "/login",
+            query_string = "",
+            protocol = "HTTP/1.1",
+            headers = {"User-Agent": "TestBot"},
+            body = "user=admin'+OR+1=1--&pass=x",
+            label = 1,
         )
 
         entry = csic_to_parsed_entry(req)
@@ -291,13 +290,13 @@ class TestCSICToParsedEntry:
         CSICRequest without User-Agent header gets a default user agent
         """
         req = CSICRequest(
-            method="GET",
-            path="/test",
-            query_string="",
-            protocol="HTTP/1.1",
-            headers={"Host": "localhost"},
-            body="",
-            label=0,
+            method = "GET",
+            path = "/test",
+            query_string = "",
+            protocol = "HTTP/1.1",
+            headers = {"Host": "localhost"},
+            body = "",
+            label = 0,
         )
 
         entry = csic_to_parsed_entry(req)
@@ -309,15 +308,14 @@ class TestLoadCSICDataset:
     """
     Test end-to-end dataset loading with feature extraction
     """
-
     def test_returns_correct_shape(self, tmp_path: Path) -> None:
         """
         load_csic_dataset returns X with 35 columns and matching y
         """
         normal = tmp_path / "normal.txt"
         attack = tmp_path / "attack.txt"
-        normal.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
-        attack.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        normal.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
+        attack.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
         X, y = load_csic_dataset(normal, attack)
 
@@ -330,8 +328,8 @@ class TestLoadCSICDataset:
         """
         normal = tmp_path / "normal.txt"
         attack = tmp_path / "attack.txt"
-        normal.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
-        attack.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        normal.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
+        attack.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
         _, y = load_csic_dataset(normal, attack)
 
@@ -344,8 +342,8 @@ class TestLoadCSICDataset:
         """
         normal = tmp_path / "normal.txt"
         attack = tmp_path / "attack.txt"
-        normal.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
-        attack.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        normal.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
+        attack.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
         _, y = load_csic_dataset(normal, attack)
 
@@ -358,8 +356,8 @@ class TestLoadCSICDataset:
         """
         normal = tmp_path / "normal.txt"
         attack = tmp_path / "attack.txt"
-        normal.write_text(NORMAL_GET_FIXTURE, encoding="utf-8")
-        attack.write_text(ATTACK_FIXTURE, encoding="utf-8")
+        normal.write_text(NORMAL_GET_FIXTURE, encoding = "utf-8")
+        attack.write_text(ATTACK_FIXTURE, encoding = "utf-8")
 
         X, _ = load_csic_dataset(normal, attack)
 

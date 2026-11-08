@@ -26,8 +26,8 @@ def strip_separators(text: str) -> str:
     keeping the structural characters a decoder still needs
     """
     return "".join(
-        char for char in text if char not in config.SEPARATOR_CHARS
-        and char not in config.ZERO_WIDTH_CHARS
+        char for char in text
+        if char not in config.SEPARATOR_CHARS and char not in config.ZERO_WIDTH_CHARS
     )
 
 

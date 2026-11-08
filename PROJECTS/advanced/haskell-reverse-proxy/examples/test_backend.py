@@ -44,7 +44,7 @@ class TestHandler(BaseHTTPRequestHandler):
         try:
             body_json = json.loads(body.decode())
         except (json.JSONDecodeError, UnicodeDecodeError):
-            body_json = body.decode('utf-8', errors='replace')
+            body_json = body.decode('utf-8', errors = 'replace')
 
         response = {
             'message': 'Received POST',

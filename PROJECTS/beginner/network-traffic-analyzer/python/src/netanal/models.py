@@ -48,7 +48,7 @@ class Protocol(StrEnum):
     OTHER = "OTHER"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class PacketInfo:
     """
     Information extracted from a single captured packet
@@ -64,7 +64,7 @@ class PacketInfo:
     dst_mac: str | None = None
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class EndpointStats:
     """
     Traffic statistics for a single network endpoint
@@ -90,7 +90,7 @@ class EndpointStats:
         return self.bytes_sent + self.bytes_received
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class ConversationStats:
     """
     Traffic statistics for a conversation between two endpoints
@@ -101,7 +101,7 @@ class ConversationStats:
     bytes_total: int = 0
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class BandwidthSample:
     """
     Bandwidth measurement at a point in time
@@ -111,7 +111,7 @@ class BandwidthSample:
     packets_per_second: float
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class CaptureStatistics:
     """
     Aggregated statistics from a packet capture session
@@ -120,16 +120,13 @@ class CaptureStatistics:
     end_time: float = 0.0
     total_packets: int = 0
     total_bytes: int = 0
-    protocol_distribution: dict[Protocol,
-                                int] = field(default_factory=dict)
-    protocol_bytes: dict[Protocol, int] = field(default_factory=dict)
-    endpoints: dict[str, EndpointStats] = field(default_factory=dict)
+    protocol_distribution: dict[Protocol, int] = field(default_factory = dict)
+    protocol_bytes: dict[Protocol, int] = field(default_factory = dict)
+    endpoints: dict[str, EndpointStats] = field(default_factory = dict)
     conversations: dict[tuple[str,
                               str],
-                        ConversationStats] = field(default_factory=dict)
-    bandwidth_samples: list[BandwidthSample] = field(
-        default_factory=list
-    )
+                        ConversationStats] = field(default_factory = dict)
+    bandwidth_samples: list[BandwidthSample] = field(default_factory = list)
 
     @property
     def duration_seconds(self) -> float:
@@ -156,8 +153,8 @@ class CaptureStatistics:
         """
         sorted_endpoints = sorted(
             self.endpoints.values(),
-            key=lambda e: e.total_bytes,
-            reverse=True
+            key = lambda e: e.total_bytes,
+            reverse = True
         )
         return sorted_endpoints[: limit]
 
@@ -173,7 +170,7 @@ class CaptureStatistics:
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class CaptureConfig:
     """
     Configuration for a packet capture session
@@ -186,7 +183,7 @@ class CaptureConfig:
     store_packets: bool = False
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class ExportOptions:
     """
     Options for exporting capture data

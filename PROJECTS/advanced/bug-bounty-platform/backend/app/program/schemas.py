@@ -95,18 +95,12 @@ class ProgramCreate(BaseSchema):
     Schema for creating a program
     """
     name: str = Field(max_length = PROGRAM_NAME_MAX_LENGTH)
-    slug: str = Field(
-        max_length = PROGRAM_SLUG_MAX_LENGTH,
-        pattern = r"^[a-z0-9-]+$"
-    )
+    slug: str = Field(max_length = PROGRAM_SLUG_MAX_LENGTH, pattern = r"^[a-z0-9-]+$")
     description: str | None = Field(
         default = None,
         max_length = PROGRAM_DESCRIPTION_MAX_LENGTH
     )
-    rules: str | None = Field(
-        default = None,
-        max_length = PROGRAM_RULES_MAX_LENGTH
-    )
+    rules: str | None = Field(default = None, max_length = PROGRAM_RULES_MAX_LENGTH)
     response_sla_hours: int = Field(default = 72, ge = 1, le = 720)
     visibility: ProgramVisibility = ProgramVisibility.PUBLIC
 
@@ -115,23 +109,13 @@ class ProgramUpdate(BaseSchema):
     """
     Schema for updating a program
     """
-    name: str | None = Field(
-        default = None,
-        max_length = PROGRAM_NAME_MAX_LENGTH
-    )
+    name: str | None = Field(default = None, max_length = PROGRAM_NAME_MAX_LENGTH)
     description: str | None = Field(
         default = None,
         max_length = PROGRAM_DESCRIPTION_MAX_LENGTH
     )
-    rules: str | None = Field(
-        default = None,
-        max_length = PROGRAM_RULES_MAX_LENGTH
-    )
-    response_sla_hours: int | None = Field(
-        default = None,
-        ge = 1,
-        le = 720
-    )
+    rules: str | None = Field(default = None, max_length = PROGRAM_RULES_MAX_LENGTH)
+    response_sla_hours: int | None = Field(default = None, ge = 1, le = 720)
     status: ProgramStatus | None = None
     visibility: ProgramVisibility | None = None
 

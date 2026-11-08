@@ -46,8 +46,8 @@ async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncClient
     test_app.state.task_manager = TaskManager()
     test_app.state.ops_manager = OpsManager()
 
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    transport = ASGITransport(app = test_app)
+    async with AsyncClient(transport = transport, base_url = "http://test") as ac:
         yield ac
 
 
@@ -55,7 +55,6 @@ class TestHealthAndRoot:
     """
     Verify health check and root information endpoints
     """
-
     async def test_health_returns_200(self, client: AsyncClient) -> None:
         """
         Health endpoint responds with 200 and status healthy
@@ -78,7 +77,6 @@ class TestBeaconEndpoints:
     """
     Verify REST beacon listing endpoints
     """
-
     async def test_list_beacons_empty(self, client: AsyncClient) -> None:
         """
         Beacons list returns empty array with no registered beacons

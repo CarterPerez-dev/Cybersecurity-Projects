@@ -32,9 +32,7 @@ class ProgramRepository(BaseRepository[Program]):
         """
         Get program by slug
         """
-        result = await session.execute(
-            select(Program).where(Program.slug == slug)
-        )
+        result = await session.execute(select(Program).where(Program.slug == slug))
         return result.scalars().first()
 
     @classmethod
@@ -80,9 +78,7 @@ class ProgramRepository(BaseRepository[Program]):
         """
         Check if slug is already taken
         """
-        result = await session.execute(
-            select(Program.id).where(Program.slug == slug)
-        )
+        result = await session.execute(select(Program.id).where(Program.slug == slug))
         return result.scalars().first() is not None
 
     @classmethod
@@ -99,8 +95,7 @@ class ProgramRepository(BaseRepository[Program]):
             select(Program).where(
                 Program.status == ProgramStatus.ACTIVE,
                 Program.visibility == ProgramVisibility.PUBLIC,
-            ).order_by(Program.created_at.desc()
-                       ).offset(skip).limit(limit)
+            ).order_by(Program.created_at.desc()).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -132,9 +127,9 @@ class ProgramRepository(BaseRepository[Program]):
         Get programs by company/owner
         """
         result = await session.execute(
-            select(Program).where(Program.company_id == company_id
-                                  ).order_by(Program.created_at.desc()
-                                             ).offset(skip).limit(limit)
+            select(Program).where(Program.company_id == company_id).order_by(
+                Program.created_at.desc()
+            ).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -148,9 +143,8 @@ class ProgramRepository(BaseRepository[Program]):
         Count programs by company
         """
         result = await session.execute(
-            select(func.count()).select_from(Program).where(
-                Program.company_id == company_id
-            )
+            select(func.count()
+                   ).select_from(Program).where(Program.company_id == company_id)
         )
         return result.scalar_one()
 
@@ -171,10 +165,9 @@ class AssetRepository(BaseRepository[Asset]):
         Get all assets for a program
         """
         result = await session.execute(
-            select(Asset).where(
-                Asset.program_id == program_id
-            ).order_by(Asset.in_scope.desc(),
-                       Asset.created_at)
+            select(Asset).where(Asset.program_id == program_id
+                                ).order_by(Asset.in_scope.desc(),
+                                           Asset.created_at)
         )
         return result.scalars().all()
 

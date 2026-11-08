@@ -3,7 +3,6 @@
 engine.py
 """
 
-
 import structlog
 
 from dlp_scanner.config import ScanConfig
@@ -55,9 +54,7 @@ class ScanEngine:
         self._registry = DetectorRegistry(
             enable_patterns = detection.enable_rules,
             disable_patterns = detection.disable_rules,
-            allowlist_values = (
-                frozenset(allowlist_vals) if allowlist_vals else None
-            ),
+            allowlist_values = (frozenset(allowlist_vals) if allowlist_vals else None),
             context_window_tokens = (detection.context_window_tokens),
         )
 

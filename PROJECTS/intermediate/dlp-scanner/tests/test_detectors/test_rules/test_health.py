@@ -3,7 +3,6 @@
 test_health.py
 """
 
-
 import pytest
 
 from dlp_scanner.detectors.rules.health import (
@@ -27,9 +26,7 @@ class TestMedicalRecordPattern:
         ],
     )
     def test_valid_mrns_match(self, text: str) -> None:
-        assert (
-            MEDICAL_RECORD_PATTERN.search(text) is not None
-        )
+        assert (MEDICAL_RECORD_PATTERN.search(text) is not None)
 
     @pytest.mark.parametrize(
         "text",
@@ -40,26 +37,18 @@ class TestMedicalRecordPattern:
         ],
     )
     def test_invalid_mrns_rejected(self, text: str) -> None:
-        assert (
-            MEDICAL_RECORD_PATTERN.search(text) is None
-        )
+        assert (MEDICAL_RECORD_PATTERN.search(text) is None)
 
 
 class TestDEANumberPattern:
     def test_valid_dea_format_matches(self) -> None:
-        assert (
-            DEA_NUMBER_PATTERN.search("AB1234563") is not None
-        )
+        assert (DEA_NUMBER_PATTERN.search("AB1234563") is not None)
 
     def test_lowercase_rejected(self) -> None:
-        assert (
-            DEA_NUMBER_PATTERN.search("ab1234563") is None
-        )
+        assert (DEA_NUMBER_PATTERN.search("ab1234563") is None)
 
     def test_too_short_rejected(self) -> None:
-        assert (
-            DEA_NUMBER_PATTERN.search("AB12345") is None
-        )
+        assert (DEA_NUMBER_PATTERN.search("AB12345") is None)
 
 
 class TestDEAValidation:

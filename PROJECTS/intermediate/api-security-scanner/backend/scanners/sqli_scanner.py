@@ -125,8 +125,7 @@ class SQLiScanner(BaseScanner):
                                 "payload": payload,
                                 "status_code": response.status_code,
                                 "error_signature": signature,
-                                "response_excerpt":
-                                response.text[: 500],
+                                "response_excerpt": response.text[: 500],
                             }
 
             except Exception:
@@ -161,12 +160,11 @@ class SQLiScanner(BaseScanner):
 
             boolean_payloads = SQLiPayloads.BOOLEAN_BASED_BLIND
             true_payloads = [
-                p for p in boolean_payloads
-                if "AND '1'='1" in p or "AND 1=1" in p
+                p for p in boolean_payloads if "AND '1'='1" in p or "AND 1=1" in p
             ]
             false_payloads = [
-                p for p in boolean_payloads if "AND '1'='2" in p
-                or "AND 1=2" in p or "AND 1=0" in p
+                p for p in boolean_payloads
+                if "AND '1'='2" in p or "AND 1=2" in p or "AND 1=0" in p
             ]
 
             true_lengths = []
@@ -186,18 +184,12 @@ class SQLiScanner(BaseScanner):
 
             if length_diff > 100 and avg_true != avg_false:
                 return {
-                    "vulnerable":
-                    True,
-                    "baseline_length":
-                    baseline_length,
-                    "true_condition_avg_length":
-                    avg_true,
-                    "false_condition_avg_length":
-                    avg_false,
-                    "length_difference":
-                    length_diff,
-                    "confidence":
-                    "HIGH" if length_diff > 500 else "MEDIUM",
+                    "vulnerable": True,
+                    "baseline_length": baseline_length,
+                    "true_condition_avg_length": avg_true,
+                    "false_condition_avg_length": avg_false,
+                    "length_difference": length_diff,
+                    "confidence": "HIGH" if length_diff > 500 else "MEDIUM",
                 }
 
             return {
@@ -213,9 +205,7 @@ class SQLiScanner(BaseScanner):
                 "description": "Error testing boolean-based SQLi",
             }
 
-    def _test_time_based_sqli(self,
-                              delay_seconds: int = 5) -> dict[str,
-                                                              Any]:
+    def _test_time_based_sqli(self, delay_seconds: int = 5) -> dict[str, Any]:
         """
         Test for time based blind SQL injection
 
@@ -237,14 +227,9 @@ class SQLiScanner(BaseScanner):
             all_time_payloads = SQLiPayloads.TIME_BASED_BLIND
 
             delay_payloads = {
-                "mysql":
-                [p for p in all_time_payloads if "SLEEP" in p],
-                "postgres": [
-                    p for p in all_time_payloads if "pg_sleep" in p
-                ],
-                "mssql": [
-                    p for p in all_time_payloads if "WAITFOR" in p
-                ],
+                "mysql": [p for p in all_time_payloads if "SLEEP" in p],
+                "postgres": [p for p in all_time_payloads if "pg_sleep" in p],
+                "mssql": [p for p in all_time_payloads if "WAITFOR" in p],
             }
 
             for db_type, payloads in delay_payloads.items():
@@ -258,11 +243,7 @@ class SQLiScanner(BaseScanner):
                                 f"/?id={payload}",
                                 timeout = delay_seconds + 10,
                             )
-                            elapsed = getattr(
-                                response,
-                                "request_time",
-                                0.0
-                            )
+                            elapsed = getattr(response, "request_time", 0.0)
                             delay_times.append(elapsed)
 
                         except Exception:
@@ -276,22 +257,14 @@ class SQLiScanner(BaseScanner):
                         confidence = "HIGH" if avg_delay >= expected_delay_time else "MEDIUM"
 
                         return {
-                            "vulnerable":
-                            True,
-                            "database_type":
-                            db_type,
-                            "payload":
-                            payload,
-                            "baseline_time":
-                            f"{baseline_mean:.3f}s",
-                            "response_time":
-                            f"{avg_delay:.3f}s",
-                            "expected_delay":
-                            f"{expected_delay_time:.3f}s",
-                            "confidence":
-                            confidence,
-                            "individual_times":
-                            [f"{t:.3f}s" for t in delay_times],
+                            "vulnerable": True,
+                            "database_type": db_type,
+                            "payload": payload,
+                            "baseline_time": f"{baseline_mean:.3f}s",
+                            "response_time": f"{avg_delay:.3f}s",
+                            "expected_delay": f"{expected_delay_time:.3f}s",
+                            "confidence": confidence,
+                            "individual_times": [f"{t:.3f}s" for t in delay_times],
                         }
 
             return {

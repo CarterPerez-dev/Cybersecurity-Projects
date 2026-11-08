@@ -233,7 +233,7 @@ Point an existing app at it with `OPENAI_BASE_URL` and you get normalization, in
 ## Build and test
 
 ```bash
-just check       # ruff, mypy strict, yapf, 314 pytest
+just check       # ruff, mypy strict, yang, 314 pytest
 just ui-check    # biome, stylelint, tsc, vite build
 just bench       # detection, false positives, per-layer ablation
 just arena       # the full stack in Docker

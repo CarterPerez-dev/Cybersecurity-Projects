@@ -84,17 +84,11 @@ class ReportService:
         """
         Get report by ID with details
         """
-        report = await ReportRepository.get_by_id_with_details(
-            self.session,
-            report_id
-        )
+        report = await ReportRepository.get_by_id_with_details(self.session, report_id)
         if not report:
             raise ReportNotFound(str(report_id))
 
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            report.program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, report.program_id)
 
         is_researcher = report.researcher_id == user.id
         is_program_owner = program and program.company_id == user.id
@@ -126,12 +120,9 @@ class ReportService:
             triaged_at = report.triaged_at,
             resolved_at = report.resolved_at,
             disclosed_at = report.disclosed_at,
-            comments = [
-                CommentResponse.model_validate(c) for c in comments
-            ],
+            comments = [CommentResponse.model_validate(c) for c in comments],
             attachments = [
-                AttachmentResponse.model_validate(a)
-                for a in report.attachments
+                AttachmentResponse.model_validate(a) for a in report.attachments
             ],
         )
 
@@ -151,10 +142,7 @@ class ReportService:
             skip = skip,
             limit = size,
         )
-        total = await ReportRepository.count_by_researcher(
-            self.session,
-            user.id
-        )
+        total = await ReportRepository.count_by_researcher(self.session, user.id)
         return ReportListResponse(
             items = [ReportResponse.model_validate(r) for r in reports],
             total = total,
@@ -173,10 +161,7 @@ class ReportService:
         """
         List reports for a program (program owner only)
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -219,10 +204,7 @@ class ReportService:
             skip = skip,
             limit = size,
         )
-        total = await ReportRepository.count_inbox_for_company(
-            self.session,
-            user.id
-        )
+        total = await ReportRepository.count_inbox_for_company(self.session, user.id)
         return ReportListResponse(
             items = [ReportResponse.model_validate(r) for r in reports],
             total = total,
@@ -270,10 +252,7 @@ class ReportService:
         if not report:
             raise ReportNotFound(str(report_id))
 
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            report.program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, report.program_id)
         if not program or program.company_id != user.id:
             raise NotProgramOwner()
 
@@ -308,10 +287,7 @@ class ReportService:
         if not report:
             raise ReportNotFound(str(report_id))
 
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            report.program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, report.program_id)
 
         is_researcher = report.researcher_id == user.id
         is_program_owner = program and program.company_id == user.id
@@ -343,10 +319,7 @@ class ReportService:
         if not report:
             raise ReportNotFound(str(report_id))
 
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            report.program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, report.program_id)
 
         is_researcher = report.researcher_id == user.id
         is_program_owner = bool(program and program.company_id == user.id)
@@ -369,10 +342,7 @@ class ReportService:
         """
         Get current user's report statistics
         """
-        stats = await ReportRepository.get_researcher_stats(
-            self.session,
-            user.id
-        )
+        stats = await ReportRepository.get_researcher_stats(self.session, user.id)
         return ReportStatsResponse(
             total_reports = stats["total_reports"],
             accepted_reports = stats["accepted_reports"],

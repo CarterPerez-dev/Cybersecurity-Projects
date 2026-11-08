@@ -30,10 +30,7 @@ class UserCreate(BaseSchema):
         min_length = PASSWORD_MIN_LENGTH,
         max_length = PASSWORD_MAX_LENGTH
     )
-    full_name: str | None = Field(
-        default = None,
-        max_length = FULL_NAME_MAX_LENGTH
-    )
+    full_name: str | None = Field(default = None, max_length = FULL_NAME_MAX_LENGTH)
 
     @field_validator("password")
     @classmethod
@@ -42,9 +39,7 @@ class UserCreate(BaseSchema):
         Ensure password has minimum complexity
         """
         if not any(c.isupper() for c in v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter"
-            )
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one digit")
         return v
@@ -54,10 +49,7 @@ class UserUpdate(BaseSchema):
     """
     Schema for updating user profile
     """
-    full_name: str | None = Field(
-        default = None,
-        max_length = FULL_NAME_MAX_LENGTH
-    )
+    full_name: str | None = Field(default = None, max_length = FULL_NAME_MAX_LENGTH)
 
 
 class UserUpdateAdmin(UserUpdate):
@@ -79,10 +71,7 @@ class AdminUserCreate(BaseSchema):
         min_length = PASSWORD_MIN_LENGTH,
         max_length = PASSWORD_MAX_LENGTH
     )
-    full_name: str | None = Field(
-        default = None,
-        max_length = FULL_NAME_MAX_LENGTH
-    )
+    full_name: str | None = Field(default = None, max_length = FULL_NAME_MAX_LENGTH)
     role: UserRole = UserRole.USER
     is_active: bool = True
     is_verified: bool = False

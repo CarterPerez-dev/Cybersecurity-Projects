@@ -33,6 +33,7 @@ from app.core.models import BeaconMeta, TaskResult
 from app.core.protocol import Message, MessageType, pack, unpack
 from app.database import get_db
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()

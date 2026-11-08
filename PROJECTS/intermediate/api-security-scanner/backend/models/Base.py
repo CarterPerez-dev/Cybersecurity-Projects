@@ -24,16 +24,8 @@ class BaseModel(Base):
 
     __abstract__ = True
 
-    id = Column(
-        Integer,
-        primary_key = True,
-        index = True,
-        autoincrement = True
-    )
-    created_at = Column(
-        DateTime(timezone = True),
-        default = lambda: datetime.now(UTC)
-    )
+    id = Column(Integer, primary_key = True, index = True, autoincrement = True)
+    created_at = Column(DateTime(timezone = True), default = lambda: datetime.now(UTC))
     updated_at = Column(
         DateTime(timezone = True),
         default = lambda: datetime.now(UTC),
