@@ -279,7 +279,7 @@ jobs:
     # Rust Setup (pinned to match locally-verified clippy version)
     - name: Install Rust 1.92.0
       if: matrix.type == 'rust'
-      uses: dtolnay/rust-toolchain@1.120.0
+      uses: dtolnay/rust-toolchain@1.92.0
       with:
         components: rustfmt, clippy
 

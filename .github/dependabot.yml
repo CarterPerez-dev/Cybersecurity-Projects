@@ -228,6 +228,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "dtolnay/rust-toolchain"
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(ci)"
