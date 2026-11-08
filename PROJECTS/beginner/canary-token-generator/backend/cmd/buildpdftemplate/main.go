@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
@@ -73,7 +74,9 @@ func buildTemplate(out string) (err error) {
 	pdfBytes := assemblePDF()
 
 	if vErr := api.Validate(
+		context.Background(),
 		bytes.NewReader(pdfBytes),
+		nil,
 		nil,
 	); vErr != nil {
 		return fmt.Errorf("pdfcpu validate: %w", vErr)

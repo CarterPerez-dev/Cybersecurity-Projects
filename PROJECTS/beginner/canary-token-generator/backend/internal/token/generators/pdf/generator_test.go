@@ -106,7 +106,12 @@ func TestTemplate_EndsWithEOFMarker(t *testing.T) {
 func TestTemplate_PdfcpuValidates(t *testing.T) {
 	require.NoError(
 		t,
-		api.Validate(bytes.NewReader(rawTemplate), nil),
+		api.Validate(
+			context.Background(),
+			bytes.NewReader(rawTemplate),
+			nil,
+			nil,
+		),
 		"template must pass pdfcpu validation",
 	)
 }
@@ -383,7 +388,12 @@ func TestGenerate_PdfcpuValidates(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(
 		t,
-		api.Validate(bytes.NewReader(art.Content), nil),
+		api.Validate(
+			context.Background(),
+			bytes.NewReader(art.Content),
+			nil,
+			nil,
+		),
 		"output PDF must remain valid after placeholder substitution",
 	)
 }
