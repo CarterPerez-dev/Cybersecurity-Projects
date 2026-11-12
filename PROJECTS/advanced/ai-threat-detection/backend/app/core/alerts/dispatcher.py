@@ -37,6 +37,7 @@ from app.core.ingestion.pipeline import ScoredRequest
 from app.schemas.websocket import WebSocketAlert
 from app.services.threat_service import create_threat_event
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +50,6 @@ class AlertDispatcher:
     and published to the Redis alerts channel for
     WebSocket relay. All events are logged to stdout.
     """
-
     def __init__(
         self,
         redis_client: aioredis.Redis[str],
@@ -98,13 +98,13 @@ class AlertDispatcher:
         channel
         """
         alert = WebSocketAlert(
-            timestamp=scored.entry.timestamp,
-            source_ip=scored.entry.ip,
-            request_method=scored.entry.method,
-            request_path=scored.entry.path,
-            threat_score=scored.final_score,
-            severity=severity,
-            component_scores={
+            timestamp = scored.entry.timestamp,
+            source_ip = scored.entry.ip,
+            request_method = scored.entry.method,
+            request_path = scored.entry.path,
+            threat_score = scored.final_score,
+            severity = severity,
+            component_scores = {
                 **scored.rule_result.component_scores,
                 **(scored.ml_scores or {}),
             },

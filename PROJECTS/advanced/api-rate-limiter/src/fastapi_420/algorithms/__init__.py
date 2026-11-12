@@ -32,17 +32,13 @@ def create_algorithm(algorithm_type: Algorithm) -> BaseAlgorithm:
     """
     algorithm_map: dict[Algorithm,
                         type[BaseAlgorithm]] = {
-                            Algorithm.SLIDING_WINDOW:
-                            SlidingWindowAlgorithm,
+                            Algorithm.SLIDING_WINDOW: SlidingWindowAlgorithm,
                             Algorithm.TOKEN_BUCKET: TokenBucketAlgorithm,
                             Algorithm.FIXED_WINDOW: FixedWindowAlgorithm,
                             Algorithm.LEAKY_BUCKET: SlidingWindowAlgorithm,
                         }
 
-    algorithm_class = algorithm_map.get(
-        algorithm_type,
-        SlidingWindowAlgorithm
-    )
+    algorithm_class = algorithm_map.get(algorithm_type, SlidingWindowAlgorithm)
     return algorithm_class()
 
 

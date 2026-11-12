@@ -69,7 +69,8 @@ class BaseDocument(Document):  # type: ignore[misc]
         queryset: QuerySet | None = None,
         page: int = 1,
         per_page: int = settings.DEFAULT_PAGE_SIZE,
-    ) -> dict[str, Any]:
+    ) -> dict[str,
+              Any]:
         """
         Return a paginated result dict from any queryset
         """

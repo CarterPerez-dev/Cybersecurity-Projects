@@ -125,9 +125,7 @@ def create_app_with_dependency(limiter: RateLimiter) -> FastAPI:
         return {"limited": True}
 
     @app.get("/api/with-result")
-    async def with_result_endpoint(
-        result = Depends(RateLimitDep("10/minute"))
-    ):
+    async def with_result_endpoint(result = Depends(RateLimitDep("10/minute"))):
         return {"remaining": result.remaining}
 
     return app
@@ -152,10 +150,7 @@ class TestMiddlewareIntegration:
 
             assert response.status_code == 200
             assert response.json() == {"endpoint": "test"}
-            assert_rate_limit_headers(
-                dict(response.headers),
-                expected_limit = 100
-            )
+            assert_rate_limit_headers(dict(response.headers), expected_limit = 100)
 
         await limiter.close()
 
@@ -215,9 +210,7 @@ class TestMiddlewareIntegration:
         await limiter.close()
 
     @pytest.mark.asyncio
-    async def test_middleware_different_endpoints_independent(
-        self
-    ) -> None:
+    async def test_middleware_different_endpoints_independent(self) -> None:
         storage = MemoryStorage()
         limiter = RateLimiter(storage = storage)
         await limiter.init()
@@ -238,9 +231,7 @@ class TestMiddlewareIntegration:
         await limiter.close()
 
     @pytest.mark.asyncio
-    async def test_middleware_post_and_get_independent_limits(
-        self
-    ) -> None:
+    async def test_middleware_post_and_get_independent_limits(self) -> None:
         storage = MemoryStorage()
         limiter = RateLimiter(storage = storage)
         await limiter.init()
@@ -517,9 +508,7 @@ class TestConcurrentRequests:
             tasks = [client.get("/api/test") for _ in range(50)]
             responses = await asyncio.gather(*tasks)
 
-            success_count = sum(
-                1 for r in responses if r.status_code == 200
-            )
+            success_count = sum(1 for r in responses if r.status_code == 200)
             assert success_count == 50
 
         await limiter.close()
@@ -537,12 +526,9 @@ class TestConcurrentRequests:
             tasks = [client.get("/api/test") for _ in range(20)]
             responses = await asyncio.gather(*tasks)
 
-            success_count = sum(
-                1 for r in responses if r.status_code == 200
-            )
+            success_count = sum(1 for r in responses if r.status_code == 200)
             blocked_count = sum(
-                1 for r in responses
-                if r.status_code == HTTP_420_ENHANCE_YOUR_CALM
+                1 for r in responses if r.status_code == HTTP_420_ENHANCE_YOUR_CALM
             )
 
             assert success_count == 10
@@ -558,9 +544,7 @@ class TestMultipleClients:
     @pytest.mark.asyncio
     async def test_different_ips_independent_limits(self) -> None:
         storage = MemoryStorage()
-        fingerprint_settings = FingerprintSettings(
-            TRUST_X_FORWARDED_FOR = True
-        )
+        fingerprint_settings = FingerprintSettings(TRUST_X_FORWARDED_FOR = True)
         settings = RateLimiterSettings(fingerprint = fingerprint_settings)
         limiter = RateLimiter(settings = settings, storage = storage)
         await limiter.init()
@@ -597,9 +581,7 @@ class TestAlgorithmIntegration:
     """
     @pytest.mark.asyncio
     async def test_sliding_window_algorithm(self) -> None:
-        settings = RateLimiterSettings(
-            ALGORITHM = Algorithm.SLIDING_WINDOW
-        )
+        settings = RateLimiterSettings(ALGORITHM = Algorithm.SLIDING_WINDOW)
         storage = MemoryStorage()
         limiter = RateLimiter(settings = settings, storage = storage)
         await limiter.init()

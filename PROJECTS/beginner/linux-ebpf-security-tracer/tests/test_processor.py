@@ -16,7 +16,6 @@ class TestDecodeComm:
     """
     Tests for comm field decoding
     """
-
     def test_normal_string(self):
         """
         Decodes a normal null-terminated comm
@@ -43,7 +42,6 @@ class TestDecodeFilename:
     """
     Tests for filename field decoding
     """
-
     def test_normal_path(self):
         """
         Decodes a normal filepath
@@ -63,7 +61,6 @@ class TestIpv4ToStr:
     """
     Tests for IPv4 address conversion
     """
-
     def test_localhost(self):
         """
         Converts 127.0.0.1 in network byte order
@@ -87,7 +84,6 @@ class TestShouldInclude:
     """
     Tests for event filtering logic
     """
-
     def test_passes_all_defaults(self, make_event):
         """
         Event passes with default filters
@@ -99,53 +95,50 @@ class TestShouldInclude:
         """
         Filters events below minimum severity
         """
-        event = make_event(severity="LOW")
-        assert not should_include(event, "MEDIUM", None, None, "all",
-                                  False)
+        event = make_event(severity = "LOW")
+        assert not should_include(event, "MEDIUM", None, None, "all", False)
 
     def test_severity_passes(self, make_event):
         """
         Passes events at or above minimum severity
         """
-        event = make_event(severity="HIGH")
+        event = make_event(severity = "HIGH")
         assert should_include(event, "MEDIUM", None, None, "all", False)
 
     def test_pid_filter_match(self, make_event):
         """
         Passes when PID matches filter
         """
-        event = make_event(pid=1234)
+        event = make_event(pid = 1234)
         assert should_include(event, "LOW", 1234, None, "all", False)
 
     def test_pid_filter_mismatch(self, make_event):
         """
         Filters when PID does not match
         """
-        event = make_event(pid=1234)
+        event = make_event(pid = 1234)
         assert not should_include(event, "LOW", 5678, None, "all", False)
 
     def test_comm_filter_match(self, make_event):
         """
         Passes when comm matches filter
         """
-        event = make_event(comm="bash")
+        event = make_event(comm = "bash")
         assert should_include(event, "LOW", None, "bash", "all", False)
 
     def test_comm_filter_mismatch(self, make_event):
         """
         Filters when comm does not match
         """
-        event = make_event(comm="bash")
-        assert not should_include(event, "LOW", None, "python", "all",
-                                  False)
+        event = make_event(comm = "bash")
+        assert not should_include(event, "LOW", None, "python", "all", False)
 
     def test_type_filter(self, make_event):
         """
         Filters events outside requested category
         """
-        event = make_event(category="process")
-        assert not should_include(event, "LOW", None, None, "network",
-                                  False)
+        event = make_event(category = "process")
+        assert not should_include(event, "LOW", None, None, "network", False)
 
     def test_detections_only_with_detection(self, make_event):
         """

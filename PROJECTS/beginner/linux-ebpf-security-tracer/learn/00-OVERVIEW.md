@@ -34,7 +34,7 @@ Traditional security monitoring relies on log aggregation after the fact. By the
 ### Tools
 - BCC framework and eBPF compilation pipeline
 - Python CLI tooling with Typer and Rich
-- ruff, mypy, yapf for code quality
+- ruff, mypy, yang for code quality
 - uv for Python package management
 
 ## Prerequisites

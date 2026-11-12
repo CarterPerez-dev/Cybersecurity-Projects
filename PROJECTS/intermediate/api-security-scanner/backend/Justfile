@@ -56,11 +56,11 @@ mypy:
     @echo "======== Type Checking All Code ========"
     uv run mypy .
 
-# Format code (yapf)
+# Format code (yang)
 [group('lint')]
 format:
     @echo "======== Formatting Code ========"
-    uv run yapf -i -r -vv models/ repositories/ schemas/ scanners/ core/ factory/
+    uv run yang -i -r -vv models/ repositories/ routes/ schemas/ scanners/ services/ core/ config.py factory.py main.py
 
 # Run all quality checks
 [group('lint')]

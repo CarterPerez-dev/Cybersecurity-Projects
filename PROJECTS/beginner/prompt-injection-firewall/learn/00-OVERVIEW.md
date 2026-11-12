@@ -173,8 +173,8 @@ prompt-injection-firewall/
 
 ## Common issues
 
-**`just check` fails on `yapf`**
-Formatting drifted. Run `just format` and re-run. The column limit is 75, which is narrower than you expect.
+**`just check` fails on `yang`**
+Formatting drifted. Run `just format` and re-run. The column limit is 88.
 
 **`PolicyError` on `Firewall(...)`**
 You registered a canary with fewer than 8 alphanumeric characters after punctuation is stripped. The matcher cannot use it, so the firewall refuses to start rather than protecting nothing while reporting success. Use a longer secret.

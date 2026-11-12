@@ -41,7 +41,7 @@ dev = [
     "ruff==0.17.3",
     "mypy==2.4.1",
     "bandit[toml]==1.9.4",
-    "yapf==0.43.0",
+    "yang-fmt==1.0.0",
     "pylint-pydantic==0.4.1",
     "pylint-per-file-ignores==4.0.0",
     "pylint-plugin-utils==0.9.0",
@@ -51,6 +51,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = [
@@ -68,7 +71,7 @@ packages = [
 
 [tool.ruff]
 target-version = "py313"
-line-length = 95
+line-length = 88
 indent-width = 4
 exclude = [
     ".bzr",

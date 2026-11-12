@@ -124,7 +124,7 @@ if [ $? -gt 1 ]; then exit 1; fi   # fail the build only on F or error
 just            # list available recipes
 just test       # run pytest (11 tests, runs in under a second, network-mocked with respx)
 just lint       # ruff + mypy --strict + pylint
-just format     # yapf
+just format     # yang
 just run -- <url>  # scan a URL
 ```
 

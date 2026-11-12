@@ -3,7 +3,6 @@
 test_entropy.py
 """
 
-
 import os
 
 from dlp_scanner.detectors.entropy import (
@@ -57,11 +56,7 @@ class TestHighEntropyRegions:
 
     def test_short_data_below_window(self) -> None:
         data = os.urandom(100)
-        regions = detect_high_entropy_regions(
-            data,
-            threshold = 7.0,
-            window_size = 256
-        )
+        regions = detect_high_entropy_regions(data, threshold = 7.0, window_size = 256)
         assert len(regions) <= 1
 
 

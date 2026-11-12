@@ -6,6 +6,7 @@ elf.py
 import struct
 from dataclasses import dataclass
 
+
 ELF_MAGIC = b"\x7fELF"
 EI_CLASS = 4
 EI_DATA = 5
@@ -76,10 +77,10 @@ def _cstring(blob: bytes, offset: int) -> str:
     end = blob.find(b"\x00", offset)
     if end == -1:
         end = len(blob)
-    return blob[offset:end].decode("utf-8", "replace")
+    return blob[offset : end].decode("utf-8", "replace")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class ElfHeader:
     """
     Parsed Elf64 header fields
@@ -96,7 +97,7 @@ class ElfHeader:
     e_shstrndx: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Section:
     """
     One entry of the section header table
@@ -134,10 +135,10 @@ class Section:
     def file_bytes(self, image: bytes) -> bytes:
         if self.is_nobits:
             return b""
-        return image[self.offset:self.offset + self.size]
+        return image[self.offset : self.offset + self.size]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Symbol:
     """
     One entry of a symbol table
@@ -163,13 +164,11 @@ class ElfImage:
     """
     A parsed ELF64 image: header, sections, and symbols
     """
-
     def __init__(self, data: bytes):
         self.data = data
         self.header = parse_header(data)
         self.sections = parse_sections(data, self.header)
-        self.symbols = parse_symbols(
-            data, self.sections, self.header.endian)
+        self.symbols = parse_symbols(data, self.sections, self.header.endian)
 
     def section(self, name: str) -> Section | None:
         for sec in self.sections:
@@ -199,15 +198,15 @@ def parse_header(data: bytes) -> ElfHeader:
     read_h = lambda off: struct.unpack_from(endian + "H", data, off)[0]
     read_q = lambda off: struct.unpack_from(endian + "Q", data, off)[0]
     header = ElfHeader(
-        endian=endian,
-        e_type=read_h(E_TYPE),
-        e_machine=read_h(E_MACHINE),
-        e_entry=read_q(E_ENTRY),
-        e_phoff=read_q(E_PHOFF),
-        e_shoff=read_q(E_SHOFF),
-        e_shentsize=read_h(E_SHENTSIZE),
-        e_shnum=read_h(E_SHNUM),
-        e_shstrndx=read_h(E_SHSTRNDX),
+        endian = endian,
+        e_type = read_h(E_TYPE),
+        e_machine = read_h(E_MACHINE),
+        e_entry = read_q(E_ENTRY),
+        e_phoff = read_q(E_PHOFF),
+        e_shoff = read_q(E_SHOFF),
+        e_shentsize = read_h(E_SHENTSIZE),
+        e_shnum = read_h(E_SHNUM),
+        e_shstrndx = read_h(E_SHSTRNDX),
     )
     _validate_section_table(data, header)
     return header
@@ -230,17 +229,35 @@ def _raw_sections(data: bytes, hdr: ElfHeader) -> list[dict]:
     rows = []
     for i in range(hdr.e_shnum):
         base = hdr.e_shoff + i * hdr.e_shentsize
-        rows.append({
-            "index": i,
-            "name_off": struct.unpack_from(en + "I", data, base + SH_NAME)[0],
-            "type": struct.unpack_from(en + "I", data, base + SH_TYPE)[0],
-            "flags": struct.unpack_from(en + "Q", data, base + SH_FLAGS)[0],
-            "addr": struct.unpack_from(en + "Q", data, base + SH_ADDR)[0],
-            "offset": struct.unpack_from(en + "Q", data, base + SH_OFFSET)[0],
-            "size": struct.unpack_from(en + "Q", data, base + SH_SIZE)[0],
-            "link": struct.unpack_from(en + "I", data, base + SH_LINK)[0],
-            "entsize": struct.unpack_from(en + "Q", data, base + SH_ENTSIZE)[0],
-        })
+        rows.append(
+            {
+                "index": i,
+                "name_off": struct.unpack_from(en + "I",
+                                               data,
+                                               base + SH_NAME)[0],
+                "type": struct.unpack_from(en + "I",
+                                           data,
+                                           base + SH_TYPE)[0],
+                "flags": struct.unpack_from(en + "Q",
+                                            data,
+                                            base + SH_FLAGS)[0],
+                "addr": struct.unpack_from(en + "Q",
+                                           data,
+                                           base + SH_ADDR)[0],
+                "offset": struct.unpack_from(en + "Q",
+                                             data,
+                                             base + SH_OFFSET)[0],
+                "size": struct.unpack_from(en + "Q",
+                                           data,
+                                           base + SH_SIZE)[0],
+                "link": struct.unpack_from(en + "I",
+                                           data,
+                                           base + SH_LINK)[0],
+                "entsize": struct.unpack_from(en + "Q",
+                                              data,
+                                              base + SH_ENTSIZE)[0],
+            }
+        )
     return rows
 
 
@@ -252,50 +269,60 @@ def parse_sections(data: bytes, hdr: ElfHeader) -> list[Section]:
     if not rows:
         return []
     shstr = rows[hdr.e_shstrndx]
-    names = data[shstr["offset"]:shstr["offset"] + shstr["size"]]
+    names = data[shstr["offset"]: shstr["offset"] + shstr["size"]]
     sections = []
     for row in rows:
-        sections.append(Section(
-            index=row["index"],
-            name=_cstring(names, row["name_off"]),
-            type=row["type"],
-            flags=row["flags"],
-            addr=row["addr"],
-            offset=row["offset"],
-            size=row["size"],
-            link=row["link"],
-            entsize=row["entsize"],
-        ))
+        sections.append(
+            Section(
+                index = row["index"],
+                name = _cstring(names,
+                                row["name_off"]),
+                type = row["type"],
+                flags = row["flags"],
+                addr = row["addr"],
+                offset = row["offset"],
+                size = row["size"],
+                link = row["link"],
+                entsize = row["entsize"],
+            )
+        )
     return sections
 
 
-def parse_symbols(
-        data: bytes,
-        sections: list[Section],
-        endian: str = "<") -> list[Symbol]:
+def parse_symbols(data: bytes,
+                  sections: list[Section],
+                  endian: str = "<") -> list[Symbol]:
     """
     Parse the .symtab entries and resolve their names via the linked strtab
     """
-    symtab = next(
-        (s for s in sections if s.type == SHT_SYMTAB), None)
+    symtab = next((s for s in sections if s.type == SHT_SYMTAB), None)
     if symtab is None or symtab.entsize == 0:
         return []
     if symtab.link >= len(sections):
         return []
     strtab = sections[symtab.link]
-    names = data[strtab.offset:strtab.offset + strtab.size]
-    body = data[symtab.offset:symtab.offset + symtab.size]
+    names = data[strtab.offset : strtab.offset + strtab.size]
+    body = data[symtab.offset : symtab.offset + symtab.size]
     en = endian
     symbols = []
     for base in range(0, len(body) - SYM_SIZE + 1, SYM_SIZE):
         name_off = struct.unpack_from(en + "I", body, base + ST_NAME)[0]
         info = body[base + ST_INFO]
-        symbols.append(Symbol(
-            name=_cstring(names, name_off),
-            value=struct.unpack_from(en + "Q", body, base + ST_VALUE)[0],
-            size=struct.unpack_from(en + "Q", body, base + ST_SIZE)[0],
-            type=info & 0xF,
-            bind=info >> 4,
-            shndx=struct.unpack_from(en + "H", body, base + ST_SHNDX)[0],
-        ))
+        symbols.append(
+            Symbol(
+                name = _cstring(names,
+                                name_off),
+                value = struct.unpack_from(en + "Q",
+                                           body,
+                                           base + ST_VALUE)[0],
+                size = struct.unpack_from(en + "Q",
+                                          body,
+                                          base + ST_SIZE)[0],
+                type = info & 0xF,
+                bind = info >> 4,
+                shndx = struct.unpack_from(en + "H",
+                                           body,
+                                           base + ST_SHNDX)[0],
+            )
+        )
     return symbols

@@ -76,19 +76,19 @@ default:
 # Python: Format, Lint, Types
 # =============================================================================
 # Every tool runs through `uv run`, so the version is the one pinned in
-# uv.lock, not whatever happens to be on PATH. yapf owns formatting
-# (.style.yapf), ruff only lints. Never run `ruff format` alongside yapf:
+# uv.lock, not whatever happens to be on PATH. yang owns formatting
+# (.style.yang), ruff only lints. Never run `ruff format` alongside yang:
 # the two disagree and will rewrite each other's output forever.
 
-[doc('Format with yapf in place')]
+[doc('Format with yang in place')]
 [group('python')]
 format:
-    uv run yapf --recursive --in-place --parallel {{ src_dir }} {{ test_dir }}
+    uv run yang --recursive --in-place --parallel {{ src_dir }} {{ test_dir }}
 
-[doc('Fail if yapf would change anything')]
+[doc('Fail if yang would change anything')]
 [group('python')]
 format-check:
-    uv run yapf --recursive --diff --parallel {{ src_dir }} {{ test_dir }}
+    uv run yang --recursive --diff --parallel {{ src_dir }} {{ test_dir }}
 
 [doc('ruff lint (extra flags pass through, e.g. just ruff --statistics)')]
 [group('python')]

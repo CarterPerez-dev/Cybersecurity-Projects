@@ -22,6 +22,7 @@ import pytest
 
 from ml.splitting import TrainingSplit, prepare_training_data
 
+
 N_NORMAL = 160
 N_ATTACK = 40
 N_FEATURES = 35
@@ -32,16 +33,16 @@ def _make_dataset(
     n_normal: int = N_NORMAL,
     n_attack: int = N_ATTACK,
     n_features: int = N_FEATURES,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray,
+           np.ndarray]:
     """
     Generate synthetic imbalanced dataset
     """
     rng = np.random.default_rng(42)
-    X = rng.standard_normal(
-        (n_normal + n_attack, n_features)).astype(np.float32)
+    X = rng.standard_normal((n_normal + n_attack, n_features)).astype(np.float32)
     y = np.array(
         [0] * n_normal + [1] * n_attack,
-        dtype=np.int32,
+        dtype = np.int32,
     )
     return X, y
 
@@ -50,7 +51,6 @@ class TestPrepareTrainingData:
     """
     Tests for stratified splitting with SMOTE
     """
-
     def test_returns_training_split(self) -> None:
         """
         Returns a TrainingSplit dataclass
@@ -71,7 +71,9 @@ class TestPrepareTrainingData:
         assert abs(result.X_val.shape[0] - expected_val) <= tolerance
         assert abs(result.X_test.shape[0] - expected_test) <= tolerance
 
-    def test_stratified_class_distribution(self, ) -> None:
+    def test_stratified_class_distribution(
+        self,
+    ) -> None:
         """
         Splits preserve the original class ratio
         """
@@ -92,7 +94,7 @@ class TestPrepareTrainingData:
         result = prepare_training_data(
             X,
             y,
-            smote_strategy=0.3,
+            smote_strategy = 0.3,
         )
         minority = np.sum(result.y_train == 1)
         majority = np.sum(result.y_train == 0)
@@ -113,7 +115,9 @@ class TestPrepareTrainingData:
         assert (result.X_val.shape[0] == result.y_val.shape[0])
         assert (result.X_test.shape[0] == result.y_test.shape[0])
 
-    def test_x_normal_train_only_normals(self, ) -> None:
+    def test_x_normal_train_only_normals(
+        self,
+    ) -> None:
         """
         X_normal_train has only class-0 rows
         """
@@ -133,26 +137,30 @@ class TestPrepareTrainingData:
             n_attack=10,
             n_features=N_FEATURES,
         )
-        result = prepare_training_data(X, y, smote_k=3)
+        result = prepare_training_data(X, y, smote_k = 3)
         assert isinstance(result, TrainingSplit)
         assert result.X_train.shape[0] > 0
         assert result.X_val.shape[0] > 0
         assert result.X_test.shape[0] > 0
 
-    def test_all_one_class_raises_value_error(self, ) -> None:
+    def test_all_one_class_raises_value_error(
+        self,
+    ) -> None:
         """
         Single-class labels raise ValueError
         """
         rng = np.random.default_rng(99)
         X = rng.standard_normal((100, N_FEATURES)).astype(np.float32)
-        y_zeros = np.zeros(100, dtype=np.int32)
+        y_zeros = np.zeros(100, dtype = np.int32)
         with pytest.raises(ValueError):
             prepare_training_data(X, y_zeros)
-        y_ones = np.ones(100, dtype=np.int32)
+        y_ones = np.ones(100, dtype = np.int32)
         with pytest.raises(ValueError):
             prepare_training_data(X, y_ones)
 
-    def test_smote_skipped_minority_too_small(self, ) -> None:
+    def test_smote_skipped_minority_too_small(
+        self,
+    ) -> None:
         """
         Tiny minority skips SMOTE gracefully
         """
@@ -161,6 +169,6 @@ class TestPrepareTrainingData:
             n_attack=10,
             n_features=N_FEATURES,
         )
-        result = prepare_training_data(X, y, smote_k=50)
+        result = prepare_training_data(X, y, smote_k = 50)
         assert isinstance(result, TrainingSplit)
         assert result.X_train.shape[0] > 0

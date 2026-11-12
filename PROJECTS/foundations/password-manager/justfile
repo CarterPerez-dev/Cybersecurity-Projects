@@ -85,11 +85,11 @@ lint:
     @echo ""
     @echo "✓ All linters passed"
 
-# Auto-format every Python file with yapf
+# Auto-format every Python file with yang
 [group('test')]
 format:
-    @echo "Formatting code with yapf..."
-    uv run yapf -i -r src tests
+    @echo "Formatting code with yang..."
+    uv run yang -i -r src tests
     @echo "✓ Code formatted"
 
 # Auto-fix what ruff can fix on its own (unused imports, etc.)

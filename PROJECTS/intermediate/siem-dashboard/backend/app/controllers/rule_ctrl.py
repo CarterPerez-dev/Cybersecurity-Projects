@@ -52,14 +52,14 @@ def create_rule() -> CorrelationRule:
     """
     data = g.validated
     rule = CorrelationRule(
-        name=data.name,
-        description=data.description,
-        rule_type=data.rule_type,
-        conditions=data.conditions,
-        severity=data.severity,
-        enabled=data.enabled,
-        mitre_tactic=data.mitre_tactic,
-        mitre_technique=data.mitre_technique,
+        name = data.name,
+        description = data.description,
+        rule_type = data.rule_type,
+        conditions = data.conditions,
+        severity = data.severity,
+        enabled = data.enabled,
+        mitre_tactic = data.mitre_tactic,
+        mitre_technique = data.mitre_technique,
     )
     rule.save()  # type: ignore[no-untyped-call]
     return rule
@@ -71,7 +71,7 @@ def update_rule(rule_id: str) -> CorrelationRule:
     """
     data = g.validated
     rule = CorrelationRule.get_by_id(rule_id)
-    updates = data.model_dump(exclude_none=True)
+    updates = data.model_dump(exclude_none = True)
     for field_name, value in updates.items():
         setattr(rule, field_name, value)
     rule.save()  # type: ignore[no-untyped-call]
@@ -95,11 +95,12 @@ def test_rule(rule_id: str) -> dict[str, Any]:
     rule = CorrelationRule.get_by_id(rule_id)
 
     cutoff = datetime.now(UTC).replace(
-        second=0, microsecond=0,
+        second = 0,
+        microsecond = 0,
     )
-    since = cutoff - timedelta(hours=data.hours)
+    since = cutoff - timedelta(hours = data.hours)
 
-    events = LogEvent.objects(timestamp__gte=since).order_by("timestamp")  # type: ignore[no-untyped-call]
+    events = LogEvent.objects(timestamp__gte = since).order_by("timestamp")  # type: ignore[no-untyped-call]
 
     state = CorrelationState()
     alerts_fired: list[dict[str, Any]] = []
@@ -119,11 +120,13 @@ def test_rule(rule_id: str) -> dict[str, Any]:
 
         result = evaluate_rule(rule, event_data, state)
         if result:
-            alerts_fired.append({
-                "group_value": result.group_value,
-                "matched_event_count": len(result.matched_event_ids),
-                "matched_event_ids": result.matched_event_ids,
-            })
+            alerts_fired.append(
+                {
+                    "group_value": result.group_value,
+                    "matched_event_count": len(result.matched_event_ids),
+                    "matched_event_ids": result.matched_event_ids,
+                }
+            )
 
     return {
         "rule_id": str(rule.id),

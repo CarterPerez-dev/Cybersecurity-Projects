@@ -10,16 +10,36 @@ from capstone.x86 import X86_OP_IMM, X86_OP_MEM, X86_REG_RIP
 
 from rveng.engine.elf import ElfImage, Symbol
 
+
 COMPARE_MNEMONICS = frozenset({"cmp", "test"})
-CONDITIONAL_JUMPS = frozenset({
-    "je", "jne", "jz", "jnz", "jg", "jge", "jl", "jle",
-    "ja", "jae", "jb", "jbe", "js", "jns", "jo", "jno",
-    "jp", "jnp", "jc", "jnc",
-})
+CONDITIONAL_JUMPS = frozenset(
+    {
+        "je",
+        "jne",
+        "jz",
+        "jnz",
+        "jg",
+        "jge",
+        "jl",
+        "jle",
+        "ja",
+        "jae",
+        "jb",
+        "jbe",
+        "js",
+        "jns",
+        "jo",
+        "jno",
+        "jp",
+        "jnp",
+        "jc",
+        "jnc",
+    }
+)
 CALL_JUMP = frozenset({"call", "jmp"})
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Instruction:
     """
     One decoded x86-64 instruction with teaching annotation
@@ -47,8 +67,7 @@ class Instruction:
 
     @property
     def is_flow(self) -> bool:
-        return (self.mnemonic in CONDITIONAL_JUMPS
-                or self.mnemonic in CALL_JUMP)
+        return (self.mnemonic in CONDITIONAL_JUMPS or self.mnemonic in CALL_JUMP)
 
     def render(self) -> str:
         return f"{self.address:x}: {self.mnemonic} {self.op_str}".rstrip()
@@ -84,17 +103,18 @@ def disassemble(code: bytes, base: int = 0) -> list[Instruction]:
     out = []
     for ins in md.disasm(code, base):
         imm = _immediate(ins)
-        flow = (ins.mnemonic in CONDITIONAL_JUMPS
-                or ins.mnemonic in CALL_JUMP)
-        out.append(Instruction(
-            address=ins.address,
-            mnemonic=ins.mnemonic,
-            op_str=ins.op_str,
-            raw=bytes(ins.bytes),
-            immediate=None if flow else imm,
-            branch_target=imm if flow else None,
-            rip_target=_rip_target(ins),
-        ))
+        flow = (ins.mnemonic in CONDITIONAL_JUMPS or ins.mnemonic in CALL_JUMP)
+        out.append(
+            Instruction(
+                address = ins.address,
+                mnemonic = ins.mnemonic,
+                op_str = ins.op_str,
+                raw = bytes(ins.bytes),
+                immediate = None if flow else imm,
+                branch_target = imm if flow else None,
+                rip_target = _rip_target(ins),
+            )
+        )
     return out
 
 
@@ -105,7 +125,7 @@ def disassemble_text(image: ElfImage) -> list[Instruction]:
     section = image.section(".text")
     if section is None:
         return []
-    code = image.data[section.offset:section.offset + section.size]
+    code = image.data[section.offset : section.offset + section.size]
     return disassemble(code, section.addr)
 
 
@@ -121,10 +141,9 @@ def _section_at(image: ElfImage, vaddr: int):
     return None
 
 
-def disassemble_at(
-        image: ElfImage,
-        vaddr: int,
-        max_bytes: int = 4096) -> list[Instruction]:
+def disassemble_at(image: ElfImage,
+                   vaddr: int,
+                   max_bytes: int = 4096) -> list[Instruction]:
     """
     Disassemble from a raw virtual address until the first ret
     """
@@ -134,15 +153,14 @@ def disassemble_at(
     start = vaddr - section.addr + section.offset
     end = min(start + max_bytes, section.offset + section.size)
     out = []
-    for ins in disassemble(image.data[start:end], vaddr):
+    for ins in disassemble(image.data[start : end], vaddr):
         out.append(ins)
         if ins.mnemonic == RET:
             break
     return out
 
 
-def disassemble_symbol(
-        image: ElfImage, symbol: Symbol) -> list[Instruction]:
+def disassemble_symbol(image: ElfImage, symbol: Symbol) -> list[Instruction]:
     """
     Disassemble one function symbol from its owning in-file section
     """
@@ -153,7 +171,7 @@ def disassemble_symbol(
     start = symbol.value - section.addr + section.offset
     if start < 0 or start + symbol.size > len(image.data):
         raise ValueError("symbol maps outside the file")
-    code = image.data[start:start + symbol.size]
+    code = image.data[start : start + symbol.size]
     return disassemble(code, symbol.value)
 
 

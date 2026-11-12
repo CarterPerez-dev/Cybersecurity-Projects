@@ -244,9 +244,7 @@ def test_generate_password_only_uses_expected_alphabet() -> None:
     canonical set of " \\t\\n\\r\\v\\f", so we cannot mistype it
     """
     password = generate_password(32)
-    allowed = set(
-        LOWERCASE_LETTERS + UPPERCASE_LETTERS + DIGITS + SAFE_SYMBOLS
-    )
+    allowed = set(LOWERCASE_LETTERS + UPPERCASE_LETTERS + DIGITS + SAFE_SYMBOLS)
     assert all(c in allowed for c in password)
     # Defense-in-depth: also check there are no whitespace chars
     assert not any(c in string.whitespace for c in password)

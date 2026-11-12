@@ -85,9 +85,7 @@ def _guard(target: Path) -> None:
     parts = set(target.parts)
     for protected in config.HARVEST_PROTECTED_DIRS:
         if protected in parts:
-            raise HarvestRefusedError(
-                config.HARVEST_REFUSAL.format(target = target)
-            )
+            raise HarvestRefusedError(config.HARVEST_REFUSAL.format(target = target))
 
 
 def _document(payloads: Sequence[str]) -> str:
@@ -142,12 +140,10 @@ def main() -> int:
         return 0
 
     destination = harvest(payloads, Path(sys.argv[2]))
-    print(
-        config.HARVEST_WROTE.format(
-            count = len(payloads),
-            target = destination,
-        )
-    )
+    print(config.HARVEST_WROTE.format(
+        count = len(payloads),
+        target = destination,
+    ))
     return 0
 
 

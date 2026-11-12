@@ -18,18 +18,11 @@ class OneTimePrekey(BaseDBModel, table = True):
     __tablename__ = "one_time_prekeys"
 
     id: int = Field(default = None, primary_key = True)
-    user_id: UUID = Field(
-        foreign_key = "users.id",
-        nullable = False,
-        index = True
-    )
+    user_id: UUID = Field(foreign_key = "users.id", nullable = False, index = True)
 
     key_id: int = Field(nullable = False, index = True)
 
-    public_key: str = Field(
-        nullable = False,
-        max_length = ONE_TIME_PREKEY_LENGTH
-    )
+    public_key: str = Field(nullable = False, max_length = ONE_TIME_PREKEY_LENGTH)
 
     is_used: bool = Field(default = False, nullable = False, index = True)
 

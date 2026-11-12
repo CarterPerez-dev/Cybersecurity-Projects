@@ -7,8 +7,8 @@
 # installs the project plus the `dev` group; `uv run <tool>` runs anything
 # inside it. Never pip.
 #
-# Formatting is yapf (.style.yapf), linting is ruff, types are mypy.
-# Line length is 75 everywhere: yapf column_limit, ruff line-length, and
+# Formatting is yang (.style.yang), linting is ruff, types are mypy.
+# Line length is 88 everywhere: yang column_limit, ruff line-length, and
 # max_line_length in .editorconfig.
 #
 # Guide: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
@@ -71,12 +71,15 @@ Issues = "https://github.com/CarterPerez-dev/Cybersecurity-Projects/issues"
 dev = [
     "ruff>=0.17.3",
     "mypy>=2.4.1",
-    "yapf>=0.43.0",
+    "yang-fmt>=1.0.0",
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
     "hypothesis>=6.140.0",
     "pre-commit>=4.7.0",
 ]
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
 
 
 # ── Build System ──────────────────────────────────────────────────────────────
@@ -104,7 +107,7 @@ packages = ["src/<package_name>"]
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ── Ruff (lint only; yapf formats) ────────────────────────────────────────────
+# ── Ruff (lint only; yang formats) ────────────────────────────────────────────
 # `select` is explicit and exhaustive on purpose. Ruff 0.16 replaced its
 # default rule set (59 rules became 413) and 0.17 changed it again; relying
 # on defaults means a ruff upgrade silently changes what CI enforces.
@@ -113,7 +116,7 @@ packages = ["src/<package_name>"]
 # Rules: https://docs.astral.sh/ruff/rules/
 
 [tool.ruff]
-line-length = 75
+line-length = 88
 indent-width = 4
 target-version = "py314"
 src = ["src", "tests"]
@@ -149,15 +152,9 @@ select = [
     "BLE",    # blind `except Exception`
 ]
 ignore = [
-    "E501",     # line length is yapf's job
+    "E501",     # line length is yang's job
     "TRY003",   # long messages in raise
     "PLC0415",  # import outside top level (lazy imports for CLI speed)
-    # The three PEP 695 upgrades below would demand `def f[T]()` and
-    # `type X = ...`, syntax yapf 0.43 crashes on (see .style.yapf). Until
-    # yapf parses PEP 695, generics are spelled with TypeVar / TypeAlias.
-    "UP040",    # TypeAlias -> `type` statement
-    "UP046",    # Generic[T] class -> class C[T]
-    "UP047",    # TypeVar function -> def f[T]
 ]
 
 # PLR2004 (magic value comparison) stays ON for src/: constants belong in

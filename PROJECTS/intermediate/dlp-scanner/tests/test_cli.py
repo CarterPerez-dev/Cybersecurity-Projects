@@ -3,7 +3,6 @@
 test_cli.py
 """
 
-
 import json
 import tempfile
 from pathlib import Path
@@ -26,11 +25,9 @@ def pii_dir() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         csv_path = root / "employees.csv"
-        csv_path.write_text(
-            "name,ssn\n"
-            "Alice,456-78-9012\n"
-            "Bob,234-56-7890\n"
-        )
+        csv_path.write_text("name,ssn\n"
+                            "Alice,456-78-9012\n"
+                            "Bob,234-56-7890\n")
         yield root
 
 
@@ -153,8 +150,7 @@ class TestFileScan:
         assert "findings" in data
 
     def test_scan_to_file(self, pii_dir: Path) -> None:
-        with tempfile.NamedTemporaryFile(suffix = ".json",
-                                         delete = False) as f:
+        with tempfile.NamedTemporaryFile(suffix = ".json", delete = False) as f:
             out_path = f.name
 
         result = runner.invoke(
@@ -242,8 +238,7 @@ class TestReportCommands:
         assert "PII_SSN" in result.output
 
     def test_convert_to_file(self, json_result_file: Path) -> None:
-        with tempfile.NamedTemporaryFile(suffix = ".sarif",
-                                         delete = False) as f:
+        with tempfile.NamedTemporaryFile(suffix = ".sarif", delete = False) as f:
             out_path = f.name
 
         result = runner.invoke(

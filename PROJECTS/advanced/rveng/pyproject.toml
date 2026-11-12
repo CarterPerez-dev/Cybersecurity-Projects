@@ -22,4 +22,8 @@ build-backend = "uv_build"
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    "yang-fmt>=1.0.0",
 ]
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }

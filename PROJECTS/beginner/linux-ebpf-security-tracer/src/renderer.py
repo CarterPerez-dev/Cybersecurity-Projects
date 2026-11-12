@@ -24,17 +24,18 @@ def _event_to_dict(event: TracerEvent) -> dict[str, Any]:
     """
     Serialize a TracerEvent to a JSON-compatible dict
     """
-    d: dict[str, Any] = {
-        "timestamp": event.timestamp.isoformat(),
-        "event_type": event.event_type,
-        "category": event.category,
-        "pid": event.pid,
-        "ppid": event.ppid,
-        "uid": event.uid,
-        "username": event.username,
-        "comm": event.comm,
-        "severity": event.severity,
-    }
+    d: dict[str,
+            Any] = {
+                "timestamp": event.timestamp.isoformat(),
+                "event_type": event.event_type,
+                "category": event.category,
+                "pid": event.pid,
+                "ppid": event.ppid,
+                "uid": event.uid,
+                "username": event.username,
+                "comm": event.comm,
+                "severity": event.severity,
+            }
 
     if event.filename:
         d["filename"] = event.filename
@@ -67,7 +68,6 @@ class JsonRenderer:
     """
     Outputs one JSON object per line
     """
-
     def __init__(
         self,
         stream: TextIO = sys.stdout,
@@ -90,7 +90,6 @@ class LiveRenderer:
     """
     Color-coded streaming output using Rich
     """
-
     def __init__(
         self,
         console: Console | None = None,
@@ -107,7 +106,7 @@ class LiveRenderer:
         ts = event.timestamp.strftime("%H:%M:%S")
         color = SEVERITY_COLORS.get(event.severity, "white")
 
-        sev = Text(f"{event.severity:8s}", style=color)
+        sev = Text(f"{event.severity:8s}", style = color)
 
         detail = self._format_detail(event)
 
@@ -123,7 +122,7 @@ class LiveRenderer:
         if event.detection:
             det_text = Text(
                 f" [{event.detection}]",
-                style="bold magenta",
+                style = "bold magenta",
             )
             line.append_text(det_text)
 
@@ -152,7 +151,6 @@ class TableRenderer:
     """
     Periodic table summaries using Rich
     """
-
     def __init__(
         self,
         console: Console | None = None,
@@ -180,16 +178,16 @@ class TableRenderer:
             return
 
         table = Table(
-            title="eBPF Security Events",
-            show_lines=False,
+            title = "eBPF Security Events",
+            show_lines = False,
         )
-        table.add_column("Time", width=8)
-        table.add_column("Severity", width=8)
-        table.add_column("Type", width=12)
-        table.add_column("PID", width=7)
-        table.add_column("Comm", width=15)
-        table.add_column("Detail", min_width=20)
-        table.add_column("Detection", width=18)
+        table.add_column("Time", width = 8)
+        table.add_column("Severity", width = 8)
+        table.add_column("Type", width = 12)
+        table.add_column("PID", width = 7)
+        table.add_column("Comm", width = 15)
+        table.add_column("Detail", min_width = 20)
+        table.add_column("Detection", width = 18)
 
         for ev in self._buffer:
             color = SEVERITY_COLORS.get(ev.severity, "white")
@@ -202,7 +200,8 @@ class TableRenderer:
 
             table.add_row(
                 ts,
-                Text(ev.severity, style=color),
+                Text(ev.severity,
+                     style = color),
                 ev.event_type,
                 str(ev.pid),
                 ev.comm,
@@ -224,7 +223,6 @@ class FileRenderer:
     """
     Append JSON events to a file
     """
-
     def __init__(self, path: Path) -> None:
         """
         Initialize with output file path
@@ -253,7 +251,8 @@ class FileRenderer:
 
 
 def create_renderer(
-    fmt: OutputFormat, ) -> JsonRenderer | LiveRenderer | TableRenderer:
+    fmt: OutputFormat,
+) -> JsonRenderer | LiveRenderer | TableRenderer:
     """
     Factory for the appropriate renderer
     """

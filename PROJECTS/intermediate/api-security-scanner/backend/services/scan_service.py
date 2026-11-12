@@ -25,7 +25,6 @@ class ScanService:
     """
     Orchestrates security scanning workflow
     """
-
     @staticmethod
     def run_scan(db: Session, user_id: int, scan_request: ScanRequest) -> ScanResponse:
         """
@@ -40,17 +39,18 @@ class ScanService:
             ScanResponse: Scan results with all test outcomes
         """
         scan = ScanRepository.create_scan(
-            db=db,
-            user_id=user_id,
-            target_url=str(scan_request.target_url),
+            db = db,
+            user_id = user_id,
+            target_url = str(scan_request.target_url),
         )
 
-        scanner_mapping: dict[TestType, type[BaseScanner]] = {
-            TestType.RATE_LIMIT: RateLimitScanner,
-            TestType.AUTH: AuthScanner,
-            TestType.SQLI: SQLiScanner,
-            TestType.IDOR: IDORScanner,
-        }
+        scanner_mapping: dict[TestType,
+                              type[BaseScanner]] = {
+                                  TestType.RATE_LIMIT: RateLimitScanner,
+                                  TestType.AUTH: AuthScanner,
+                                  TestType.SQLI: SQLiScanner,
+                                  TestType.IDOR: IDORScanner,
+                              }
 
         results: list[TestResultCreate] = []
 
@@ -62,9 +62,9 @@ class ScanService:
 
             try:
                 scanner = scanner_class(
-                    target_url=str(scan_request.target_url),
-                    auth_token=scan_request.auth_token,
-                    max_requests=scan_request.max_requests,
+                    target_url = str(scan_request.target_url),
+                    auth_token = scan_request.auth_token,
+                    max_requests = scan_request.max_requests,
                 )
 
                 result = scanner.scan()
@@ -73,12 +73,12 @@ class ScanService:
             except Exception as e:
                 results.append(
                     TestResultCreate(
-                        test_name=test_type,
-                        status="error",
-                        severity="info",
-                        details=f"Scanner error: {str(e)}",
-                        evidence_json={"error": str(e)},
-                        recommendations_json=[
+                        test_name = test_type,
+                        status = "error",
+                        severity = "info",
+                        details = f"Scanner error: {str(e)}",
+                        evidence_json = {"error": str(e)},
+                        recommendations_json = [
                             "Check target URL is accessible",
                             "Verify authentication token if provided",
                         ],
@@ -87,14 +87,14 @@ class ScanService:
 
         for result in results:
             TestResultRepository.create_test_result(
-                db=db,
-                scan_id=scan.id,
-                test_name=result.test_name,
-                status=result.status,
-                severity=result.severity,
-                details=result.details,
-                evidence_json=result.evidence_json,
-                recommendations_json=result.recommendations_json,
+                db = db,
+                scan_id = scan.id,
+                test_name = result.test_name,
+                status = result.status,
+                severity = result.severity,
+                details = result.details,
+                evidence_json = result.evidence_json,
+                recommendations_json = result.recommendations_json,
             )
 
         db.refresh(scan)
@@ -118,21 +118,24 @@ class ScanService:
 
         if not scan:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Scan not found",
+                status_code = status.HTTP_404_NOT_FOUND,
+                detail = "Scan not found",
             )
 
         if scan.user_id != user_id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to access this scan",
+                status_code = status.HTTP_403_FORBIDDEN,
+                detail = "Not authorized to access this scan",
             )
 
         return ScanResponse.model_validate(scan)
 
     @staticmethod
     def get_user_scans(
-        db: Session, user_id: int, skip: int = 0, limit: int | None = None
+        db: Session,
+        user_id: int,
+        skip: int = 0,
+        limit: int | None = None
     ) -> list[ScanResponse]:
         """
         Get all scans for a user with pagination
@@ -146,7 +149,12 @@ class ScanService:
         Returns:
             list[ScanResponse]: List of user's scans
         """
-        scans = ScanRepository.get_by_user(db=db, user_id=user_id, skip=skip, limit=limit)
+        scans = ScanRepository.get_by_user(
+            db = db,
+            user_id = user_id,
+            skip = skip,
+            limit = limit
+        )
 
         return [ScanResponse.model_validate(scan) for scan in scans]
 
@@ -167,14 +175,14 @@ class ScanService:
 
         if not scan:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Scan not found",
+                status_code = status.HTTP_404_NOT_FOUND,
+                detail = "Scan not found",
             )
 
         if scan.user_id != user_id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this scan",
+                status_code = status.HTTP_403_FORBIDDEN,
+                detail = "Not authorized to delete this scan",
             )
 
         return ScanRepository.delete(db, scan_id)

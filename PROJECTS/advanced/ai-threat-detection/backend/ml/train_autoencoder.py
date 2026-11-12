@@ -42,7 +42,8 @@ def train_autoencoder(
     percentile: float = 99.5,
     val_split: float = 0.15,
     patience: int = 10,
-) -> dict[str, Any]:
+) -> dict[str,
+          Any]:
     """
     Train the autoencoder on normal-only traffic and calibrate the
     anomaly detection threshold.
@@ -50,8 +51,8 @@ def train_autoencoder(
     input_dim = X_normal.shape[1]
 
     split_idx = int(len(X_normal) * (1 - val_split))
-    X_train_raw = X_normal[:split_idx]
-    X_val_raw = X_normal[split_idx:]
+    X_train_raw = X_normal[: split_idx]
+    X_val_raw = X_normal[split_idx :]
 
     scaler = FeatureScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
@@ -62,21 +63,26 @@ def train_autoencoder(
 
     train_loader = DataLoader(
         TensorDataset(train_tensor),
-        batch_size=batch_size,
-        shuffle=True,
-        drop_last=len(train_tensor) > batch_size,
+        batch_size = batch_size,
+        shuffle = True,
+        drop_last = len(train_tensor) > batch_size,
     )
 
-    model = ThreatAutoencoder(input_dim=input_dim)
-    optimizer = torch.optim.AdamW(model.parameters(),
-                                  lr=lr,
-                                  weight_decay=1e-5,
-                                  betas=(0.9, 0.999))
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                           mode="min",
-                                                           factor=0.5,
-                                                           patience=5,
-                                                           min_lr=1e-6)
+    model = ThreatAutoencoder(input_dim = input_dim)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr = lr,
+        weight_decay = 1e-5,
+        betas = (0.9,
+                 0.999)
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode = "min",
+        factor = 0.5,
+        patience = 5,
+        min_lr = 1e-6
+    )
 
     history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
     best_val_loss = float("inf")
@@ -88,12 +94,13 @@ def train_autoencoder(
         epoch_loss = 0.0
         n_batches = 0
 
-        for (batch, ) in train_loader:
+        for (batch,
+             ) in train_loader:
             reconstructed = model(batch)
             loss = torch.nn.functional.mse_loss(reconstructed, batch)
             optimizer.zero_grad()
             loss.backward()  # type: ignore[no-untyped-call]
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm = 1.0)
             optimizer.step()
             epoch_loss += loss.item()
             n_batches += 1

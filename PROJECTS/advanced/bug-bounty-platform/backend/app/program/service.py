@@ -48,8 +48,7 @@ class ProgramService:
         """
         Create a new bug bounty program
         """
-        if await ProgramRepository.slug_exists(self.session,
-                                               program_data.slug):
+        if await ProgramRepository.slug_exists(self.session, program_data.slug):
             raise SlugAlreadyExists(program_data.slug)
 
         program = await ProgramRepository.create(
@@ -71,10 +70,7 @@ class ProgramService:
         """
         Get program by slug with full details
         """
-        program = await ProgramRepository.get_by_slug_with_details(
-            self.session,
-            slug
-        )
+        program = await ProgramRepository.get_by_slug_with_details(self.session, slug)
         if not program:
             raise ProgramNotFound(slug)
 
@@ -90,12 +86,9 @@ class ProgramService:
             response_sla_hours = program.response_sla_hours,
             status = program.status,
             visibility = program.visibility,
-            assets = [
-                AssetResponse.model_validate(a) for a in program.assets
-            ],
+            assets = [AssetResponse.model_validate(a) for a in program.assets],
             reward_tiers = [
-                RewardTierResponse.model_validate(r)
-                for r in program.reward_tiers
+                RewardTierResponse.model_validate(r) for r in program.reward_tiers
             ],
         )
 
@@ -106,10 +99,7 @@ class ProgramService:
         """
         Get program by ID
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
         return ProgramResponse.model_validate(program)
@@ -152,10 +142,7 @@ class ProgramService:
             skip = skip,
             limit = size,
         )
-        total = await ProgramRepository.count_by_company(
-            self.session,
-            user.id
-        )
+        total = await ProgramRepository.count_by_company(self.session, user.id)
         return ProgramListResponse(
             items = [ProgramResponse.model_validate(p) for p in programs],
             total = total,
@@ -172,10 +159,7 @@ class ProgramService:
         """
         Update program details
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -198,10 +182,7 @@ class ProgramService:
         """
         Delete a program
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -219,10 +200,7 @@ class ProgramService:
         """
         Add asset to program scope
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -249,10 +227,7 @@ class ProgramService:
         """
         Update an asset
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -280,10 +255,7 @@ class ProgramService:
         """
         Delete an asset
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
@@ -303,17 +275,11 @@ class ProgramService:
         """
         List all assets for a program
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
-        assets = await AssetRepository.get_by_program(
-            self.session,
-            program_id
-        )
+        assets = await AssetRepository.get_by_program(self.session, program_id)
         return [AssetResponse.model_validate(a) for a in assets]
 
     async def set_reward_tiers(
@@ -325,20 +291,14 @@ class ProgramService:
         """
         Set reward tiers for a program (replaces existing)
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
         if program.company_id != user.id:
             raise NotProgramOwner()
 
-        await RewardTierRepository.delete_by_program(
-            self.session,
-            program_id
-        )
+        await RewardTierRepository.delete_by_program(self.session, program_id)
 
         created_tiers = []
         for tier_data in tiers:
@@ -361,15 +321,9 @@ class ProgramService:
         """
         List reward tiers for a program
         """
-        program = await ProgramRepository.get_by_id(
-            self.session,
-            program_id
-        )
+        program = await ProgramRepository.get_by_id(self.session, program_id)
         if not program:
             raise ProgramNotFound(str(program_id))
 
-        tiers = await RewardTierRepository.get_by_program(
-            self.session,
-            program_id
-        )
+        tiers = await RewardTierRepository.get_by_program(self.session, program_id)
         return [RewardTierResponse.model_validate(t) for t in tiers]

@@ -45,8 +45,10 @@ def normalize_if_score(raw_score: float) -> float:
 
 
 def fuse_scores(
-    scores: dict[str, float],
-    weights: dict[str, float],
+    scores: dict[str,
+                 float],
+    weights: dict[str,
+                  float],
 ) -> float:
     """
     Weighted average of per-model normalized scores

@@ -53,6 +53,7 @@ from ml.validation import ValidationResult, validate_ensemble
 
 from app.core.features.mappings import FEATURE_ORDER
 
+
 logger = logging.getLogger(__name__)
 
 N_FEATURES = 35
@@ -84,7 +85,6 @@ class TrainingOrchestrator:
     End-to-end training pipeline that splits data, trains all 3 models,
     exports to ONNX, validates the ensemble, and logs to MLflow
     """
-
     def __init__(
         self,
         output_dir: Path,
@@ -105,7 +105,7 @@ class TrainingOrchestrator:
         """
         Execute the full training pipeline
         """
-        self._output_dir.mkdir(parents=True, exist_ok=True)
+        self._output_dir.mkdir(parents = True, exist_ok = True)
 
         split = prepare_training_data(X, y)
 
@@ -118,14 +118,16 @@ class TrainingOrchestrator:
         )
 
         with VigilExperiment(self._experiment_name) as experiment:
-            experiment.log_params({
-                "epochs": self._epochs,
-                "batch_size": self._batch_size,
-                "n_samples": len(X),
-                "n_attack": int(np.sum(y == 1)),
-                "n_normal": int(np.sum(y == 0)),
-                "n_features": X.shape[1],
-            })
+            experiment.log_params(
+                {
+                    "epochs": self._epochs,
+                    "batch_size": self._batch_size,
+                    "n_samples": len(X),
+                    "n_attack": int(np.sum(y == 1)),
+                    "n_normal": int(np.sum(y == 0)),
+                    "n_features": X.shape[1],
+                }
+            )
 
             ae_result = self._train_ae(split.X_normal_train)
             ae_metrics = {
@@ -143,10 +145,7 @@ class TrainingOrchestrator:
             self._export_models(ae_result, rf_result, if_result)
 
             experiment.log_metrics(ae_metrics)
-            experiment.log_metrics({
-                f"rf_{k}": v
-                for k, v in rf_metrics.items()
-            })
+            experiment.log_metrics({f"rf_{k}": v for k, v in rf_metrics.items()})
 
             try:
                 ensemble = validate_ensemble(
@@ -154,13 +153,15 @@ class TrainingOrchestrator:
                     split.X_test,
                     split.y_test,
                 )
-                experiment.log_metrics({
-                    "ensemble_precision": ensemble.precision,
-                    "ensemble_recall": ensemble.recall,
-                    "ensemble_f1": ensemble.f1,
-                    "ensemble_pr_auc": ensemble.pr_auc,
-                    "ensemble_roc_auc": ensemble.roc_auc,
-                })
+                experiment.log_metrics(
+                    {
+                        "ensemble_precision": ensemble.precision,
+                        "ensemble_recall": ensemble.recall,
+                        "ensemble_f1": ensemble.f1,
+                        "ensemble_pr_auc": ensemble.pr_auc,
+                        "ensemble_roc_auc": ensemble.roc_auc,
+                    }
+                )
                 passed = ensemble.passed_gates
             except Exception:
                 logger.exception("Ensemble validation failed")
@@ -168,11 +169,11 @@ class TrainingOrchestrator:
                 passed = False
 
             for name in (
-                AE_FILENAME,
-                RF_FILENAME,
-                IF_FILENAME,
-                SCALER_FILENAME,
-                THRESHOLD_FILENAME,
+                    AE_FILENAME,
+                    RF_FILENAME,
+                    IF_FILENAME,
+                    SCALER_FILENAME,
+                    THRESHOLD_FILENAME,
             ):
                 experiment.log_artifact(self._output_dir / name)
 
@@ -185,13 +186,13 @@ class TrainingOrchestrator:
         )
 
         return TrainingResult(
-            ae_metrics=ae_metrics,
-            rf_metrics=rf_metrics,
-            if_metrics=if_metrics,
-            ensemble_metrics=ensemble,
-            passed_gates=passed,
-            output_dir=self._output_dir,
-            mlflow_run_id=run_id,
+            ae_metrics = ae_metrics,
+            rf_metrics = rf_metrics,
+            if_metrics = if_metrics,
+            ensemble_metrics = ensemble,
+            passed_gates = passed,
+            output_dir = self._output_dir,
+            mlflow_run_id = run_id,
         )
 
     def _train_ae(self, X_normal: np.ndarray) -> dict[str, Any]:
@@ -205,8 +206,8 @@ class TrainingOrchestrator:
         )
         return train_autoencoder(
             X_normal,
-            epochs=self._epochs,
-            batch_size=self._batch_size,
+            epochs = self._epochs,
+            batch_size = self._batch_size,
         )
 
     def _train_rf(self, X: np.ndarray, y: np.ndarray) -> dict[str, Any]:
@@ -231,9 +232,12 @@ class TrainingOrchestrator:
 
     def _export_models(
         self,
-        ae_result: dict[str, Any],
-        rf_result: dict[str, Any],
-        if_result: dict[str, Any],
+        ae_result: dict[str,
+                        Any],
+        rf_result: dict[str,
+                        Any],
+        if_result: dict[str,
+                        Any],
     ) -> None:
         """
         Export all 3 models to ONNX and save scaler/threshold
@@ -244,11 +248,13 @@ class TrainingOrchestrator:
         )
         ae_result["scaler"].save_json(
             self._output_dir / SCALER_FILENAME,
-            feature_names=list(FEATURE_ORDER),
+            feature_names = list(FEATURE_ORDER),
         )
         threshold_data = {"threshold": ae_result["threshold"]}
         (self._output_dir / THRESHOLD_FILENAME).write_text(
-            json.dumps(threshold_data, indent=2))
+            json.dumps(threshold_data,
+                       indent = 2)
+        )
 
         export_random_forest(
             rf_result["model"],

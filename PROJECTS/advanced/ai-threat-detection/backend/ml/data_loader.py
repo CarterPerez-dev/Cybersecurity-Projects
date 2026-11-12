@@ -39,18 +39,22 @@ from app.core.features.extractor import extract_request_features
 from app.core.features.mappings import WINDOWED_FEATURE_NAMES
 from app.core.ingestion.parsers import ParsedLogEntry
 
+
 logger = logging.getLogger(__name__)
 
 _REQUEST_LINE_RE = re.compile(
     r"^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|TRACE)"
-    r"\s+(\S+)\s+(HTTP/\d\.\d)\s*$")
+    r"\s+(\S+)\s+(HTTP/\d\.\d)\s*$"
+)
 
 _DEFAULT_IP = "192.168.1.100"
 
-_DEFAULT_UA = ("Mozilla/5.0 (compatible; Konqueror/3.5; Linux)"
-               " KHTML/3.5.8 (like Gecko)")
+_DEFAULT_UA = (
+    "Mozilla/5.0 (compatible; Konqueror/3.5; Linux)"
+    " KHTML/3.5.8 (like Gecko)"
+)
 
-_BASE_TIMESTAMP = datetime(2010, 6, 1, tzinfo=UTC)
+_BASE_TIMESTAMP = datetime(2010, 6, 1, tzinfo = UTC)
 _TRAINING_WINDOW_DAYS = 90
 
 
@@ -59,7 +63,7 @@ def _synthetic_timestamp() -> datetime:
     Generate a realistic training timestamp spread over 90 days
     """
     offset_secs = random.randint(0, _TRAINING_WINDOW_DAYS * 86400)
-    return _BASE_TIMESTAMP + timedelta(seconds=offset_secs)
+    return _BASE_TIMESTAMP + timedelta(seconds = offset_secs)
 
 
 @dataclass
@@ -84,7 +88,7 @@ def parse_csic_file(
     """
     Parse a CSIC 2010 dataset file into a list of CSICRequest objects
     """
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = path.read_text(encoding = "utf-8", errors = "replace")
     lines = text.splitlines()
 
     blocks: list[list[str]] = []
@@ -145,7 +149,7 @@ def _parse_request_block(
     headers: dict[str, str] = {}
     body_start = len(lines)
 
-    for i, line in enumerate(lines[1:], 1):
+    for i, line in enumerate(lines[1 :], 1):
         if not line.strip():
             body_start = i + 1
             break
@@ -153,17 +157,17 @@ def _parse_request_block(
             key, value = line.split(": ", 1)
             headers[key] = value
 
-    body_lines = [ln for ln in lines[body_start:] if ln.strip()]
+    body_lines = [ln for ln in lines[body_start :] if ln.strip()]
     body = "\n".join(body_lines)
 
     return CSICRequest(
-        method=method,
-        path=path,
-        query_string=query_string,
-        protocol=protocol,
-        headers=headers,
-        body=body,
-        label=label,
+        method = method,
+        path = path,
+        query_string = query_string,
+        protocol = protocol,
+        headers = headers,
+        body = body,
+        label = label,
     )
 
 
@@ -179,29 +183,30 @@ def csic_to_parsed_entry(req: CSICRequest) -> ParsedLogEntry:
         query = (f"{query}&{req.body}" if query else req.body)
 
     return ParsedLogEntry(
-        ip=_DEFAULT_IP,
-        timestamp=_synthetic_timestamp(),
-        method=req.method,
-        path=req.path,
-        query_string=query,
-        status_code=200,
-        response_size=0,
-        referer="",
-        user_agent=ua,
-        raw_line="",
+        ip = _DEFAULT_IP,
+        timestamp = _synthetic_timestamp(),
+        method = req.method,
+        path = req.path,
+        query_string = query,
+        status_code = 200,
+        response_size = 0,
+        referer = "",
+        user_agent = ua,
+        raw_line = "",
     )
 
 
 def load_csic_dataset(
     normal_path: Path,
     attack_path: Path,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray,
+           np.ndarray]:
     """
     Load CSIC 2010 normal and attack files, extract features,
     and return (X, y) arrays ready for model training
     """
-    normal_reqs = parse_csic_file(normal_path, label=0)
-    attack_reqs = parse_csic_file(attack_path, label=1)
+    normal_reqs = parse_csic_file(normal_path, label = 0)
+    attack_reqs = parse_csic_file(attack_path, label = 1)
 
     all_reqs = normal_reqs + attack_reqs
 
@@ -219,8 +224,8 @@ def load_csic_dataset(
         vectors.append(vector)
         labels.append(req.label)
 
-    X = np.array(vectors, dtype=np.float32)
-    y = np.array(labels, dtype=np.int32)
+    X = np.array(vectors, dtype = np.float32)
+    y = np.array(labels, dtype = np.int32)
 
     logger.info(
         "Dataset loaded: X=%s, y=%s (normal=%d, attack=%d)",
@@ -235,12 +240,13 @@ def load_csic_dataset(
 
 def load_csic_normal(
     path: Path,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray,
+           np.ndarray]:
     """
     Load a CSIC 2010 normal traffic file and return (X, y) arrays
     with all labels set to 0
     """
-    reqs = parse_csic_file(path, label=0)
+    reqs = parse_csic_file(path, label = 0)
 
     vectors: list[list[float]] = []
     for req in reqs:
@@ -250,8 +256,8 @@ def load_csic_normal(
             features[name] = 0.0
         vectors.append(encode_for_inference(features))
 
-    X = np.array(vectors, dtype=np.float32)
-    y = np.zeros(len(vectors), dtype=np.int32)
+    X = np.array(vectors, dtype = np.float32)
+    y = np.zeros(len(vectors), dtype = np.int32)
 
     logger.info(
         "Loaded %d normal samples from %s",

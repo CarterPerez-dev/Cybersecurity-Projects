@@ -57,9 +57,7 @@ async def verify_password(plain_password: str,
         return False, None
 
 
-DUMMY_HASH = password_hasher.hash(
-    "dummy_password_for_timing_attack_prevention"
-)
+DUMMY_HASH = password_hasher.hash("dummy_password_for_timing_attack_prevention")
 
 
 async def verify_password_with_timing_safety(
@@ -74,11 +72,7 @@ async def verify_password_with_timing_safety(
     hash operation to prevent timing attacks
     """
     if hashed_password is None:
-        await asyncio.to_thread(
-            password_hasher.verify,
-            plain_password,
-            DUMMY_HASH
-        )
+        await asyncio.to_thread(password_hasher.verify, plain_password, DUMMY_HASH)
         return False, None
     return await verify_password(plain_password, hashed_password)
 
@@ -98,8 +92,7 @@ def create_access_token(
         "type": TokenType.ACCESS.value,
         "token_version": token_version,
         "iat": now,
-        "exp":
-        now + timedelta(minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        "exp": now + timedelta(minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     }
     if extra_claims:
         payload.update(extra_claims)
@@ -144,13 +137,11 @@ def decode_access_token(token: str) -> dict[str, Any]:
         token,
         settings.SECRET_KEY.get_secret_value(),
         algorithms = [settings.JWT_ALGORITHM],
-        options = {
-            "require": ["exp",
-                        "sub",
-                        "iat",
-                        "type",
-                        "token_version"]
-        },
+        options = {"require": ["exp",
+                               "sub",
+                               "iat",
+                               "type",
+                               "token_version"]},
     )
 
 

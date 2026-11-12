@@ -27,6 +27,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.alerts import ALERTS_CHANNEL
 from app.core.redis_manager import redis_manager
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -45,7 +46,7 @@ async def ws_alerts(websocket: WebSocket) -> None:
 
     redis = redis_manager.client
     if redis is None:
-        await websocket.close(code=1011, reason="Redis not available")
+        await websocket.close(code = 1011, reason = "Redis not available")
         return
 
     pubsub = redis.pubsub()

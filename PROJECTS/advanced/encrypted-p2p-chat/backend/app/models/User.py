@@ -26,21 +26,14 @@ class User(BaseDBModel, table = True):
     """
     __tablename__ = "users"
 
-    id: UUID = Field(
-        default_factory = uuid4,
-        primary_key = True,
-        nullable = False
-    )
+    id: UUID = Field(default_factory = uuid4, primary_key = True, nullable = False)
     username: str = Field(
         unique = True,
         index = True,
         nullable = False,
         max_length = USERNAME_MAX_LENGTH
     )
-    display_name: str = Field(
-        nullable = False,
-        max_length = DISPLAY_NAME_MAX_LENGTH
-    )
+    display_name: str = Field(nullable = False, max_length = DISPLAY_NAME_MAX_LENGTH)
     is_active: bool = Field(default = True, nullable = False)
     is_verified: bool = Field(default = False, nullable = False)
 

@@ -175,11 +175,7 @@ async def update_report(
     """
     Update report (researcher only, only if still open)
     """
-    return await report_service.update_report(
-        current_user,
-        report_id,
-        report_data
-    )
+    return await report_service.update_report(current_user, report_id, report_data)
 
 
 @router.patch(
@@ -200,11 +196,7 @@ async def triage_report(
     """
     Triage a report (program owner only)
     """
-    return await report_service.triage_report(
-        current_user,
-        report_id,
-        triage_data
-    )
+    return await report_service.triage_report(current_user, report_id, triage_data)
 
 
 @router.get(
@@ -244,8 +236,4 @@ async def add_comment(
     """
     Add comment to a report
     """
-    return await report_service.add_comment(
-        current_user,
-        report_id,
-        comment_data
-    )
+    return await report_service.add_comment(current_user, report_id, comment_data)

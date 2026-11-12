@@ -61,8 +61,7 @@ class SessionStore:
     def __init__(self, max_sessions: int | None = None) -> None:
         self._sessions: dict[str, Session] = {}
         self._max_sessions = (
-            config.ARENA_MAX_SESSIONS
-            if max_sessions is None else max_sessions
+            config.ARENA_MAX_SESSIONS if max_sessions is None else max_sessions
         )
         self._per_client: dict[str, deque[float]] = {}
         self._today: deque[float] = deque()
@@ -70,8 +69,7 @@ class SessionStore:
     def _expire(self, now: float) -> None:
         cutoff = now - config.ARENA_SESSION_TTL_SECONDS
         stale = [
-            key for key, session in self._sessions.items()
-            if session.last_seen < cutoff
+            key for key, session in self._sessions.items() if session.last_seen < cutoff
         ]
         for key in stale:
             del self._sessions[key]
@@ -114,9 +112,7 @@ class SessionStore:
             del self._sessions[next(iter(self._sessions))]
 
         session = Session(
-            session_id = secrets.token_urlsafe(
-                config.ARENA_SESSION_ID_BYTES
-            ),
+            session_id = secrets.token_urlsafe(config.ARENA_SESSION_ID_BYTES),
             secret = _new_secret(),
             created_at = moment,
             last_seen = moment,
@@ -166,8 +162,7 @@ class SessionStore:
         harvest exports for review
         """
         return [
-            record for session in self._sessions.values()
-            for record in session.bypasses
+            record for session in self._sessions.values() for record in session.bypasses
         ]
 
     def clock(self) -> float:

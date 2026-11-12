@@ -3,7 +3,6 @@
 test_config.py
 """
 
-
 from pathlib import Path
 
 from dlp_scanner.config import ScanConfig, load_config
@@ -69,10 +68,7 @@ class TestLoadConfig:
         assert config.detection.min_confidence == 0.5
         assert config.output.format == "json"
 
-    def test_load_partial_config_fills_defaults(
-        self,
-        tmp_path: Path
-    ) -> None:
+    def test_load_partial_config_fills_defaults(self, tmp_path: Path) -> None:
         config_path = tmp_path / ".dlp-scanner.yml"
         config_path.write_text("output:\n  format: sarif\n")
         config = load_config(config_path)

@@ -84,9 +84,7 @@ def render_arg(value: JsonValue) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, dict):
-        return " ".join(
-            f"{key} {render_arg(item)}" for key, item in value.items()
-        )
+        return " ".join(f"{key} {render_arg(item)}" for key, item in value.items())
     if isinstance(value, list):
         return " ".join(render_arg(item) for item in value)
     return str(value)

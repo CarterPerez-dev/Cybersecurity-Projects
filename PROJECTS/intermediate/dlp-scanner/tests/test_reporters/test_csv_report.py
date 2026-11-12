@@ -3,7 +3,6 @@
 test_csv_report.py
 """
 
-
 import csv
 import io
 
@@ -49,30 +48,21 @@ def result_with_findings() -> ScanResult:
 
 
 class TestCsvReporter:
-    def test_generates_valid_csv(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_generates_valid_csv(self, result_with_findings: ScanResult) -> None:
         reporter = CsvReporter()
         output = reporter.generate(result_with_findings)
         reader = csv.reader(io.StringIO(output))
         rows = list(reader)
         assert len(rows) == 2
 
-    def test_header_matches_columns(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_header_matches_columns(self, result_with_findings: ScanResult) -> None:
         reporter = CsvReporter()
         output = reporter.generate(result_with_findings)
         reader = csv.reader(io.StringIO(output))
         header = next(reader)
         assert header == CSV_COLUMNS
 
-    def test_finding_row_data(
-        self,
-        result_with_findings: ScanResult
-    ) -> None:
+    def test_finding_row_data(self, result_with_findings: ScanResult) -> None:
         reporter = CsvReporter()
         output = reporter.generate(result_with_findings)
         reader = csv.reader(io.StringIO(output))

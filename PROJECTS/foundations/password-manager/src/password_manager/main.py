@@ -246,9 +246,7 @@ def _unlock_or_exit(path: Path, master_password: str) -> UnlockedVault:
     try:
         return UnlockedVault.unlock(path, master_password)
     except VaultNotFoundError:
-        error_console.print(
-            f"[red]{MSG_VAULT_NOT_FOUND.format(path=path)}[/red]"
-        )
+        error_console.print(f"[red]{MSG_VAULT_NOT_FOUND.format(path=path)}[/red]")
         raise typer.Exit(code = 1) from None
     except WrongPasswordError:
         error_console.print(f"[red]{MSG_WRONG_MASTER_PASSWORD}[/red]")
@@ -304,9 +302,7 @@ def init(vault: VaultPath = DEFAULT_VAULT_PATH) -> None:
     # and the prompts finishing, another process could have created
     # the vault, and we still need to handle that race
     if vault.exists():
-        error_console.print(
-            f"[red]{MSG_VAULT_ALREADY_EXISTS.format(path=vault)}[/red]"
-        )
+        error_console.print(f"[red]{MSG_VAULT_ALREADY_EXISTS.format(path=vault)}[/red]")
         raise typer.Exit(code = 1)
 
     master = _prompt_master_password_with_confirmation()
@@ -317,9 +313,7 @@ def init(vault: VaultPath = DEFAULT_VAULT_PATH) -> None:
         with UnlockedVault.create(vault, master):
             pass
     except VaultAlreadyExistsError:
-        error_console.print(
-            f"[red]{MSG_VAULT_ALREADY_EXISTS.format(path=vault)}[/red]"
-        )
+        error_console.print(f"[red]{MSG_VAULT_ALREADY_EXISTS.format(path=vault)}[/red]")
         raise typer.Exit(code = 1) from None
 
     console.print(f"[green]{MSG_VAULT_CREATED.format(path=vault)}[/green]")
@@ -364,9 +358,7 @@ def get(
         try:
             entry = unlocked.get_entry(name)
         except EntryNotFoundError:
-            error_console.print(
-                f"[red]{MSG_ENTRY_NOT_FOUND.format(name=name)}[/red]"
-            )
+            error_console.print(f"[red]{MSG_ENTRY_NOT_FOUND.format(name=name)}[/red]")
             raise typer.Exit(code = 1) from None
         # entry is a frozen Entry instance — its fields remain
         # readable after the vault closes, but we still render
@@ -420,9 +412,7 @@ def add(
                 raise typer.Exit(code = 1) from None
             console.print(f"[green]Generated password:[/green] {password}")
         else:
-            password = _prompt_master_password(
-                f"Password for {name} (hidden): "
-            )
+            password = _prompt_master_password(f"Password for {name} (hidden): ")
 
         url = input(PROMPT_ENTRY_URL).strip()
         notes = input(PROMPT_ENTRY_NOTES).strip()
@@ -465,9 +455,7 @@ def delete(
         try:
             unlocked.delete_entry(name)
         except EntryNotFoundError:
-            error_console.print(
-                f"[red]{MSG_ENTRY_NOT_FOUND.format(name=name)}[/red]"
-            )
+            error_console.print(f"[red]{MSG_ENTRY_NOT_FOUND.format(name=name)}[/red]")
             raise typer.Exit(code = 1) from None
 
         unlocked.save()

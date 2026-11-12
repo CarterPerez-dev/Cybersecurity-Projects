@@ -30,7 +30,6 @@ class VigilExperiment:
     Context manager wrapping MLflow experiment runs
     with automatic system metadata logging
     """
-
     def __init__(self, experiment_name: str) -> None:
         self._experiment_name = experiment_name
         self._run: mlflow.ActiveRun | None = None
@@ -58,7 +57,7 @@ class VigilExperiment:
     ) -> None:
         if exc_type is not None:
             mlflow.set_tag("status", "failed")
-            mlflow.set_tag("error", str(exc_val)[:500])
+            mlflow.set_tag("error", str(exc_val)[: 500])
         else:
             mlflow.set_tag("status", "completed")
         mlflow.end_run()
@@ -72,13 +71,14 @@ class VigilExperiment:
 
     def log_metrics(
         self,
-        metrics: dict[str, float],
+        metrics: dict[str,
+                      float],
         step: int | None = None,
     ) -> None:
         """
         Log a dictionary of metrics to the active run
         """
-        mlflow.log_metrics(metrics, step=step)
+        mlflow.log_metrics(metrics, step = step)
 
     def log_artifact(self, path: Path | str) -> None:
         """
@@ -104,11 +104,14 @@ def _get_git_hash() -> str | None:
     """
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
+            ["git",
+             "rev-parse",
+             "--short",
+             "HEAD"],
+            capture_output = True,
+            text = True,
+            timeout = 5,
+            check = False,
         )
         if result.returncode == 0:
             return result.stdout.strip()

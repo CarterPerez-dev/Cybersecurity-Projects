@@ -9,4 +9,5 @@ ThreatEvent and ModelMetadata
 from app.models.model_metadata import ModelMetadata
 from app.models.threat_event import ThreatEvent
 
+
 __all__ = ["ModelMetadata", "ThreatEvent"]

@@ -45,16 +45,16 @@ def trained_model_dir(tmp_path: Path) -> Path:
     X_normal = rng.standard_normal((200, 35)).astype(np.float32)
     X_attack = rng.standard_normal((80, 35)).astype(np.float32) + 3.0
     X = np.vstack([X_normal, X_attack])
-    y = np.array([0] * 200 + [1] * 80, dtype=np.int32)
+    y = np.array([0] * 200 + [1] * 80, dtype = np.int32)
 
-    ae = ThreatAutoencoder(input_dim=35)
+    ae = ThreatAutoencoder(input_dim = 35)
     export_autoencoder(ae, tmp_path / "ae.onnx")
 
-    rf = RandomForestClassifier(n_estimators=10, random_state=42)
+    rf = RandomForestClassifier(n_estimators = 10, random_state = 42)
     rf.fit(X, y)
     export_random_forest(rf, 35, tmp_path / "rf.onnx")
 
-    iso = IsolationForest(n_estimators=10, random_state=42)
+    iso = IsolationForest(n_estimators = 10, random_state = 42)
     iso.fit(X_normal)
     export_isolation_forest(iso, 35, tmp_path / "if.onnx")
 
@@ -76,7 +76,7 @@ def separable_test_data() -> tuple[np.ndarray, np.ndarray]:
     X_normal = rng.standard_normal((50, 35)).astype(np.float32)
     X_attack = (rng.standard_normal((30, 35)).astype(np.float32) + 3.0)
     X = np.vstack([X_normal, X_attack])
-    y = np.array([0] * 50 + [1] * 30, dtype=np.int32)
+    y = np.array([0] * 50 + [1] * 30, dtype = np.int32)
     return X, y
 
 
@@ -84,11 +84,11 @@ class TestValidateEnsemble:
     """
     Test ensemble validation with metric gates
     """
-
     def test_returns_validation_result(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         validate_ensemble returns a ValidationResult instance
@@ -101,7 +101,8 @@ class TestValidateEnsemble:
     def test_result_has_all_metrics(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         ValidationResult contains precision, recall, f1, pr_auc, roc_auc
@@ -118,7 +119,8 @@ class TestValidateEnsemble:
     def test_confusion_matrix_shape(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         Confusion matrix is 2x2
@@ -133,7 +135,8 @@ class TestValidateEnsemble:
     def test_gate_details_contains_both_gates(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         gate_details has pr_auc and f1 entries
@@ -147,7 +150,8 @@ class TestValidateEnsemble:
     def test_gates_pass_with_low_thresholds(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         passed_gates is True when gates are set very low
@@ -157,8 +161,8 @@ class TestValidateEnsemble:
             trained_model_dir,
             X_test,
             y_test,
-            pr_auc_gate=0.01,
-            f1_gate=0.01,
+            pr_auc_gate = 0.01,
+            f1_gate = 0.01,
         )
 
         assert result.passed_gates is True
@@ -166,7 +170,8 @@ class TestValidateEnsemble:
     def test_gates_fail_with_high_thresholds(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         passed_gates is False when gates are impossibly high
@@ -176,8 +181,8 @@ class TestValidateEnsemble:
             trained_model_dir,
             X_test,
             y_test,
-            pr_auc_gate=1.0,
-            f1_gate=1.0,
+            pr_auc_gate = 1.0,
+            f1_gate = 1.0,
         )
 
         assert result.passed_gates is False
@@ -185,7 +190,8 @@ class TestValidateEnsemble:
     def test_custom_ensemble_weights(
         self,
         trained_model_dir: Path,
-        separable_test_data: tuple[np.ndarray, np.ndarray],
+        separable_test_data: tuple[np.ndarray,
+                                   np.ndarray],
     ) -> None:
         """
         Custom ensemble weights are accepted without error
@@ -195,7 +201,7 @@ class TestValidateEnsemble:
             trained_model_dir,
             X_test,
             y_test,
-            ensemble_weights={
+            ensemble_weights = {
                 "ae": 0.5,
                 "rf": 0.3,
                 "if": 0.2

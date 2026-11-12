@@ -36,7 +36,8 @@ logger = structlog.get_logger()
 def endpoint(
     auth_required: bool = True,
     roles: Sequence[str] | None = None,
-) -> Callable[..., Any]:
+) -> Callable[...,
+              Any]:
     """
     Outermost decorator that provides auth extraction, role gating,
     and an error boundary

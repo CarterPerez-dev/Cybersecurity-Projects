@@ -34,33 +34,38 @@ class ThreatAutoencoder(nn.Module):
     Trained on normal traffic only. High reconstruction error
     indicates an anomalous (potentially malicious) request.
     """
-
     def __init__(self, input_dim: int = 35) -> None:
         super().__init__()
         self.input_dim = input_dim
 
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 24),
+            nn.Linear(input_dim,
+                      24),
             nn.BatchNorm1d(24),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.2),
-            nn.Linear(24, 12),
+            nn.Linear(24,
+                      12),
             nn.BatchNorm1d(12),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.2),
-            nn.Linear(12, 6),
+            nn.Linear(12,
+                      6),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(6, 12),
+            nn.Linear(6,
+                      12),
             nn.BatchNorm1d(12),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.2),
-            nn.Linear(12, 24),
+            nn.Linear(12,
+                      24),
             nn.BatchNorm1d(24),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.2),
-            nn.Linear(24, input_dim),
+            nn.Linear(24,
+                      input_dim),
         )
 
     def encode(self, x: Tensor) -> Tensor:
@@ -86,4 +91,4 @@ class ThreatAutoencoder(nn.Module):
         Per-sample mean squared error between input and reconstruction.
         """
         reconstructed = self.forward(x)
-        return torch.mean((x - reconstructed)**2, dim=1)
+        return torch.mean((x - reconstructed)**2, dim = 1)

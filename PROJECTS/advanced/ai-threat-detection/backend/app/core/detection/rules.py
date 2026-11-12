@@ -75,21 +75,47 @@ class _ThresholdRule(NamedTuple):
 
 
 _PATTERN_RULES: list[_PatternRule] = [
-    _PatternRule("LOG4SHELL", LOG4SHELL, 0.95),
-    _PatternRule("COMMAND_INJECTION", COMMAND_INJECTION, 0.90),
-    _PatternRule("SQL_INJECTION", SQLI, 0.85),
-    _PatternRule("XXE_INJECTION", XXE_INJECTION, 0.82),
-    _PatternRule("XSS", XSS, 0.80),
-    _PatternRule("FILE_INCLUSION", FILE_INCLUSION, 0.75),
-    _PatternRule("SSRF", SSRF, 0.70),
-    _PatternRule("CRLF_INJECTION", CRLF_INJECTION, 0.65),
-    _PatternRule("PATH_TRAVERSAL", PATH_TRAVERSAL, 0.60),
-    _PatternRule("OPEN_REDIRECT", OPEN_REDIRECT, 0.55),
+    _PatternRule("LOG4SHELL",
+                 LOG4SHELL,
+                 0.95),
+    _PatternRule("COMMAND_INJECTION",
+                 COMMAND_INJECTION,
+                 0.90),
+    _PatternRule("SQL_INJECTION",
+                 SQLI,
+                 0.85),
+    _PatternRule("XXE_INJECTION",
+                 XXE_INJECTION,
+                 0.82),
+    _PatternRule("XSS",
+                 XSS,
+                 0.80),
+    _PatternRule("FILE_INCLUSION",
+                 FILE_INCLUSION,
+                 0.75),
+    _PatternRule("SSRF",
+                 SSRF,
+                 0.70),
+    _PatternRule("CRLF_INJECTION",
+                 CRLF_INJECTION,
+                 0.65),
+    _PatternRule("PATH_TRAVERSAL",
+                 PATH_TRAVERSAL,
+                 0.60),
+    _PatternRule("OPEN_REDIRECT",
+                 OPEN_REDIRECT,
+                 0.55),
 ]
 
 _THRESHOLD_RULES: list[_ThresholdRule] = [
-    _ThresholdRule("RATE_ANOMALY", "req_count_1m", 100.0, 0.30),
-    _ThresholdRule("HIGH_ERROR_RATE", "error_rate_5m", 0.5, 0.25),
+    _ThresholdRule("RATE_ANOMALY",
+                   "req_count_1m",
+                   100.0,
+                   0.30),
+    _ThresholdRule("HIGH_ERROR_RATE",
+                   "error_rate_5m",
+                   0.5,
+                   0.25),
 ]
 
 _DOUBLE_ENCODING_SCORE = 0.40
@@ -97,7 +123,7 @@ _SCANNER_UA_SCORE = 0.35
 _BOOST_PER_ADDITIONAL_RULE = 0.05
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class RuleResult:
     """
     Output of the rule-based detection engine for a single request.
@@ -105,8 +131,8 @@ class RuleResult:
 
     threat_score: float
     severity: str
-    matched_rules: list[str] = field(default_factory=list)
-    component_scores: dict[str, float] = field(default_factory=dict)
+    matched_rules: list[str] = field(default_factory = list)
+    component_scores: dict[str, float] = field(default_factory = dict)
 
 
 class RuleEngine:
@@ -115,10 +141,10 @@ class RuleEngine:
     Scores requests using pattern matching, signature detection,
     and behavioral thresholds from windowed features
     """
-
     def score_request(
         self,
-        features: dict[str, int | float | bool | str],
+        features: dict[str,
+                       int | float | bool | str],
         entry: ParsedLogEntry,
     ) -> RuleResult:
         """
@@ -147,17 +173,17 @@ class RuleEngine:
                 matched.append((trule.name, trule.score))
 
         if not matched:
-            return RuleResult(threat_score=0.0, severity="LOW")
+            return RuleResult(threat_score = 0.0, severity = "LOW")
 
-        scores = sorted([s for _, s in matched], reverse=True)
+        scores = sorted([s for _, s in matched], reverse = True)
         threat_score = min(
             scores[0] + _BOOST_PER_ADDITIONAL_RULE * (len(scores) - 1),
             1.0,
         )
 
         return RuleResult(
-            threat_score=threat_score,
-            severity=_classify_severity(threat_score),
-            matched_rules=[name for name, _ in matched],
-            component_scores=dict(matched),
+            threat_score = threat_score,
+            severity = _classify_severity(threat_score),
+            matched_rules = [name for name, _ in matched],
+            component_scores = dict(matched),
         )

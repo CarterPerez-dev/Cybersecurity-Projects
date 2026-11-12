@@ -3,7 +3,6 @@
 test_file_scanner.py
 """
 
-
 from pathlib import Path
 
 import pytest
@@ -117,9 +116,7 @@ class TestFileScanner:
         temp_dir_with_pii: Path,
     ) -> None:
         result = file_scanner.scan(str(temp_dir_with_pii))
-        ssn_findings = [
-            f for f in result.findings if f.rule_id == "PII_SSN"
-        ]
+        ssn_findings = [f for f in result.findings if f.rule_id == "PII_SSN"]
         for finding in ssn_findings:
             assert len(finding.compliance_frameworks) > 0
 
@@ -153,9 +150,7 @@ class TestFileScanner:
         temp_dir_with_pii: Path,
     ) -> None:
         result = file_scanner.scan(str(temp_dir_with_pii))
-        cred_findings = [
-            f for f in result.findings if f.rule_id.startswith("CRED_")
-        ]
+        cred_findings = [f for f in result.findings if f.rule_id.startswith("CRED_")]
         assert len(cred_findings) > 0
 
 

@@ -35,7 +35,13 @@ def admin_cli() -> None:
 @admin_cli.command("create")
 @click.option("--username", required = True, help = "Admin username")
 @click.option("--email", required = True, help = "Admin email address")
-@click.option("--password", prompt = True, hide_input = True, confirmation_prompt = True, help = "Admin password")
+@click.option(
+    "--password",
+    prompt = True,
+    hide_input = True,
+    confirmation_prompt = True,
+    help = "Admin password"
+)
 def create_admin(username: str, email: str, password: str) -> None:
     """
     Create a new admin account or promote an existing user

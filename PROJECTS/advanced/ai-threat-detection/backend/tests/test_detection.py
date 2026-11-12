@@ -41,16 +41,22 @@ def _make_entry(
     Build a ParsedLogEntry with sensible defaults for rule engine testing.
     """
     return ParsedLogEntry(
-        ip="93.184.216.34",
-        timestamp=datetime(2026, 2, 11, 14, 30, 0, tzinfo=UTC),
-        method=method,
-        path=path,
-        query_string=query_string,
-        status_code=status_code,
-        response_size=1234,
-        referer="",
-        user_agent=user_agent,
-        raw_line="",
+        ip = "93.184.216.34",
+        timestamp = datetime(2026,
+                             2,
+                             11,
+                             14,
+                             30,
+                             0,
+                             tzinfo = UTC),
+        method = method,
+        path = path,
+        query_string = query_string,
+        status_code = status_code,
+        response_size = 1234,
+        referer = "",
+        user_agent = user_agent,
+        raw_line = "",
     )
 
 
@@ -92,8 +98,8 @@ def test_sqli_in_query_string() -> None:
     SQL injection payload triggers HIGH severity with SQL_INJECTION rule.
     """
     entry = _make_entry(
-        path="/users",
-        query_string="id=1' UNION SELECT username,password FROM users--",
+        path = "/users",
+        query_string = "id=1' UNION SELECT username,password FROM users--",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert result.threat_score >= 0.7
@@ -106,8 +112,8 @@ def test_xss_in_query_string() -> None:
     XSS payload triggers HIGH severity with XSS rule.
     """
     entry = _make_entry(
-        path="/comment",
-        query_string="body=<script>alert(document.cookie)</script>",
+        path = "/comment",
+        query_string = "body=<script>alert(document.cookie)</script>",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert result.threat_score >= 0.7
@@ -119,7 +125,7 @@ def test_path_traversal() -> None:
     """
     Path traversal triggers at least MEDIUM severity.
     """
-    entry = _make_entry(path="/static/../../etc/passwd")
+    entry = _make_entry(path = "/static/../../etc/passwd")
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert result.threat_score >= 0.5
     assert result.severity in {"MEDIUM", "HIGH"}
@@ -131,8 +137,8 @@ def test_command_injection() -> None:
     Command injection triggers HIGH severity.
     """
     entry = _make_entry(
-        path="/ping",
-        query_string="host=127.0.0.1;cat /etc/passwd",
+        path = "/ping",
+        query_string = "host=127.0.0.1;cat /etc/passwd",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert result.threat_score >= 0.7
@@ -144,7 +150,7 @@ def test_scanner_ua_contributes() -> None:
     """
     Known scanner UA fires the SCANNER_UA rule.
     """
-    entry = _make_entry(user_agent="Mozilla/5.00 (Nikto/2.1.6)")
+    entry = _make_entry(user_agent = "Mozilla/5.00 (Nikto/2.1.6)")
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "SCANNER_UA" in result.matched_rules
     assert result.threat_score > 0.0
@@ -166,13 +172,14 @@ def test_multiple_rules_aggregate() -> None:
     Multiple triggered rules produce a higher score than any single rule alone.
     """
     entry = _make_entry(
-        path="/users",
-        query_string="id=1' OR 1=1--",
-        user_agent="sqlmap/1.8",
+        path = "/users",
+        query_string = "id=1' OR 1=1--",
+        user_agent = "sqlmap/1.8",
     )
     sqli_only = ENGINE.score_request(
         _empty_windowed(),
-        _make_entry(path="/users", query_string="id=1' OR 1=1--"),
+        _make_entry(path = "/users",
+                    query_string = "id=1' OR 1=1--"),
     )
     combined = ENGINE.score_request(_empty_windowed(), entry)
     assert combined.threat_score > sqli_only.threat_score
@@ -184,9 +191,9 @@ def test_score_clamped_to_unit_range() -> None:
     Score never exceeds 1.0 even with many triggered rules.
     """
     entry = _make_entry(
-        path="/static/../../etc/passwd;cat /etc/shadow",
-        query_string="id=1' UNION SELECT 1--&x=<script>alert(1)</script>",
-        user_agent="sqlmap/1.8",
+        path = "/static/../../etc/passwd;cat /etc/shadow",
+        query_string = "id=1' UNION SELECT 1--&x=<script>alert(1)</script>",
+        user_agent = "sqlmap/1.8",
     )
     windowed = _empty_windowed()
     windowed["req_count_1m"] = 200.0
@@ -204,15 +211,15 @@ def test_severity_thresholds() -> None:
 
     medium = ENGINE.score_request(
         _empty_windowed(),
-        _make_entry(path="/static/../../etc/passwd"),
+        _make_entry(path = "/static/../../etc/passwd"),
     )
     assert medium.severity in {"MEDIUM", "HIGH"}
 
     high = ENGINE.score_request(
         _empty_windowed(),
         _make_entry(
-            path="/users",
-            query_string="id=1' UNION SELECT username FROM users--",
+            path = "/users",
+            query_string = "id=1' UNION SELECT username FROM users--",
         ),
     )
     assert high.severity == "HIGH"
@@ -223,8 +230,8 @@ def test_result_has_component_scores() -> None:
     RuleResult includes individual scores per triggered rule.
     """
     entry = _make_entry(
-        path="/users",
-        query_string="id=1' OR 1=1--",
+        path = "/users",
+        query_string = "id=1' OR 1=1--",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert len(result.component_scores) == len(result.matched_rules)
@@ -238,8 +245,8 @@ def test_file_inclusion() -> None:
     PHP stream wrapper in query string triggers FILE_INCLUSION rule.
     """
     entry = _make_entry(
-        path="/include",
-        query_string="page=php://filter/convert.base64-encode/resource=config",
+        path = "/include",
+        query_string = "page=php://filter/convert.base64-encode/resource=config",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "FILE_INCLUSION" in result.matched_rules
@@ -250,7 +257,7 @@ def test_double_encoding() -> None:
     """
     Double-encoded characters trigger the DOUBLE_ENCODING rule.
     """
-    entry = _make_entry(path="/path%2527trick")
+    entry = _make_entry(path = "/path%2527trick")
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "DOUBLE_ENCODING" in result.matched_rules
 
@@ -260,8 +267,8 @@ def test_crlf_injection() -> None:
     CRLF sequences in the URI trigger the CRLF_INJECTION rule
     """
     entry = _make_entry(
-        path="/api/v1/users",
-        query_string="name=admin%0d%0aSet-Cookie:session=hijacked",
+        path = "/api/v1/users",
+        query_string = "name=admin%0d%0aSet-Cookie:session=hijacked",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "CRLF_INJECTION" in result.matched_rules
@@ -273,8 +280,8 @@ def test_open_redirect() -> None:
     Redirect parameter pointing to an external URL triggers OPEN_REDIRECT
     """
     entry = _make_entry(
-        path="/login",
-        query_string="redirect_uri=https://evil.com/steal",
+        path = "/login",
+        query_string = "redirect_uri=https://evil.com/steal",
     )
     result = ENGINE.score_request(_empty_windowed(), entry)
     assert "OPEN_REDIRECT" in result.matched_rules

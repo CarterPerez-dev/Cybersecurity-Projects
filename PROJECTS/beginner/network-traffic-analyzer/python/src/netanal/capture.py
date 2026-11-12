@@ -64,7 +64,7 @@ class CaptureEngine:
         """
         self._config = config
         self._on_packet = on_packet
-        self._queue: Queue[Packet] = Queue(maxsize=queue_size)
+        self._queue: Queue[Packet] = Queue(maxsize = queue_size)
         self._stats = StatisticsCollector()
         self._sniffer: AsyncSniffer | None = None
         self._processor_thread: threading.Thread | None = None
@@ -91,7 +91,7 @@ class CaptureEngine:
         while not self._stop_event.is_set():
             try:
                 packet = self._queue.get(
-                    timeout=CaptureDefaults.QUEUE_TIMEOUT_SECONDS
+                    timeout = CaptureDefaults.QUEUE_TIMEOUT_SECONDS
                 )
             except Empty:
                 continue
@@ -131,8 +131,8 @@ class CaptureEngine:
         self._stats.start()
 
         self._processor_thread = threading.Thread(
-            target=self._process_packets,
-            daemon=True,
+            target = self._process_packets,
+            daemon = True,
         )
         self._processor_thread.start()
 
@@ -168,7 +168,7 @@ class CaptureEngine:
 
         if self._processor_thread and self._processor_thread.is_alive():
             self._processor_thread.join(
-                timeout=CaptureDefaults.THREAD_JOIN_TIMEOUT_SECONDS
+                timeout = CaptureDefaults.THREAD_JOIN_TIMEOUT_SECONDS
             )
 
         self._running = False
@@ -186,7 +186,7 @@ class CaptureEngine:
 
         if self._processor_thread and self._processor_thread.is_alive():
             self._processor_thread.join(
-                timeout=CaptureDefaults.THREAD_JOIN_TIMEOUT_SECONDS
+                timeout = CaptureDefaults.THREAD_JOIN_TIMEOUT_SECONDS
             )
 
         self._running = False
@@ -231,14 +231,8 @@ class GracefulCapture:
         """
         Set up signal handlers and start capture
         """
-        self._original_sigint = signal.signal(
-            signal.SIGINT,
-            self._handle_signal
-        )
-        self._original_sigterm = signal.signal(
-            signal.SIGTERM,
-            self._handle_signal
-        )
+        self._original_sigint = signal.signal(signal.SIGINT, self._handle_signal)
+        self._original_sigterm = signal.signal(signal.SIGTERM, self._handle_signal)
         self._engine.start()
         return self._engine
 
@@ -277,13 +271,13 @@ def capture_packets(
     Convenience function to capture packets with default settings
     """
     config = CaptureConfig(
-        interface=interface,
-        bpf_filter=bpf_filter,
-        packet_count=count,
-        timeout_seconds=timeout,
+        interface = interface,
+        bpf_filter = bpf_filter,
+        packet_count = count,
+        timeout_seconds = timeout,
     )
 
-    engine = CaptureEngine(config=config, on_packet=on_packet)
+    engine = CaptureEngine(config = config, on_packet = on_packet)
 
     with GracefulCapture(engine):
         return engine.wait()

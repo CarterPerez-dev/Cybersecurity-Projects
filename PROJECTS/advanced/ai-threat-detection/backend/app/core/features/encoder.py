@@ -37,7 +37,9 @@ def _encode_country(code: str) -> float:
 
 
 def encode_for_inference(
-    features: dict[str, int | float | bool | str], ) -> list[float]:
+    features: dict[str,
+                   int | float | bool | str],
+) -> list[float]:
     """
     Encode a combined feature dict into a 35-element float vector
     matching the model input specification.

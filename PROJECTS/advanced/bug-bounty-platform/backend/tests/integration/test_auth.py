@@ -41,10 +41,7 @@ async def test_login_success(client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
-async def test_login_invalid_password(
-    client: AsyncClient,
-    test_user: User
-):
+async def test_login_invalid_password(client: AsyncClient, test_user: User):
     """
     Wrong password returns 401
     """
@@ -76,10 +73,7 @@ async def test_login_invalid_email(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login_inactive_user(
-    client: AsyncClient,
-    inactive_user: User
-):
+async def test_login_inactive_user(client: AsyncClient, inactive_user: User):
     """
     Inactive user cannot login
     """

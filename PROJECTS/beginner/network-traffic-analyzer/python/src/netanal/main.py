@@ -72,10 +72,11 @@ ExportFormat = Literal["json", "csv"]
 ChartType = Literal["protocols", "top-talkers", "bandwidth", "all"]
 
 app = typer.Typer(
-    name="netanal",
-    help="[bold cyan]Network Traffic Analyzer[/bold cyan] - Capture and analyze packets",
-    rich_markup_mode="rich",
-    no_args_is_help=True,
+    name = "netanal",
+    help =
+    "[bold cyan]Network Traffic Analyzer[/bold cyan] - Capture and analyze packets",
+    rich_markup_mode = "rich",
+    no_args_is_help = True,
 )
 
 
@@ -112,9 +113,9 @@ def main(
         typer.Option(
             "--version",
             "-v",
-            help="Show version and exit",
-            callback=version_callback,
-            is_eager=True,
+            help = "Show version and exit",
+            callback = version_callback,
+            is_eager = True,
         ),
     ] = None,
 ) -> None:
@@ -133,7 +134,7 @@ def capture(
         typer.Option(
             "--interface",
             "-i",
-            help="Network interface to capture on",
+            help = "Network interface to capture on",
         ),
     ] = None,
     filter_expr: Annotated[
@@ -141,7 +142,7 @@ def capture(
         typer.Option(
             "--filter",
             "-f",
-            help="BPF filter expression",
+            help = "BPF filter expression",
         ),
     ] = None,
     count: Annotated[
@@ -149,7 +150,7 @@ def capture(
         typer.Option(
             "--count",
             "-c",
-            help="Number of packets to capture",
+            help = "Number of packets to capture",
         ),
     ] = None,
     timeout: Annotated[
@@ -157,7 +158,7 @@ def capture(
         typer.Option(
             "--timeout",
             "-t",
-            help="Capture timeout in seconds",
+            help = "Capture timeout in seconds",
         ),
     ] = None,
     output: Annotated[
@@ -165,14 +166,14 @@ def capture(
         typer.Option(
             "--output",
             "-o",
-            help="Output file for results (JSON)",
+            help = "Output file for results (JSON)",
         ),
     ] = None,
     verbose: Annotated[
         bool,
         typer.Option(
             "--verbose",
-            help="Show individual packets",
+            help = "Show individual packets",
         ),
     ] = False,
 ) -> None:
@@ -194,10 +195,10 @@ def capture(
         raise typer.Exit(1)
 
     config = CaptureConfig(
-        interface=interface,
-        bpf_filter=filter_expr,
-        packet_count=count,
-        timeout_seconds=timeout,
+        interface = interface,
+        bpf_filter = filter_expr,
+        packet_count = count,
+        timeout_seconds = timeout,
     )
 
     packets_captured: list[PacketInfo] = []
@@ -214,8 +215,8 @@ def capture(
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
     engine = CaptureEngine(
-        config=config,
-        on_packet=on_packet if verbose or output else None
+        config = config,
+        on_packet = on_packet if verbose or output else None
     )
 
     with GracefulCapture(engine) as cap:
@@ -235,14 +236,14 @@ def capture(
 def analyze(
     pcap_file: Annotated[
         Path,
-        typer.Argument(help="PCAP file to analyze"),
+        typer.Argument(help = "PCAP file to analyze"),
     ],
     top_talkers: Annotated[
         int,
         typer.Option(
             "--top-talkers",
             "-t",
-            help="Show top N talkers",
+            help = "Show top N talkers",
         ),
     ] = 10,
     json_output: Annotated[
@@ -250,7 +251,7 @@ def analyze(
         typer.Option(
             "--json",
             "-j",
-            help="Output results as JSON",
+            help = "Output results as JSON",
         ),
     ] = False,
 ) -> None:
@@ -271,25 +272,25 @@ def analyze(
     stats, _ = _analyze_pcap_to_stats(pcap_file)
 
     if json_output:
-        console.print(json.dumps(statistics_to_dict(stats), indent=2))
+        console.print(json.dumps(statistics_to_dict(stats), indent = 2))
     else:
         print_capture_summary(stats)
         print_protocol_table(stats)
-        print_top_talkers(stats, limit=top_talkers)
+        print_top_talkers(stats, limit = top_talkers)
 
 
 @app.command()
 def stats(
     pcap_file: Annotated[
         Path,
-        typer.Argument(help="PCAP file to analyze"),
+        typer.Argument(help = "PCAP file to analyze"),
     ],
     bandwidth: Annotated[
         bool,
         typer.Option(
             "--bandwidth",
             "-b",
-            help="Show bandwidth statistics",
+            help = "Show bandwidth statistics",
         ),
     ] = False,
     protocols: Annotated[
@@ -297,7 +298,7 @@ def stats(
         typer.Option(
             "--protocols",
             "-p",
-            help="Show protocol distribution",
+            help = "Show protocol distribution",
         ),
     ] = False,
     endpoints: Annotated[
@@ -305,7 +306,7 @@ def stats(
         typer.Option(
             "--endpoints",
             "-e",
-            help="Show endpoint statistics",
+            help = "Show endpoint statistics",
         ),
     ] = False,
 ) -> None:
@@ -328,7 +329,7 @@ def stats(
         print_protocol_table(stats_result)
 
     if endpoints:
-        print_top_talkers(stats_result, limit=20)
+        print_top_talkers(stats_result, limit = 20)
 
     if bandwidth:
         print_bandwidth_stats(stats_result)
@@ -338,14 +339,14 @@ def stats(
 def export_cmd(
     pcap_file: Annotated[
         Path,
-        typer.Argument(help="PCAP file to export"),
+        typer.Argument(help = "PCAP file to export"),
     ],
     output: Annotated[
         Path,
         typer.Option(
             "--output",
             "-o",
-            help="Output file path",
+            help = "Output file path",
         ),
     ],
     format_type: Annotated[
@@ -353,7 +354,7 @@ def export_cmd(
         typer.Option(
             "--format",
             "-f",
-            help="Output format",
+            help = "Output format",
         ),
     ] = "json",
 ) -> None:
@@ -382,14 +383,14 @@ def export_cmd(
 def chart(
     pcap_file: Annotated[
         Path,
-        typer.Argument(help="PCAP file to visualize"),
+        typer.Argument(help = "PCAP file to visualize"),
     ],
     chart_type: Annotated[
         ChartType,
         typer.Option(
             "--type",
             "-t",
-            help="Chart type",
+            help = "Chart type",
         ),
     ] = "all",
     output: Annotated[
@@ -397,7 +398,7 @@ def chart(
         typer.Option(
             "--output",
             "-o",
-            help="Output file path (for single chart)",
+            help = "Output file path (for single chart)",
         ),
     ] = None,
     output_dir: Annotated[
@@ -405,7 +406,7 @@ def chart(
         typer.Option(
             "--output-dir",
             "-d",
-            help="Output directory (for all charts)",
+            help = "Output directory (for all charts)",
         ),
     ] = None,
 ) -> None:

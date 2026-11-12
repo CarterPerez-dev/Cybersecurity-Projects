@@ -91,12 +91,12 @@ lint:
     @echo ""
     @echo "✓ All linters passed"
 
-# Auto-format every Python file with yapf
+# Auto-format every Python file with yang
 [group('test')]
 format:
-    @echo "Formatting code with yapf..."
+    @echo "Formatting code with yang..."
     # -i = in place. Edits the files directly instead of printing diffs.
-    uv run yapf -i http_headers_scanner.py test_http_headers_scanner.py
+    uv run yang -i http_headers_scanner.py test_http_headers_scanner.py
     @echo "✓ Code formatted"
 
 # Auto-fix what ruff can fix on its own (unused imports, etc.)

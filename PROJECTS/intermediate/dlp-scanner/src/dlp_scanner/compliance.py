@@ -3,7 +3,6 @@
 compliance.py
 """
 
-
 from dlp_scanner.constants import (
     SEVERITY_SCORE_THRESHOLDS,
     Severity,
@@ -34,13 +33,13 @@ RULE_FRAMEWORK_MAP: dict[str,
                                                         "HIPAA"],
                              "PII_IPV4": ["GDPR"],
                              "FIN_CREDIT_CARD_VISA": ["PCI_DSS",
-                                                       "GLBA"],
+                                                      "GLBA"],
                              "FIN_CREDIT_CARD_MC": ["PCI_DSS",
-                                                     "GLBA"],
+                                                    "GLBA"],
                              "FIN_CREDIT_CARD_AMEX": ["PCI_DSS",
-                                                       "GLBA"],
+                                                      "GLBA"],
                              "FIN_CREDIT_CARD_DISC": ["PCI_DSS",
-                                                       "GLBA"],
+                                                      "GLBA"],
                              "FIN_IBAN": ["GDPR",
                                           "GLBA"],
                              "FIN_NHS_NUMBER": ["GDPR"],
@@ -125,10 +124,9 @@ RULE_REMEDIATION_MAP: dict[
             "PCI-DSS requires PANs to be encrypted, hashed, "
             "or truncated. Never store in plaintext."
         ),
-        "FIN_IBAN": (
-            "Encrypt IBAN numbers at rest. "
-            "Restrict access to financial systems."
-        ),
+        "FIN_IBAN":
+        ("Encrypt IBAN numbers at rest. "
+         "Restrict access to financial systems."),
         "FIN_NHS_NUMBER": (
             "NHS numbers are personal data under UK GDPR. "
             "Encrypt at rest and restrict access."

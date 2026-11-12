@@ -102,10 +102,7 @@ class CompositeFingerprinter:  # pylint: disable=too-many-instance-attributes
             self.use_geo = False
 
     @classmethod
-    def from_settings(
-        cls,
-        settings: FingerprintSettings
-    ) -> CompositeFingerprinter:
+    def from_settings(cls, settings: FingerprintSettings) -> CompositeFingerprinter:
         """
         Create fingerprinter from settings
         """
@@ -150,22 +147,14 @@ class CompositeFingerprinter:  # pylint: disable=too-many-instance-attributes
             raw_ip, normalized_ip = self._ip_extractor.extract(request)
 
         if self.use_user_agent:
-            user_agent = self._headers_extractor.extract_user_agent(
-                request
-            )
+            user_agent = self._headers_extractor.extract_user_agent(request)
 
         if self.use_accept_headers:
-            accept_language = self._headers_extractor.extract_accept_language(
-                request
-            )
-            accept_encoding = self._headers_extractor.extract_accept_encoding(
-                request
-            )
+            accept_language = self._headers_extractor.extract_accept_language(request)
+            accept_encoding = self._headers_extractor.extract_accept_encoding(request)
 
         if self.use_header_order:
-            headers_hash = self._headers_extractor.compute_headers_hash(
-                request
-            )
+            headers_hash = self._headers_extractor.compute_headers_hash(request)
 
         if self.use_auth:
             auth_identifier = self._auth_extractor.extract(request)
@@ -206,8 +195,7 @@ class CompositeFingerprinter:  # pylint: disable=too-many-instance-attributes
         Requires geo lookup service to populate header
         """
         return (
-            request.headers.get("X-Client-ASN")
-            or request.headers.get("CF-IPCountry")
+            request.headers.get("X-Client-ASN") or request.headers.get("CF-IPCountry")
         )
 
     def is_authenticated(self, request: Request) -> bool:

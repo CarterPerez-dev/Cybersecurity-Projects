@@ -72,11 +72,11 @@ lint:
     @echo ""
     @echo "All linting checks passed!"
 
-# Format code with yapf
+# Format code with yang
 [group('test')]
 format:
-    @echo "Formatting code with yapf..."
-    uv run yapf -i keylogger.py test_keylogger.py
+    @echo "Formatting code with yang..."
+    uv run yang -i keylogger.py test_keylogger.py
     @echo "Code formatted"
 
 # Run ruff check and fix

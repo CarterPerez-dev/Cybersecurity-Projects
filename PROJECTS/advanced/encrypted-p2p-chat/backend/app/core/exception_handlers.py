@@ -25,10 +25,7 @@ from app.core.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-async def user_exists_handler(
-    request: Request,
-    exc: UserExistsError
-) -> JSONResponse:
+async def user_exists_handler(request: Request, exc: UserExistsError) -> JSONResponse:
     """
     Handle UserExistsError exceptions
     """
@@ -117,10 +114,7 @@ async def challenge_expired_handler(
     )
 
 
-async def database_error_handler(
-    request: Request,
-    exc: DatabaseError
-) -> JSONResponse:
+async def database_error_handler(request: Request, exc: DatabaseError) -> JSONResponse:
     """
     Handle DatabaseError exceptions
     """
@@ -145,10 +139,7 @@ async def authentication_error_handler(
     )
 
 
-async def invalid_data_handler(
-    request: Request,
-    exc: InvalidDataError
-) -> JSONResponse:
+async def invalid_data_handler(request: Request, exc: InvalidDataError) -> JSONResponse:
     """
     Handle InvalidDataError exceptions
     """

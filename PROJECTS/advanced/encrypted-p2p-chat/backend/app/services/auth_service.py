@@ -79,11 +79,7 @@ class AuthService:
             return user
         except IntegrityError as e:
             await session.rollback()
-            logger.error(
-                "Database integrity error creating user %s: %s",
-                username,
-                e
-            )
+            logger.error("Database integrity error creating user %s: %s", username, e)
             raise DatabaseError(
                 "Failed to create user: database constraint violation"
             ) from e
@@ -196,15 +192,13 @@ class AuthService:
         search_pattern = f"%{query.lower()}%"
 
         statement = (
-            select(User)
-            .where(
+            select(User).where(
                 User.is_active == True,
                 (
-                    User.username.ilike(search_pattern) |
-                    User.display_name.ilike(search_pattern)
+                    User.username.ilike(search_pattern)
+                    | User.display_name.ilike(search_pattern)
                 )
-            )
-            .limit(limit)
+            ).limit(limit)
         )
 
         if exclude_user_id is not None:
@@ -213,11 +207,7 @@ class AuthService:
         result = await session.execute(statement)
         users = result.scalars().all()
 
-        logger.debug(
-            "Search for '%s' returned %d users",
-            query,
-            len(users)
-        )
+        logger.debug("Search for '%s' returned %d users", query, len(users))
 
         return list(users)
 
@@ -229,9 +219,7 @@ class AuthService:
         """
         Retrieve credential by credential_id
         """
-        statement = select(Credential).where(
-            Credential.credential_id == credential_id
-        )
+        statement = select(Credential).where(Credential.credential_id == credential_id)
         result = await session.execute(statement)
         credential = result.scalar_one_or_none()
 
@@ -251,9 +239,7 @@ class AuthService:
         """
         Update credential signature counter after successful authentication
         """
-        statement = select(Credential).where(
-            Credential.credential_id == credential_id
-        )
+        statement = select(Credential).where(Credential.credential_id == credential_id)
         result = await session.execute(statement)
         credential = result.scalar_one_or_none()
 
@@ -291,9 +277,7 @@ class AuthService:
         """
         Update credential backup flags (WebAuthn Level 3)
         """
-        statement = select(Credential).where(
-            Credential.credential_id == credential_id
-        )
+        statement = select(Credential).where(Credential.credential_id == credential_id)
         result = await session.execute(statement)
         credential = result.scalar_one_or_none()
 
@@ -332,7 +316,8 @@ class AuthService:
         self,
         session: AsyncSession,
         request: RegistrationBeginRequest,
-    ) -> dict[str, Any]:
+    ) -> dict[str,
+              Any]:
         """
         Begin WebAuthn passkey registration flow
         """
@@ -377,9 +362,7 @@ class AuthService:
         """
         Complete WebAuthn passkey registration
         """
-        context = await redis_manager.take_registration_context(
-            username = username
-        )
+        context = await redis_manager.take_registration_context(username = username)
 
         if context is None:
             logger.warning(
@@ -422,7 +405,8 @@ class AuthService:
         self,
         session: AsyncSession,
         request: AuthenticationBeginRequest,
-    ) -> dict[str, Any]:
+    ) -> dict[str,
+              Any]:
         """
         Begin WebAuthn passkey authentication flow
         """
@@ -436,8 +420,7 @@ class AuthService:
 
             if user is not None and user.is_active:
                 allow_credentials = [
-                    base64url_to_bytes(cred.credential_id)
-                    for cred in user.credentials
+                    base64url_to_bytes(cred.credential_id) for cred in user.credentials
                 ]
 
         options_response = passkey_manager.generate_authentication_options(
@@ -466,17 +449,13 @@ class AuthService:
         if not credential_id:
             raise InvalidDataError("Missing credential ID")
 
-        client_data_b64 = request.credential.get("response", {}).get(
-            "clientDataJSON"
-        )
+        client_data_b64 = request.credential.get("response", {}).get("clientDataJSON")
         if not client_data_b64:
             raise InvalidDataError("Missing clientDataJSON")
 
         try:
             import json as _json
-            client_data = _json.loads(
-                base64url_to_bytes(client_data_b64).decode()
-            )
+            client_data = _json.loads(base64url_to_bytes(client_data_b64).decode())
             challenge_bytes = base64url_to_bytes(client_data["challenge"])
         except Exception as exc:
             logger.error("Failed to parse clientDataJSON: %s", exc)
@@ -486,9 +465,7 @@ class AuthService:
             challenge = challenge_bytes
         )
         if not challenge_consumed:
-            logger.warning(
-                "Authentication challenge invalid or expired"
-            )
+            logger.warning("Authentication challenge invalid or expired")
             raise ChallengeExpiredError(
                 "Challenge expired or not found - please restart authentication"
             )
@@ -511,10 +488,7 @@ class AuthService:
         )
 
         if not user:
-            logger.error(
-                "User not found for credential: %s...",
-                credential_id[: 16]
-            )
+            logger.error("User not found for credential: %s...", credential_id[: 16])
             raise UserNotFoundError("User not found")
 
         if not user.is_active:

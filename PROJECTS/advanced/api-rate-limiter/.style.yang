@@ -1,7 +1,9 @@
 # ©AngelaMos | 2026
+# .style.yang
+
 [style]
 based_on_style = pep8
-column_limit = 89
+column_limit = 88
 indent_width = 4
 continuation_indent_width = 4
 indent_closing_brackets = false

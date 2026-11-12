@@ -7,6 +7,7 @@ from rveng.engine.disasm import disassemble_at, find_gate
 from rveng.engine.discover import discover_functions
 from rveng.engine.elf import ElfImage
 
+
 CHECK = 0x401146
 MAIN = 0x401164
 START = 0x401060
@@ -32,8 +33,7 @@ def test_discovered_function_has_an_address_label(gate_stripped_bytes: bytes):
     assert check.label == "sub_401146"
 
 
-def test_disassemble_at_recovers_the_gate_without_symbols(
-        gate_stripped_bytes: bytes):
+def test_disassemble_at_recovers_the_gate_without_symbols(gate_stripped_bytes: bytes):
     image = ElfImage(gate_stripped_bytes)
     instructions = disassemble_at(image, CHECK)
     assert instructions[-1].mnemonic == "ret"

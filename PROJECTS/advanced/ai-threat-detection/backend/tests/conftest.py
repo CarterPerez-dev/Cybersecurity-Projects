@@ -39,12 +39,12 @@ def test_settings() -> Settings:
     Override settings for test environment.
     """
     return Settings(
-        env="testing",
-        debug=False,
-        database_url="sqlite+aiosqlite://",
-        redis_url="redis://localhost:6379/1",
-        nginx_log_path="/tmp/test-access.log",
-        geoip_db_path="/tmp/nonexistent.mmdb",
+        env = "testing",
+        debug = False,
+        database_url = "sqlite+aiosqlite://",
+        redis_url = "redis://localhost:6379/1",
+        nginx_log_path = "/tmp/test-access.log",
+        geoip_db_path = "/tmp/nonexistent.mmdb",
     )
 
 
@@ -57,8 +57,8 @@ async def db_engine():
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        connect_args = {"check_same_thread": False},
+        poolclass = StaticPool,
     )
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -73,8 +73,8 @@ async def db_session(db_engine) -> AsyncIterator[AsyncSession]:
     """
     factory = async_sessionmaker(
         db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
+        class_ = AsyncSession,
+        expire_on_commit = False,
     )
     async with factory() as session:
         yield session
@@ -87,8 +87,8 @@ async def db_client(db_engine) -> AsyncIterator[AsyncClient]:
     """
     factory = async_sessionmaker(
         db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
+        class_ = AsyncSession,
+        expire_on_commit = False,
     )
 
     test_app = create_app()
@@ -101,7 +101,6 @@ async def db_client(db_engine) -> AsyncIterator[AsyncClient]:
     test_app.dependency_overrides[get_session] = override_get_session
     test_app.state.session_factory = factory
 
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport,
-                           base_url="http://test") as client:
+    transport = ASGITransport(app = test_app)
+    async with AsyncClient(transport = transport, base_url = "http://test") as client:
         yield client

@@ -23,13 +23,15 @@ from app.api.deps import get_session
 from app.schemas.stats import StatsResponse
 from app.services import stats_service
 
-router = APIRouter(prefix="/stats", tags=["stats"])
+
+router = APIRouter(prefix = "/stats", tags = ["stats"])
 
 
-@router.get("", response_model=StatsResponse)
+@router.get("", response_model = StatsResponse)
 async def get_stats(
-        session: AsyncSession = Depends(get_session),
-        time_range: str = Query("24h", alias="range"),
+    session: AsyncSession = Depends(get_session),
+    time_range: str = Query("24h",
+                            alias = "range"),
 ) -> StatsResponse:
     """
     Aggregate threat statistics for a given time window.

@@ -36,12 +36,11 @@ from ml.export_onnx import (
 
 
 class TestAutoencoderExport:
-
     def test_creates_onnx_file(self, tmp_path: Path) -> None:
         """
         Exporting creates a non-empty .onnx file at the given path.
         """
-        model = ThreatAutoencoder(input_dim=35)
+        model = ThreatAutoencoder(input_dim = 35)
         path = export_autoencoder(model, tmp_path / "ae.onnx")
         assert path.exists()
         assert path.stat().st_size > 0
@@ -51,7 +50,7 @@ class TestAutoencoderExport:
         ONNX inference output matches PyTorch forward pass within 1e-5 tolerance.
         """
         torch.manual_seed(42)
-        model = ThreatAutoencoder(input_dim=35)
+        model = ThreatAutoencoder(input_dim = 35)
         model.eval()
         onnx_path = export_autoencoder(model, tmp_path / "ae.onnx")
 
@@ -64,13 +63,13 @@ class TestAutoencoderExport:
         session = ort.InferenceSession(str(onnx_path))
         ort_out = session.run(None, {"features": x})[0]
 
-        np.testing.assert_allclose(pt_out, ort_out, atol=1e-5)
+        np.testing.assert_allclose(pt_out, ort_out, atol = 1e-5)
 
     def test_dynamic_batch_dimension(self, tmp_path: Path) -> None:
         """
         Exported model accepts variable batch sizes (1, 16, 64).
         """
-        model = ThreatAutoencoder(input_dim=35)
+        model = ThreatAutoencoder(input_dim = 35)
         model.eval()
         onnx_path = export_autoencoder(model, tmp_path / "ae.onnx")
         session = ort.InferenceSession(str(onnx_path))
@@ -83,15 +82,14 @@ class TestAutoencoderExport:
 
 
 class TestRandomForestExport:
-
     def test_creates_onnx_file(self, tmp_path: Path) -> None:
         """
         Exporting a fitted RandomForest creates a non-empty .onnx file.
         """
         rng = np.random.default_rng(42)
-        rf = RandomForestClassifier(n_estimators=10, random_state=42)
+        rf = RandomForestClassifier(n_estimators = 10, random_state = 42)
         X = rng.standard_normal((100, 35)).astype(np.float32)
-        y = np.concatenate([np.zeros(70, dtype=int), np.ones(30, dtype=int)])
+        y = np.concatenate([np.zeros(70, dtype = int), np.ones(30, dtype = int)])
         rf.fit(X, y)
         path = export_random_forest(rf, 35, tmp_path / "rf.onnx")
         assert path.exists()
@@ -102,9 +100,9 @@ class TestRandomForestExport:
         ONNX inference returns class predictions and probabilities for each sample.
         """
         rng = np.random.default_rng(42)
-        rf = RandomForestClassifier(n_estimators=10, random_state=42)
+        rf = RandomForestClassifier(n_estimators = 10, random_state = 42)
         X = rng.standard_normal((100, 35)).astype(np.float32)
-        y = np.concatenate([np.zeros(70, dtype=int), np.ones(30, dtype=int)])
+        y = np.concatenate([np.zeros(70, dtype = int), np.ones(30, dtype = int)])
         rf.fit(X, y)
         onnx_path = export_random_forest(rf, 35, tmp_path / "rf.onnx")
         session = ort.InferenceSession(str(onnx_path))
@@ -116,13 +114,12 @@ class TestRandomForestExport:
 
 
 class TestIsolationForestExport:
-
     def test_creates_onnx_file(self, tmp_path: Path) -> None:
         """
         Exporting a fitted IsolationForest creates a non-empty .onnx file.
         """
         rng = np.random.default_rng(42)
-        iso = IsolationForest(n_estimators=10, random_state=42)
+        iso = IsolationForest(n_estimators = 10, random_state = 42)
         iso.fit(rng.standard_normal((100, 35)).astype(np.float32))
         path = export_isolation_forest(iso, 35, tmp_path / "if.onnx")
         assert path.exists()
@@ -133,7 +130,7 @@ class TestIsolationForestExport:
         ONNX anomaly scores match sklearn decision_function within 1e-4 tolerance.
         """
         rng = np.random.default_rng(42)
-        iso = IsolationForest(n_estimators=10, random_state=42)
+        iso = IsolationForest(n_estimators = 10, random_state = 42)
         X = rng.standard_normal((100, 35)).astype(np.float32)
         iso.fit(X)
         onnx_path = export_isolation_forest(iso, 35, tmp_path / "if.onnx")
@@ -143,4 +140,4 @@ class TestIsolationForestExport:
         sk_decision = iso.decision_function(x_test)
         ort_scores = session.run(None, {"features": x_test})[1].flatten()
 
-        np.testing.assert_allclose(sk_decision, ort_scores, atol=1e-4)
+        np.testing.assert_allclose(sk_decision, ort_scores, atol = 1e-4)

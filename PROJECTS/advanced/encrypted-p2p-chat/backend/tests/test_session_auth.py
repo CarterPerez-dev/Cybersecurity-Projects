@@ -30,7 +30,6 @@ class _StubRedis:
     """
     No-op Redis stand-in for unauthenticated tests
     """
-
     async def get_session_user(self, token: str) -> str | None:
         """
         Always return None to simulate an absent session
@@ -96,6 +95,9 @@ async def test_search_users_requires_session(app: FastAPI) -> None:
     async with AsyncClient(transport = transport, base_url = "http://test") as ac:
         resp = await ac.post(
             "/auth/users/search",
-            json = {"query": "alice", "limit": 10},
+            json = {
+                "query": "alice",
+                "limit": 10
+            },
         )
         assert resp.status_code == 401

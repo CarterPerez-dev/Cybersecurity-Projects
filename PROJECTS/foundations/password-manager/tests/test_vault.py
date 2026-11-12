@@ -348,13 +348,7 @@ def test_unlock_unsupported_version_raises(
     `VaultFormatError` is the contract — the CLI can render it as
     "this vault was created by a newer version of pv"
     """
-    vault_path.write_text(
-        json.dumps({
-            "version": 99,
-            "kdf": {},
-            "cipher": {}
-        })
-    )
+    vault_path.write_text(json.dumps({"version": 99, "kdf": {}, "cipher": {}}))
     with pytest.raises(VaultFormatError):
         UnlockedVault.unlock(vault_path, "any-password")
 
@@ -495,8 +489,7 @@ def test_entry_from_dict_non_string_password_raises() -> None:
         Entry.from_dict({"username": "alice", "password": 12345})
 
 
-def test_entry_from_dict_uses_empty_string_for_missing_timestamps(
-) -> None:
+def test_entry_from_dict_uses_empty_string_for_missing_timestamps() -> None:
     """
     Verify Entry.from_dict defaults missing timestamps to "" rather than _now_iso()
 

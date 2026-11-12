@@ -33,11 +33,7 @@ def read_input(text: str | None, input_file: Path | None) -> str:
     raise ValueError(msg)
 
 
-def write_output(
-    content: str,
-    output_file: Path | None,
-    quiet: bool = False
-) -> None:
+def write_output(content: str, output_file: Path | None, quiet: bool = False) -> None:
     """
     Write output to file or stdout
     """

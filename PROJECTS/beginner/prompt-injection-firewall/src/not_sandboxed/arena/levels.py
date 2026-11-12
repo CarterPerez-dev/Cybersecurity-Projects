@@ -59,8 +59,7 @@ def load_levels() -> dict[int, Level]:
     """
     return {
         level.number: level
-        for level in
-        (_load(path) for path in sorted(POLICY_DIR.glob("*.yaml")))
+        for level in (_load(path) for path in sorted(POLICY_DIR.glob("*.yaml")))
     }
 
 
@@ -76,6 +75,5 @@ def active_layers(level: Level) -> tuple[str, ...]:
     return tuple(
         name for name in (
             *config.LAYER_ORDER,
-            *config.EGRESS_LAYER_ORDER,)
-        if getattr(policy, f"{name}_enabled")
+            *config.EGRESS_LAYER_ORDER,) if getattr(policy, f"{name}_enabled")
     )

@@ -3,7 +3,6 @@
 test_context.py
 """
 
-
 from dlp_scanner.detectors.base import DetectorMatch
 from dlp_scanner.detectors.context import (
     apply_context_boost,
@@ -76,10 +75,7 @@ class TestCooccurrenceBoost:
             ),
         ]
         boosted = _apply_cooccurrence_boost(matches)
-        assert all(
-            b.score > m.score
-            for b, m in zip(boosted, matches, strict = False)
-        )
+        assert all(b.score > m.score for b, m in zip(boosted, matches, strict = False))
 
     def test_same_rule_not_boosted(self) -> None:
         matches = [
@@ -91,10 +87,7 @@ class TestCooccurrenceBoost:
                         end = 61),
         ]
         boosted = _apply_cooccurrence_boost(matches)
-        assert all(
-            b.score == m.score
-            for b, m in zip(boosted, matches, strict = False)
-        )
+        assert all(b.score == m.score for b, m in zip(boosted, matches, strict = False))
 
     def test_distant_matches_not_boosted(self) -> None:
         matches = [
@@ -109,10 +102,7 @@ class TestCooccurrenceBoost:
             ),
         ]
         boosted = _apply_cooccurrence_boost(matches)
-        assert all(
-            b.score == m.score
-            for b, m in zip(boosted, matches, strict = False)
-        )
+        assert all(b.score == m.score for b, m in zip(boosted, matches, strict = False))
 
     def test_single_match_not_boosted(self) -> None:
         matches = [_make_match()]

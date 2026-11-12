@@ -55,7 +55,6 @@ class InferenceEngine:
     from a model directory. Returns None for predictions when models
     are not available.
     """
-
     def __init__(self, model_dir: str) -> None:
         self._ae_session: ort.InferenceSession | None = None
         self._rf_session: ort.InferenceSession | None = None
@@ -92,20 +91,15 @@ class InferenceEngine:
             scaler_data = json.loads(scaler_path.read_text())
 
             stored_names = scaler_data.get("feature_names")
-            if (
-                stored_names is not None
-                and stored_names != list(FEATURE_ORDER)
-            ):
+            if (stored_names is not None and stored_names != list(FEATURE_ORDER)):
                 logger.error(
                     "Feature ordering mismatch in %s",
                     scaler_path,
                 )
                 return
 
-            self._scaler_center = np.array(scaler_data["center"],
-                                           dtype=np.float32)
-            self._scaler_scale = np.array(scaler_data["scale"],
-                                          dtype=np.float32)
+            self._scaler_center = np.array(scaler_data["center"], dtype = np.float32)
+            self._scaler_scale = np.array(scaler_data["scale"], dtype = np.float32)
 
             threshold_data = json.loads(threshold_path.read_text())
             self._threshold = float(threshold_data["threshold"])
@@ -142,7 +136,7 @@ class InferenceEngine:
         ae_input = self._scale_for_ae(batch)
         ae_reconstructed = self._ae_session.run(  # type: ignore[union-attr]
             None, {"features": ae_input})[0]
-        ae_errors = np.mean((ae_input - ae_reconstructed)**2, axis=1)
+        ae_errors = np.mean((ae_input - ae_reconstructed)**2, axis = 1)
 
         rf_result = self._rf_session.run(  # type: ignore[union-attr]
             None, {"features": batch})
@@ -166,9 +160,7 @@ class InferenceEngine:
         return (batch - self._scaler_center) / self._scaler_scale  # type: ignore[no-any-return]
 
     @staticmethod
-    def _extract_rf_proba(
-            ort_output: list[Any] | np.ndarray
-    ) -> np.ndarray:
+    def _extract_rf_proba(ort_output: list[Any] | np.ndarray) -> np.ndarray:
         """
         Extract attack probability from skl2onnx RF output format.
 
@@ -186,4 +178,4 @@ class InferenceEngine:
                 proba.append(float(row.get(1, 0.0)))
             else:
                 proba.append(float(row))
-        return np.array(proba, dtype=np.float32)
+        return np.array(proba, dtype = np.float32)

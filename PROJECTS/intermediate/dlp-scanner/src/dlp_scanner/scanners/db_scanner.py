@@ -3,7 +3,6 @@
 db_scanner.py
 """
 
-
 import asyncio
 from datetime import datetime, UTC
 from typing import Any
@@ -85,10 +84,8 @@ class DatabaseScanner:
             elif scheme in SQLITE_SCHEMES:
                 await self._scan_sqlite(connection_uri, result)
             else:
-                result.errors.append(
-                    f"Unsupported database scheme: "
-                    f"{scheme}"
-                )
+                result.errors.append(f"Unsupported database scheme: "
+                                     f"{scheme}")
         except Exception as exc:
             log.warning(
                 "database_scan_failed",
@@ -120,10 +117,7 @@ class DatabaseScanner:
             tables = self._filter_tables(tables)
 
             for table_name in tables:
-                text_cols = (
-                    await self._get_pg_text_columns(conn,
-                                                    table_name)
-                )
+                text_cols = (await self._get_pg_text_columns(conn, table_name))
                 if not text_cols:
                     continue
 
@@ -215,10 +209,7 @@ class DatabaseScanner:
                 tables = self._filter_tables(tables)
 
                 for table_name in tables:
-                    text_cols = (
-                        await self._get_mysql_text_cols(cur,
-                                                        table_name)
-                    )
+                    text_cols = (await self._get_mysql_text_cols(cur, table_name))
                     if not text_cols:
                         continue
 
@@ -290,13 +281,7 @@ class DatabaseScanner:
             for coll_name in collections:
                 coll = db[coll_name]
                 sample_size = (self._db_config.max_rows_per_table)
-                cursor = coll.aggregate(
-                    [{
-                        "$sample": {
-                            "size": sample_size
-                        }
-                    }]
-                )
+                cursor = coll.aggregate([{"$sample": {"size": sample_size}}])
 
                 async for doc in cursor:
                     text_parts: list[str] = []
@@ -344,10 +329,7 @@ class DatabaseScanner:
             tables = self._filter_tables(tables)
 
             for table_name in tables:
-                text_cols = (
-                    await self._get_sqlite_text_cols(db,
-                                                     table_name)
-                )
+                text_cols = (await self._get_sqlite_text_cols(db, table_name))
                 if not text_cols:
                     continue
 
@@ -391,9 +373,7 @@ class DatabaseScanner:
         rows = await cursor.fetchall()
         text_types = frozenset({"text", "varchar", "char", "clob"})
         return [
-            r[1]
-            for r in rows
-            if r[2].lower() in text_types or "text" in r[2].lower()
+            r[1] for r in rows if r[2].lower() in text_types or "text" in r[2].lower()
         ]
 
     def _filter_tables(

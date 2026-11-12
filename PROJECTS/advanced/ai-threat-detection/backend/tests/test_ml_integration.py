@@ -44,14 +44,19 @@ from ml.export_onnx import (
 )
 from ml.scaler import FeatureScaler
 
-VALID_LINE = ("93.184.216.34 - - [11/Feb/2026:14:30:00 +0000] "
-              '"GET /api/v1/users HTTP/1.1" 200 1234 '
-              '"https://example.com" '
-              '"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"')
 
-SQLI_LINE = ("93.184.216.34 - - [11/Feb/2026:14:30:01 +0000] "
-             '"GET /users?id=1%27OR%201=1-- HTTP/1.1" 200 512 '
-             '"-" "Mozilla/5.0"')
+VALID_LINE = (
+    "93.184.216.34 - - [11/Feb/2026:14:30:00 +0000] "
+    '"GET /api/v1/users HTTP/1.1" 200 1234 '
+    '"https://example.com" '
+    '"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"'
+)
+
+SQLI_LINE = (
+    "93.184.216.34 - - [11/Feb/2026:14:30:01 +0000] "
+    '"GET /users?id=1%27OR%201=1-- HTTP/1.1" 200 512 '
+    '"-" "Mozilla/5.0"'
+)
 
 
 @pytest.fixture
@@ -62,21 +67,21 @@ def trained_model_dir(tmp_path: Path) -> Path:
     """
     rng = np.random.default_rng(42)
     X = rng.standard_normal((200, 35)).astype(np.float32)
-    y = np.concatenate([np.zeros(140, dtype=int), np.ones(60, dtype=int)])
+    y = np.concatenate([np.zeros(140, dtype = int), np.ones(60, dtype = int)])
 
-    ae = ThreatAutoencoder(input_dim=35)
+    ae = ThreatAutoencoder(input_dim = 35)
     export_autoencoder(ae, tmp_path / "ae.onnx")
 
-    rf = RandomForestClassifier(n_estimators=10, random_state=42)
+    rf = RandomForestClassifier(n_estimators = 10, random_state = 42)
     rf.fit(X, y)
     export_random_forest(rf, 35, tmp_path / "rf.onnx")
 
-    iso = IsolationForest(n_estimators=10, random_state=42)
-    iso.fit(X[:140])
+    iso = IsolationForest(n_estimators = 10, random_state = 42)
+    iso.fit(X[: 140])
     export_isolation_forest(iso, 35, tmp_path / "if.onnx")
 
     scaler = FeatureScaler()
-    scaler.fit(X[:140])
+    scaler.fit(X[: 140])
     scaler.save_json(tmp_path / "scaler.json")
 
     threshold_data = {"threshold": 0.05}
@@ -92,46 +97,48 @@ async def _make_pipeline_with_ml(
     """
     Build a Pipeline with ML inference engine wired in
     """
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    engine = InferenceEngine(model_dir=str(model_dir))
+    redis = fakeredis.aioredis.FakeRedis(decode_responses = True)
+    engine = InferenceEngine(model_dir = str(model_dir))
 
     async def collect(sr: ScoredRequest) -> None:
         results.append(sr)
 
     pipeline = Pipeline(
-        redis_client=redis,
-        rule_engine=RuleEngine(),
-        on_result=collect,
-        inference_engine=engine,
+        redis_client = redis,
+        rule_engine = RuleEngine(),
+        on_result = collect,
+        inference_engine = engine,
     )
     await pipeline.start()
     return pipeline
 
 
 async def _make_pipeline_rules_only(
-    results: list[ScoredRequest], ) -> Pipeline:
+    results: list[ScoredRequest],
+) -> Pipeline:
     """
     Build a Pipeline without ML inference engine
     """
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    redis = fakeredis.aioredis.FakeRedis(decode_responses = True)
 
     async def collect(sr: ScoredRequest) -> None:
         results.append(sr)
 
     pipeline = Pipeline(
-        redis_client=redis,
-        rule_engine=RuleEngine(),
-        on_result=collect,
+        redis_client = redis,
+        rule_engine = RuleEngine(),
+        on_result = collect,
     )
     await pipeline.start()
     return pipeline
 
 
 class TestMLIntegration:
-
     @pytest.mark.asyncio
     async def test_pipeline_with_ml_sets_hybrid_mode(
-            self, trained_model_dir: Path) -> None:
+        self,
+        trained_model_dir: Path
+    ) -> None:
         results: list[ScoredRequest] = []
         pipeline = await _make_pipeline_with_ml(results, trained_model_dir)
 
@@ -143,7 +150,9 @@ class TestMLIntegration:
 
     @pytest.mark.asyncio
     async def test_pipeline_with_ml_produces_final_score(
-            self, trained_model_dir: Path) -> None:
+        self,
+        trained_model_dir: Path
+    ) -> None:
         results: list[ScoredRequest] = []
         pipeline = await _make_pipeline_with_ml(results, trained_model_dir)
 
@@ -155,7 +164,9 @@ class TestMLIntegration:
         assert results[0].final_score <= 1.0
 
     @pytest.mark.asyncio
-    async def test_rules_only_uses_rule_score(self, ) -> None:
+    async def test_rules_only_uses_rule_score(
+        self,
+    ) -> None:
         results: list[ScoredRequest] = []
         pipeline = await _make_pipeline_rules_only(results)
 
@@ -168,7 +179,9 @@ class TestMLIntegration:
 
     @pytest.mark.asyncio
     async def test_attack_scores_higher_than_benign(
-            self, trained_model_dir: Path) -> None:
+        self,
+        trained_model_dir: Path
+    ) -> None:
         results: list[ScoredRequest] = []
         pipeline = await _make_pipeline_with_ml(results, trained_model_dir)
 
@@ -183,7 +196,9 @@ class TestMLIntegration:
 
     @pytest.mark.asyncio
     async def test_rule_result_preserved_in_hybrid_mode(
-            self, trained_model_dir: Path) -> None:
+        self,
+        trained_model_dir: Path
+    ) -> None:
         results: list[ScoredRequest] = []
         pipeline = await _make_pipeline_with_ml(results, trained_model_dir)
 

@@ -84,18 +84,18 @@ def prepare_training_data(
 
     if (minority_count >= smote_k + 1 and current_ratio < smote_strategy):
         sampler = SMOTE(
-            sampling_strategy=smote_strategy,
-            k_neighbors=smote_k,
-            random_state=random_state,
+            sampling_strategy = smote_strategy,
+            k_neighbors = smote_k,
+            random_state = random_state,
         )
         X_train, y_train = sampler.fit_resample(X_train, y_train)
 
     return TrainingSplit(
-        X_train=X_train,
-        y_train=y_train,
-        X_val=X_val,
-        y_val=y_val,
-        X_test=X_test,
-        y_test=y_test,
-        X_normal_train=X_normal_train,
+        X_train = X_train,
+        y_train = y_train,
+        X_val = X_val,
+        y_val = y_val,
+        X_test = X_test,
+        y_test = y_test,
+        X_normal_train = X_normal_train,
     )

@@ -31,8 +31,7 @@ class DatabaseSessionManager:
     def __init__(self) -> None:
         self._async_engine: AsyncEngine | None = None
         self._sync_engine: Engine | None = None
-        self._async_sessionmaker: async_sessionmaker[AsyncSession
-                                                     ] | None = None
+        self._async_sessionmaker: async_sessionmaker[AsyncSession] | None = None
         self._sync_sessionmaker: sessionmaker[Session] | None = None
 
     def init(self, database_url: str) -> None:

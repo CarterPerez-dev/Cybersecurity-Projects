@@ -36,21 +36,18 @@ class UnwrapResult(BaseModel):
 
 def _printable_ratio(text: str) -> float:
     considered = [
-        char for char in text if char not in config.ZERO_WIDTH_CHARS
-        and char not in config.BIDI_CONTROLS
+        char for char in text
+        if char not in config.ZERO_WIDTH_CHARS and char not in config.BIDI_CONTROLS
     ]
     if not considered:
         return 0.0
-    printable = sum(
-        1 for char in considered if char.isprintable() or char in "\n\r\t"
-    )
+    printable = sum(1 for char in considered if char.isprintable() or char in "\n\r\t")
     return printable / len(considered)
 
 
 def _looks_decoded(candidate: str) -> bool:
     return (
-        bool(candidate)
-        and _printable_ratio(candidate) >= config.MIN_PRINTABLE_RATIO
+        bool(candidate) and _printable_ratio(candidate) >= config.MIN_PRINTABLE_RATIO
     )
 
 

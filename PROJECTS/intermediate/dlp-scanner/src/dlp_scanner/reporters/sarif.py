@@ -3,7 +3,6 @@
 sarif.py
 """
 
-
 from typing import Any
 
 import orjson
@@ -161,11 +160,9 @@ def _build_location(
                  }
 
     if loc.table_name:
-        result["logicalLocations"] = [
-            {
-                "name": loc.table_name,
-                "kind": "table",
-            }
-        ]
+        result["logicalLocations"] = [{
+            "name": loc.table_name,
+            "kind": "table",
+        }]
 
     return result

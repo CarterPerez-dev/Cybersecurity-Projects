@@ -159,8 +159,8 @@ class LayeredDefense:
             )
 
             if not result.allowed:  # noqa: SIM102
-                if worst_result is None or (result.retry_after or 0) > (
-                        worst_result.retry_after or 0):
+                if worst_result is None or (result.retry_after
+                                            or 0) > (worst_result.retry_after or 0):
                     worst_result = result
 
         if worst_result:
@@ -265,12 +265,8 @@ class LayeredDefense:
                     allowed = False,
                     limit = self._circuit_breaker.threshold,
                     remaining = 0,
-                    reset_after = float(
-                        self._circuit_breaker.recovery_time
-                    ),
-                    retry_after = float(
-                        self._circuit_breaker.recovery_time
-                    ),
+                    reset_after = float(self._circuit_breaker.recovery_time),
+                    retry_after = float(self._circuit_breaker.recovery_time),
                 ),
             )
 
@@ -284,8 +280,8 @@ class LayeredDefense:
                 limit = self._circuit_breaker.threshold,
                 remaining = max(
                     0,
-                    self._circuit_breaker.threshold - self._circuit_breaker
-                    .current_state.total_requests_in_window,
+                    self._circuit_breaker.threshold -
+                    self._circuit_breaker.current_state.total_requests_in_window,
                 ),
                 reset_after = float(self._circuit_breaker.window_seconds),
             ),

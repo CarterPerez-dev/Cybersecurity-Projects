@@ -21,12 +21,13 @@ from app.controllers import alert_ctrl
 from app.core.decorators import endpoint, S, R
 from app.schemas.alert import AlertStatusUpdate, AlertQueryParams
 
+
 alerts_bp = Blueprint("alerts", __name__)
 
 
 @alerts_bp.get("")
 @endpoint()
-@S(AlertQueryParams, source="query")
+@S(AlertQueryParams, source = "query")
 @R()
 def list_alerts() -> Any:
     """

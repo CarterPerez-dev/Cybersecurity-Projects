@@ -37,10 +37,7 @@ class ReportUpdate(BaseSchema):
     """
     Schema for researcher updating their report
     """
-    title: str | None = Field(
-        default = None,
-        max_length = REPORT_TITLE_MAX_LENGTH
-    )
+    title: str | None = Field(default = None, max_length = REPORT_TITLE_MAX_LENGTH)
     description: str | None = None
     steps_to_reproduce: str | None = None
     impact: str | None = None
@@ -54,10 +51,7 @@ class ReportTriageUpdate(BaseSchema):
     status: ReportStatus | None = None
     severity_final: Severity | None = None
     cvss_score: Decimal | None = Field(default = None, ge = 0, le = 10)
-    cwe_id: str | None = Field(
-        default = None,
-        max_length = CWE_ID_MAX_LENGTH
-    )
+    cwe_id: str | None = Field(default = None, max_length = CWE_ID_MAX_LENGTH)
     bounty_amount: int | None = Field(default = None, ge = 0)
     duplicate_of_id: UUID | None = None
 

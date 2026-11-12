@@ -17,6 +17,7 @@ import pytest
 from core.models import CommandType
 from core.protocol import Message, MessageType, pack, unpack
 
+
 TEST_KEY = "test-protocol-key"
 
 
@@ -24,14 +25,13 @@ class TestPackUnpack:
     """
     Verify protocol message serialization roundtrips
     """
-
     def test_register_roundtrip(self) -> None:
         """
         REGISTER message survives pack -> unpack
         """
         original = Message(
-            type=MessageType.REGISTER,
-            payload={
+            type = MessageType.REGISTER,
+            payload = {
                 "hostname": "desktop-01",
                 "os": "Linux",
                 "username": "root",
@@ -51,8 +51,8 @@ class TestPackUnpack:
         TASK message survives pack -> unpack
         """
         original = Message(
-            type=MessageType.TASK,
-            payload={
+            type = MessageType.TASK,
+            payload = {
                 "id": "task-001",
                 "command": CommandType.SHELL,
                 "args": "whoami",
@@ -67,8 +67,8 @@ class TestPackUnpack:
         RESULT message survives pack -> unpack
         """
         original = Message(
-            type=MessageType.RESULT,
-            payload={
+            type = MessageType.RESULT,
+            payload = {
                 "task_id": "task-001",
                 "output": "root\n",
                 "error": None,
@@ -83,8 +83,8 @@ class TestPackUnpack:
         HEARTBEAT message survives pack -> unpack
         """
         original = Message(
-            type=MessageType.HEARTBEAT,
-            payload={"id": "beacon-abc"},
+            type = MessageType.HEARTBEAT,
+            payload = {"id": "beacon-abc"},
         )
         restored = unpack(pack(original, TEST_KEY), TEST_KEY)
         assert restored.type == MessageType.HEARTBEAT
@@ -94,8 +94,8 @@ class TestPackUnpack:
         ERROR message survives pack -> unpack
         """
         original = Message(
-            type=MessageType.ERROR,
-            payload={"detail": "command not found"},
+            type = MessageType.ERROR,
+            payload = {"detail": "command not found"},
         )
         restored = unpack(pack(original, TEST_KEY), TEST_KEY)
         assert restored.type == MessageType.ERROR
@@ -106,12 +106,11 @@ class TestUnpackValidation:
     """
     Verify unpack rejects malformed data
     """
-
     def test_invalid_base64(self) -> None:
         """
         Non-base64 input raises ValueError
         """
-        with pytest.raises(ValueError, match="Invalid protocol message"):
+        with pytest.raises(ValueError, match = "Invalid protocol message"):
             unpack("not-valid-base64!!!", TEST_KEY)
 
     def test_invalid_json_after_decode(self) -> None:
@@ -121,7 +120,7 @@ class TestUnpackValidation:
         from core.encoding import encode
 
         encoded = encode("this is not json", TEST_KEY)
-        with pytest.raises(ValueError, match="Invalid protocol message"):
+        with pytest.raises(ValueError, match = "Invalid protocol message"):
             unpack(encoded, TEST_KEY)
 
     def test_missing_type_field(self) -> None:
@@ -131,7 +130,7 @@ class TestUnpackValidation:
         from core.encoding import encode
 
         encoded = encode('{"payload": {}}', TEST_KEY)
-        with pytest.raises(ValueError, match="Invalid protocol message"):
+        with pytest.raises(ValueError, match = "Invalid protocol message"):
             unpack(encoded, TEST_KEY)
 
     def test_invalid_message_type(self) -> None:
@@ -140,8 +139,6 @@ class TestUnpackValidation:
         """
         from core.encoding import encode
 
-        encoded = encode(
-            '{"type": "BOGUS", "payload": {}}', TEST_KEY
-        )
-        with pytest.raises(ValueError, match="Invalid protocol message"):
+        encoded = encode('{"type": "BOGUS", "payload": {}}', TEST_KEY)
+        with pytest.raises(ValueError, match = "Invalid protocol message"):
             unpack(encoded, TEST_KEY)

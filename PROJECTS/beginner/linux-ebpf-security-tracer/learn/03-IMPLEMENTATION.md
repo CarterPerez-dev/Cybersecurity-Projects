@@ -466,7 +466,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_mprotect) {
 | pytest | Testing | Standard Python testing framework |
 | ruff | Linting | Fast, comprehensive, replaces flake8 |
 | mypy | Type checking | Static analysis for Python |
-| yapf | Formatting | Repo standard |
+| yang | Formatting | Maintained fork of Google's yapf |
 
 BCC is a system package, not pip-installable. Install via `apt install python3-bpfcc` (Debian) or `dnf install python3-bcc` (Fedora).
 
@@ -479,7 +479,7 @@ BCC is a system package, not pip-installable. Install via `apt install python3-b
 # Development
 uv sync                    # install Python deps
 just lint                  # ruff + mypy
-just format                # yapf formatting
+just format                # yang formatting
 just test                  # unit tests (no root)
 sudo uv run ebpf-tracer    # run the tool
 ```

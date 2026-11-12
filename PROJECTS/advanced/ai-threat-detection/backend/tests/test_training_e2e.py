@@ -33,6 +33,7 @@ from app.core.detection.inference import InferenceEngine
 from ml.orchestrator import TrainingOrchestrator
 from ml.synthetic import generate_mixed_dataset
 
+
 N_NORMAL = 500
 N_ATTACK = 200
 N_FEATURES = 35
@@ -43,9 +44,7 @@ class TestTrainingE2E:
     """
     End-to-end training integration test
     """
-
-    def test_full_training_produces_loadable_models(self,
-                                                    tmp_path: Path) -> None:
+    def test_full_training_produces_loadable_models(self, tmp_path: Path) -> None:
         """
         Full pipeline produces models that load and predict
         """
@@ -56,7 +55,7 @@ class TestTrainingE2E:
         )
 
         model_dir = tmp_path / "models"
-        orch = TrainingOrchestrator(output_dir=model_dir, epochs=3)
+        orch = TrainingOrchestrator(output_dir = model_dir, epochs = 3)
         result = orch.run(X, y)
 
         expected_files = [
@@ -72,7 +71,7 @@ class TestTrainingE2E:
         engine = InferenceEngine(str(model_dir))
         assert engine.is_loaded
 
-        sample = X[:5]
+        sample = X[: 5]
         predictions = engine.predict(sample)
         assert predictions is not None
         assert "ae" in predictions

@@ -21,6 +21,7 @@ from app.controllers import dashboard_ctrl
 from app.core.decorators import endpoint, S, R
 from app.schemas.dashboard import TimelineParams, TopSourcesParams
 
+
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
@@ -36,7 +37,7 @@ def overview() -> Any:
 
 @dashboard_bp.get("/timeline")
 @endpoint()
-@S(TimelineParams, source="query")
+@S(TimelineParams, source = "query")
 @R()
 def timeline() -> Any:
     """
@@ -57,7 +58,7 @@ def severity_breakdown() -> Any:
 
 @dashboard_bp.get("/top-sources")
 @endpoint()
-@S(TopSourcesParams, source="query")
+@S(TopSourcesParams, source = "query")
 @R()
 def top_sources() -> Any:
     """

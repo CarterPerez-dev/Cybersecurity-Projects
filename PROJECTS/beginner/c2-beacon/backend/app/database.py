@@ -25,6 +25,7 @@ import aiosqlite
 
 from app.config import settings
 
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS beacons (
     id          TEXT PRIMARY KEY,

@@ -3,7 +3,6 @@
 test_financial.py
 """
 
-
 import pytest
 
 from dlp_scanner.detectors.rules.financial import (

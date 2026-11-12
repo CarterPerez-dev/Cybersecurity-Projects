@@ -3,7 +3,6 @@
 registry.py
 """
 
-
 import fnmatch
 
 from dlp_scanner.detectors.base import (
@@ -58,8 +57,7 @@ class DetectorRegistry:
             allowlist_values = allowlist_values,
         )
         self._entropy_detector = (
-            EntropyDetector(threshold = entropy_threshold)
-            if enable_entropy else None
+            EntropyDetector(threshold = entropy_threshold) if enable_entropy else None
         )
         self._context_window = context_window_tokens
 
@@ -99,14 +97,8 @@ def _filter_rules(
     filtered: list[DetectionRule] = []
 
     for rule in rules:
-        enabled = any(
-            fnmatch.fnmatch(rule.rule_id,
-                            pat) for pat in enable_patterns
-        )
-        disabled = any(
-            fnmatch.fnmatch(rule.rule_id,
-                            pat) for pat in disable_patterns
-        )
+        enabled = any(fnmatch.fnmatch(rule.rule_id, pat) for pat in enable_patterns)
+        disabled = any(fnmatch.fnmatch(rule.rule_id, pat) for pat in disable_patterns)
         if enabled and not disabled:
             filtered.append(rule)
 

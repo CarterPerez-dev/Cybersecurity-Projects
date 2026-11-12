@@ -25,7 +25,7 @@ import pytest
 from ml.experiment import VigilExperiment
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def _mlflow_tmp(tmp_path: Path) -> None:
     """
     Point MLflow at a temp directory for isolation
@@ -34,7 +34,6 @@ def _mlflow_tmp(tmp_path: Path) -> None:
 
 
 class TestVigilExperiment:
-
     def test_creates_run_with_id(self) -> None:
         """
         Entering the context manager creates an MLflow run with a non-None run ID.

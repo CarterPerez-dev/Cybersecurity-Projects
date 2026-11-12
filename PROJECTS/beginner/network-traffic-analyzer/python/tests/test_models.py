@@ -20,7 +20,6 @@ Connects to:
   models.py - all symbols imported and tested here
 """
 
-
 import pytest
 
 from netanal.models import (
@@ -59,13 +58,13 @@ class TestPacketInfo:
         Verify PacketInfo stores all fields correctly
         """
         packet = PacketInfo(
-            timestamp=1234567890.123,
-            src_ip="192.168.1.1",
-            dst_ip="192.168.1.2",
-            protocol=Protocol.TCP,
-            size=1500,
-            src_port=443,
-            dst_port=54321,
+            timestamp = 1234567890.123,
+            src_ip = "192.168.1.1",
+            dst_ip = "192.168.1.2",
+            protocol = Protocol.TCP,
+            size = 1500,
+            src_port = 443,
+            dst_port = 54321,
         )
 
         assert packet.timestamp == pytest.approx(1234567890.123)
@@ -81,11 +80,11 @@ class TestPacketInfo:
         Verify optional fields default to None
         """
         packet = PacketInfo(
-            timestamp=0.0,
-            src_ip="10.0.0.1",
-            dst_ip="10.0.0.2",
-            protocol=Protocol.ICMP,
-            size=64,
+            timestamp = 0.0,
+            src_ip = "10.0.0.1",
+            dst_ip = "10.0.0.2",
+            protocol = Protocol.ICMP,
+            size = 64,
         )
 
         assert packet.src_port is None
@@ -115,10 +114,10 @@ class TestCaptureConfig:
         Verify custom configuration is stored correctly
         """
         config = CaptureConfig(
-            interface="eth0",
-            bpf_filter="tcp port 80",
-            packet_count=100,
-            timeout_seconds=30.0,
+            interface = "eth0",
+            bpf_filter = "tcp port 80",
+            packet_count = 100,
+            timeout_seconds = 30.0,
         )
 
         assert config.interface == "eth0"
@@ -135,7 +134,7 @@ class TestEndpointStats:
         """
         Verify total_packets and total_bytes computed properties
         """
-        endpoint = EndpointStats(ip_address="192.168.1.100")
+        endpoint = EndpointStats(ip_address = "192.168.1.100")
         endpoint.packets_sent = 50
         endpoint.packets_received = 30
         endpoint.bytes_sent = 5000
@@ -165,8 +164,8 @@ class TestCaptureStatistics:
         Verify duration_seconds computed property
         """
         stats = CaptureStatistics(
-            start_time=1000.0,
-            end_time=1010.0,
+            start_time = 1000.0,
+            end_time = 1010.0,
         )
 
         assert stats.duration_seconds == pytest.approx(10.0)
@@ -176,9 +175,9 @@ class TestCaptureStatistics:
         Verify average_bandwidth calculation (bytes/second)
         """
         stats = CaptureStatistics(
-            start_time=1000.0,
-            end_time=1010.0,
-            total_bytes=10000,
+            start_time = 1000.0,
+            end_time = 1010.0,
+            total_bytes = 10000,
         )
 
         assert stats.average_bandwidth == pytest.approx(1000.0)
@@ -187,7 +186,7 @@ class TestCaptureStatistics:
         """
         Verify get_protocol_percentages returns correct distribution
         """
-        stats = CaptureStatistics(total_packets=100)
+        stats = CaptureStatistics(total_packets = 100)
         stats.protocol_distribution[Protocol.TCP] = 70
         stats.protocol_distribution[Protocol.UDP] = 30
 
@@ -202,15 +201,15 @@ class TestCaptureStatistics:
         """
         stats = CaptureStatistics()
 
-        endpoint1 = EndpointStats(ip_address="192.168.1.1")
+        endpoint1 = EndpointStats(ip_address = "192.168.1.1")
         endpoint1.bytes_sent = 1000
         endpoint1.bytes_received = 500
 
-        endpoint2 = EndpointStats(ip_address="192.168.1.2")
+        endpoint2 = EndpointStats(ip_address = "192.168.1.2")
         endpoint2.bytes_sent = 5000
         endpoint2.bytes_received = 2000
 
-        endpoint3 = EndpointStats(ip_address="192.168.1.3")
+        endpoint3 = EndpointStats(ip_address = "192.168.1.3")
         endpoint3.bytes_sent = 100
         endpoint3.bytes_received = 50
 
@@ -218,7 +217,7 @@ class TestCaptureStatistics:
         stats.endpoints["192.168.1.2"] = endpoint2
         stats.endpoints["192.168.1.3"] = endpoint3
 
-        top = stats.get_top_talkers(limit=2)
+        top = stats.get_top_talkers(limit = 2)
 
         assert len(top) == 2
         assert top[0].ip_address == "192.168.1.2"

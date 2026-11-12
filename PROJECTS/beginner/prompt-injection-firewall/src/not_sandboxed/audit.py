@@ -15,8 +15,7 @@ from not_sandboxed.verdict import Finding, Verdict
 
 
 def _digest(text: str) -> str:
-    return hashlib.sha256(text.encode()
-                          ).hexdigest()[: config.AUDIT_DIGEST_CHARS]
+    return hashlib.sha256(text.encode()).hexdigest()[: config.AUDIT_DIGEST_CHARS]
 
 
 def _span_entry(span: Span) -> dict[str, str | None]:
@@ -24,10 +23,8 @@ def _span_entry(span: Span) -> dict[str, str | None]:
     return {
         "trust":
         str(span.trust),
-        "origin": (
-            f"{origin.channel}:{_digest(origin.ref)}"
-            if origin is not None else None
-        ),
+        "origin":
+        (f"{origin.channel}:{_digest(origin.ref)}" if origin is not None else None),
     }
 
 
@@ -56,8 +53,7 @@ def audit_record(verdict: Verdict, ctx: Context) -> bytes:
         "elapsed_ms": round(verdict.elapsed_ms,
                             3),
         "spans": [_span_entry(span) for span in ctx.spans],
-        "findings":
-        [_finding_entry(finding) for finding in verdict.findings],
+        "findings": [_finding_entry(finding) for finding in verdict.findings],
     }
     return orjson.dumps(payload) + b"\n"
 

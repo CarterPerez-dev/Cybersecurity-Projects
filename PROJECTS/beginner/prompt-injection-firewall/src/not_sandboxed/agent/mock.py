@@ -45,11 +45,7 @@ class MockAgent:
         calls: list[ToolCallRequest] = []
 
         if _REVEAL.search(prompt) is not None:
-            parts.append(
-                config.AGENT_DISCLOSURE_TEMPLATE.format(
-                    value = self.secret
-                )
-            )
+            parts.append(config.AGENT_DISCLOSURE_TEMPLATE.format(value = self.secret))
 
         recipient = _EMAIL.search(prompt)
         if recipient is not None:

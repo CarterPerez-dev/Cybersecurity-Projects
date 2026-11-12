@@ -159,10 +159,7 @@ class RateLimitRule:
         if window_str not in window_map:
             raise ValueError(f"Unknown time unit: {window_str}")
 
-        return cls(
-            requests = requests,
-            window_seconds = window_map[window_str]
-        )
+        return cls(requests = requests, window_seconds = window_map[window_str])
 
     def __str__(self) -> str:
         if self.window_seconds == 1:
@@ -238,9 +235,7 @@ class WindowState:
         """
         Calculate weighted count using sliding window interpolation.
         """
-        return self.previous_count * (
-            1 - elapsed_ratio
-        ) + self.current_count
+        return self.previous_count * (1 - elapsed_ratio) + self.current_count
 
 
 @dataclass(slots = True)
@@ -404,10 +399,7 @@ class LimiterConfig:
     log_violations: bool = True
 
     global_limit: RateLimitRule | None = None
-    endpoint_limits: dict[str,
-                          list[RateLimitRule]] = field(
-                              default_factory = dict
-                          )
+    endpoint_limits: dict[str, list[RateLimitRule]] = field(default_factory = dict)
 
     def __post_init__(self) -> None:
         if not self.default_rules:

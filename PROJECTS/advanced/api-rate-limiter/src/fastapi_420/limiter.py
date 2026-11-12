@@ -126,10 +126,7 @@ class RateLimiter:
                     if self._settings.FAIL_OPEN and self._fallback_storage:
                         logger.warning(
                             "Redis unavailable, using memory fallback",
-                            extra = {
-                                "redis_url":
-                                self._settings.storage.REDIS_URL
-                            },
+                            extra = {"redis_url": self._settings.storage.REDIS_URL},
                         )
                         self._storage = self._fallback_storage
                         self._fallback_storage = None
@@ -137,8 +134,7 @@ class RateLimiter:
                         raise
 
             if isinstance(self._storage,
-                          MemoryStorage
-                          ) and self._storage != self._fallback_storage:
+                          MemoryStorage) and self._storage != self._fallback_storage:
                 await self._storage.start_cleanup_task()
 
             self._algorithm = create_algorithm(self._settings.ALGORITHM)
@@ -150,12 +146,9 @@ class RateLimiter:
             logger.info(
                 "Rate limiter initialized",
                 extra = {
-                    "algorithm":
-                    self._settings.ALGORITHM.value,
-                    "storage":
-                    self._storage.storage_type.value,
-                    "fingerprint_level":
-                    self._settings.fingerprint.LEVEL.value,
+                    "algorithm": self._settings.ALGORITHM.value,
+                    "storage": self._storage.storage_type.value,
+                    "fingerprint_level": self._settings.fingerprint.LEVEL.value,
                 },
             )
 
@@ -265,9 +258,7 @@ class RateLimiter:
         if key_func:
             identifier = key_func(request)
         else:
-            identifier = fingerprint.to_composite_key(
-                self._settings.fingerprint.LEVEL
-            )
+            identifier = fingerprint.to_composite_key(self._settings.fingerprint.LEVEL)
 
         worst_result: RateLimitResult | None = None
 
@@ -332,9 +323,7 @@ class RateLimiter:
         if self._fallback_storage:
             logger.warning(
                 "Primary storage unavailable, using memory fallback",
-                extra = {
-                    "primary_storage": self._storage.storage_type.value
-                },
+                extra = {"primary_storage": self._storage.storage_type.value},
             )
             return self._fallback_storage
 

@@ -209,12 +209,8 @@ class TestHeadersExtractor:
 
     def test_headers_hash_different_headers(self) -> None:
         extractor = HeadersExtractor()
-        request1 = RequestFactory.create(
-            headers = {"user-agent": "Firefox/1.0"}
-        )
-        request2 = RequestFactory.create(
-            headers = {"user-agent": "Chrome/1.0"}
-        )
+        request1 = RequestFactory.create(headers = {"user-agent": "Firefox/1.0"})
+        request2 = RequestFactory.create(headers = {"user-agent": "Chrome/1.0"})
 
         hash1 = extractor.compute_headers_hash(request1)
         hash2 = extractor.compute_headers_hash(request2)
@@ -245,23 +241,14 @@ class TestAuthExtractor:
     """
     def test_extract_jwt_bearer_token(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
-        request = RequestFactory.with_auth(
-            auth_type = "bearer",
-            token = TEST_JWT_TOKEN
-        )
+        request = RequestFactory.with_auth(auth_type = "bearer", token = TEST_JWT_TOKEN)
         identifier = extractor.extract(request)
 
         assert identifier == "user_123"
 
     def test_extract_jwt_bearer_token_hashed(self) -> None:
-        extractor = AuthExtractor(
-            hash_identifiers = True,
-            hash_length = 16
-        )
-        request = RequestFactory.with_auth(
-            auth_type = "bearer",
-            token = TEST_JWT_TOKEN
-        )
+        extractor = AuthExtractor(hash_identifiers = True, hash_length = 16)
+        request = RequestFactory.with_auth(auth_type = "bearer", token = TEST_JWT_TOKEN)
         identifier = extractor.extract(request)
 
         assert identifier is not None
@@ -270,38 +257,28 @@ class TestAuthExtractor:
 
     def test_extract_api_key_header(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
-        request = RequestFactory.with_auth(
-            auth_type = "api_key",
-            token = TEST_API_KEY
-        )
+        request = RequestFactory.with_auth(auth_type = "api_key", token = TEST_API_KEY)
         identifier = extractor.extract(request)
 
         assert identifier == TEST_API_KEY
 
     def test_extract_api_key_query_param(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
-        request = RequestFactory.create(
-            query_params = {"api_key": TEST_API_KEY}
-        )
+        request = RequestFactory.create(query_params = {"api_key": TEST_API_KEY})
         identifier = extractor.extract(request)
 
         assert identifier == TEST_API_KEY
 
     def test_extract_session_cookie(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
-        request = RequestFactory.create(
-            cookies = {"session_id": TEST_SESSION_ID}
-        )
+        request = RequestFactory.create(cookies = {"session_id": TEST_SESSION_ID})
         identifier = extractor.extract(request)
 
         assert identifier == TEST_SESSION_ID
 
     def test_extract_priority_jwt_over_api_key(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
-        request = RequestFactory.with_auth(
-            auth_type = "bearer",
-            token = TEST_JWT_TOKEN
-        )
+        request = RequestFactory.with_auth(auth_type = "bearer", token = TEST_JWT_TOKEN)
         identifier = extractor.extract(request)
 
         assert identifier == "user_123"
@@ -315,10 +292,7 @@ class TestAuthExtractor:
 
     def test_is_authenticated_true(self) -> None:
         extractor = AuthExtractor()
-        request = RequestFactory.with_auth(
-            auth_type = "bearer",
-            token = TEST_JWT_TOKEN
-        )
+        request = RequestFactory.with_auth(auth_type = "bearer", token = TEST_JWT_TOKEN)
 
         assert extractor.is_authenticated(request) is True
 
@@ -341,10 +315,7 @@ class TestAuthExtractor:
     def test_jwt_without_sub_claim(self) -> None:
         extractor = AuthExtractor(hash_identifiers = False)
         token_no_sub = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.signature"
-        request = RequestFactory.with_auth(
-            auth_type = "bearer",
-            token = token_no_sub
-        )
+        request = RequestFactory.with_auth(auth_type = "bearer", token = token_no_sub)
         identifier = extractor.extract(request)
 
         assert identifier == "" or identifier is None
@@ -356,9 +327,7 @@ class TestCompositeFingerprinter:
     """
     @pytest.mark.asyncio
     async def test_normal_level_extraction(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.NORMAL
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.NORMAL)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -370,9 +339,7 @@ class TestCompositeFingerprinter:
 
     @pytest.mark.asyncio
     async def test_relaxed_level_extraction(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.RELAXED
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.RELAXED)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -382,9 +349,7 @@ class TestCompositeFingerprinter:
 
     @pytest.mark.asyncio
     async def test_strict_level_extraction(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.STRICT
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.STRICT)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -411,42 +376,30 @@ class TestCompositeFingerprinter:
 
     @pytest.mark.asyncio
     async def test_tls_fingerprint_extraction(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.STRICT
-        )
-        request = RequestFactory.create(
-            headers = {"X-JA3-Fingerprint": "abc123hash"}
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.STRICT)
+        request = RequestFactory.create(headers = {"X-JA3-Fingerprint": "abc123hash"})
         fp = await fingerprinter.extract(request)
 
         assert fp.tls_fingerprint == "abc123hash"
 
     @pytest.mark.asyncio
     async def test_geo_asn_extraction(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.STRICT
-        )
-        request = RequestFactory.create(
-            headers = {"X-Client-ASN": "AS12345"}
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.STRICT)
+        request = RequestFactory.create(headers = {"X-Client-ASN": "AS12345"})
         fp = await fingerprinter.extract(request)
 
         assert fp.geo_asn == "AS12345"
 
     @pytest.mark.asyncio
     async def test_cloudflare_country_header(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.STRICT
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.STRICT)
         request = RequestFactory.create(headers = {"CF-IPCountry": "US"})
         fp = await fingerprinter.extract(request)
 
         assert fp.geo_asn == "US"
 
     def test_is_authenticated_method(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.NORMAL
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.NORMAL)
         auth_request = RequestFactory.with_auth()
         anon_request = RequestFactory.create()
 
@@ -480,9 +433,7 @@ class TestFingerprintDataCompositeKey:
     """
     @pytest.mark.asyncio
     async def test_composite_key_relaxed_anonymous(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.RELAXED
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.RELAXED)
         request = RequestFactory.create()
         fp = await fingerprinter.extract(request)
 
@@ -491,9 +442,7 @@ class TestFingerprintDataCompositeKey:
 
     @pytest.mark.asyncio
     async def test_composite_key_relaxed_authenticated(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.RELAXED
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.RELAXED)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -503,9 +452,7 @@ class TestFingerprintDataCompositeKey:
 
     @pytest.mark.asyncio
     async def test_composite_key_normal(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.NORMAL
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.NORMAL)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -518,9 +465,7 @@ class TestFingerprintDataCompositeKey:
 
     @pytest.mark.asyncio
     async def test_composite_key_strict(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.STRICT
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.STRICT)
         request = RequestFactory.with_auth()
         fp = await fingerprinter.extract(request)
 
@@ -531,9 +476,7 @@ class TestFingerprintDataCompositeKey:
 
     @pytest.mark.asyncio
     async def test_composite_key_deterministic(self) -> None:
-        fingerprinter = CompositeFingerprinter(
-            level = FingerprintLevel.NORMAL
-        )
+        fingerprinter = CompositeFingerprinter(level = FingerprintLevel.NORMAL)
         request = RequestFactory.with_auth()
 
         fp1 = await fingerprinter.extract(request)

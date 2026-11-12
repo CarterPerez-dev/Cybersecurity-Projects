@@ -150,7 +150,7 @@ learn/
 .github/
 .pre-commit-config.yaml
 .editorconfig
-.style.yapf
+.style.yang
 justfile
 Makefile
 .idea/

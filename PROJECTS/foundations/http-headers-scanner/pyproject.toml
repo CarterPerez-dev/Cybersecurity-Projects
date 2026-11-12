@@ -98,8 +98,8 @@ dev = [
     # pylint — second linter that catches deeper logic issues ruff misses.
     "pylint>=4.0.5",
 
-    # yapf — code formatter. Keeps every file looking identical.
-    "yapf>=0.43.0,<1.0.0",
+    # yang: code formatter. Keeps every file looking identical.
+    "yang-fmt>=1.0.0,<2.0.0",
 ]
 
 # -----------------------------------------------------------------------------
@@ -120,6 +120,9 @@ headers = "http_headers_scanner:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
 
 # Tell hatchling exactly which file to package. This project is a SINGLE
 # Python file (no src/<package>/ layout), so we use `only-include` to
@@ -156,7 +159,7 @@ select = [
 
 # Some rules we deliberately ignore.
 ignore = [
-    # Line length is handled by yapf, not ruff. Avoids double-flagging.
+    # Line length is handled by yang, not ruff. Avoids double-flagging.
     "E501",
 ]
 

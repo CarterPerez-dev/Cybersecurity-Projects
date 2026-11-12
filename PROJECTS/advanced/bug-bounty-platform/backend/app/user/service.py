@@ -44,8 +44,7 @@ class UserService:
         """
         Register a new user
         """
-        if await UserRepository.email_exists(self.session,
-                                             user_data.email):
+        if await UserRepository.email_exists(self.session, user_data.email):
             raise EmailAlreadyExists(user_data.email)
 
         role = UserRole.USER
@@ -96,11 +95,7 @@ class UserService:
         Update user profile
         """
         update_dict = user_data.model_dump(exclude_unset = True)
-        updated_user = await UserRepository.update(
-            self.session,
-            user,
-            **update_dict
-        )
+        updated_user = await UserRepository.update(self.session, user, **update_dict)
         return UserResponse.model_validate(updated_user)
 
     async def change_password(
@@ -126,11 +121,7 @@ class UserService:
         """
         Deactivate user account
         """
-        updated = await UserRepository.update(
-            self.session,
-            user,
-            is_active = False
-        )
+        updated = await UserRepository.update(self.session, user, is_active = False)
         return UserResponse.model_validate(updated)
 
     async def list_users(
@@ -142,11 +133,7 @@ class UserService:
         List users with pagination
         """
         skip = (page - 1) * size
-        users = await UserRepository.get_multi(
-            self.session,
-            skip = skip,
-            limit = size
-        )
+        users = await UserRepository.get_multi(self.session, skip = skip, limit = size)
         total = await UserRepository.count(self.session)
         return UserListResponse(
             items = [UserResponse.model_validate(u) for u in users],
@@ -162,8 +149,7 @@ class UserService:
         """
         Admin creates a new user
         """
-        if await UserRepository.email_exists(self.session,
-                                             user_data.email):
+        if await UserRepository.email_exists(self.session, user_data.email):
             raise EmailAlreadyExists(user_data.email)
 
         hashed = await hash_password(user_data.password)
@@ -200,11 +186,7 @@ class UserService:
             if existing and existing.id != user_id:
                 raise EmailAlreadyExists(update_dict["email"])
 
-        updated_user = await UserRepository.update(
-            self.session,
-            user,
-            **update_dict
-        )
+        updated_user = await UserRepository.update(self.session, user, **update_dict)
         return UserResponse.model_validate(updated_user)
 
     async def admin_delete_user(

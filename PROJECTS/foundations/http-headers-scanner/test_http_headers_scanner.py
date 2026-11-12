@@ -99,8 +99,7 @@ def referrer_rule() -> HeaderRule:
         header = "Referrer-Policy",
         severity = "low",
         description = "Limits Referer leakage",
-        recommendation =
-        "Add: Referrer-Policy: strict-origin-when-cross-origin",
+        recommendation = "Add: Referrer-Policy: strict-origin-when-cross-origin",
     )
 
 
@@ -219,9 +218,7 @@ def _make_report(statuses: list[Status]) -> ScanReport:
         # When the caller passed fewer statuses than rules, treat the
         # rest as missing. Common when a test only cares about the
         # first few rules
-        status: Status = (
-            statuses[index] if index < len(statuses) else "missing"
-        )
+        status: Status = (statuses[index] if index < len(statuses) else "missing")
         findings.append(
             HeaderFinding(
                 rule = rule,
@@ -268,14 +265,13 @@ def test_grade_threshold_a_at_90_percent() -> None:
     Two `high` rules = 60 / 100 = 60%, which is grade D
     Both highs + both mediums = 90 / 100 = 90%, which is grade A
     """
-    statuses_by_severity: dict[str, Status] = {
-        "high": "ok",
-        "medium": "ok",
-        "low": "missing",
-    }
-    statuses: list[Status] = [
-        statuses_by_severity[r.severity] for r in RULES
-    ]
+    statuses_by_severity: dict[str,
+                               Status] = {
+                                   "high": "ok",
+                                   "medium": "ok",
+                                   "low": "missing",
+                               }
+    statuses: list[Status] = [statuses_by_severity[r.severity] for r in RULES]
     report = _make_report(statuses)
     assert report.score == 90
     assert report.grade == "A"
@@ -322,8 +318,7 @@ def test_scan_mocks_a_clean_response_and_grades_it_correctly() -> None:
         return_value = httpx.Response(
             status_code = 200,
             headers = {
-                "Strict-Transport-Security":
-                "max-age=31536000; includeSubDomains",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
                 "Content-Security-Policy": "default-src 'self'",
                 "X-Content-Type-Options": "nosniff",
                 "X-Frame-Options": "DENY",
@@ -367,8 +362,7 @@ def test_scan_flags_missing_and_weak_headers() -> None:
     report = scan("https://weak.example.com/")
 
     findings_by_header = {f.rule.header: f for f in report.findings}
-    assert findings_by_header["Content-Security-Policy"
-                              ].status == "missing"
+    assert findings_by_header["Content-Security-Policy"].status == "missing"
     assert findings_by_header["X-Content-Type-Options"].status == "weak"
     assert findings_by_header["Strict-Transport-Security"].status == "ok"
 

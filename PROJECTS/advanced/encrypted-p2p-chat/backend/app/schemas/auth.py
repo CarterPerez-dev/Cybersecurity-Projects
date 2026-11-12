@@ -82,7 +82,10 @@ class RegistrationCompleteRequest(BaseModel):
     """
     Request to complete passkey registration
     """
-    username: str = Field(min_length = USERNAME_MIN_LENGTH, max_length = USERNAME_MAX_LENGTH)
+    username: str = Field(
+        min_length = USERNAME_MIN_LENGTH,
+        max_length = USERNAME_MAX_LENGTH
+    )
     credential: dict[str, Any]
     device_name: str | None = Field(
         default = None,

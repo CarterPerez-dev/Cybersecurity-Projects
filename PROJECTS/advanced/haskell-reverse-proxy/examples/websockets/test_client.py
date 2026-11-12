@@ -20,7 +20,7 @@ except ImportError:
     httpx = None
 
 
-async def test_websocket(host="localhost", port=8081):
+async def test_websocket(host = "localhost", port = 8081):
     if websockets is None:
         print("SKIP: websockets not installed")
         return False
@@ -29,7 +29,9 @@ async def test_websocket(host="localhost", port=8081):
     print(f"\n[TEST] WebSocket: {uri}")
 
     try:
-        async with websockets.connect(uri, additional_headers={"Host": "ws.localhost"}) as ws:
+        async with websockets.connect(uri,
+                                      additional_headers = {"Host":
+                                                            "ws.localhost"}) as ws:
             print("[OK] WebSocket connected")
 
             await ws.send("ping")
@@ -55,7 +57,7 @@ async def test_websocket(host="localhost", port=8081):
         return False
 
 
-async def test_sse(host="localhost", port=8081):
+async def test_sse(host = "localhost", port = 8081):
     if httpx is None:
         print("SKIP: httpx not installed")
         return False
@@ -65,14 +67,16 @@ async def test_sse(host="localhost", port=8081):
 
     try:
         async with httpx.AsyncClient() as client:
-            async with client.stream("GET", url, headers={"Host": "sse.localhost"}) as response:
+            async with client.stream("GET",
+                                     url,
+                                     headers = {"Host": "sse.localhost"}) as response:
                 print(f"[OK] SSE connected, status: {response.status_code}")
                 print(f"[OK] Content-Type: {response.headers.get('content-type')}")
 
                 count = 0
                 async for line in response.aiter_lines():
                     if line.startswith("data:"):
-                        data = json.loads(line[5:].strip())
+                        data = json.loads(line[5 :].strip())
                         print(f"[OK] Event: {data}")
                         count += 1
                         if count >= 3:
@@ -86,13 +90,13 @@ async def test_sse(host="localhost", port=8081):
         return False
 
 
-async def test_both_simultaneously(host="localhost", port=8081):
+async def test_both_simultaneously(host = "localhost", port = 8081):
     print("\n[TEST] Running WebSocket + SSE simultaneously...")
 
     ws_task = asyncio.create_task(test_websocket(host, port))
     sse_task = asyncio.create_task(test_sse(host, port))
 
-    ws_ok, sse_ok = await asyncio.gather(ws_task, sse_task, return_exceptions=True)
+    ws_ok, sse_ok = await asyncio.gather(ws_task, sse_task, return_exceptions = True)
 
     if isinstance(ws_ok, Exception):
         print(f"[FAIL] WebSocket: {ws_ok}")

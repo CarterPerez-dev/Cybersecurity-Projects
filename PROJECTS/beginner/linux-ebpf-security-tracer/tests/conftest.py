@@ -16,7 +16,6 @@ def make_event():
     """
     Factory for creating TracerEvent instances in tests
     """
-
     def _make(
         event_type: str = "execve",
         category: str = "process",
@@ -37,25 +36,25 @@ def make_event():
         severity: str = "LOW",
     ) -> TracerEvent:
         return TracerEvent(
-            timestamp=datetime.now(tz=timezone.utc),
-            event_type=event_type,
-            category=category,
-            pid=pid,
-            ppid=ppid,
-            uid=uid,
-            gid=gid,
-            username="testuser",
-            comm=comm,
-            filename=filename,
-            addr_v4=addr_v4,
-            port=port,
-            protocol=protocol,
-            target_uid=target_uid,
-            target_gid=target_gid,
-            ptrace_request=ptrace_request,
-            target_pid=target_pid,
-            flags=flags,
-            severity=severity,
+            timestamp = datetime.now(tz = timezone.utc),
+            event_type = event_type,
+            category = category,
+            pid = pid,
+            ppid = ppid,
+            uid = uid,
+            gid = gid,
+            username = "testuser",
+            comm = comm,
+            filename = filename,
+            addr_v4 = addr_v4,
+            port = port,
+            protocol = protocol,
+            target_uid = target_uid,
+            target_gid = target_gid,
+            ptrace_request = ptrace_request,
+            target_pid = target_pid,
+            flags = flags,
+            severity = severity,
         )
 
     return _make

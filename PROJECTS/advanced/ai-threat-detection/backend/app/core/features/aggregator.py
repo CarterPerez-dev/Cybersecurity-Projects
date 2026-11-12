@@ -30,6 +30,7 @@ from collections import Counter
 
 import redis.asyncio as aioredis
 
+
 WINDOW_1M = 60
 WINDOW_5M = 300
 WINDOW_10M = 600
@@ -40,14 +41,13 @@ def _hash_member(value: str) -> str:
     """
     Produce a compact 16-char hex digest for sorted set deduplication.
     """
-    return hashlib.md5(value.encode(), usedforsecurity=False).hexdigest()[:16]
+    return hashlib.md5(value.encode(), usedforsecurity = False).hexdigest()[: 16]
 
 
 class WindowAggregator:
     """
     Per-IP sliding window feature aggregator backed by Redis sorted sets.
     """
-
     def __init__(self, redis_client: aioredis.Redis[str]) -> None:
         self._redis = redis_client
 
@@ -62,7 +62,8 @@ class WindowAggregator:
         user_agent: str,
         response_size: int,
         timestamp: float,
-    ) -> dict[str, float]:
+    ) -> dict[str,
+              float]:
         """
         Record a request into Redis sorted sets and return all 12
         per-IP windowed features.
@@ -105,7 +106,7 @@ class WindowAggregator:
         pipe.zrangebyscore(keys["sizes"], w5m, "+inf")
         pipe.zrangebyscore(keys["methods"], w5m, "+inf")
         pipe.zrangebyscore(keys["depths"], w5m, "+inf")
-        pipe.zrangebyscore(keys["requests"], w10m, "+inf", withscores=True)
+        pipe.zrangebyscore(keys["requests"], w10m, "+inf", withscores = True)
 
         for key in keys.values():
             pipe.expire(key, KEY_TTL)
@@ -113,16 +114,37 @@ class WindowAggregator:
         results = await pipe.execute()
 
         (
-            _zadd_req, _zadd_paths, _zadd_statuses, _zadd_uas,
-            _zadd_sizes, _zadd_methods, _zadd_depths,
-            _trim_req, _trim_paths, _trim_statuses, _trim_uas,
-            _trim_sizes, _trim_methods, _trim_depths,
-            req_count_1m, req_count_5m, req_count_10m,
-            unique_paths_5m, unique_uas_10m,
-            statuses_5m, sizes_5m, methods_5m, depths_5m,
+            _zadd_req,
+            _zadd_paths,
+            _zadd_statuses,
+            _zadd_uas,
+            _zadd_sizes,
+            _zadd_methods,
+            _zadd_depths,
+            _trim_req,
+            _trim_paths,
+            _trim_statuses,
+            _trim_uas,
+            _trim_sizes,
+            _trim_methods,
+            _trim_depths,
+            req_count_1m,
+            req_count_5m,
+            req_count_10m,
+            unique_paths_5m,
+            unique_uas_10m,
+            statuses_5m,
+            sizes_5m,
+            methods_5m,
+            depths_5m,
             requests_with_scores,
-            _exp_req, _exp_paths, _exp_statuses, _exp_uas,
-            _exp_sizes, _exp_methods, _exp_depths,
+            _exp_req,
+            _exp_paths,
+            _exp_statuses,
+            _exp_uas,
+            _exp_sizes,
+            _exp_methods,
+            _exp_depths,
         ) = results
 
         irt_mean, irt_std = _inter_request_time_stats(requests_with_scores)
@@ -197,15 +219,19 @@ def _path_depth_variance(depth_members: list[str]) -> float:
 
 
 def _inter_request_time_stats(
-    entries: list[tuple[str, float]], ) -> tuple[float, float]:
+    entries: list[tuple[str,
+                        float]],
+) -> tuple[float,
+           float]:
     """
     Mean and standard deviation of inter-request intervals in milliseconds.
     """
     if len(entries) < 2:
         return 0.0, 0.0
     timestamps = sorted(score for _, score in entries)
-    deltas = [(timestamps[i + 1] - timestamps[i]) * 1000
-              for i in range(len(timestamps) - 1)]
+    deltas = [
+        (timestamps[i + 1] - timestamps[i]) * 1000 for i in range(len(timestamps) - 1)
+    ]
     mean = sum(deltas) / len(deltas)
     if len(deltas) < 2:
         return mean, 0.0

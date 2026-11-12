@@ -8,16 +8,23 @@ import pytest
 from rveng.engine import challenge as ch
 from rveng.engine import patch
 
+
 JNE_FILE_OFFSET = 0x1154
 NOP_NOP = b"\x90\x90"
 
 SOURCE = "int check(int n){ return n == 1337; }"
 
 
-def _challenge(answer, binary=b"") -> ch.Challenge:
+def _challenge(answer, binary = b"") -> ch.Challenge:
     return ch.Challenge(
-        id="t", module="m", title="t", mission="find it",
-        binary=binary, source=SOURCE, answer=answer)
+        id = "t",
+        module = "m",
+        title = "t",
+        mission = "find it",
+        binary = binary,
+        source = SOURCE,
+        answer = answer
+    )
 
 
 def test_normalize_int_accepts_hex_dec_and_h():
@@ -54,16 +61,13 @@ def test_identified_symbol_case_insensitive():
 
 def test_category_property():
     assert _challenge(ch.FoundValue(1)).category == ch.FOUND_VALUE
-    assert _challenge(
-        ch.IdentifiedSymbol("x")).category == ch.IDENTIFIED_SYMBOL
-    assert _challenge(
-        ch.PatchedBytes(0, b"")).category == ch.PATCHED_BYTES
+    assert _challenge(ch.IdentifiedSymbol("x")).category == ch.IDENTIFIED_SYMBOL
+    assert _challenge(ch.PatchedBytes(0, b"")).category == ch.PATCHED_BYTES
 
 
 def test_patched_bytes_graded_by_static_diff(gate_bytes: bytes):
     known_good = patch.apply(gate_bytes, JNE_FILE_OFFSET, NOP_NOP)
-    c = _challenge(
-        ch.PatchedBytes(JNE_FILE_OFFSET, known_good), binary=gate_bytes)
+    c = _challenge(ch.PatchedBytes(JNE_FILE_OFFSET, known_good), binary = gate_bytes)
     assert ch.grade(c, NOP_NOP).correct
     assert ch.grade(c, "9090").correct
     assert not ch.grade(c, b"\x75\x07").correct

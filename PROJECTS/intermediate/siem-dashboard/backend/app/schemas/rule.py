@@ -36,8 +36,8 @@ class ThresholdConditions(BaseModel):
     Conditions for threshold-based correlation rules
     """
     event_filter: dict[str, str]
-    threshold: int = Field(ge=1)
-    window_seconds: int = Field(ge=1)
+    threshold: int = Field(ge = 1)
+    window_seconds: int = Field(ge = 1)
     group_by: str
 
 
@@ -46,15 +46,15 @@ class SequenceStep(BaseModel):
     A single step in a sequence correlation rule
     """
     event_filter: dict[str, str]
-    count: int = Field(default=1, ge=1)
+    count: int = Field(default = 1, ge = 1)
 
 
 class SequenceConditions(BaseModel):
     """
     Conditions for sequence-based correlation rules
     """
-    steps: list[SequenceStep] = Field(min_length=2)
-    window_seconds: int = Field(ge=1)
+    steps: list[SequenceStep] = Field(min_length = 2)
+    window_seconds: int = Field(ge = 1)
     group_by: str
 
 
@@ -65,23 +65,24 @@ class AggregationConditions(BaseModel):
     event_filter: dict[str, str]
     aggregation: Literal["count_distinct"]
     aggregation_field: str
-    threshold: int = Field(ge=1)
-    window_seconds: int = Field(ge=1)
+    threshold: int = Field(ge = 1)
+    window_seconds: int = Field(ge = 1)
     group_by: str
 
 
-CONDITION_SCHEMAS: dict[RuleType, type[BaseModel]] = {
-    RuleType.THRESHOLD: ThresholdConditions,
-    RuleType.SEQUENCE: SequenceConditions,
-    RuleType.AGGREGATION: AggregationConditions,
-}
+CONDITION_SCHEMAS: dict[RuleType,
+                        type[BaseModel]] = {
+                            RuleType.THRESHOLD: ThresholdConditions,
+                            RuleType.SEQUENCE: SequenceConditions,
+                            RuleType.AGGREGATION: AggregationConditions,
+                        }
 
 
 class RuleCreateRequest(BaseModel):
     """
     Schema for creating a new correlation rule
     """
-    name: str = Field(min_length=1)
+    name: str = Field(min_length = 1)
     description: str = ""
     rule_type: RuleType
     conditions: dict[str, Any]
@@ -90,7 +91,7 @@ class RuleCreateRequest(BaseModel):
     mitre_tactic: str | None = None
     mitre_technique: str | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode = "after")
     def validate_conditions(self) -> RuleCreateRequest:
         """
         Validate conditions dict matches the expected structure for rule_type
@@ -118,7 +119,7 @@ class RuleTestRequest(BaseModel):
     Schema for testing a rule against historical events
     """
     hours: int = Field(
-        default=settings.TIMELINE_DEFAULT_HOURS,
-        ge=1,
-        le=settings.RULE_TEST_MAX_HOURS,
+        default = settings.TIMELINE_DEFAULT_HOURS,
+        ge = 1,
+        le = settings.RULE_TEST_MAX_HOURS,
     )

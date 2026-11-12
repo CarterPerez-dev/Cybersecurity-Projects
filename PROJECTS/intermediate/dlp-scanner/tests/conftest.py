@@ -3,7 +3,6 @@
 conftest.py
 """
 
-
 import tempfile
 from pathlib import Path
 from collections.abc import Generator
@@ -80,8 +79,6 @@ def temp_dir_with_pii(
     txt_path.write_text("No sensitive data here at all.")
 
     json_path = temp_dir / "config.json"
-    json_path.write_text(
-        '{"api_key": "sk_live_abc123def456ghi789jkl012mno345"}\n'
-    )
+    json_path.write_text('{"api_key": "sk_live_abc123def456ghi789jkl012mno345"}\n')
 
     return temp_dir

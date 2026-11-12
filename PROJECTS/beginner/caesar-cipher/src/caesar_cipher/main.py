@@ -48,21 +48,19 @@ def encrypt(
                    typer.Option("--key",
                                 "-k",
                                 help = "Shift key (0-25)")] = 3,
-    input_file: Annotated[
-        Path | None,
-        typer.Option("--input-file",
-                     "-i",
-                     help = "Input file path")] = None,
+    input_file: Annotated[Path | None,
+                          typer.Option("--input-file",
+                                       "-i",
+                                       help = "Input file path")] = None,
     output_file: Annotated[
         Path | None,
         typer.Option("--output-file",
                      "-o",
                      help = "Output file path")] = None,
-    quiet: Annotated[
-        bool,
-        typer.Option("--quiet",
-                     "-q",
-                     help = "Suppress output messages")] = False,
+    quiet: Annotated[bool,
+                     typer.Option("--quiet",
+                                  "-q",
+                                  help = "Suppress output messages")] = False,
 ) -> None:
     """
     Encrypt text using Caesar cipher with specified shift key
@@ -93,21 +91,19 @@ def decrypt(
                    typer.Option("--key",
                                 "-k",
                                 help = "Shift key (0-25)")] = 3,
-    input_file: Annotated[
-        Path | None,
-        typer.Option("--input-file",
-                     "-i",
-                     help = "Input file path")] = None,
+    input_file: Annotated[Path | None,
+                          typer.Option("--input-file",
+                                       "-i",
+                                       help = "Input file path")] = None,
     output_file: Annotated[
         Path | None,
         typer.Option("--output-file",
                      "-o",
                      help = "Output file path")] = None,
-    quiet: Annotated[
-        bool,
-        typer.Option("--quiet",
-                     "-q",
-                     help = "Suppress output messages")] = False,
+    quiet: Annotated[bool,
+                     typer.Option("--quiet",
+                                  "-q",
+                                  help = "Suppress output messages")] = False,
 ) -> None:
     """
     Decrypt text using Caesar cipher with specified shift key
@@ -134,11 +130,10 @@ def crack(
         str | None,
         typer.Argument(help = "Text to crack (or use --input-file or stdin)"),
     ] = None,
-    input_file: Annotated[
-        Path | None,
-        typer.Option("--input-file",
-                     "-i",
-                     help = "Input file path")] = None,
+    input_file: Annotated[Path | None,
+                          typer.Option("--input-file",
+                                       "-i",
+                                       help = "Input file path")] = None,
     top: Annotated[int,
                    typer.Option("--top",
                                 "-t",
@@ -166,13 +161,8 @@ def crack(
 
         display_count = len(ranked) if show_all else min(top, len(ranked))
 
-        for rank, (shift, text_result, score) in enumerate(ranked[:display_count], 1):
-            table.add_row(
-                str(rank),
-                str(shift),
-                f"{score:.2f}",
-                text_result[: 80]
-            )
+        for rank, (shift, text_result, score) in enumerate(ranked[: display_count], 1):
+            table.add_row(str(rank), str(shift), f"{score:.2f}", text_result[: 80])
 
         console.print(table)
         console.print(

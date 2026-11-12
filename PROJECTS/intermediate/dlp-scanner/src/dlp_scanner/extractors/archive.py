@@ -3,7 +3,6 @@
 archive.py
 """
 
-
 import tarfile
 import zipfile
 
@@ -62,8 +61,7 @@ class ArchiveExtractor:
         if path.endswith(".zip"):
             return self._extract_zip(path, depth)
 
-        if any(path.endswith(ext)
-               for ext in (".tar", ".tar.gz", ".tgz", ".tar.bz2")):
+        if any(path.endswith(ext) for ext in (".tar", ".tar.gz", ".tgz", ".tar.bz2")):
             return self._extract_tar(path, depth)
 
         return []
@@ -166,8 +164,8 @@ class ArchiveExtractor:
         if info.file_size > MAX_MEMBER_BYTES:
             return False
 
-        if (info.compress_size > 0 and info.file_size / info.compress_size
-                > ZIP_BOMB_RATIO_THRESHOLD):
+        if (info.compress_size > 0
+                and info.file_size / info.compress_size > ZIP_BOMB_RATIO_THRESHOLD):
             log.warning(
                 "zip_bomb_detected",
                 filename = info.filename,

@@ -3,7 +3,6 @@
 base.py
 """
 
-
 from typing import Protocol
 
 from dlp_scanner.models import ScanResult

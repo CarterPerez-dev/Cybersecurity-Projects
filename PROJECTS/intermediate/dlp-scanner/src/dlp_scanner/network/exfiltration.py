@@ -3,7 +3,6 @@
 exfiltration.py
 """
 
-
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -239,10 +238,8 @@ def detect_base64_payload(
                 confidence = 0.55,
                 source_ip = src_ip,
                 dest_ip = dst_ip,
-                evidence = matched[: 80].decode(
-                    "ascii",
-                    errors = "replace"
-                ),
+                evidence = matched[: 80].decode("ascii",
+                                                errors = "replace"),
             )
         )
 
@@ -259,10 +256,8 @@ def detect_base64_payload(
                 confidence = 0.45,
                 source_ip = src_ip,
                 dest_ip = dst_ip,
-                evidence = matched[: 80].decode(
-                    "ascii",
-                    errors = "replace"
-                ),
+                evidence = matched[: 80].decode("ascii",
+                                                errors = "replace"),
             )
         )
 

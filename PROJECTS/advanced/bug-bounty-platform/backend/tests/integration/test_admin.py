@@ -20,7 +20,8 @@ def url_admin_user_by_id(user_id: str) -> str:
 async def test_admin_create_user(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
 ):
     """
     Admin can create a new user
@@ -47,7 +48,8 @@ async def test_admin_create_user(
 async def test_admin_create_user_non_admin_forbidden(
     client: AsyncClient,
     test_user: User,
-    auth_headers: dict[str, str],
+    auth_headers: dict[str,
+                       str],
 ):
     """
     Non admin cannot create user via admin endpoint
@@ -68,7 +70,8 @@ async def test_admin_create_user_non_admin_forbidden(
 async def test_admin_create_user_duplicate_email(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
     test_user: User,
 ):
     """
@@ -90,7 +93,8 @@ async def test_admin_create_user_duplicate_email(
 async def test_admin_get_user_by_id(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
     test_user: User,
 ):
     """
@@ -111,7 +115,8 @@ async def test_admin_get_user_by_id(
 async def test_admin_get_user_not_found(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
 ):
     """
     Admin get non existent user returns 404
@@ -129,7 +134,8 @@ async def test_admin_get_user_not_found(
 async def test_admin_update_user(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
     test_user: User,
 ):
     """
@@ -151,7 +157,8 @@ async def test_admin_update_user(
 async def test_admin_update_user_not_found(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
 ):
     """
     Admin update non existent user returns 404
@@ -170,7 +177,8 @@ async def test_admin_update_user_not_found(
 async def test_admin_update_user_non_admin_forbidden(
     client: AsyncClient,
     test_user: User,
-    auth_headers: dict[str, str],
+    auth_headers: dict[str,
+                       str],
 ):
     """
     Non admin cannot update via admin endpoint
@@ -188,7 +196,8 @@ async def test_admin_update_user_non_admin_forbidden(
 async def test_admin_delete_user(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
     db_session,
 ):
     """
@@ -225,7 +234,8 @@ async def test_admin_delete_user(
 async def test_admin_delete_user_not_found(
     client: AsyncClient,
     admin_user: User,
-    admin_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str,
+                             str],
 ):
     """
     Admin delete non existent user returns 404
@@ -243,7 +253,8 @@ async def test_admin_delete_user_not_found(
 async def test_admin_delete_user_non_admin_forbidden(
     client: AsyncClient,
     test_user: User,
-    auth_headers: dict[str, str],
+    auth_headers: dict[str,
+                       str],
 ):
     """
     Non admin cannot delete users

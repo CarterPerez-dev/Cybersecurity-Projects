@@ -52,11 +52,7 @@ class TestResult(BaseModel):
     )
     details = Column(Text, nullable = False)
     evidence_json = Column(JSON, nullable = False, default = dict)
-    recommendations_json = Column(
-        JSON,
-        nullable = False,
-        default = list
-    )
+    recommendations_json = Column(JSON, nullable = False, default = list)
 
     scan = relationship("Scan", back_populates = "test_results")
 

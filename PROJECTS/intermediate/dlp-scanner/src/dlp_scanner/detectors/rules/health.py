@@ -3,7 +3,6 @@
 health.py
 """
 
-
 import re
 
 from dlp_scanner.detectors.base import DetectionRule

@@ -71,7 +71,6 @@ from password_manager.vault import UnlockedVault
 # parallelism — see the Argon2 spec). If you change parallelism here,
 # bump memory_cost too or Argon2 will reject the parameter set
 
-
 TEST_KDF_PARAMETERS = KdfParameters(
     time_cost = 1,
     memory_cost = 8,

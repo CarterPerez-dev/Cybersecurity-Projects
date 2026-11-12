@@ -58,16 +58,10 @@ class MemoryStorage:
     """
     max_keys: int = 100_000
     cleanup_interval: int = 60
-    _windows: OrderedDict[str,
-                          WindowEntry] = field(
-                              default_factory = OrderedDict
-                          )
+    _windows: OrderedDict[str, WindowEntry] = field(default_factory = OrderedDict)
     _buckets: dict[str, TokenBucketState] = field(default_factory = dict)
     _lock: asyncio.Lock = field(default_factory = asyncio.Lock)
-    _cleanup_task: asyncio.Task[None] | None = field(
-        default = None,
-        repr = False
-    )
+    _cleanup_task: asyncio.Task[None] | None = field(default = None, repr = False)
     _closed: bool = field(default = False)
 
     @classmethod
@@ -102,8 +96,7 @@ class MemoryStorage:
         now = time.time()
         async with self._lock:
             expired_keys = [
-                key for key, entry in self._windows.items()
-                if entry.expires_at < now
+                key for key, entry in self._windows.items() if entry.expires_at < now
             ]
             for key in expired_keys:
                 del self._windows[key]
@@ -142,10 +135,8 @@ class MemoryStorage:
             previous_entry = self._windows.get(previous_key)
 
             return WindowState(
-                current_count = current_entry.count
-                if current_entry else 0,
-                previous_count = previous_entry.count
-                if previous_entry else 0,
+                current_count = current_entry.count if current_entry else 0,
+                previous_count = previous_entry.count if previous_entry else 0,
                 current_window = current_window,
                 window_seconds = window_seconds,
             )
@@ -175,9 +166,7 @@ class MemoryStorage:
             current_count = current_entry.count if current_entry else 0
             previous_count = previous_entry.count if previous_entry else 0
 
-            weighted_count = int(
-                previous_count * (1 - elapsed_ratio) + current_count
-            )
+            weighted_count = int(previous_count * (1 - elapsed_ratio) + current_count)
 
             if weighted_count >= limit:
                 reset_after = window_seconds - (now % window_seconds)
@@ -200,9 +189,7 @@ class MemoryStorage:
                 self._windows.move_to_end(current_key)
                 await self._enforce_max_keys()
 
-            new_weighted = int(
-                previous_count * (1 - elapsed_ratio) + current_count + 1
-            )
+            new_weighted = int(previous_count * (1 - elapsed_ratio) + current_count + 1)
             remaining = max(0, limit - new_weighted)
             reset_after = window_seconds - (now % window_seconds)
 
@@ -249,10 +236,7 @@ class MemoryStorage:
 
             elapsed = now - state.last_refill
             tokens_to_add = elapsed * refill_rate
-            state.tokens = min(
-                float(capacity),
-                state.tokens + tokens_to_add
-            )
+            state.tokens = min(float(capacity), state.tokens + tokens_to_add)
             state.last_refill = now
 
             if state.tokens >= tokens_to_consume:
@@ -269,9 +253,7 @@ class MemoryStorage:
                 )
 
             tokens_needed = tokens_to_consume - state.tokens
-            wait_time = tokens_needed / refill_rate if refill_rate > 0 else float(
-                "inf"
-            )
+            wait_time = tokens_needed / refill_rate if refill_rate > 0 else float("inf")
 
             return RateLimitResult(
                 allowed = False,

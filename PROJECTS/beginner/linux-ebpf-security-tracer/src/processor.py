@@ -27,22 +27,38 @@ class RawEvent(ctypes.Structure):
     Mirrors the C struct event layout from eBPF programs
     """
     _fields_ = [
-        ("timestamp_ns", ctypes.c_uint64),
-        ("pid", ctypes.c_uint32),
-        ("ppid", ctypes.c_uint32),
-        ("uid", ctypes.c_uint32),
-        ("gid", ctypes.c_uint32),
-        ("event_type", ctypes.c_uint32),
-        ("flags", ctypes.c_uint32),
-        ("comm", ctypes.c_char * TASK_COMM_LEN),
-        ("filename", ctypes.c_char * MAX_FILENAME_LEN),
-        ("addr_v4", ctypes.c_uint32),
-        ("port", ctypes.c_uint16),
-        ("protocol", ctypes.c_uint16),
-        ("target_uid", ctypes.c_uint32),
-        ("target_gid", ctypes.c_uint32),
-        ("ptrace_request", ctypes.c_uint32),
-        ("target_pid", ctypes.c_uint32),
+        ("timestamp_ns",
+         ctypes.c_uint64),
+        ("pid",
+         ctypes.c_uint32),
+        ("ppid",
+         ctypes.c_uint32),
+        ("uid",
+         ctypes.c_uint32),
+        ("gid",
+         ctypes.c_uint32),
+        ("event_type",
+         ctypes.c_uint32),
+        ("flags",
+         ctypes.c_uint32),
+        ("comm",
+         ctypes.c_char * TASK_COMM_LEN),
+        ("filename",
+         ctypes.c_char * MAX_FILENAME_LEN),
+        ("addr_v4",
+         ctypes.c_uint32),
+        ("port",
+         ctypes.c_uint16),
+        ("protocol",
+         ctypes.c_uint16),
+        ("target_uid",
+         ctypes.c_uint32),
+        ("target_gid",
+         ctypes.c_uint32),
+        ("ptrace_request",
+         ctypes.c_uint32),
+        ("target_pid",
+         ctypes.c_uint32),
     ]
 
 
@@ -73,21 +89,21 @@ class TracerEvent:
     detection: str | None = None
     detection_id: str | None = None
     mitre_id: str | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory = dict)
 
 
 def _decode_comm(raw: bytes) -> str:
     """
     Decode a null-terminated comm field
     """
-    return raw.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+    return raw.split(b"\x00", 1)[0].decode("utf-8", errors = "replace")
 
 
 def _decode_filename(raw: bytes) -> str:
     """
     Decode a null-terminated filename field
     """
-    return raw.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+    return raw.split(b"\x00", 1)[0].decode("utf-8", errors = "replace")
 
 
 def _ipv4_to_str(addr: int) -> str:
@@ -140,8 +156,7 @@ def _ktime_to_datetime(ktime_ns: int) -> datetime:
     Convert kernel monotonic timestamp to wall clock
     """
     epoch_ns = _BOOT_NS + ktime_ns
-    return datetime.fromtimestamp(epoch_ns / 1_000_000_000,
-                                  tz=timezone.utc)
+    return datetime.fromtimestamp(epoch_ns / 1_000_000_000, tz = timezone.utc)
 
 
 def parse_raw_event(
@@ -159,24 +174,24 @@ def parse_raw_event(
     category = EVENT_TYPE_CATEGORIES.get(etype, "unknown")
 
     return TracerEvent(
-        timestamp=_ktime_to_datetime(raw.timestamp_ns),
-        event_type=type_name,
-        category=category,
-        pid=raw.pid,
-        ppid=raw.ppid,
-        uid=raw.uid,
-        gid=raw.gid,
-        username=_resolve_username(raw.uid),
-        comm=_decode_comm(raw.comm),
-        filename=_decode_filename(raw.filename),
-        addr_v4=_ipv4_to_str(raw.addr_v4),
-        port=raw.port,
-        protocol=raw.protocol,
-        target_uid=raw.target_uid,
-        target_gid=raw.target_gid,
-        ptrace_request=raw.ptrace_request,
-        target_pid=raw.target_pid,
-        flags=raw.flags,
+        timestamp = _ktime_to_datetime(raw.timestamp_ns),
+        event_type = type_name,
+        category = category,
+        pid = raw.pid,
+        ppid = raw.ppid,
+        uid = raw.uid,
+        gid = raw.gid,
+        username = _resolve_username(raw.uid),
+        comm = _decode_comm(raw.comm),
+        filename = _decode_filename(raw.filename),
+        addr_v4 = _ipv4_to_str(raw.addr_v4),
+        port = raw.port,
+        protocol = raw.protocol,
+        target_uid = raw.target_uid,
+        target_gid = raw.target_gid,
+        ptrace_request = raw.ptrace_request,
+        target_pid = raw.target_pid,
+        flags = raw.flags,
     )
 
 

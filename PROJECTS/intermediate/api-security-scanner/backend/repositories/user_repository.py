@@ -70,11 +70,9 @@ class UserRepository:
         return user
 
     @staticmethod
-    def get_all_active(
-        db: Session,
-        skip: int = 0,
-        limit: int | None = None
-    ) -> list[User]:
+    def get_all_active(db: Session,
+                       skip: int = 0,
+                       limit: int | None = None) -> list[User]:
         """
         Get all active users with pagination
 
@@ -89,8 +87,7 @@ class UserRepository:
         if limit is None:
             limit = settings.DEFAULT_PAGINATION_LIMIT
 
-        return db.query(User).filter(User.is_active
-                                     ).offset(skip).limit(limit).all()
+        return db.query(User).filter(User.is_active).offset(skip).limit(limit).all()
 
     @staticmethod
     def update_active_status(
@@ -120,11 +117,7 @@ class UserRepository:
         return user
 
     @staticmethod
-    def delete(
-        db: Session,
-        user_id: int,
-        commit: bool = True
-    ) -> bool:
+    def delete(db: Session, user_id: int, commit: bool = True) -> bool:
         """
         Delete a user
 

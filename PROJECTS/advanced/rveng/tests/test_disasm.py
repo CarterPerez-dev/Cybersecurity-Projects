@@ -7,21 +7,44 @@ import pytest
 
 from rveng.engine import disasm, elf
 
+
 CHECK_BYTES = bytes.fromhex(
     "554889e5897dfc817dfc390500007507"
-    "b80100000 0eb05b80000000 05dc3".replace(" ", ""))
+    "b80100000 0eb05b80000000 05dc3".replace(" ",
+                                             "")
+)
 
 EXPECTED = [
-    (0x401146, "push", "rbp"),
-    (0x401147, "mov", "rbp, rsp"),
-    (0x40114A, "mov", "dword ptr [rbp - 4], edi"),
-    (0x40114D, "cmp", "dword ptr [rbp - 4], 0x539"),
-    (0x401154, "jne", "0x40115d"),
-    (0x401156, "mov", "eax, 1"),
-    (0x40115B, "jmp", "0x401162"),
-    (0x40115D, "mov", "eax, 0"),
-    (0x401162, "pop", "rbp"),
-    (0x401163, "ret", ""),
+    (0x401146,
+     "push",
+     "rbp"),
+    (0x401147,
+     "mov",
+     "rbp, rsp"),
+    (0x40114A,
+     "mov",
+     "dword ptr [rbp - 4], edi"),
+    (0x40114D,
+     "cmp",
+     "dword ptr [rbp - 4], 0x539"),
+    (0x401154,
+     "jne",
+     "0x40115d"),
+    (0x401156,
+     "mov",
+     "eax, 1"),
+    (0x40115B,
+     "jmp",
+     "0x401162"),
+    (0x40115D,
+     "mov",
+     "eax, 0"),
+    (0x401162,
+     "pop",
+     "rbp"),
+    (0x401163,
+     "ret",
+     ""),
 ]
 
 

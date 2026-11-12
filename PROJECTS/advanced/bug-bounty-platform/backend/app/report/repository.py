@@ -54,9 +54,9 @@ class ReportRepository(BaseRepository[Report]):
         Get reports by researcher
         """
         result = await session.execute(
-            select(Report).where(Report.researcher_id == researcher_id
-                                 ).order_by(Report.created_at.desc()
-                                            ).offset(skip).limit(limit)
+            select(Report).where(Report.researcher_id == researcher_id).order_by(
+                Report.created_at.desc()
+            ).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -70,9 +70,8 @@ class ReportRepository(BaseRepository[Report]):
         Count reports by researcher
         """
         result = await session.execute(
-            select(func.count()).select_from(Report).where(
-                Report.researcher_id == researcher_id
-            )
+            select(func.count()
+                   ).select_from(Report).where(Report.researcher_id == researcher_id)
         )
         return result.scalar_one()
 
@@ -94,8 +93,7 @@ class ReportRepository(BaseRepository[Report]):
             query = query.where(Report.status == status_filter)
 
         result = await session.execute(
-            query.order_by(Report.created_at.desc()
-                           ).offset(skip).limit(limit)
+            query.order_by(Report.created_at.desc()).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -110,9 +108,8 @@ class ReportRepository(BaseRepository[Report]):
         Count reports for a program
         """
         query = (
-            select(func.count()).select_from(Report).where(
-                Report.program_id == program_id
-            )
+            select(func.count()
+                   ).select_from(Report).where(Report.program_id == program_id)
         )
 
         if status_filter:
@@ -151,10 +148,11 @@ class ReportRepository(BaseRepository[Report]):
         Count all reports for company's programs
         """
         result = await session.execute(
-            select(func.count()).select_from(Report).join(
-                Program,
-                Report.program_id == Program.id
-            ).where(Program.company_id == company_id)
+            select(func.count()
+                   ).select_from(Report).join(Program,
+                                              Report.program_id == Program.id).where(
+                                                  Program.company_id == company_id
+                                              )
         )
         return result.scalar_one()
 
@@ -169,9 +167,8 @@ class ReportRepository(BaseRepository[Report]):
         Get statistics for a researcher
         """
         total_result = await session.execute(
-            select(func.count()).select_from(Report).where(
-                Report.researcher_id == researcher_id
-            )
+            select(func.count()
+                   ).select_from(Report).where(Report.researcher_id == researcher_id)
         )
         total = total_result.scalar_one()
 
@@ -226,9 +223,7 @@ class CommentRepository(BaseRepository[Comment]):
         if not include_internal:
             query = query.where(Comment.is_internal == False)
 
-        result = await session.execute(
-            query.order_by(Comment.created_at.asc())
-        )
+        result = await session.execute(query.order_by(Comment.created_at.asc()))
         return result.scalars().all()
 
 
@@ -248,9 +243,8 @@ class AttachmentRepository(BaseRepository[Attachment]):
         Get attachments for a report
         """
         result = await session.execute(
-            select(Attachment).where(Attachment.report_id == report_id
-                                     ).order_by(
-                                         Attachment.created_at.asc()
-                                     )
+            select(Attachment).where(Attachment.report_id == report_id).order_by(
+                Attachment.created_at.asc()
+            )
         )
         return result.scalars().all()

@@ -47,27 +47,27 @@ def _to_response(event: ThreatEvent) -> ThreatEventResponse:
     Convert a ThreatEvent DB model to an API response schema.
     """
     return ThreatEventResponse(
-        id=event.id,
-        created_at=event.created_at,
-        source_ip=event.source_ip,
-        request_method=event.request_method,
-        request_path=event.request_path,
-        status_code=event.status_code,
-        response_size=event.response_size,
-        user_agent=event.user_agent,
-        threat_score=event.threat_score,
-        severity=event.severity,  # type: ignore[arg-type]
-        component_scores=event.component_scores,
-        geo=GeoInfo(
-            country=event.geo_country,
-            city=event.geo_city,
-            lat=event.geo_lat,
-            lon=event.geo_lon,
+        id = event.id,
+        created_at = event.created_at,
+        source_ip = event.source_ip,
+        request_method = event.request_method,
+        request_path = event.request_path,
+        status_code = event.status_code,
+        response_size = event.response_size,
+        user_agent = event.user_agent,
+        threat_score = event.threat_score,
+        severity = event.severity,  # type: ignore[arg-type]
+        component_scores = event.component_scores,
+        geo = GeoInfo(
+            country = event.geo_country,
+            city = event.geo_city,
+            lat = event.geo_lat,
+            lon = event.geo_lon,
         ),
-        matched_rules=event.matched_rules,
-        model_version=event.model_version,
-        reviewed=event.reviewed,
-        review_label=event.review_label,
+        matched_rules = event.matched_rules,
+        model_version = event.model_version,
+        reviewed = event.reviewed,
+        review_label = event.review_label,
     )
 
 
@@ -115,10 +115,10 @@ async def get_threats(
     rows = (await session.execute(query)).scalars().all()
 
     return ThreatListResponse(
-        total=total,
-        limit=limit,
-        offset=offset,
-        items=[_to_response(row) for row in rows],
+        total = total,
+        limit = limit,
+        offset = offset,
+        items = [_to_response(row) for row in rows],
     )
 
 
@@ -143,25 +143,25 @@ async def create_threat_event(
     Persist a scored request as a threat event in the database.
     """
     event = ThreatEvent(
-        source_ip=scored.entry.ip,
-        request_method=scored.entry.method,
-        request_path=scored.entry.path,
-        status_code=scored.entry.status_code,
-        response_size=scored.entry.response_size,
-        user_agent=scored.entry.user_agent,
-        threat_score=scored.final_score,
-        severity=classify_severity(scored.final_score),
-        component_scores={
+        source_ip = scored.entry.ip,
+        request_method = scored.entry.method,
+        request_path = scored.entry.path,
+        status_code = scored.entry.status_code,
+        response_size = scored.entry.response_size,
+        user_agent = scored.entry.user_agent,
+        threat_score = scored.final_score,
+        severity = classify_severity(scored.final_score),
+        component_scores = {
             **scored.rule_result.component_scores,
             **(scored.ml_scores or {}),
         },
-        geo_country=(scored.geo.country if scored.geo else None),
-        geo_city=(scored.geo.city if scored.geo else None),
-        geo_lat=(scored.geo.lat if scored.geo else None),
-        geo_lon=(scored.geo.lon if scored.geo else None),
-        feature_vector=scored.feature_vector,
-        matched_rules=(scored.rule_result.matched_rules or None),
-        model_version=scored.detection_mode,
+        geo_country = (scored.geo.country if scored.geo else None),
+        geo_city = (scored.geo.city if scored.geo else None),
+        geo_lat = (scored.geo.lat if scored.geo else None),
+        geo_lon = (scored.geo.lon if scored.geo else None),
+        feature_vector = scored.feature_vector,
+        matched_rules = (scored.rule_result.matched_rules or None),
+        model_version = scored.detection_mode,
     )
     session.add(event)
     await session.flush()

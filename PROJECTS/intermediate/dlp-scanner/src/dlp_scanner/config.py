@@ -3,7 +3,6 @@
 config.py
 """
 
-
 from pathlib import Path
 from typing import Any
 
@@ -121,14 +120,10 @@ class ScanConfig(BaseModel):
     Root configuration model for the DLP scanner
     """
     file: FileScanConfig = Field(default_factory = FileScanConfig)
-    database: DatabaseScanConfig = Field(
-        default_factory = DatabaseScanConfig
-    )
+    database: DatabaseScanConfig = Field(default_factory = DatabaseScanConfig)
     network: NetworkScanConfig = Field(default_factory = NetworkScanConfig)
     detection: DetectionConfig = Field(default_factory = DetectionConfig)
-    compliance: ComplianceConfig = Field(
-        default_factory = ComplianceConfig
-    )
+    compliance: ComplianceConfig = Field(default_factory = ComplianceConfig)
     output: OutputConfig = Field(default_factory = OutputConfig)
     logging: LoggingConfig = Field(default_factory = LoggingConfig)
 

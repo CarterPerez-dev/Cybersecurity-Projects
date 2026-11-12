@@ -100,8 +100,4 @@ class Context(BaseModel):
         """
         Append untrusted content and taint the context by doing so
         """
-        return self._extend(
-            Span(trust = Trust.DATA,
-                 text = text,
-                 origin = origin)
-        )
+        return self._extend(Span(trust = Trust.DATA, text = text, origin = origin))

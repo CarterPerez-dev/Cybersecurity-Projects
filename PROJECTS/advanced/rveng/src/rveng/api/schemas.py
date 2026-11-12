@@ -117,7 +117,7 @@ class StringsView(BaseModel):
 
 class SubmitRequest(BaseModel):
     answer: str
-    session: str = Field(DEFAULT_SESSION, max_length=MAX_SESSION_LEN)
+    session: str = Field(DEFAULT_SESSION, max_length = MAX_SESSION_LEN)
 
     def within_limits(self) -> bool:
         return len(self.answer) <= MAX_ANSWER_LEN

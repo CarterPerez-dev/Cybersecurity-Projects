@@ -29,9 +29,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         Get refresh token by its hash
         """
         result = await session.execute(
-            select(RefreshToken).where(
-                RefreshToken.token_hash == token_hash
-            )
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
         )
         return result.scalars().first()
 
@@ -167,9 +165,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         Returns count of deleted tokens
         """
         result = await session.execute(
-            select(RefreshToken).where(
-                RefreshToken.expires_at < datetime.now(UTC)
-            )
+            select(RefreshToken).where(RefreshToken.expires_at < datetime.now(UTC))
         )
         tokens = result.scalars().all()
         for token in tokens:

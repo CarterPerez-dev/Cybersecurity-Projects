@@ -170,9 +170,7 @@ VAULT_FILE_MODE: Final[int] = 0o600
 # on Windows, /Users/<user> on macOS
 DEFAULT_VAULT_DIRECTORY: Final[Path] = Path.home() / ".password-vault"
 DEFAULT_VAULT_FILENAME: Final[str] = "vault.json"
-DEFAULT_VAULT_PATH: Final[Path] = (
-    DEFAULT_VAULT_DIRECTORY / DEFAULT_VAULT_FILENAME
-)
+DEFAULT_VAULT_PATH: Final[Path] = (DEFAULT_VAULT_DIRECTORY / DEFAULT_VAULT_FILENAME)
 
 
 # =============================================================================
@@ -223,9 +221,7 @@ PROMPT_ENTRY_NOTES: Final[str] = "Notes (optional, press Enter to skip): "
 
 MSG_VAULT_CREATED: Final[str] = "Vault created at {path}"
 MSG_VAULT_ALREADY_EXISTS: Final[str] = "Vault already exists at {path}"
-MSG_VAULT_NOT_FOUND: Final[str] = (
-    "No vault at {path}. Run `pv init` to create one"
-)
+MSG_VAULT_NOT_FOUND: Final[str] = ("No vault at {path}. Run `pv init` to create one")
 MSG_ENTRY_ADDED: Final[str] = "Added entry: {name}"
 MSG_ENTRY_DELETED: Final[str] = "Deleted entry: {name}"
 MSG_ENTRY_NOT_FOUND: Final[str] = "No entry named: {name}"

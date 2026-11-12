@@ -114,7 +114,7 @@ repos:
 
   # ── Python ──────────────────────────────────────────────────────────────────
   # ruff lints with safe fixes (remote hook, fast, version pinned here).
-  # yapf and mypy are local: they must run inside the project env, yapf for
+  # yang and mypy are local: they must run inside the project env, yang for
   # the pinned style engine, mypy so it can resolve installed dependencies.
   # Lint-with-fix runs BEFORE the formatter, because fixes can leave code
   # that needs reformatting.
@@ -135,9 +135,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: yapf
-        name: yapf
-        entry: uv run --frozen yapf --in-place
+      - id: yang
+        name: yang
+        entry: uv run --frozen yang --in-place
         language: unsupported
         types: [python]
 

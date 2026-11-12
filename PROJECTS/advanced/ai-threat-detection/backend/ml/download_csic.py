@@ -26,13 +26,16 @@ from pathlib import Path
 
 import httpx
 
+
 logger = logging.getLogger(__name__)
 
 DATASET_DIR = Path("data/datasets/csic2010")
 
-BASE_URL = ("https://gitlab.fing.edu.uy"
-            "/gsi/web-application-attacks-datasets"
-            "/-/raw/master/csic_2010")
+BASE_URL = (
+    "https://gitlab.fing.edu.uy"
+    "/gsi/web-application-attacks-datasets"
+    "/-/raw/master/csic_2010"
+)
 
 FILES = [
     "normalTrafficTraining.txt",
@@ -54,11 +57,13 @@ def _compute_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def download_csic(output_dir: Path = DATASET_DIR, ) -> None:
+def download_csic(
+    output_dir: Path = DATASET_DIR,
+) -> None:
     """
     Download CSIC 2010 dataset files
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents = True, exist_ok = True)
 
     for filename in FILES:
         dest = output_dir / filename
@@ -73,25 +78,19 @@ def download_csic(output_dir: Path = DATASET_DIR, ) -> None:
 
         try:
             with httpx.stream(
-                "GET",
-                url,
-                follow_redirects=True,
+                    "GET",
+                    url,
+                    follow_redirects = True,
             ) as response:
                 response.raise_for_status()
-                total = int(
-                    response.headers.get("content-length", 0)
-                )
+                total = int(response.headers.get("content-length", 0))
                 downloaded = 0
                 with open(dest, "wb") as f:
-                    for chunk in response.iter_bytes(
-                        chunk_size=65536
-                    ):
+                    for chunk in response.iter_bytes(chunk_size = 65536):
                         f.write(chunk)
                         downloaded += len(chunk)
                         if total > 0:
-                            pct = min(
-                                downloaded * 100 / total, 100
-                            )
+                            pct = min(downloaded * 100 / total, 100)
                             sys.stdout.write(f"\r  {pct:.0f}%")
                         else:
                             mb = downloaded / 1_048_576
@@ -120,5 +119,5 @@ def download_csic(output_dir: Path = DATASET_DIR, ) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level = logging.INFO)
     download_csic()

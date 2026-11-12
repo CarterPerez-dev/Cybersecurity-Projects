@@ -23,9 +23,9 @@ def main() -> None:
     """
     uvicorn.run(
         "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug,
+        host = settings.host,
+        port = settings.port,
+        reload = settings.debug,
     )
 
 

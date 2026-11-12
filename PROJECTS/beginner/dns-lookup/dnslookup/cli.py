@@ -61,6 +61,7 @@ from dnslookup.whois_lookup import (
     whois_to_json,
 )
 
+
 app = typer.Typer(
     name = "dnslookup",
     help =
@@ -132,8 +133,7 @@ def query(
         typer.Option(
             "--type",
             "-t",
-            help =
-            "Record types to query (A,AAAA,MX,NS,TXT,CNAME,SOA or ALL)",
+            help = "Record types to query (A,AAAA,MX,NS,TXT,CNAME,SOA or ALL)",
         ),
     ] = "ALL",
     server: Annotated[
@@ -177,12 +177,7 @@ def query(
             transient = True,
     ) as progress:
         progress.add_task(f"Querying {domain}...", total = None)
-        result = asyncio.run(
-            lookup(domain,
-                   record_types,
-                   server,
-                   timeout)
-        )
+        result = asyncio.run(lookup(domain, record_types, server, timeout))
 
     if json_output:
         console.print(results_to_json(result))
@@ -195,9 +190,8 @@ def query(
 
 @app.command()
 def reverse(
-    ip: Annotated[
-        str,
-        typer.Argument(help = "IP address for reverse lookup")],
+    ip: Annotated[str,
+                  typer.Argument(help = "IP address for reverse lookup")],
     server: Annotated[
         str | None,
         typer.Option(
@@ -294,8 +288,7 @@ def trace(
 def batch(
     file: Annotated[
         Path,
-        typer.
-        Argument(help = "File containing domains (one per line)"),
+        typer.Argument(help = "File containing domains (one per line)"),
     ],
     record_type: Annotated[
         str,
@@ -359,9 +352,7 @@ def batch(
                 domains.append(line)
 
     if not domains:
-        console.print(
-            "[yellow]Warning:[/yellow] No domains found in file"
-        )
+        console.print("[yellow]Warning:[/yellow] No domains found in file")
         raise typer.Exit(0)
 
     record_types = parse_record_types(record_type)
@@ -372,25 +363,15 @@ def batch(
             console = console,
             transient = True,
     ) as progress:
-        progress.add_task(
-            f"Querying {len(domains)} domains...",
-            total = None
-        )
-        results = asyncio.run(
-            batch_lookup(domains,
-                         record_types,
-                         server,
-                         timeout)
-        )
+        progress.add_task(f"Querying {len(domains)} domains...", total = None)
+        results = asyncio.run(batch_lookup(domains, record_types, server, timeout))
 
     if json_output:
         console.print(results_to_json(results))
     elif output:
         with open(output, "w") as f:
             f.write(results_to_json(results))
-        console.print(
-            f"[green]:heavy_check_mark:[/green] Results saved to {output}"
-        )
+        console.print(f"[green]:heavy_check_mark:[/green] Results saved to {output}")
     else:
         print_batch_progress_header(len(domains))
         print_batch_results(results)
@@ -425,10 +406,7 @@ def whois(
             console = console,
             transient = True,
     ) as progress:
-        progress.add_task(
-            f"Looking up WHOIS for {domain}...",
-            total = None
-        )
+        progress.add_task(f"Looking up WHOIS for {domain}...", total = None)
         result = lookup_whois(domain)
 
     if json_output:

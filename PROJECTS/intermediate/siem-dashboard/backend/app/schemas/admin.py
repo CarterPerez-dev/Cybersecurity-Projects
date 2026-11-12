@@ -39,4 +39,8 @@ class AdminUserListParams(BaseModel):
     Query parameters for paginated user listing
     """
     page: int = Field(default = 1, ge = 1)
-    per_page: int = Field(default = settings.DEFAULT_PAGE_SIZE, ge = 1, le = settings.MAX_PAGE_SIZE)
+    per_page: int = Field(
+        default = settings.DEFAULT_PAGE_SIZE,
+        ge = 1,
+        le = settings.MAX_PAGE_SIZE
+    )

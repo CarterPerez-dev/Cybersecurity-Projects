@@ -47,15 +47,17 @@ async def db_session(tmp_path: Path):
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        connect_args = {"check_same_thread": False},
+        poolclass = StaticPool,
     )
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
-    factory = async_sessionmaker(engine,
-                                 class_=AsyncSession,
-                                 expire_on_commit=False)
+    factory = async_sessionmaker(
+        engine,
+        class_ = AsyncSession,
+        expire_on_commit = False
+    )
     async with factory() as session:
         yield session
 
@@ -70,11 +72,7 @@ def model_artifacts(tmp_path: Path) -> Path:
     (tmp_path / "ae.onnx").write_bytes(b"ae-model-data-123")
     (tmp_path / "rf.onnx").write_bytes(b"rf-model-data-456")
     (tmp_path / "if.onnx").write_bytes(b"if-model-data-789")
-    (tmp_path / "scaler.json").write_text(
-        json.dumps({
-            "center": [0.0],
-            "scale": [1.0]
-        }))
+    (tmp_path / "scaler.json").write_text(json.dumps({"center": [0.0], "scale": [1.0]}))
     (tmp_path / "threshold.json").write_text(json.dumps({"threshold": 0.05}))
     return tmp_path
 
@@ -83,7 +81,6 @@ class TestComputeModelVersion:
     """
     Test SHA-256 based model version hashing
     """
-
     def test_returns_12_char_hex(self, model_artifacts: Path) -> None:
         """
         Version string is a 12-character hex digest
@@ -102,8 +99,7 @@ class TestComputeModelVersion:
 
         assert v1 == v2
 
-    def test_different_files_different_versions(self,
-                                                model_artifacts: Path) -> None:
+    def test_different_files_different_versions(self, model_artifacts: Path) -> None:
         """
         Different files produce different version strings
         """
@@ -117,7 +113,6 @@ class TestSaveModelMetadata:
     """
     Test model metadata persistence to database
     """
-
     @pytest.mark.asyncio
     async def test_creates_three_rows(
         self,
@@ -129,9 +124,9 @@ class TestSaveModelMetadata:
         """
         rows = await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=500,
-            metrics={
+            model_dir = model_artifacts,
+            training_samples = 500,
+            metrics = {
                 "f1": 0.9,
                 "pr_auc": 0.88
             },
@@ -150,9 +145,9 @@ class TestSaveModelMetadata:
         """
         rows = await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=500,
-            metrics={"f1": 0.9},
+            model_dir = model_artifacts,
+            training_samples = 500,
+            metrics = {"f1": 0.9},
         )
 
         assert all(r.is_active for r in rows)
@@ -168,9 +163,9 @@ class TestSaveModelMetadata:
         """
         rows = await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=500,
-            metrics={},
+            model_dir = model_artifacts,
+            training_samples = 500,
+            metrics = {},
         )
         types = {r.model_type for r in rows}
 
@@ -191,17 +186,17 @@ class TestSaveModelMetadata:
         """
         await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=500,
-            metrics={"f1": 0.9},
+            model_dir = model_artifacts,
+            training_samples = 500,
+            metrics = {"f1": 0.9},
         )
 
         (model_artifacts / "ae.onnx").write_bytes(b"new-ae-data")
         await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=600,
-            metrics={"f1": 0.95},
+            model_dir = model_artifacts,
+            training_samples = 600,
+            metrics = {"f1": 0.95},
         )
 
         result = await db_session.execute(select(ModelMetadata))
@@ -222,17 +217,17 @@ class TestSaveModelMetadata:
         """
         await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=500,
-            metrics={"f1": 0.9},
+            model_dir = model_artifacts,
+            training_samples = 500,
+            metrics = {"f1": 0.9},
         )
 
         (model_artifacts / "ae.onnx").write_bytes(b"new-ae-data")
         await save_model_metadata(
             db_session,
-            model_dir=model_artifacts,
-            training_samples=600,
-            metrics={"f1": 0.95},
+            model_dir = model_artifacts,
+            training_samples = 600,
+            metrics = {"f1": 0.95},
         )
 
         result = await db_session.execute(select(ModelMetadata))

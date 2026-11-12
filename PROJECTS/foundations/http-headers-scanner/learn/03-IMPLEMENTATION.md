@@ -602,7 +602,7 @@ The project ships with four quality tools wired up through `just`:
 
 ```
 just lint    # runs ruff, then pylint, then mypy
-just format  # runs yapf in place
+just format  # runs yang in place
 just test    # runs pytest
 just fix     # runs ruff with --fix (auto-fixes what it can)
 ```
@@ -612,7 +612,7 @@ What each tool does:
 - **ruff** is a fast Python linter. Catches a long list of style and correctness issues. Modern replacement for flake8.
 - **pylint** is a slower, more opinionated linter. Catches different issues than ruff. We run both because their checks complement each other.
 - **mypy** is the static type checker. It reads the type annotations and checks every call against them. Catches `severity = "hgih"` typos and many other bugs at edit time.
-- **yapf** is the code formatter. It rewrites the file to match a configured style (column limit, indentation, etc.). Means the project has a single consistent look regardless of who wrote each line.
+- **yang** is the code formatter, a maintained fork of Google's yapf. It rewrites the file to match a configured style (column limit, indentation, etc.). Means the project has a single consistent look regardless of who wrote each line.
 - **pytest** is the test runner. Discovers files starting with `test_`, runs every function in them whose name starts with `test_`, reports passes and failures.
 
 In a real workflow you would set up a **pre-commit hook** that runs `just lint` and `just test` before each commit, so broken code never gets committed. We have not done that in this project to keep the foundations tier minimal, but extending it is one of the challenges.

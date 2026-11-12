@@ -66,7 +66,8 @@ def _is_private_ip(ip_str: str) -> bool:
 def extract_request_features(
     entry: ParsedLogEntry,
     country_code: str = "",
-) -> dict[str, int | float | bool | str]:
+) -> dict[str,
+          int | float | bool | str]:
     """
     Extract 23 stateless per-request features from a parsed log entry.
     """

@@ -93,9 +93,7 @@ class IPExtractor:
             if ip not in self.trusted_proxies:
                 return ip
 
-        return ips[0] if ips else (
-            request.client.host if request.client else "0.0.0.0"
-        )
+        return ips[0] if ips else (request.client.host if request.client else "0.0.0.0")
 
     def _is_trusted_proxy(self, ip: str) -> bool:
         """

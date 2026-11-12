@@ -104,8 +104,9 @@ dev = [
     # pylint — second linter that catches deeper logic issues ruff misses.
     "pylint>=4.0.5",
 
-    # yapf — code formatter (Google's). Keeps every file looking identical.
-    "yapf>=0.43.0,<1.0.0",
+    # yang: code formatter (a maintained fork of Google's yapf). Keeps
+    # every file looking identical.
+    "yang-fmt>=1.0.0,<2.0.0",
 ]
 
 # -----------------------------------------------------------------------------
@@ -135,6 +136,9 @@ password-vault = "password_manager.main:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
 
 # Tell hatchling where the actual Python code lives. Without this, it
 # guesses — and guesses wrong when the layout is src/<package>/.
@@ -182,7 +186,7 @@ select = [
 
 # Some rules we deliberately ignore.
 ignore = [
-    # Line length is handled by yapf, not ruff. Avoids double-flagging.
+    # Line length is handled by yang, not ruff. Avoids double-flagging.
     "E501",
 ]
 
@@ -261,7 +265,7 @@ ignore = [
 disable = [
     "R0903",  # too-few-public-methods — small data classes are fine
     "C0103",  # invalid-name — we use short names like `kdf` on purpose
-    "C0325",  # superfluous-parens — fights with yapf formatting
+    "C0325",  # superfluous-parens: fights with yang formatting
 ]
 
 # Override pylint's default complexity limits where they're too strict.

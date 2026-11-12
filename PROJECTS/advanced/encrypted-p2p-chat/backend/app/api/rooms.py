@@ -38,14 +38,14 @@ from app.schemas.websocket import RoomCreatedWS
 
 logger = logging.getLogger(__name__)
 
-
 router = APIRouter(prefix = "/rooms", tags = ["rooms"])
 
 
 async def _hydrate_users(
     session: AsyncSession,
     user_ids: Iterable[str],
-) -> dict[str, User]:
+) -> dict[str,
+          User]:
     """
     Bulk fetch users by id and return a mapping keyed by string uuid
     """
@@ -71,7 +71,8 @@ async def _hydrate_users(
 
 def _build_participants(
     raw_participants: list[dict],
-    users_by_id: dict[str, User],
+    users_by_id: dict[str,
+                      User],
 ) -> list[ParticipantResponse]:
     """
     Translate SurrealDB participant rows into API response models
@@ -89,8 +90,10 @@ def _build_participants(
                 user_id = str(user.id),
                 username = user.username,
                 display_name = user.display_name,
-                role = row.get("role", "member"),
-                joined_at = str(row.get("joined_at", "")),
+                role = row.get("role",
+                               "member"),
+                joined_at = str(row.get("joined_at",
+                                        "")),
             )
         )
     return out
@@ -140,9 +143,7 @@ async def create_room(
 
     room = await surreal_db.create_room(room_data)
     await surreal_db.add_room_participant(room.id, str(user.id), "owner")
-    await surreal_db.add_room_participant(
-        room.id, str(participant.id), "member"
-    )
+    await surreal_db.add_room_participant(room.id, str(participant.id), "member")
 
     participants_list = [
         ParticipantResponse(
@@ -233,20 +234,21 @@ async def list_rooms(
             (p for p in participants if p.user_id != str(user.id)),
             None,
         )
-        room_name = (
-            other_participant.display_name if other_participant else None
-        )
+        room_name = (other_participant.display_name if other_participant else None)
 
         rooms.append(
             RoomAPIResponse(
                 id = room_id,
-                type = RoomType(room_data.get("room_type", "direct")),
+                type = RoomType(room_data.get("room_type",
+                                              "direct")),
                 name = room_name,
                 participants = participants,
                 unread_count = 0,
                 is_encrypted = True,
-                created_at = str(room_data.get("created_at", "")),
-                updated_at = str(room_data.get("updated_at", "")),
+                created_at = str(room_data.get("created_at",
+                                               "")),
+                updated_at = str(room_data.get("updated_at",
+                                               "")),
             )
         )
 
@@ -288,7 +290,8 @@ async def get_room(
 
     raw_participants = await surreal_db.get_room_participants(room_id)
     users_by_id = await _hydrate_users(
-        session, (row.get("user_id") for row in raw_participants)
+        session,
+        (row.get("user_id") for row in raw_participants)
     )
     participants = _build_participants(raw_participants, users_by_id)
 
@@ -302,21 +305,21 @@ async def get_room(
     updated_at = room_data.get("updated_at")
 
     return RoomAPIResponse(
-        id = str(room_data.get("id", room_id)),
-        type = RoomType(room_data.get("room_type", "direct")),
+        id = str(room_data.get("id",
+                               room_id)),
+        type = RoomType(room_data.get("room_type",
+                                      "direct")),
         name = room_name,
         participants = participants,
         unread_count = 0,
         is_encrypted = True,
         created_at = (
-            created_at.isoformat()
-            if hasattr(created_at, "isoformat")
-            else str(created_at or "")
+            created_at.isoformat() if hasattr(created_at,
+                                              "isoformat") else str(created_at or "")
         ),
         updated_at = (
-            updated_at.isoformat()
-            if hasattr(updated_at, "isoformat")
-            else str(updated_at or "")
+            updated_at.isoformat() if hasattr(updated_at,
+                                              "isoformat") else str(updated_at or "")
         ),
     )
 
@@ -333,9 +336,7 @@ async def get_room_messages(
     """
     await _require_membership(room_id, user)
     bounded_limit = max(1, min(limit, MAX_MESSAGE_LIMIT))
-    messages = await surreal_db.get_room_messages(
-        room_id, bounded_limit, offset
-    )
+    messages = await surreal_db.get_room_messages(room_id, bounded_limit, offset)
     return {
         "messages": [msg.model_dump(mode = "json") for msg in messages],
         "has_more": len(messages) == bounded_limit,
@@ -358,8 +359,7 @@ async def delete_room(
         )
 
     is_owner = any(
-        str(row.get("user_id")) == str(user.id)
-        and row.get("role") == "owner"
+        str(row.get("user_id")) == str(user.id) and row.get("role") == "owner"
         for row in raw_participants
     )
     if not is_owner:

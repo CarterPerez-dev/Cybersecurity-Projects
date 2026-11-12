@@ -42,7 +42,8 @@ def train_random_forest(
     n_estimators: int = 200,
     max_depth: int = 20,
     calibration_split: float = 0.2,
-) -> dict[str, Any]:
+) -> dict[str,
+          Any]:
     """
     Train a random forest with isotonic probability calibration
     """
@@ -50,25 +51,33 @@ def train_random_forest(
         X, y, test_size=calibration_split, stratify=y, random_state=42)
 
     base_rf = RandomForestClassifier(
-        n_estimators=n_estimators,
-        max_depth=max_depth,
-        class_weight="balanced",
-        random_state=42,
-        n_jobs=-1,
+        n_estimators = n_estimators,
+        max_depth = max_depth,
+        class_weight = "balanced",
+        random_state = 42,
+        n_jobs = -1,
     )
 
-    calibrated = CalibratedClassifierCV(base_rf, method="isotonic", cv=3)
+    calibrated = CalibratedClassifierCV(base_rf, method = "isotonic", cv = 3)
     calibrated.fit(X_train, y_train)
 
     y_pred = calibrated.predict(X_eval)
     y_proba = calibrated.predict_proba(X_eval)[:, 1]
 
     metrics = {
-        "accuracy": float(accuracy_score(y_eval, y_pred)),
-        "precision": float(precision_score(y_eval, y_pred, zero_division=0)),
-        "recall": float(recall_score(y_eval, y_pred, zero_division=0)),
-        "f1": float(f1_score(y_eval, y_pred, zero_division=0)),
-        "pr_auc": float(average_precision_score(y_eval, y_proba)),
+        "accuracy": float(accuracy_score(y_eval,
+                                         y_pred)),
+        "precision": float(precision_score(y_eval,
+                                           y_pred,
+                                           zero_division = 0)),
+        "recall": float(recall_score(y_eval,
+                                     y_pred,
+                                     zero_division = 0)),
+        "f1": float(f1_score(y_eval,
+                             y_pred,
+                             zero_division = 0)),
+        "pr_auc": float(average_precision_score(y_eval,
+                                                y_proba)),
     }
 
     return {"model": calibrated, "metrics": metrics}
@@ -77,15 +86,16 @@ def train_random_forest(
 def train_isolation_forest(
     X_normal: np.ndarray,
     n_estimators: int = 200,
-) -> dict[str, Any]:
+) -> dict[str,
+          Any]:
     """
     Train an isolation forest on normal-only traffic
     """
     iso = IsolationForest(
-        n_estimators=n_estimators,
-        contamination="auto",
-        random_state=42,
-        n_jobs=-1,
+        n_estimators = n_estimators,
+        contamination = "auto",
+        random_state = 42,
+        n_jobs = -1,
     )
     iso.fit(X_normal)
 

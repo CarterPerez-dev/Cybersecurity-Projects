@@ -18,10 +18,7 @@ class TestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            response = {
-                'status': 'healthy',
-                'port': self.server.server_port
-            }
+            response = {'status': 'healthy', 'port': self.server.server_port}
             self.wfile.write(json.dumps(response).encode())
             return
 
@@ -30,8 +27,7 @@ class TestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         response = {
-            'message':
-            f'Hello from backend on port {self.server.server_port}!',
+            'message': f'Hello from backend on port {self.server.server_port}!',
             'port': self.server.server_port,
             'path': self.path,
             'method': 'GET'

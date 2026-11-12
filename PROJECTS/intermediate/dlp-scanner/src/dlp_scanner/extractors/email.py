@@ -3,7 +3,6 @@
 email.py
 """
 
-
 import email as email_lib
 from email import policy
 
@@ -39,10 +38,7 @@ class EmlExtractor:
 
         try:
             with open(path, "rb") as f:
-                msg = email_lib.message_from_binary_file(
-                    f,
-                    policy = policy.default
-                )
+                msg = email_lib.message_from_binary_file(f, policy = policy.default)
 
             parts: list[str] = []
 

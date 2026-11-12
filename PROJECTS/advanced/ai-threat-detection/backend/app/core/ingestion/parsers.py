@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class ParsedLogEntry:
     """
     Structured representation of a single nginx access log line.
@@ -50,13 +50,15 @@ class ParsedLogEntry:
 
 _TIMESTAMP_FMT = "%d/%b/%Y:%H:%M:%S %z"
 
-_COMBINED_RE = re.compile(r"(?P<ip>\S+) \S+ \S+ "
-                          r"\[(?P<timestamp>[^\]]+)\] "
-                          r'"(?P<request>[^"]*)" '
-                          r"(?P<status>\d{3}) "
-                          r"(?P<size>\S+) "
-                          r'"(?P<referer>[^"]*)" '
-                          r'"(?P<user_agent>[^"]*)"')
+_COMBINED_RE = re.compile(
+    r"(?P<ip>\S+) \S+ \S+ "
+    r"\[(?P<timestamp>[^\]]+)\] "
+    r'"(?P<request>[^"]*)" '
+    r"(?P<status>\d{3}) "
+    r"(?P<size>\S+) "
+    r'"(?P<referer>[^"]*)" '
+    r'"(?P<user_agent>[^"]*)"'
+)
 
 
 def parse_combined(line: str) -> ParsedLogEntry | None:
@@ -91,9 +93,11 @@ def _parse_split(line: str) -> ParsedLogEntry | None:
 
         bracket_open = prefix.index("[")
         bracket_close = prefix.index("]")
-        ip = prefix[:bracket_open].split()[0]
-        timestamp = datetime.strptime(prefix[bracket_open + 1:bracket_close],
-                                      _TIMESTAMP_FMT)
+        ip = prefix[: bracket_open].split()[0]
+        timestamp = datetime.strptime(
+            prefix[bracket_open + 1 : bracket_close],
+            _TIMESTAMP_FMT
+        )
 
         request_parts = request_line.split(" ", 2)
         method = request_parts[0]
@@ -112,16 +116,16 @@ def _parse_split(line: str) -> ParsedLogEntry | None:
         referer = "" if referer_raw == "-" else referer_raw
 
         return ParsedLogEntry(
-            ip=ip,
-            timestamp=timestamp,
-            method=method,
-            path=path,
-            query_string=query_string,
-            status_code=status_code,
-            response_size=response_size,
-            referer=referer,
-            user_agent=user_agent,
-            raw_line=line,
+            ip = ip,
+            timestamp = timestamp,
+            method = method,
+            path = path,
+            query_string = query_string,
+            status_code = status_code,
+            response_size = response_size,
+            referer = referer,
+            user_agent = user_agent,
+            raw_line = line,
         )
     except (ValueError, IndexError):
         return None
@@ -156,16 +160,16 @@ def _parse_regex(line: str) -> ParsedLogEntry | None:
         referer = "" if referer_raw == "-" else referer_raw
 
         return ParsedLogEntry(
-            ip=match["ip"],
-            timestamp=timestamp,
-            method=method,
-            path=path,
-            query_string=query_string,
-            status_code=int(match["status"]),
-            response_size=response_size,
-            referer=referer,
-            user_agent=match["user_agent"],
-            raw_line=line,
+            ip = match["ip"],
+            timestamp = timestamp,
+            method = method,
+            path = path,
+            query_string = query_string,
+            status_code = int(match["status"]),
+            response_size = response_size,
+            referer = referer,
+            user_agent = match["user_agent"],
+            raw_line = line,
         )
     except (ValueError, IndexError):
         return None

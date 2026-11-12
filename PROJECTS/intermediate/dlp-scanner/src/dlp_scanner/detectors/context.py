@@ -3,7 +3,6 @@
 context.py
 """
 
-
 from dlp_scanner.constants import (
     CONTEXT_BOOST_MAX,
     CONTEXT_BOOST_MIN_FLOOR,

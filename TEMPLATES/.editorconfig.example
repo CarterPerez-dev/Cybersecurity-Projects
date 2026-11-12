@@ -8,7 +8,7 @@
 #
 # EditorConfig is the floor every editor agrees on BEFORE a formatter runs:
 # encoding, line endings, final newline, indentation. It is not a formatter.
-# yapf, ruff, biome, gofumpt, rustfmt and clang-format own the real style;
+# yang, ruff, biome, gofumpt, rustfmt and clang-format own the real style;
 # the values below are chosen so the editor never fights them.
 #
 # Pairs with .gitattributes.example: EditorConfig controls what your editor
@@ -54,13 +54,13 @@ spelling_language = en-US
 
 # ── Python ────────────────────────────────────────────────────────────────────
 # PEP 8 indentation. max_line_length is not in the core spec; JetBrains,
-# Neovim and Vim honour it (the VS Code extension ignores it). 75 matches
-# column_limit in .style.yapf.example and line-length in
+# Neovim and Vim honour it (the VS Code extension ignores it). 88 matches
+# column_limit in .style.yang.example and line-length in
 # pyproject.toml.example.
 
 [*.{py,pyi}]
 indent_size = 4
-max_line_length = 75
+max_line_length = 88
 
 
 # ── Go ────────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import pytest
 from rveng.engine import elf
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope = "module")
 def image(gate_bytes: bytes) -> elf.ElfImage:
     return elf.ElfImage(gate_bytes)
 
@@ -72,8 +72,7 @@ def test_matches_pyelftools(gate_bytes: bytes, image: elf.ElfImage):
     ref = ELFFile(BytesIO(gate_bytes))
     assert image.header.e_entry == ref.header.e_entry
     assert image.header.e_shnum == ref.num_sections()
-    assert image.section(".text").addr == ref.get_section_by_name(
-        ".text").header.sh_addr
-    ref_check = ref.get_section_by_name(".symtab").get_symbol_by_name(
-        "check")[0]
+    assert image.section(".text"
+                         ).addr == ref.get_section_by_name(".text").header.sh_addr
+    ref_check = ref.get_section_by_name(".symtab").get_symbol_by_name("check")[0]
     assert image.symbol("check").value == ref_check.entry.st_value

@@ -134,10 +134,7 @@ def create_resolver(
     return resolver
 
 
-def extract_record_value(rdata: Any,
-                         record_type: RecordType
-                         ) -> tuple[str,
-                                    int | None]:
+def extract_record_value(rdata: Any, record_type: RecordType) -> tuple[str, int | None]:
     """
     Extract value and priority from rdata based on record type
     """
@@ -148,9 +145,7 @@ def extract_record_value(rdata: Any,
     elif record_type == RecordType.MX:
         value = str(rdata.exchange).rstrip(".")
         priority = rdata.preference
-    elif record_type in (RecordType.NS,
-                         RecordType.CNAME,
-                         RecordType.PTR):
+    elif record_type in (RecordType.NS, RecordType.CNAME, RecordType.PTR):
         value = str(rdata.target).rstrip(".")
     elif record_type == RecordType.TXT:
         value = rdata.to_text()
@@ -185,9 +180,7 @@ async def query_record_type(
                     priority = priority,
                 )
             )
-    except (dns.resolver.NXDOMAIN,
-            dns.resolver.NoAnswer,
-            dns.resolver.NoNameservers):
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
         pass
     except dns.exception.Timeout:
         pass
@@ -212,15 +205,8 @@ async def lookup(
 
     start_time = time.perf_counter()
 
-    tasks = [
-        query_record_type(domain,
-                          rt,
-                          resolver) for rt in record_types
-    ]
-    query_results = await asyncio.gather(
-        *tasks,
-        return_exceptions = True
-    )
+    tasks = [query_record_type(domain, rt, resolver) for rt in record_types]
+    query_results = await asyncio.gather(*tasks, return_exceptions = True)
 
     for i, query_result in enumerate(query_results):
         if isinstance(query_result, Exception):
@@ -299,11 +285,7 @@ def trace_dns(domain: str, record_type: str = "A") -> TraceResult:
 
             try:
                 query = dns.message.make_query(name, rdtype)
-                response = dns.query.udp(
-                    query,
-                    server_ip,
-                    timeout = 3.0
-                )
+                response = dns.query.udp(query, server_ip, timeout = 3.0)
 
                 rcode = response.rcode()
 
@@ -322,8 +304,7 @@ def trace_dns(domain: str, record_type: str = "A") -> TraceResult:
                             zone = current_zone,
                             server = server_name,
                             server_ip = server_ip,
-                            response =
-                            f"{record_type}: {result.final_answer}",
+                            response = f"{record_type}: {result.final_answer}",
                             is_authoritative = True,
                         )
                     )
@@ -334,8 +315,7 @@ def trace_dns(domain: str, record_type: str = "A") -> TraceResult:
                     for rrset in response.authority:
                         if rrset.rdtype == dns.rdatatype.NS:
                             for rdata in rrset:
-                                ns_name = str(rdata.target
-                                              ).rstrip(".")
+                                ns_name = str(rdata.target).rstrip(".")
                                 ns_records.append(ns_name)
                             new_zone = str(rrset.name).rstrip(".")
                             if not new_zone:
@@ -357,9 +337,8 @@ def trace_dns(domain: str, record_type: str = "A") -> TraceResult:
                             for rrset in response.additional:
                                 if rrset.rdtype == dns.rdatatype.A:
                                     for rdata in rrset:
-                                        glue_ips[str(
-                                            rrset.name
-                                        ).rstrip(".")] = rdata.address
+                                        glue_ips[str(rrset.name).rstrip(".")
+                                                 ] = rdata.address
 
                         new_servers = []
                         for ns in ns_records:
@@ -367,15 +346,9 @@ def trace_dns(domain: str, record_type: str = "A") -> TraceResult:
                                 new_servers.append((ns, glue_ips[ns]))
                             else:
                                 try:
-                                    answers = dns.resolver.resolve(
-                                        ns,
-                                        "A"
-                                    )
+                                    answers = dns.resolver.resolve(ns, "A")
                                     for rdata in answers:
-                                        new_servers.append(
-                                            (ns,
-                                             rdata.address)
-                                        )
+                                        new_servers.append((ns, rdata.address))
                                         break
                                 except dns.exception.DNSException:
                                     continue
@@ -415,10 +388,5 @@ async def batch_lookup(
     """
     Perform DNS lookups for multiple domains concurrently
     """
-    tasks = [
-        lookup(domain,
-               record_types,
-               nameserver,
-               timeout) for domain in domains
-    ]
+    tasks = [lookup(domain, record_types, nameserver, timeout) for domain in domains]
     return await asyncio.gather(*tasks)

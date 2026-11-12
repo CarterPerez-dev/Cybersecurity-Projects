@@ -5,6 +5,7 @@ hex.py
 
 from dataclasses import dataclass
 
+
 BYTES_PER_LINE = 16
 GROUP_SIZE = 8
 NON_PRINTABLE = "."
@@ -13,7 +14,7 @@ PRINTABLE_HIGH = 0x7E
 OFFSET_WIDTH = 8
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class HexLine:
     """
     One rendered line of a hex dump
@@ -52,8 +53,8 @@ def iter_lines(data: bytes, base: int = 0):
     Yield HexLine rows for data starting at virtual base
     """
     for start in range(0, len(data), BYTES_PER_LINE):
-        chunk = data[start:start + BYTES_PER_LINE]
-        yield HexLine(offset=base + start, data=chunk)
+        chunk = data[start : start + BYTES_PER_LINE]
+        yield HexLine(offset = base + start, data = chunk)
 
 
 def hexdump(data: bytes, base: int = 0) -> str:

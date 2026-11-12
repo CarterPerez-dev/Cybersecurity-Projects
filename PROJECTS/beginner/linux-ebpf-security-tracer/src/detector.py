@@ -43,7 +43,8 @@ def _apply_detection(
 
 def _path_matches(
     filepath: str,
-    patterns: tuple[str, ...],
+    patterns: tuple[str,
+                    ...],
 ) -> bool:
     """
     Check if a filepath starts with any pattern
@@ -56,7 +57,8 @@ def _path_matches(
 
 def _path_contains(
     filepath: str,
-    patterns: tuple[str, ...],
+    patterns: tuple[str,
+                    ...],
 ) -> bool:
     """
     Check if a filepath contains any pattern
@@ -84,7 +86,6 @@ class DetectionEngine:
     """
     Evaluates events against detection rules
     """
-
     def __init__(self) -> None:
         """
         Initialize event history for correlation
@@ -100,7 +101,7 @@ class DetectionEngine:
         Get or create the event deque for a PID
         """
         if pid not in self._history:
-            self._history[pid] = deque(maxlen=MAX_EVENTS_PER_PID)
+            self._history[pid] = deque(maxlen = MAX_EVENTS_PER_PID)
         return self._history[pid]
 
     def _prune_history(self, pid: int) -> None:
@@ -226,8 +227,7 @@ class DetectionEngine:
             if not has_connect:
                 ppid_hist = self._history.get(event.ppid)
                 if ppid_hist:
-                    has_connect = any(e.event_type == "connect"
-                                      for e in ppid_hist)
+                    has_connect = any(e.event_type == "connect" for e in ppid_hist)
 
             if has_connect:
                 return DETECTION_RULES["D006"]
@@ -235,8 +235,8 @@ class DetectionEngine:
         if event.event_type == "connect":
             hist = self._get_history(event.pid)
             has_shell = any(
-                e.event_type == "execve" and e.comm in SHELL_BINARIES
-                for e in hist)
+                e.event_type == "execve" and e.comm in SHELL_BINARIES for e in hist
+            )
             if has_shell:
                 return DETECTION_RULES["D006"]
 

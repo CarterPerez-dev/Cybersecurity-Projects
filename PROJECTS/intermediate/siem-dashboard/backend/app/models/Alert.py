@@ -61,20 +61,20 @@ class Alert(BaseDocument):
         "indexes": ["status", "severity", "rule_id"],
     }
 
-    rule_id = ObjectIdField(required=True)
-    rule_name = StringField(required=True)
+    rule_id = ObjectIdField(required = True)
+    rule_name = StringField(required = True)
     severity = StringField(
-        required=True,
-        choices=[s.value for s in Severity],
+        required = True,
+        choices = [s.value for s in Severity],
     )
-    title = StringField(required=True)
+    title = StringField(required = True)
     matched_event_ids = ListField(ObjectIdField())
-    matched_event_count = IntField(default=0)
+    matched_event_count = IntField(default = 0)
     group_value = StringField()
     status = StringField(
-        required=True,
-        default=AlertStatus.NEW,
-        choices=[s.value for s in AlertStatus],
+        required = True,
+        default = AlertStatus.NEW,
+        choices = [s.value for s in AlertStatus],
     )
     mitre_tactic = StringField()
     mitre_technique = StringField()
@@ -94,15 +94,15 @@ class Alert(BaseDocument):
         Create an alert from a fired rule and publish to the alert stream
         """
         alert = cls(
-            rule_id=rule.id,
-            rule_name=rule.name,
-            severity=rule.severity,
-            title=f"{rule.name} [{group_value}]",
-            matched_event_ids=matched_event_ids,
-            matched_event_count=len(matched_event_ids),
-            group_value=group_value,
-            mitre_tactic=rule.mitre_tactic,
-            mitre_technique=rule.mitre_technique,
+            rule_id = rule.id,
+            rule_name = rule.name,
+            severity = rule.severity,
+            title = f"{rule.name} [{group_value}]",
+            matched_event_ids = matched_event_ids,
+            matched_event_count = len(matched_event_ids),
+            group_value = group_value,
+            mitre_tactic = rule.mitre_tactic,
+            mitre_technique = rule.mitre_technique,
         )
         alert.save()  # type: ignore[no-untyped-call]
 
@@ -148,7 +148,7 @@ class Alert(BaseDocument):
         Return the alert with its matched log events loaded
         """
         events = list(
-            LogEvent.objects(id__in=self.matched_event_ids)  # type: ignore[no-untyped-call]
+            LogEvent.objects(id__in = self.matched_event_ids)  # type: ignore[no-untyped-call]
         )
         return {
             "alert": self,

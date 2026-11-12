@@ -128,7 +128,7 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
     { name = "types-requests" },
-    { name = "yapf" },
+    { name = "yang-fmt" },
 ]
 macos = [
     { name = "pyobjc-framework-cocoa" },
@@ -150,7 +150,7 @@ requires-dist = [
     { name = "requests", specifier = "==2.33.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.14.14" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = "==2.32.4.20260107" },
-    { name = "yapf", marker = "extra == 'dev'", specifier = "==0.43.0" },
+    { name = "yang-fmt", marker = "extra == 'dev'", git = "https://github.com/CarterPerez-dev/yang?tag=v1.0.0" },
 ]
 provides-extras = ["windows", "macos", "dev"]
 
@@ -562,13 +562,9 @@ wheels = [
 ]
 
 [[package]]
-name = "yapf"
-version = "0.43.0"
-source = { registry = "https://pypi.org/simple" }
+name = "yang-fmt"
+version = "1.0.0"
+source = { git = "https://github.com/CarterPerez-dev/yang?tag=v1.0.0#51408e47d8226b0f5599726ebd415e0bce0b535f" }
 dependencies = [
     { name = "platformdirs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/23/97/b6f296d1e9cc1ec25c7604178b48532fa5901f721bcf1b8d8148b13e5588/yapf-0.43.0.tar.gz", hash = "sha256:00d3aa24bfedff9420b2e0d5d9f5ab6d9d4268e72afbf59bb3fa542781d5218e", size = 254907, upload-time = "2024-11-14T00:11:41.584Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/81/6acd6601f61e31cfb8729d3da6d5df966f80f374b78eff83760714487338/yapf-0.43.0-py3-none-any.whl", hash = "sha256:224faffbc39c428cb095818cf6ef5511fdab6f7430a10783fdfb292ccf2852ca", size = 256158, upload-time = "2024-11-14T00:11:39.37Z" },
 ]

@@ -38,7 +38,7 @@
   },
 
   // 2-space indent, LF, 82 columns: the width every frontend in the repo
-  // uses (Python is 75, Go 80, C++ 100; each set by its own formatter).
+  // uses (Python is 88, Go 80, C++ 100; each set by its own formatter).
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

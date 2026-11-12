@@ -92,7 +92,6 @@ class SurrealDBManager:
         if not self._connected:
             await self.connect()
 
-
     def _extract_query_result(self, result: Any) -> list[dict[str, Any]]:
         """
         Extract query results from SurrealDB v2 response format
@@ -124,10 +123,7 @@ class SurrealDBManager:
 
         return result
 
-    async def create_message(
-        self,
-        message_data: dict[str, Any]
-    ) -> MessageResponse:
+    async def create_message(self, message_data: dict[str, Any]) -> MessageResponse:
         """
         Create a new message in SurrealDB
         """
@@ -181,7 +177,8 @@ class SurrealDBManager:
 
             if isinstance(first, dict):
                 if "result" in first and first["result"]:
-                    room = first["result"][0] if isinstance(first["result"], list) else first["result"]
+                    room = first["result"][0] if isinstance(first["result"],
+                                                            list) else first["result"]
                 elif "id" in first:
                     room = first
                 else:
@@ -211,7 +208,13 @@ class SurrealDBManager:
             SELECT * FROM room_participants
             WHERE room_id = $room_id AND user_id = $user_id
         """
-        existing = await self.db.query(check_query, {"room_id": room_id, "user_id": user_id})
+        existing = await self.db.query(
+            check_query,
+            {
+                "room_id": room_id,
+                "user_id": user_id
+            }
+        )
         existing_data = self._extract_query_result(existing)
 
         if existing_data:
@@ -298,7 +301,10 @@ class SurrealDBManager:
         """
         result = await self.db.query(
             query,
-            {"room_id": room_id, "user_id": user_id},
+            {
+                "room_id": room_id,
+                "user_id": user_id
+            },
         )
         rows = self._extract_query_result(result)
         return len(rows) > 0
@@ -475,22 +481,14 @@ class SurrealDBManager:
         asyncio.create_task(self._schedule_room_deletion(room_id, ttl_seconds))
         return RoomResponse(**room)
 
-    async def _schedule_room_deletion(
-        self,
-        room_id: str,
-        ttl_seconds: int
-    ) -> None:
+    async def _schedule_room_deletion(self, room_id: str, ttl_seconds: int) -> None:
         """
         Schedule automatic deletion of a room after TTL
         """
         await asyncio.sleep(ttl_seconds)
         await self.ensure_connected()
         await self.db.delete(room_id)
-        logger.info(
-            "Deleted ephemeral room %s after %ss TTL",
-            room_id,
-            ttl_seconds
-        )
+        logger.info("Deleted ephemeral room %s after %ss TTL", room_id, ttl_seconds)
 
 
 surreal_db = SurrealDBManager()

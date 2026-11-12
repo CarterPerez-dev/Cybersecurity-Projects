@@ -41,6 +41,7 @@ from app.core.streaming import (
 from app.models.Alert import Alert
 from app.models.CorrelationRule import CorrelationRule, RuleType
 
+
 logger = structlog.get_logger()
 
 
@@ -78,7 +79,8 @@ class CorrelationState:
         rule_id: str,
         group_key: str,
         event_id: str,
-        event_data: dict[str, Any],
+        event_data: dict[str,
+                         Any],
         step_index: int | None = None,
     ) -> None:
         """
@@ -87,12 +89,14 @@ class CorrelationState:
         with self._lock:
             windows = self._windows.setdefault(rule_id, {})
             entries = windows.setdefault(group_key, [])
-            entries.append(WindowEntry(
-                timestamp=time.time(),
-                event_id=event_id,
-                event_data=event_data,
-                step_index=step_index,
-            ))
+            entries.append(
+                WindowEntry(
+                    timestamp = time.time(),
+                    event_id = event_id,
+                    event_data = event_data,
+                    step_index = step_index,
+                )
+            )
 
     def get_window(
         self,
@@ -140,15 +144,13 @@ def _matches_filter(event_data: dict[str, Any], event_filter: dict[str, Any]) ->
     """
     Check if an event satisfies all key-value pairs in the filter
     """
-    return all(
-        event_data.get(k) == v
-        for k, v in event_filter.items()
-    )
+    return all(event_data.get(k) == v for k, v in event_filter.items())
 
 
 def evaluate_rule(
     rule: CorrelationRule,
-    event_data: dict[str, Any],
+    event_data: dict[str,
+                     Any],
     state: CorrelationState,
 ) -> EvaluationResult | None:
     """
@@ -179,7 +181,8 @@ def evaluate_rule(
 
 def _evaluate_threshold(
     rule: CorrelationRule,
-    event_data: dict[str, Any],
+    event_data: dict[str,
+                     Any],
     state: CorrelationState,
     rule_id: str,
     group_key: str,
@@ -203,15 +206,16 @@ def _evaluate_threshold(
     if len(entries) >= threshold:
         state.mark_fired(rule_id, group_key)
         return EvaluationResult(
-            matched_event_ids=[e.event_id for e in entries],
-            group_value=group_key,
+            matched_event_ids = [e.event_id for e in entries],
+            group_value = group_key,
         )
     return None
 
 
 def _evaluate_sequence(
     rule: CorrelationRule,
-    event_data: dict[str, Any],
+    event_data: dict[str,
+                     Any],
     state: CorrelationState,
     rule_id: str,
     group_key: str,
@@ -234,8 +238,11 @@ def _evaluate_sequence(
 
     event_id = event_data.get("id", "")
     state.record_event(
-        rule_id, group_key, event_id, event_data,
-        step_index=matched_step,
+        rule_id,
+        group_key,
+        event_id,
+        event_data,
+        step_index = matched_step,
     )
 
     window_seconds = conditions.get("window_seconds", 0)
@@ -249,14 +256,15 @@ def _evaluate_sequence(
 
     state.mark_fired(rule_id, group_key)
     return EvaluationResult(
-        matched_event_ids=[e.event_id for e in entries],
-        group_value=group_key,
+        matched_event_ids = [e.event_id for e in entries],
+        group_value = group_key,
     )
 
 
 def _evaluate_aggregation(
     rule: CorrelationRule,
-    event_data: dict[str, Any],
+    event_data: dict[str,
+                     Any],
     state: CorrelationState,
     rule_id: str,
     group_key: str,
@@ -287,8 +295,8 @@ def _evaluate_aggregation(
     if len(distinct_values) >= threshold:
         state.mark_fired(rule_id, group_key)
         return EvaluationResult(
-            matched_event_ids=[e.event_id for e in entries],
-            group_value=group_key,
+            matched_event_ids = [e.event_id for e in entries],
+            group_value = group_key,
         )
     return None
 
@@ -297,16 +305,15 @@ class CorrelationEngine:
     """
     Daemon thread that consumes log events and evaluates correlation rules
     """
-
     def __init__(self) -> None:
         self._state = CorrelationState()
         self._stop_event = threading.Event()
         self._rules_cache: list[CorrelationRule] = []
         self._rules_cache_time: float = 0.0
         self._thread = threading.Thread(
-            target=self._run,
-            daemon=True,
-            name="correlation-engine",
+            target = self._run,
+            daemon = True,
+            name = "correlation-engine",
         )
 
     def start(self) -> None:
@@ -349,9 +356,7 @@ class CorrelationEngine:
                     ack_message(settings.LOG_STREAM_KEY, msg_id)
             except Exception:
                 logger.exception("correlation_engine_error")
-                self._stop_event.wait(
-                    settings.CORRELATION_ERROR_BACKOFF_SECONDS
-                )
+                self._stop_event.wait(settings.CORRELATION_ERROR_BACKOFF_SECONDS)
 
     def _process_event(self, event_data: dict[str, Any]) -> None:
         """
@@ -363,15 +368,15 @@ class CorrelationEngine:
             if result is None:
                 continue
             Alert.create_from_rule(
-                rule=rule,
-                matched_event_ids=result.matched_event_ids,
-                group_value=result.group_value,
+                rule = rule,
+                matched_event_ids = result.matched_event_ids,
+                group_value = result.group_value,
             )
             logger.info(
                 "alert_generated",
-                rule_name=rule.name,
-                group_value=result.group_value,
-                matched_count=len(result.matched_event_ids),
+                rule_name = rule.name,
+                group_value = result.group_value,
+                matched_count = len(result.matched_event_ids),
             )
 
 

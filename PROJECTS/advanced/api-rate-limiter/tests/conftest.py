@@ -162,9 +162,8 @@ class RequestFactory:
 
         query_string = b""
         if query_params:
-            query_string = "&".join(
-                f"{k}={v}" for k, v in query_params.items()
-            ).encode()
+            query_string = "&".join(f"{k}={v}" for k, v in query_params.items()
+                                    ).encode()
 
         scope = {
             "type": "http",
@@ -268,10 +267,7 @@ class FingerprintFactory:
         if hash_id:
             identifier = hashlib.sha256(auth_id.encode()).hexdigest()[: 16]
 
-        return FingerprintFactory.create(
-            auth_identifier = identifier,
-            **kwargs
-        )
+        return FingerprintFactory.create(auth_identifier = identifier, **kwargs)
 
     @staticmethod
     def anonymous(**kwargs: Any) -> FingerprintData:
@@ -303,38 +299,23 @@ class RuleFactory:
         """
         Create RateLimitRule with defaults
         """
-        return RateLimitRule(
-            requests = requests,
-            window_seconds = window_seconds
-        )
+        return RateLimitRule(requests = requests, window_seconds = window_seconds)
 
     @staticmethod
     def per_second(requests: int = 10) -> RateLimitRule:
-        return RateLimitRule(
-            requests = requests,
-            window_seconds = WINDOW_SECOND
-        )
+        return RateLimitRule(requests = requests, window_seconds = WINDOW_SECOND)
 
     @staticmethod
     def per_minute(requests: int = 100) -> RateLimitRule:
-        return RateLimitRule(
-            requests = requests,
-            window_seconds = WINDOW_MINUTE
-        )
+        return RateLimitRule(requests = requests, window_seconds = WINDOW_MINUTE)
 
     @staticmethod
     def per_hour(requests: int = 1000) -> RateLimitRule:
-        return RateLimitRule(
-            requests = requests,
-            window_seconds = WINDOW_HOUR
-        )
+        return RateLimitRule(requests = requests, window_seconds = WINDOW_HOUR)
 
     @staticmethod
     def per_day(requests: int = 10000) -> RateLimitRule:
-        return RateLimitRule(
-            requests = requests,
-            window_seconds = WINDOW_DAY
-        )
+        return RateLimitRule(requests = requests, window_seconds = WINDOW_DAY)
 
     @staticmethod
     def strict() -> RateLimitRule:
@@ -528,10 +509,7 @@ class TokenBucketStateFactory:
 
     @staticmethod
     def empty(capacity: int = 100) -> TokenBucketState:
-        return TokenBucketStateFactory.create(
-            tokens = 0.0,
-            capacity = capacity
-        )
+        return TokenBucketStateFactory.create(tokens = 0.0, capacity = capacity)
 
 
 class DefenseContextFactory:

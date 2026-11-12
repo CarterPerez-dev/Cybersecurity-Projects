@@ -3,7 +3,6 @@
 test_flow_tracker.py
 """
 
-
 from dlp_scanner.network.flow_tracker import (
     FlowTracker,
     make_flow_key,

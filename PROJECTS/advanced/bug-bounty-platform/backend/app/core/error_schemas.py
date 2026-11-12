@@ -17,11 +17,10 @@ class ErrorDetail(BaseSchema):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         json_schema_extra = {
-            "examples": [
-                {
-                    "detail": "User with id '123' not found",
-                    "type": "UserNotFound"
-                }
-            ]
+            "examples":
+            [{
+                "detail": "User with id '123' not found",
+                "type": "UserNotFound"
+            }]
         }
     )

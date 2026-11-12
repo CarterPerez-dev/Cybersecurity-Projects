@@ -39,7 +39,6 @@ from app.services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
-
 router = APIRouter(prefix = "/auth", tags = ["authentication"])
 
 limiter = Limiter(key_func = get_remote_address)
@@ -65,7 +64,8 @@ async def register_begin(
     request: Request,
     body: RegistrationBeginRequest,
     session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+) -> dict[str,
+          Any]:
     """
     Begin WebAuthn passkey registration flow
     """
@@ -94,7 +94,8 @@ async def authenticate_begin(
     request: Request,
     body: AuthenticationBeginRequest,
     session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+) -> dict[str,
+          Any]:
     """
     Begin WebAuthn passkey authentication flow
     """
@@ -154,6 +155,4 @@ async def search_users(
         exclude_user_id = user.id,
     )
 
-    return UserSearchResponse(
-        users = [_user_to_response(u) for u in users]
-    )
+    return UserSearchResponse(users = [_user_to_response(u) for u in users])

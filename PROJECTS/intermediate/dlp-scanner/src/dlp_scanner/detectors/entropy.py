@@ -3,7 +3,6 @@
 entropy.py
 """
 
-
 import math
 from collections import Counter
 
@@ -24,9 +23,7 @@ def shannon_entropy(data: bytes) -> float:
 
     counts = Counter(data)
     total = len(data)
-    return -sum(
-        (c / total) * math.log2(c / total) for c in counts.values()
-    )
+    return -sum((c / total) * math.log2(c / total) for c in counts.values())
 
 
 def shannon_entropy_str(text: str) -> float:
@@ -105,8 +102,7 @@ class EntropyDetector:
         for start, end, entropy_val in regions:
             score = min(
                 1.0,
-                (entropy_val - self._threshold) /
-                (8.0 - self._threshold) * 0.5 + 0.5,
+                (entropy_val - self._threshold) / (8.0 - self._threshold) * 0.5 + 0.5,
             )
 
             matches.append(
@@ -115,8 +111,7 @@ class EntropyDetector:
                     rule_name = "High Entropy Data",
                     start = start,
                     end = end,
-                    matched_text =
-                    f"[{end - start} bytes, H={entropy_val:.2f}]",
+                    matched_text = f"[{end - start} bytes, H={entropy_val:.2f}]",
                     score = score,
                     context_keywords = [],
                     compliance_frameworks = [],

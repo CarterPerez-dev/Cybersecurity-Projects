@@ -98,10 +98,7 @@ def test_nonce_in_data_is_an_invariant_block() -> None:
 
     findings = _inspect(hostile)
 
-    assert any(
-        f.rule == config.RULE_NONCE_FORGERY and f.invariant
-        for f in findings
-    )
+    assert any(f.rule == config.RULE_NONCE_FORGERY and f.invariant for f in findings)
 
 
 def test_bare_nonce_without_the_fence_is_still_a_violation() -> None:

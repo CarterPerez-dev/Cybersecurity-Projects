@@ -3,7 +3,6 @@
 test_credentials.py
 """
 
-
 import pytest
 
 from dlp_scanner.detectors.rules.credentials import (
@@ -20,21 +19,13 @@ from dlp_scanner.detectors.rules.credentials import (
 
 class TestAWSAccessKey:
     def test_long_term_key_matches(self) -> None:
-        assert (
-            AWS_ACCESS_KEY_PATTERN.search("AKIAIOSFODNN7EXAMPLE")
-            is not None
-        )
+        assert (AWS_ACCESS_KEY_PATTERN.search("AKIAIOSFODNN7EXAMPLE") is not None)
 
     def test_session_key_matches(self) -> None:
-        assert (
-            AWS_ACCESS_KEY_PATTERN.search("ASIAQWERTYUIOP123456")
-            is not None
-        )
+        assert (AWS_ACCESS_KEY_PATTERN.search("ASIAQWERTYUIOP123456") is not None)
 
     def test_invalid_prefix_rejected(self) -> None:
-        assert (
-            AWS_ACCESS_KEY_PATTERN.search("ABCDIOSFODNN7EXAMPLE") is None
-        )
+        assert (AWS_ACCESS_KEY_PATTERN.search("ABCDIOSFODNN7EXAMPLE") is None)
 
 
 class TestGitHubTokens:
@@ -47,18 +38,14 @@ class TestGitHubTokens:
         assert (GITHUB_FINE_GRAINED_PATTERN.search(token) is not None)
 
     def test_invalid_prefix_rejected(self) -> None:
-        assert (
-            GITHUB_CLASSIC_PAT_PATTERN.search("xyz_" + "a" * 36) is None
-        )
+        assert (GITHUB_CLASSIC_PAT_PATTERN.search("xyz_" + "a" * 36) is None)
 
 
 class TestJWT:
     def test_jwt_matches(self) -> None:
-        token = (
-            "eyJhbGciOiJIUzI1NiJ9"
-            ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
-            ".abc123def456"
-        )
+        token = ("eyJhbGciOiJIUzI1NiJ9"
+                 ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
+                 ".abc123def456")
         assert JWT_PATTERN.search(token) is not None
 
     def test_non_jwt_rejected(self) -> None:

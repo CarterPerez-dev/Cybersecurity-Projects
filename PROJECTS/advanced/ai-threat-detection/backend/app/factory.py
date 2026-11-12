@@ -58,6 +58,7 @@ from app.models import threat_event as _threat_event_reg  # noqa: F401
 if TYPE_CHECKING:
     from app.core.detection.inference import InferenceEngine
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,8 +74,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_engine = engine
     app.state.session_factory = async_sessionmaker(
         engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
+        class_ = AsyncSession,
+        expire_on_commit = False,
     )
 
     async with engine.begin() as conn:
@@ -89,8 +90,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     assert redis_client is not None
 
     dispatcher = AlertDispatcher(
-        redis_client=redis_client,
-        session_factory=app.state.session_factory,
+        redis_client = redis_client,
+        session_factory = app.state.session_factory,
     )
 
     inference_engine = _load_inference_engine()
@@ -98,20 +99,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.detection_mode = "hybrid" if app.state.models_loaded else "rules"
 
     pipeline = Pipeline(
-        redis_client=redis_client,
-        rule_engine=RuleEngine(),
-        geoip=geoip,
-        on_result=dispatcher.dispatch,
-        inference_engine=inference_engine,
-        ensemble_weights={
+        redis_client = redis_client,
+        rule_engine = RuleEngine(),
+        geoip = geoip,
+        on_result = dispatcher.dispatch,
+        inference_engine = inference_engine,
+        ensemble_weights = {
             "ae": settings.ensemble_weight_ae,
             "rf": settings.ensemble_weight_rf,
             "if": settings.ensemble_weight_if,
         },
-        raw_queue_size=settings.raw_queue_size,
-        parsed_queue_size=settings.parsed_queue_size,
-        feature_queue_size=settings.feature_queue_size,
-        alert_queue_size=settings.alert_queue_size,
+        raw_queue_size = settings.raw_queue_size,
+        parsed_queue_size = settings.parsed_queue_size,
+        feature_queue_size = settings.feature_queue_size,
+        alert_queue_size = settings.alert_queue_size,
     )
     await pipeline.start()
 
@@ -124,7 +125,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             settings.nginx_log_path,
             pipeline.raw_queue,
             loop,
-            position_path=position_path,
+            position_path = position_path,
         )
         tailer.start()
     else:
@@ -158,12 +159,13 @@ def _load_inference_engine() -> InferenceEngine | None:
     """
     try:
         from app.core.detection.inference import (
-            InferenceEngine, )
+            InferenceEngine,
+        )
     except ImportError:
         logger.info("onnxruntime not installed — running in rules-only mode")
         return None
 
-    engine = InferenceEngine(model_dir=settings.model_dir)
+    engine = InferenceEngine(model_dir = settings.model_dir)
     if engine.is_loaded:
         logger.info(
             "ML models loaded from %s",
@@ -183,9 +185,9 @@ def create_app() -> FastAPI:
     Build and configure the AngelusVigil FastAPI application.
     """
     app = FastAPI(
-        title=settings.app_name,
-        version="0.1.0",
-        lifespan=lifespan,
+        title = settings.app_name,
+        version = "0.1.0",
+        lifespan = lifespan,
     )
 
     app.state.startup_time = time.monotonic()

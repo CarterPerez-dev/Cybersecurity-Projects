@@ -48,17 +48,10 @@ class Credential(BaseDBModel, table = True):
         default = None,
         max_length = ATTESTATION_TYPE_MAX_LENGTH
     )
-    transports: str | None = Field(
-        default = None,
-        max_length = TRANSPORT_MAX_LENGTH
-    )
+    transports: str | None = Field(default = None, max_length = TRANSPORT_MAX_LENGTH)
 
     # User relationship
-    user_id: UUID = Field(
-        foreign_key = "users.id",
-        nullable = False,
-        index = True
-    )
+    user_id: UUID = Field(foreign_key = "users.id", nullable = False, index = True)
     user: "User" = Relationship(back_populates = "credentials")
 
     # Device metadata

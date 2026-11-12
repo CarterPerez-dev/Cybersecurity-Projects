@@ -138,8 +138,8 @@ def export_to_json(
 
     indent = 2 if options.pretty_print else None
 
-    with filepath.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=indent)
+    with filepath.open("w", encoding = "utf-8") as f:
+        json.dump(data, f, indent = indent)
 
 
 def export_to_csv(
@@ -162,8 +162,8 @@ def export_to_csv(
         "dst_mac",
     ]
 
-    with filepath.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with filepath.open("w", newline = "", encoding = "utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames = fieldnames)
         writer.writeheader()
 
         if packets:
@@ -185,8 +185,8 @@ def export_endpoints_csv(stats: CaptureStatistics, filepath: Path) -> None:
         "total_bytes",
     ]
 
-    with filepath.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with filepath.open("w", newline = "", encoding = "utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames = fieldnames)
         writer.writeheader()
 
         for endpoint in stats.endpoints.values():
@@ -203,18 +203,15 @@ def export_endpoints_csv(stats: CaptureStatistics, filepath: Path) -> None:
             )
 
 
-def export_protocol_summary_csv(
-    stats: CaptureStatistics,
-    filepath: Path
-) -> None:
+def export_protocol_summary_csv(stats: CaptureStatistics, filepath: Path) -> None:
     """
     Export protocol distribution to CSV file
     """
     fieldnames = ["protocol", "packets", "bytes", "percentage"]
     percentages = stats.get_protocol_percentages()
 
-    with filepath.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with filepath.open("w", newline = "", encoding = "utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames = fieldnames)
         writer.writeheader()
 
         for protocol, count in stats.protocol_distribution.items():
@@ -229,12 +226,11 @@ def export_protocol_summary_csv(
             )
 
 
-def load_from_json(filepath: Path) -> tuple[CaptureStatistics | None,
-                                            list[PacketInfo]]:
+def load_from_json(filepath: Path) -> tuple[CaptureStatistics | None, list[PacketInfo]]:
     """
     Load capture data from JSON file
     """
-    with filepath.open(encoding="utf-8") as f:
+    with filepath.open(encoding = "utf-8") as f:
         data = json.load(f)
 
     stats = None
@@ -243,13 +239,13 @@ def load_from_json(filepath: Path) -> tuple[CaptureStatistics | None,
     if "statistics" in data:
         stats_data = data["statistics"]
         stats = CaptureStatistics(
-            start_time=stats_data.get("start_time",
+            start_time = stats_data.get("start_time",
                                         0.0),
-            end_time=stats_data.get("end_time",
+            end_time = stats_data.get("end_time",
                                       0.0),
-            total_packets=stats_data.get("total_packets",
+            total_packets = stats_data.get("total_packets",
                                            0),
-            total_bytes=stats_data.get("total_bytes",
+            total_bytes = stats_data.get("total_bytes",
                                          0),
         )
 
@@ -265,19 +261,19 @@ def load_from_json(filepath: Path) -> tuple[CaptureStatistics | None,
             try:
                 proto = Protocol(pkt_data.get("protocol", "OTHER"))
                 packet = PacketInfo(
-                    timestamp=pkt_data.get("timestamp",
+                    timestamp = pkt_data.get("timestamp",
                                              0.0),
-                    src_ip=pkt_data.get("src_ip",
+                    src_ip = pkt_data.get("src_ip",
                                           ""),
-                    dst_ip=pkt_data.get("dst_ip",
+                    dst_ip = pkt_data.get("dst_ip",
                                           ""),
-                    protocol=proto,
-                    size=pkt_data.get("size",
+                    protocol = proto,
+                    size = pkt_data.get("size",
                                         0),
-                    src_port=pkt_data.get("src_port"),
-                    dst_port=pkt_data.get("dst_port"),
-                    src_mac=pkt_data.get("src_mac"),
-                    dst_mac=pkt_data.get("dst_mac"),
+                    src_port = pkt_data.get("src_port"),
+                    dst_port = pkt_data.get("dst_port"),
+                    src_mac = pkt_data.get("src_mac"),
+                    dst_mac = pkt_data.get("dst_mac"),
                 )
                 packets.append(packet)
             except (KeyError, ValueError):

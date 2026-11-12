@@ -85,9 +85,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limiter = limiter
         self.default_limit = default_limit
         self.exclude_paths = set(exclude_paths or [])
-        self.exclude_patterns = [
-            re.compile(p) for p in (exclude_patterns or [])
-        ]
+        self.exclude_patterns = [re.compile(p) for p in (exclude_patterns or [])]
         self.include_paths = set(include_paths) if include_paths else None
         self.path_limits = path_limits or {}
         self.key_func = key_func

@@ -13,7 +13,6 @@ Tests:
 """
 from __future__ import annotations
 
-
 import pytest
 
 from fastapi_420.algorithms import create_algorithm
@@ -94,10 +93,7 @@ class TestSlidingWindowAlgorithm:
     async def test_limit_exceeded(self) -> None:
         algo = SlidingWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             result = await algo.check(storage, "limit_key", rule)
@@ -113,10 +109,7 @@ class TestSlidingWindowAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = SlidingWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             await algo.check(storage, "key_a", rule)
@@ -203,10 +196,7 @@ class TestTokenBucketAlgorithm:
     async def test_burst_consumption(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 10,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 10, window_seconds = WINDOW_MINUTE)
 
         for i in range(10):
             result = await algo.check(storage, "burst_key", rule)
@@ -219,10 +209,7 @@ class TestTokenBucketAlgorithm:
     async def test_bucket_exhausted(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             await algo.check(storage, "exhaust_key", rule)
@@ -236,10 +223,7 @@ class TestTokenBucketAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = TokenBucketAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             await algo.check(storage, "bucket_a", rule)
@@ -319,10 +303,7 @@ class TestFixedWindowAlgorithm:
     async def test_limit_exceeded(self) -> None:
         algo = FixedWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             result = await algo.check(storage, "limit_fixed", rule)
@@ -337,10 +318,7 @@ class TestFixedWindowAlgorithm:
     async def test_different_keys_independent(self) -> None:
         algo = FixedWindowAlgorithm()
         storage = MemoryStorage()
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for _ in range(5):
             await algo.check(storage, "fixed_a", rule)
@@ -423,10 +401,7 @@ class TestAlgorithmComparison:
             TokenBucketAlgorithm(),
             FixedWindowAlgorithm(),
         ]
-        rule = RuleFactory.create(
-            requests = 5,
-            window_seconds = WINDOW_MINUTE
-        )
+        rule = RuleFactory.create(requests = 5, window_seconds = WINDOW_MINUTE)
 
         for algo in algorithms:
             storage = MemoryStorage()
@@ -439,7 +414,6 @@ class TestAlgorithmComparison:
 
     @pytest.mark.asyncio
     async def test_algorithms_have_correct_names(self) -> None:
-        assert SlidingWindowAlgorithm(
-        ).name == Algorithm.SLIDING_WINDOW.value
+        assert SlidingWindowAlgorithm().name == Algorithm.SLIDING_WINDOW.value
         assert TokenBucketAlgorithm().name == Algorithm.TOKEN_BUCKET.value
         assert FixedWindowAlgorithm().name == Algorithm.FIXED_WINDOW.value

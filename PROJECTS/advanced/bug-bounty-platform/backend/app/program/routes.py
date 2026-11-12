@@ -123,11 +123,7 @@ async def update_program(
     """
     Update program details
     """
-    return await program_service.update_program(
-        current_user,
-        program_id,
-        program_data
-    )
+    return await program_service.update_program(current_user, program_id, program_data)
 
 
 @router.delete(
@@ -184,11 +180,7 @@ async def add_asset(
     """
     Add asset to program scope
     """
-    return await program_service.add_asset(
-        current_user,
-        program_id,
-        asset_data
-    )
+    return await program_service.add_asset(current_user, program_id, asset_data)
 
 
 @router.patch(
@@ -272,8 +264,4 @@ async def set_reward_tiers(
     """
     Set reward tiers for program (replaces existing)
     """
-    return await program_service.set_reward_tiers(
-        current_user,
-        program_id,
-        tiers
-    )
+    return await program_service.set_reward_tiers(current_user, program_id, tiers)

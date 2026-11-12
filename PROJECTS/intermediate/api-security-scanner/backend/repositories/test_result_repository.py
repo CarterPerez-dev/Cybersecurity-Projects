@@ -68,11 +68,9 @@ class TestResultRepository:
         return test_result
 
     @staticmethod
-    def bulk_create(
-        db: Session,
-        test_results: list[TestResult],
-        commit: bool = True
-    ) -> list[TestResult]:
+    def bulk_create(db: Session,
+                    test_results: list[TestResult],
+                    commit: bool = True) -> list[TestResult]:
         """
         Create multiple test results in bulk
 
@@ -104,9 +102,9 @@ class TestResultRepository:
             list[TestResult]: List of test results for the scan
         """
         return (
-            db.query(TestResult).filter(
-                TestResult.scan_id == scan_id
-            ).order_by(TestResult.created_at.asc()).all()
+            db.query(TestResult).filter(TestResult.scan_id == scan_id).order_by(
+                TestResult.created_at.asc()
+            ).all()
         )
 
     @staticmethod
@@ -132,8 +130,7 @@ class TestResultRepository:
         )
 
     @staticmethod
-    def get_vulnerabilities(db: Session,
-                            scan_id: int) -> list[TestResult]:
+    def get_vulnerabilities(db: Session, scan_id: int) -> list[TestResult]:
         """
         Get only vulnerable test results for a scan
 
@@ -144,18 +141,10 @@ class TestResultRepository:
         Returns:
             list[TestResult]: Vulnerable test results only
         """
-        return TestResultRepository.get_by_status(
-            db,
-            scan_id,
-            ScanStatus.VULNERABLE
-        )
+        return TestResultRepository.get_by_status(db, scan_id, ScanStatus.VULNERABLE)
 
     @staticmethod
-    def delete_by_scan(
-        db: Session,
-        scan_id: int,
-        commit: bool = True
-    ) -> int:
+    def delete_by_scan(db: Session, scan_id: int, commit: bool = True) -> int:
         """
         Delete all test results for a scan
 
@@ -167,9 +156,7 @@ class TestResultRepository:
         Returns:
             int: Number of test results deleted
         """
-        count = db.query(TestResult).filter(
-            TestResult.scan_id == scan_id
-        ).delete()
+        count = db.query(TestResult).filter(TestResult.scan_id == scan_id).delete()
         if commit:
             db.commit()
         return count

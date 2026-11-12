@@ -38,7 +38,6 @@ def sample_data() -> np.ndarray:
 
 
 class TestFeatureScaler:
-
     def test_fit_sets_n_features(self, sample_data: np.ndarray) -> None:
         """
         Fitting stores the number of input features.
@@ -65,19 +64,17 @@ class TestFeatureScaler:
         transformed = scaler.transform(sample_data)
         assert transformed.dtype == np.float32
 
-    def test_transformed_median_near_zero(self,
-                                          sample_data: np.ndarray) -> None:
+    def test_transformed_median_near_zero(self, sample_data: np.ndarray) -> None:
         """
         Median of each feature column is approximately zero after scaling.
         """
         scaler = FeatureScaler()
         scaler.fit(sample_data)
         transformed = scaler.transform(sample_data)
-        medians = np.median(transformed, axis=0)
-        assert np.allclose(medians, 0.0, atol=0.15)
+        medians = np.median(transformed, axis = 0)
+        assert np.allclose(medians, 0.0, atol = 0.15)
 
-    def test_inverse_transform_recovers_original(
-            self, sample_data: np.ndarray) -> None:
+    def test_inverse_transform_recovers_original(self, sample_data: np.ndarray) -> None:
         """
         Inverse transform recovers the original values within floating-point tolerance.
         """
@@ -85,10 +82,13 @@ class TestFeatureScaler:
         scaler.fit(sample_data)
         transformed = scaler.transform(sample_data)
         recovered = scaler.inverse_transform(transformed)
-        np.testing.assert_allclose(recovered, sample_data, atol=1e-5)
+        np.testing.assert_allclose(recovered, sample_data, atol = 1e-5)
 
-    def test_save_json_creates_file(self, sample_data: np.ndarray,
-                                    tmp_path: Path) -> None:
+    def test_save_json_creates_file(
+        self,
+        sample_data: np.ndarray,
+        tmp_path: Path
+    ) -> None:
         """
         save_json writes a non-empty file to the given path.
         """
@@ -99,8 +99,11 @@ class TestFeatureScaler:
         assert path.exists()
         assert path.stat().st_size > 0
 
-    def test_save_json_is_valid_json(self, sample_data: np.ndarray,
-                                     tmp_path: Path) -> None:
+    def test_save_json_is_valid_json(
+        self,
+        sample_data: np.ndarray,
+        tmp_path: Path
+    ) -> None:
         """
         Saved JSON contains center, scale, and n_features keys.
         """
@@ -113,8 +116,11 @@ class TestFeatureScaler:
         assert "scale" in data
         assert "n_features" in data
 
-    def test_load_json_round_trip(self, sample_data: np.ndarray,
-                                  tmp_path: Path) -> None:
+    def test_load_json_round_trip(
+        self,
+        sample_data: np.ndarray,
+        tmp_path: Path
+    ) -> None:
         """
         Loading from JSON produces a scaler with identical transform output.
         """
@@ -128,7 +134,7 @@ class TestFeatureScaler:
 
         original_out = scaler.transform(sample_data)
         loaded_out = loaded.transform(sample_data)
-        np.testing.assert_allclose(original_out, loaded_out, atol=1e-6)
+        np.testing.assert_allclose(original_out, loaded_out, atol = 1e-6)
 
     def test_transform_before_fit_raises(self) -> None:
         """
@@ -136,7 +142,7 @@ class TestFeatureScaler:
         """
         scaler = FeatureScaler()
         with pytest.raises(RuntimeError):
-            scaler.transform(np.zeros((5, 35), dtype=np.float32))
+            scaler.transform(np.zeros((5, 35), dtype = np.float32))
 
     def test_fit_transform_convenience(self, sample_data: np.ndarray) -> None:
         """

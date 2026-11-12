@@ -30,10 +30,11 @@ from pathlib import Path
 import geoip2.database
 from geoip2.errors import AddressNotFoundError
 
+
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen = True, slots = True)
 class GeoResult:
     """
     Structured GeoIP lookup result.
@@ -49,7 +50,6 @@ class GeoIPService:
     """
     Async GeoIP lookup service backed by a local MaxMind GeoLite2-City database.
     """
-
     def __init__(self, db_path: str) -> None:
         self._reader: geoip2.database.Reader | None = None
         self._db_path = db_path
@@ -58,8 +58,7 @@ class GeoIPService:
             self._reader = geoip2.database.Reader(db_path)
             logger.info("GeoIP database loaded from %s", db_path)
         else:
-            logger.warning("GeoIP database not found at %s — lookups disabled",
-                           db_path)
+            logger.warning("GeoIP database not found at %s — lookups disabled", db_path)
 
     async def lookup(self, ip: str) -> GeoResult | None:
         """
@@ -81,10 +80,10 @@ class GeoIPService:
             return None
 
         return GeoResult(
-            country=response.country.iso_code,
-            city=response.city.name,
-            lat=response.location.latitude,
-            lon=response.location.longitude,
+            country = response.country.iso_code,
+            city = response.city.name,
+            lat = response.location.latitude,
+            lon = response.location.longitude,
         )
 
     def swap_reader(self, new_path: str) -> None:

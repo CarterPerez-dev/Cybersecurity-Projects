@@ -3,7 +3,6 @@
 test_compliance.py
 """
 
-
 from dlp_scanner.compliance import (
     get_frameworks_for_rule,
     get_remediation_for_rule,
@@ -44,10 +43,10 @@ class TestFrameworkMapping:
 
     def test_credit_card_maps_to_pci(self) -> None:
         for rule_id in (
-            "FIN_CREDIT_CARD_VISA",
-            "FIN_CREDIT_CARD_MC",
-            "FIN_CREDIT_CARD_AMEX",
-            "FIN_CREDIT_CARD_DISC",
+                "FIN_CREDIT_CARD_VISA",
+                "FIN_CREDIT_CARD_MC",
+                "FIN_CREDIT_CARD_AMEX",
+                "FIN_CREDIT_CARD_DISC",
         ):
             frameworks = get_frameworks_for_rule(rule_id)
             assert "PCI_DSS" in frameworks

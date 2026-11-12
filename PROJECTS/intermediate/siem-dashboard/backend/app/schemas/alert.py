@@ -35,11 +35,11 @@ class AlertQueryParams(BaseModel):
     """
     Filters for listing alerts
     """
-    page: int = Field(default=1, ge=1)
+    page: int = Field(default = 1, ge = 1)
     per_page: int = Field(
-        default=settings.DEFAULT_PAGE_SIZE,
-        ge=1,
-        le=settings.MAX_PAGE_SIZE,
+        default = settings.DEFAULT_PAGE_SIZE,
+        ge = 1,
+        le = settings.MAX_PAGE_SIZE,
     )
     status: str | None = None
     severity: str | None = None

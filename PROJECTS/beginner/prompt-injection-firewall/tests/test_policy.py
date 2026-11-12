@@ -47,13 +47,7 @@ def test_no_findings_allows() -> None:
 
 def test_info_findings_never_block() -> None:
     policy = Policy(block_threshold = Severity.INFO)
-    findings = [
-        _finding(
-            Severity.INFO,
-            invariant = False,
-            rule = "layer-disabled"
-        )
-    ]
+    findings = [_finding(Severity.INFO, invariant = False, rule = "layer-disabled")]
     assert decide(findings, policy) is Decision.ALLOW
 
 

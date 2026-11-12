@@ -55,7 +55,7 @@ def test_geo_result_fields() -> None:
     """
     GeoResult stores country, city, latitude, and longitude.
     """
-    result = GeoResult(country="US", city="Seattle", lat=47.6, lon=-122.3)
+    result = GeoResult(country = "US", city = "Seattle", lat = 47.6, lon = -122.3)
     assert result.country == "US"
     assert result.city == "Seattle"
     assert result.lat == 47.6
@@ -122,9 +122,11 @@ async def test_lookup_missing_city_name(mock_reader) -> None:
     """
     Responses with None city name are handled gracefully.
     """
-    mock_reader.city.return_value = _mock_city_response(city_name=None,
-                                                        lat=0.0,
-                                                        lon=0.0)
+    mock_reader.city.return_value = _mock_city_response(
+        city_name = None,
+        lat = 0.0,
+        lon = 0.0
+    )
     service = GeoIPService.__new__(GeoIPService)
     service._reader = mock_reader
 
@@ -138,7 +140,7 @@ def test_service_init_missing_db(tmp_path) -> None:
     """
     Initializing with a non-existent .mmdb file sets reader to None.
     """
-    service = GeoIPService(db_path=str(tmp_path / "missing.mmdb"))
+    service = GeoIPService(db_path = str(tmp_path / "missing.mmdb"))
     assert service._reader is None
 
 
@@ -151,6 +153,6 @@ def test_service_init_valid_db(tmp_path) -> None:
 
     with patch("app.core.enrichment.geoip.geoip2.database.Reader") as mock_cls:
         mock_cls.return_value = MagicMock()
-        service = GeoIPService(db_path=str(fake_mmdb))
+        service = GeoIPService(db_path = str(fake_mmdb))
         assert service._reader is not None
         mock_cls.assert_called_once_with(str(fake_mmdb))

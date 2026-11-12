@@ -10,7 +10,7 @@
 # (pytest, ruff, mypy, pylint, coverage, fakeredis), and ml
 # extras (torch, scikit-learn, onnxruntime, mlflow, pandas,
 # imbalanced-learn). Uses hatchling as the build backend
-# with app, cli, and ml packages. Configures ruff (line 95,
+# with app, cli, and ml packages. Configures ruff (line 88,
 # Python 3.14 target), mypy (strict mode), pylint (4 jobs
 # with pydantic plugin), and pytest (asyncio auto mode).
 # Connects to all backend source modules
@@ -48,6 +48,7 @@ dev = [
     "aiosqlite>=0.22.1",
     "ruff>=0.15.0",
     "mypy>=1.19.1",
+    "yang-fmt>=1.0.0",
     "pylint>=4.0.4",
     "pylint-pydantic>=0.4.1",
     "types-redis>=4.6.0.20241004",
@@ -74,12 +75,15 @@ vigil = "cli.main:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv.sources]
+yang-fmt = { git = "https://github.com/CarterPerez-dev/yang", tag = "v1.0.0" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["app", "cli", "ml"]
 
 [tool.ruff]
 target-version = "py314"
-line-length = 95
+line-length = 88
 indent-width = 4
 exclude = [
     ".bzr",

@@ -30,11 +30,11 @@ ruff *ARGS:
 [group('lint')]
 ruff-fix:
     ruff check backend/ --fix
-    ruff format backend/
+    yang -r -i backend/
 
 [group('lint')]
 ruff-format:
-    ruff format backend/
+    yang -r -i backend/
 
 [group('lint')]
 pylint *ARGS:

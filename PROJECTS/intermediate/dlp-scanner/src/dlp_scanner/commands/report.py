@@ -3,7 +3,6 @@
 report.py
 """
 
-
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -20,14 +19,12 @@ from dlp_scanner.models import (
 
 report_app = typer.Typer(help = "Report conversion and summary")
 
-VALID_FORMATS: frozenset[str] = frozenset(
-    {
-        "console",
-        "json",
-        "sarif",
-        "csv",
-    }
-)
+VALID_FORMATS: frozenset[str] = frozenset({
+    "console",
+    "json",
+    "sarif",
+    "csv",
+})
 
 
 @report_app.command("convert")
@@ -136,9 +133,7 @@ def _rebuild_result(
     result.scan_id = meta.get("scan_id", result.scan_id)
 
     if meta.get("scan_completed_at"):
-        result.scan_completed_at = (
-            datetime.fromisoformat(meta["scan_completed_at"])
-        )
+        result.scan_completed_at = (datetime.fromisoformat(meta["scan_completed_at"]))
 
     result.errors = meta.get("errors", [])
 
@@ -167,10 +162,8 @@ def _rebuild_result(
             location = location,
             redacted_snippet = f_data.get("redacted_snippet",
                                           ""),
-            compliance_frameworks = f_data.get(
-                "compliance_frameworks",
-                []
-            ),
+            compliance_frameworks = f_data.get("compliance_frameworks",
+                                               []),
             remediation = f_data.get("remediation",
                                      ""),
         )
@@ -178,9 +171,7 @@ def _rebuild_result(
         if f_data.get("finding_id"):
             finding.finding_id = f_data["finding_id"]
         if f_data.get("detected_at"):
-            finding.detected_at = (
-                datetime.fromisoformat(f_data["detected_at"])
-            )
+            finding.detected_at = (datetime.fromisoformat(f_data["detected_at"]))
 
         result.findings.append(finding)
 

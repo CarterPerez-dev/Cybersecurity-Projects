@@ -124,12 +124,12 @@ class ScenarioThread:
             else:
                 run.mark_completed()
         except Exception:
-            logger.exception("scenario_thread_error", run_id=self.run_id)
+            logger.exception("scenario_thread_error", run_id = self.run_id)
             try:
                 run = ScenarioRun.get_by_id(self.run_id)
                 run.mark_error(f"Thread crashed: check logs for run {self.run_id}")
             except Exception:
-                logger.exception("scenario_error_update_failed", run_id=self.run_id)
+                logger.exception("scenario_error_update_failed", run_id = self.run_id)
         finally:
             ScenarioRunner.remove(self.run_id)
 

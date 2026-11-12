@@ -3,7 +3,6 @@
 pdf.py
 """
 
-
 import structlog
 
 from dlp_scanner.models import Location, TextChunk

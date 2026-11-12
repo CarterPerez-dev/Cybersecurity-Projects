@@ -58,8 +58,7 @@ class IDORScanner(BaseScanner):
 
         if predictable_id_test["vulnerable"]:
             return self._create_vulnerable_result(
-                details =
-                "Predictable ID patterns detected enabling enumeration",
+                details = "Predictable ID patterns detected enabling enumeration",
                 evidence = predictable_id_test,
                 severity = Severity.MEDIUM,
                 recommendations = [
@@ -102,9 +101,7 @@ class IDORScanner(BaseScanner):
                 "description": "No IDs found in endpoint responses",
             }
 
-        numeric_test = self._test_numeric_id_manipulation(
-            extracted_ids
-        )
+        numeric_test = self._test_numeric_id_manipulation(extracted_ids)
         if numeric_test["vulnerable"]:
             return numeric_test
 
@@ -136,17 +133,10 @@ class IDORScanner(BaseScanner):
             response_text = response.text
 
             uuid_pattern = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-            uuids = re.findall(
-                uuid_pattern,
-                response_text,
-                re.IGNORECASE
-            )
+            uuids = re.findall(uuid_pattern, response_text, re.IGNORECASE)
 
             numeric_id_pattern = r'"id"\s*:\s*(\d+)'
-            numeric_ids = re.findall(
-                numeric_id_pattern,
-                response_text
-            )
+            numeric_ids = re.findall(numeric_id_pattern, response_text)
 
             ids = []
             ids.extend(uuids[: 3])
@@ -157,10 +147,7 @@ class IDORScanner(BaseScanner):
         except Exception:
             return []
 
-    def _test_numeric_id_manipulation(self,
-                                      extracted_ids: list[Any]
-                                      ) -> dict[str,
-                                                Any]:
+    def _test_numeric_id_manipulation(self, extracted_ids: list[Any]) -> dict[str, Any]:
         """
         Test numeric ID manipulation for IDOR
 
@@ -170,10 +157,7 @@ class IDORScanner(BaseScanner):
         Returns:
             dict[str, Any]: Numeric ID manipulation test results
         """
-        numeric_ids = [
-            id_val for id_val in extracted_ids
-            if isinstance(id_val, int)
-        ]
+        numeric_ids = [id_val for id_val in extracted_ids if isinstance(id_val, int)]
 
         if not numeric_ids:
             return {
@@ -220,10 +204,7 @@ class IDORScanner(BaseScanner):
             "numeric_ids_tested": len(test_ids),
         }
 
-    def _test_string_id_manipulation(self,
-                                     extracted_ids: list[Any]
-                                     ) -> dict[str,
-                                               Any]:
+    def _test_string_id_manipulation(self, extracted_ids: list[Any]) -> dict[str, Any]:
         """
         Test string/UUID ID manipulation for IDOR
 
@@ -233,10 +214,7 @@ class IDORScanner(BaseScanner):
         Returns:
             dict[str, Any]: String ID manipulation test results
         """
-        string_ids = [
-            id_val for id_val in extracted_ids
-            if isinstance(id_val, str)
-        ]
+        string_ids = [id_val for id_val in extracted_ids if isinstance(id_val, str)]
 
         if not string_ids:
             return {

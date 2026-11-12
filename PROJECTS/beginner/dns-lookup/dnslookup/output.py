@@ -40,6 +40,7 @@ from dnslookup.resolver import (
     TraceResult,
 )
 
+
 console = Console()
 
 RECORD_COLORS: dict[RecordType,
@@ -78,10 +79,7 @@ def format_ttl(ttl: int) -> str:
     return f"{ttl}s"
 
 
-def print_header(
-    domain: str,
-    icon: str = ":globe_showing_americas:"
-) -> None:
+def print_header(domain: str, icon: str = ":globe_showing_americas:") -> None:
     """
     Print a styled header for DNS lookup
     """
@@ -119,12 +117,7 @@ def print_results_table(result: DNSResult) -> None:
 
     table.add_column("Type", width = 8, no_wrap = True)
     table.add_column("Value", style = "green", min_width = 30)
-    table.add_column(
-        "TTL",
-        justify = "right",
-        style = "dim",
-        width = 8
-    )
+    table.add_column("TTL", justify = "right", style = "dim", width = 8)
 
     for record in result.records:
         color = get_record_color(record.record_type)
@@ -154,9 +147,7 @@ def print_summary(result: DNSResult) -> None:
             f"\n[green]:heavy_check_mark:[/green] Found [bold]{record_count}[/bold] record(s) in [cyan]{time_str}[/cyan]"
         )
     else:
-        console.print(
-            f"\n[yellow]:warning:[/yellow] No records found ({time_str})"
-        )
+        console.print(f"\n[yellow]:warning:[/yellow] No records found ({time_str})")
 
     if result.nameserver:
         console.print(f"[dim]Nameserver: {result.nameserver}[/dim]")
@@ -191,12 +182,7 @@ def print_reverse_result(result: DNSResult) -> None:
         )
         table.add_column("IP Address", style = "cyan")
         table.add_column("Hostname", style = "green")
-        table.add_column(
-            "TTL",
-            justify = "right",
-            style = "dim",
-            width = 8
-        )
+        table.add_column("TTL", justify = "right", style = "dim", width = 8)
 
         for record in result.records:
             table.add_row(
@@ -300,29 +286,12 @@ def print_batch_results(results: list[DNSResult]) -> None:
     table.add_column("A", justify = "center", width = 15)
     table.add_column("MX", justify = "center", width = 5)
     table.add_column("NS", justify = "center", width = 5)
-    table.add_column(
-        "Time",
-        justify = "right",
-        style = "dim",
-        width = 8
-    )
+    table.add_column("Time", justify = "right", style = "dim", width = 8)
 
     for result in results:
-        a_records = [
-            r for r in result.records if r.record_type == RecordType.A
-        ]
-        mx_count = len(
-            [
-                r for r in result.records
-                if r.record_type == RecordType.MX
-            ]
-        )
-        ns_count = len(
-            [
-                r for r in result.records
-                if r.record_type == RecordType.NS
-            ]
-        )
+        a_records = [r for r in result.records if r.record_type == RecordType.A]
+        mx_count = len([r for r in result.records if r.record_type == RecordType.MX])
+        ns_count = len([r for r in result.records if r.record_type == RecordType.NS])
 
         a_value = a_records[0].value if a_records else "[dim]-[/dim]"
         mx_value = str(mx_count) if mx_count else "[dim]-[/dim]"

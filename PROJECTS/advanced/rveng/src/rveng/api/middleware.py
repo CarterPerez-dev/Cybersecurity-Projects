@@ -5,6 +5,7 @@ middleware.py
 
 import json
 
+
 CONTENT_LENGTH = b"content-length"
 PAYLOAD_TOO_LARGE = 413
 
@@ -13,7 +14,6 @@ class BodySizeLimitMiddleware:
     """
     Reject request bodies larger than a byte cap before they are parsed
     """
-
     def __init__(self, app, max_bytes: int):
         self.app = app
         self.max_bytes = max_bytes
@@ -52,12 +52,18 @@ class BodySizeLimitMiddleware:
 
     async def _reject(self, send) -> None:
         body = json.dumps({"detail": "request body too large"}).encode()
-        await send({
-            "type": "http.response.start",
-            "status": PAYLOAD_TOO_LARGE,
-            "headers": [
-                (b"content-type", b"application/json"),
-                (b"content-length", str(len(body)).encode()),
-            ],
-        })
+        await send(
+            {
+                "type":
+                "http.response.start",
+                "status":
+                PAYLOAD_TOO_LARGE,
+                "headers": [
+                    (b"content-type",
+                     b"application/json"),
+                    (b"content-length",
+                     str(len(body)).encode()),
+                ],
+            }
+        )
         await send({"type": "http.response.body", "body": body})
