@@ -184,12 +184,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     # Ruff Setup
     - name: Set up Python
       if: matrix.type == 'ruff'
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.12'
 
@@ -224,19 +224,19 @@ jobs:
     # Biome / Frontend Setup
     - name: Setup Node.js
       if: matrix.type == 'biome' || matrix.type == 'frontend'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '22'
 
     - name: Setup pnpm
       if: matrix.type == 'biome' || matrix.type == 'frontend'
-      uses: pnpm/action-setup@v4
+      uses: pnpm/action-setup@v6
       with:
         version: 10
 
     - name: Cache pnpm store
       if: matrix.type == 'biome' || matrix.type == 'frontend'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.local/share/pnpm/store/v10
         key: ${{ runner.os }}-pnpm-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.path)) }}
@@ -251,7 +251,7 @@ jobs:
     # Go Setup
     - name: Setup Go
       if: matrix.type == 'go'
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: ${{ matrix.path }}/go.mod
         cache-dependency-path: ${{ matrix.path }}/go.sum
@@ -304,7 +304,7 @@ jobs:
 
     - name: Cache shards
       if: matrix.type == 'crystal'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ matrix.path }}/lib
         key: ${{ runner.os }}-shards-${{ matrix.name }}-${{ hashFiles(format('{0}/shard.lock', matrix.path)) }}
@@ -325,7 +325,7 @@ jobs:
     # V (Vlang) Setup (no check-latest — master drift breaks fmt parity)
     - name: Install V
       if: matrix.type == 'v'
-      uses: vlang/setup-v@v1.4
+      uses: vlang/setup-v@v1.7
 
     # C++ Setup (pinned clang-format via PyPI wheel — apt patch versions drift)
     - name: Install clang-format and cppcheck
