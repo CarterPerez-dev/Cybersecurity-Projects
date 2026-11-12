@@ -19,7 +19,7 @@ tlsfp-intel = { path = "crates/tlsfp-intel" }
 
 winnow = "0.7"
 md-5 = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 smallvec = "1"
 thiserror = "2"
@@ -48,7 +48,7 @@ serde_json = "1"
 
 clap = { version = "4", features = ["derive"] }
 
-hkdf = "0.12"
+hkdf = "0.13"
 aes = "0.8"
 aes-gcm = "0.10"
 
