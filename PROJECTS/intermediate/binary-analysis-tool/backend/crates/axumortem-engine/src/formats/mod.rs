@@ -32,7 +32,6 @@ mod macho;
 mod pe;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::EngineError;
 use crate::types::{Architecture, BinaryFormat, Endianness, SectionPermissions};
@@ -214,8 +213,7 @@ fn compute_section_hash(data: &[u8], offset: u64, size: u64) -> String {
     if start >= data.len() || end > data.len() {
         return String::new();
     }
-    let hash = Sha256::digest(&data[start..end]);
-    format!("{hash:x}")
+    crate::sha256_hex(&data[start..end])
 }
 
 fn check_suspicious_name(name: &str) -> Option<String> {
