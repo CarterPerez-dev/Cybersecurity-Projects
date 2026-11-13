@@ -22,7 +22,7 @@ services:
     restart: always
 
   surrealdb:
-    image: surrealdb/surrealdb:v3.3.5
+    image: surrealdb/surrealdb:v4.0.0
     container_name: chat-surrealdb
     command: start --log trace --user root --pass ${SURREAL_PASSWORD:?SURREAL_PASSWORD required} rocksdb:/data/database.db
     environment:
