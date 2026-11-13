@@ -11,7 +11,7 @@ license.workspace = true
 axumortem-engine = { path = "../axumortem-engine" }
 axum = { version = "0.8", features = ["multipart"] }
 tokio = { workspace = true }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
     "runtime-tokio",
     "postgres",
     "uuid",
