@@ -23,7 +23,7 @@
     "react-router-dom": "^7.18.5",
     "sonner": "^2.0.8",
     "zod": "^4.6.7",
-    "zustand": "^5.0.16"
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.2",

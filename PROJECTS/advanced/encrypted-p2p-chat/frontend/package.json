@@ -22,7 +22,7 @@
     "@nanostores/persistent": "^1.3.5",
     "@nanostores/solid": "^1.1.1",
     "@solidjs/router": "^0.15.4",
-    "@tanstack/solid-query": "^5.105.3",
+    "@tanstack/solid-query": "^5.107.1",
     "nanostores": "^1.5.5",
     "solid-js": "^1.9.18"
   },
