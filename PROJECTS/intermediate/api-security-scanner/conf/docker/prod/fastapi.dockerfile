@@ -2,7 +2,7 @@
 # fastapi.dockerfile
 # syntax=docker/dockerfile:1
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
 

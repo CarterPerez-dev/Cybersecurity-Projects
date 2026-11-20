@@ -8,7 +8,7 @@
 # copies app.py, and runs uvicorn on port 8000. Sits behind
 # the nginx reverse proxy defined in compose.yml
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 RUN uv pip install --system fastapi uvicorn

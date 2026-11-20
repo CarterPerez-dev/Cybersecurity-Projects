@@ -11,7 +11,7 @@
 # runs uvicorn with --reload for live code changes.
 # Connects to dev.compose.yml, entrypoint.sh
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1

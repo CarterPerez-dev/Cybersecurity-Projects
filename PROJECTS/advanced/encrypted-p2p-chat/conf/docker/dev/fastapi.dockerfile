@@ -2,7 +2,7 @@
 # Development FastAPI Dockerfile
 # Hot reload with uvicorn, volume mounts for code
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
