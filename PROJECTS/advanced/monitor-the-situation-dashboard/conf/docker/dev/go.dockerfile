@@ -1,7 +1,7 @@
 # ©AngelaMos | 2026
 # go.dockerfile
 
-FROM golang:1.25-bookworm
+FROM golang:1.27-bookworm
 
 WORKDIR /app
 

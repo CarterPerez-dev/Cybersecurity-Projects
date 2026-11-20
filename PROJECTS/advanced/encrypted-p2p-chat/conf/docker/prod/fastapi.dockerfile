@@ -2,7 +2,7 @@
 # Production FastAPI Dockerfile
 # Multi stage build, gunicorn with uvicorn workers
 
-FROM python:3.13-slim AS builder
+FROM python:3.15-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -20,7 +20,7 @@ RUN apt-get update && \
 COPY backend/pyproject.toml ./
 RUN uv pip install --target /app/deps . gunicorn
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 

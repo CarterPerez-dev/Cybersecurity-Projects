@@ -10,7 +10,7 @@
 # ============================================================================
 # BUILD STAGE
 # ============================================================================
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ============================================================================
 # PRODUCTION STAGE
 # ============================================================================
-FROM python:3.12-slim AS production
+FROM python:3.15-slim AS production
 
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -m -s /bin/false appuser && \

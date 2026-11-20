@@ -1,7 +1,7 @@
 # ©AngelaMos | 2026
 # vite.dev.dockerfile
 
-FROM node:25-slim
+FROM node:26-slim
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 

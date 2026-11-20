@@ -12,7 +12,7 @@
 # without --reload. Includes a HEALTHCHECK on /health.
 # Connects to compose.yml, entrypoint.sh
 
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -31,7 +31,7 @@ COPY backend/pyproject.toml ./
 RUN uv pip compile pyproject.toml --extra ml -o requirements.txt && \
     uv pip install --target /app/deps -r requirements.txt
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 

@@ -2,7 +2,7 @@
 # vite.dockerfile
 # syntax=docker/dockerfile:1
 
-FROM node:25-slim AS builder
+FROM node:26-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
