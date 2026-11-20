@@ -79,8 +79,8 @@ importers:
         specifier: ^4.0.9
         version: 4.0.9
       '@types/node':
-        specifier: ^24.10.2
-        version: 24.10.2
+        specifier: ^26.6.6
+        version: 26.6.6
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -89,7 +89,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.1.2(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))
+        version: 5.1.2(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))
       '@vitest/ui':
         specifier: ^4.1.5
         version: 4.1.5(vitest@4.1.5)
@@ -113,13 +113,13 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:rolldown-vite@7.2.5
-        version: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
+        version: rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)
       vite-tsconfig-paths:
         specifier: ^5.1.0
-        version: 5.1.4(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))(typescript@5.9.3)
+        version: 5.1.4(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))(typescript@5.9.3)
       vitest:
         specifier: ^4.1.5
-        version: 4.1.5(@types/node@24.10.2)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))
+        version: 4.1.5(@types/node@26.6.6)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))
 
 packages:
 
@@ -727,8 +727,8 @@ packages:
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
-  '@types/node@24.10.2':
-    resolution: {integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==}
+  '@types/node@26.6.6':
+    resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -1944,8 +1944,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  undici-types@7.16.0:
-    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   update-browserslist-db@1.2.2:
     resolution: {integrity: sha512-E85pfNzMQ9jpKkA7+TJAi4TJN+tBCuWh5rUcS/sv6cFi+1q9LYDwDI5dpUL0u/73EElyQ8d3TEaeW4sPedBqYA==}
@@ -2644,9 +2644,9 @@ snapshots:
 
   '@types/geojson@7946.0.16': {}
 
-  '@types/node@24.10.2':
+  '@types/node@26.6.6':
     dependencies:
-      undici-types: 7.16.0
+      undici-types: 8.9.0
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
@@ -2660,9 +2660,9 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 26.6.6
 
-  '@vitejs/plugin-react@5.1.2(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))':
+  '@vitejs/plugin-react@5.1.2(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.5)
@@ -2670,7 +2670,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.53
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
+      vite: rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -2683,13 +2683,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.5(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))':
+  '@vitest/mocker@4.1.5(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))':
     dependencies:
       '@vitest/spy': 4.1.5
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
+      vite: rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)
 
   '@vitest/pretty-format@4.1.5':
     dependencies:
@@ -2718,7 +2718,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vitest: 4.1.5(@types/node@24.10.2)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))
+      vitest: 4.1.5(@types/node@26.6.6)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))
 
   '@vitest/utils@4.1.5':
     dependencies:
@@ -3114,7 +3114,7 @@ snapshots:
 
   happy-dom@20.9.0:
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 26.6.6
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
       entities: 7.0.1
@@ -3459,7 +3459,7 @@ snapshots:
 
   robust-predicates@3.0.3: {}
 
-  rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0):
+  rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0):
     dependencies:
       '@oxc-project/runtime': 0.97.0
       fdir: 6.5.0(picomatch@4.0.3)
@@ -3469,7 +3469,7 @@ snapshots:
       rolldown: 1.0.0-beta.50
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 26.6.6
       fsevents: 2.3.3
       sass: 1.95.0
 
@@ -3781,7 +3781,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  undici-types@7.16.0: {}
+  undici-types@8.9.0: {}
 
   update-browserslist-db@1.2.2(browserslist@4.28.1):
     dependencies:
@@ -3791,21 +3791,21 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-tsconfig-paths@5.1.4(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))(typescript@5.9.3):
+  vite-tsconfig-paths@5.1.4(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))(typescript@5.9.3):
     dependencies:
       debug: 4.4.3
       globrex: 0.1.2
       tsconfck: 3.1.6(typescript@5.9.3)
     optionalDependencies:
-      vite: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
+      vite: rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  vitest@4.1.5(@types/node@24.10.2)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)):
+  vitest@4.1.5(@types/node@26.6.6)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)):
     dependencies:
       '@vitest/expect': 4.1.5
-      '@vitest/mocker': 4.1.5(rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0))
+      '@vitest/mocker': 4.1.5(rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0))
       '@vitest/pretty-format': 4.1.5
       '@vitest/runner': 4.1.5
       '@vitest/snapshot': 4.1.5
@@ -3822,10 +3822,10 @@ snapshots:
       tinyexec: 1.1.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: rolldown-vite@7.2.5(@types/node@24.10.2)(sass@1.95.0)
+      vite: rolldown-vite@7.2.5(@types/node@26.6.6)(sass@1.95.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 26.6.6
       '@vitest/ui': 4.1.5(vitest@4.1.5)
       happy-dom: 20.9.0
     transitivePeerDependencies:
