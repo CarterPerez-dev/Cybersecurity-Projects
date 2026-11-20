@@ -34,7 +34,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@tanstack/react-query-devtools": "^5.105.3",
-    "@types/node": "^24.10.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.1.1",
