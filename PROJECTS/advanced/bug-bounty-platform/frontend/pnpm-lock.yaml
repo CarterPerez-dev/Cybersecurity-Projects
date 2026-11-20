@@ -82,8 +82,8 @@ importers:
         specifier: npm:rolldown-vite@7.2.5
         version: rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2)
       vite-tsconfig-paths:
-        specifier: ^5.1.0
-        version: 5.1.4(rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2))(typescript@5.9.3)
+        specifier: ^6.1.1
+        version: 6.1.1(rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2))(typescript@5.9.3)
 
 packages:
 
@@ -1569,13 +1569,10 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  vite-tsconfig-paths@5.1.4:
-    resolution: {integrity: sha512-cYj0LRuLV2c2sMqhqhGpaO3LretdtMn/BVX4cPLanIZuwwrkVl+lK84E/miEXkCHWXuq65rhNN4rXsBcOB3S4w==}
+  vite-tsconfig-paths@6.1.1:
+    resolution: {integrity: sha512-2cihq7zliibCCZ8P9cKJrQBkfgdvcFkOOc3Y02o3GWUDLgqjWsZudaoiuOwO/gzTzy17cS5F7ZPo4bsnS4DGkg==}
     peerDependencies:
       vite: '*'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   which@1.3.1:
     resolution: {integrity: sha512-HxJdYWq1MTIQbJ3nw0cqssHoTNU267KlrDuGZ1WYlxDStUtKUhOaJmh112/TZmHxxUfuJqPXSOm7tDyas0OSIQ==}
@@ -2963,12 +2960,11 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-tsconfig-paths@5.1.4(rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2))(typescript@5.9.3):
+  vite-tsconfig-paths@6.1.1(rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2))(typescript@5.9.3):
     dependencies:
       debug: 4.4.3
       globrex: 0.1.2
       tsconfck: 3.1.6(typescript@5.9.3)
-    optionalDependencies:
       vite: rolldown-vite@7.2.5(@types/node@24.10.4)(sass@1.97.2)
     transitivePeerDependencies:
       - supports-color
