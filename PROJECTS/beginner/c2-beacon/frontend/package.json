@@ -32,7 +32,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.1.4",
     "sass": "^1.97.3",
-    "stylelint": "^17.3.0",
+    "stylelint": "^17.16.0",
     "stylelint-config-prettier-scss": "^1.0.0",
     "stylelint-config-standard-scss": "^17.0.0",
     "typescript": "~5.9.3",
