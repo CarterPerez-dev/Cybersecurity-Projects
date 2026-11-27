@@ -9,7 +9,7 @@
 # Reads .air.toml from the bind-mounted source.
 # =============================================================================
 
-FROM golang:1.25-alpine
+FROM golang:1.27-alpine
 
 RUN apk add --no-cache git curl wget
 
