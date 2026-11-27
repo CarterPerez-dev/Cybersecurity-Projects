@@ -13,19 +13,19 @@ importers:
         version: 1.3.5(nanostores@1.5.5)
       '@nanostores/solid':
         specifier: ^1.1.1
-        version: 1.1.1(nanostores@1.5.5)(solid-js@1.9.18)
+        version: 1.1.1(nanostores@1.5.5)(solid-js@1.9.20)
       '@solidjs/router':
         specifier: ^0.15.4
-        version: 0.15.4(solid-js@1.9.18)
+        version: 0.15.4(solid-js@1.9.20)
       '@tanstack/solid-query':
-        specifier: ^5.105.3
-        version: 5.105.3(solid-js@1.9.18)
+        specifier: ^5.108.4
+        version: 5.108.4(solid-js@1.9.20)
       nanostores:
         specifier: ^1.5.5
         version: 1.5.5
       solid-js:
-        specifier: ^1.9.18
-        version: 1.9.18
+        specifier: ^1.9.20
+        version: 1.9.20
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.2
@@ -74,7 +74,7 @@ importers:
         version: 7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1)
       vite-plugin-solid:
         specifier: ^2.11.10
-        version: 2.11.10(solid-js@1.9.18)(supports-color@7.2.0)(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1))
+        version: 2.11.10(solid-js@1.9.20)(supports-color@7.2.0)(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1))
       vitest:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@25.2.3)(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1))
@@ -697,11 +697,11 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7
 
-  '@tanstack/query-core@5.105.3':
-    resolution: {integrity: sha512-v1rbNy7MB/4Akth7CQH+CerV13K7Ok9hAusEsfz4sCjDdu3/kOSJPoWfoB+YjdEX1eBFBWKNAGE5nqZCgdlHDw==}
+  '@tanstack/query-core@5.108.4':
+    resolution: {integrity: sha512-2Ks5dlLWz4eXJrthOyG0qW3SLt3xx0RrQmAmN0rnmogiaaOYuWiAe6HAm9KE2b2v8nig+vraNz8fsfZ6fF6zFg==}
 
-  '@tanstack/solid-query@5.105.3':
-    resolution: {integrity: sha512-YgR/F5DdHLOTP3L6mkJv0J5ON/NxAO7dKHqrayjZFNj4uq4WyrcfzjOlIprhSVUixCuy8apRVhCg+Ic3exphZQ==}
+  '@tanstack/solid-query@5.108.4':
+    resolution: {integrity: sha512-aIF8EpZ5Kdc96pONnv7/T8CDQh9y8ancRYFrheXi/vX7rvlZ2Q1JlCDz1L0fQuw/aQ46m6KUSJ3HY55Q2GhgZg==}
     peerDependencies:
       solid-js: ^1.6.0
 
@@ -1802,8 +1802,8 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
-  solid-js@1.9.18:
-    resolution: {integrity: sha512-CHGO5YFk6Y9m/1YSxVtKnXfrW7JD3Tmof8HmR4z6TmCPsS8efo8LnzIR8CQh3cUvffqYm6DWyBFfk8dQw1CNQQ==}
+  solid-js@1.9.20:
+    resolution: {integrity: sha512-7zEbPxRU5/hHX8O/rYtQ34p/wq44w09gv0u4+myOW5Ode8unKhoG5FbcGlqRXKqqDuDW9yOJ1OXoHgUUl/1f3Q==}
 
   solid-refresh@0.6.3:
     resolution: {integrity: sha512-F3aPsX6hVw9ttm5LYlth8Q15x6MlI/J3Dn+o3EQyRTtTxidepSTwAYdozt01/YA+7ObcciagGEyXIopGZzQtbA==}
@@ -2363,10 +2363,10 @@ snapshots:
     dependencies:
       nanostores: 1.5.5
 
-  '@nanostores/solid@1.1.1(nanostores@1.5.5)(solid-js@1.9.18)':
+  '@nanostores/solid@1.1.1(nanostores@1.5.5)(solid-js@1.9.20)':
     dependencies:
       nanostores: 1.5.5
-      solid-js: 1.9.18
+      solid-js: 1.9.20
 
   '@rollup/rollup-android-arm-eabi@4.60.2':
     optional: true
@@ -2443,9 +2443,9 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
 
-  '@solidjs/router@0.15.4(solid-js@1.9.18)':
+  '@solidjs/router@0.15.4(solid-js@1.9.20)':
     dependencies:
-      solid-js: 1.9.18
+      solid-js: 1.9.20
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -2517,12 +2517,12 @@ snapshots:
       tailwindcss: 4.2.0
       vite: 7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1)
 
-  '@tanstack/query-core@5.105.3': {}
+  '@tanstack/query-core@5.108.4': {}
 
-  '@tanstack/solid-query@5.105.3(solid-js@1.9.18)':
+  '@tanstack/solid-query@5.108.4(solid-js@1.9.20)':
     dependencies:
-      '@tanstack/query-core': 5.105.3
-      solid-js: 1.9.18
+      '@tanstack/query-core': 5.108.4
+      solid-js: 1.9.20
 
   '@types/babel__core@7.20.5':
     dependencies:
@@ -2778,12 +2778,12 @@ snapshots:
       html-entities: 2.3.3
       parse5: 7.3.0
 
-  babel-preset-solid@1.9.10(@babel/core@7.29.0(supports-color@7.2.0))(solid-js@1.9.18):
+  babel-preset-solid@1.9.10(@babel/core@7.29.0(supports-color@7.2.0))(solid-js@1.9.20):
     dependencies:
       '@babel/core': 7.29.0(supports-color@7.2.0)
       babel-plugin-jsx-dom-expressions: 0.40.5(@babel/core@7.29.0(supports-color@7.2.0))
     optionalDependencies:
-      solid-js: 1.9.18
+      solid-js: 1.9.20
 
   balanced-match@1.0.2: {}
 
@@ -3747,18 +3747,18 @@ snapshots:
 
   siginfo@2.0.0: {}
 
-  solid-js@1.9.18:
+  solid-js@1.9.20:
     dependencies:
       csstype: 3.2.3
       seroval: 1.6.12
       seroval-plugins: 1.6.12(seroval@1.6.12)
 
-  solid-refresh@0.6.3(solid-js@1.9.18)(supports-color@7.2.0):
+  solid-refresh@0.6.3(solid-js@1.9.20)(supports-color@7.2.0):
     dependencies:
       '@babel/generator': 7.29.1
       '@babel/helper-module-imports': 7.28.6(supports-color@7.2.0)
       '@babel/types': 7.29.0
-      solid-js: 1.9.18
+      solid-js: 1.9.20
     transitivePeerDependencies:
       - supports-color
 
@@ -3900,14 +3900,14 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite-plugin-solid@2.11.10(solid-js@1.9.18)(supports-color@7.2.0)(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1)):
+  vite-plugin-solid@2.11.10(solid-js@1.9.20)(supports-color@7.2.0)(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1)):
     dependencies:
       '@babel/core': 7.29.0(supports-color@7.2.0)
       '@types/babel__core': 7.20.5
-      babel-preset-solid: 1.9.10(@babel/core@7.29.0(supports-color@7.2.0))(solid-js@1.9.18)
+      babel-preset-solid: 1.9.10(@babel/core@7.29.0(supports-color@7.2.0))(solid-js@1.9.20)
       merge-anything: 5.1.7
-      solid-js: 1.9.18
-      solid-refresh: 0.6.3(solid-js@1.9.18)(supports-color@7.2.0)
+      solid-js: 1.9.20
+      solid-refresh: 0.6.3(solid-js@1.9.20)(supports-color@7.2.0)
       vite: 7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1)
       vitefu: 1.1.1(vite@7.3.7(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.31.1))
     transitivePeerDependencies:
