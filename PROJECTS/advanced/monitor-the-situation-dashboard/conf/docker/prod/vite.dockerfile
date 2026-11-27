@@ -1,7 +1,7 @@
 # ©AngelaMos | 2026
 # vite.dockerfile
 
-FROM node:25-alpine AS build
+FROM node:26-alpine AS build
 
 RUN corepack enable && corepack prepare pnpm@10.29.1 --activate
 
