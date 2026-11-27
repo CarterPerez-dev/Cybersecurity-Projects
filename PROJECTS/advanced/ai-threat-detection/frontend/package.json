@@ -28,13 +28,13 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.13",
-    "@tanstack/react-query-devtools": "^5.105.3",
+    "@biomejs/biome": "^2.6.9",
+    "@tanstack/react-query-devtools": "^5.108.4",
     "@types/node": "^25.1.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.1.2",
-    "sass": "^1.97.3",
+    "sass": "^1.108.2",
     "stylelint": "^17.0.0",
     "stylelint-config-prettier-scss": "^1.0.0",
     "stylelint-config-standard-scss": "^17.0.0",
